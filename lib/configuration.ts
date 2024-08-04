@@ -2,9 +2,9 @@ const production = process.env.NODE_ENV === "production";
 
 const configuration = {
   site: {
-    name: "Quiz.Win",
+    name: "Eco3D.shop",
     description:
-      "Play, Learn, Win! Create and complete gamified quizzes at Quiz.Win",
+      "Discover eco-friendly 3D printed products made with biodegradable PHA at Eco3D.shop",
     siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
     twitterHandle: "",
     instagramHandle: "",

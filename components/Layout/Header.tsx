@@ -24,19 +24,29 @@ const Header = () => {
           >
             <Image
               src="/images/logo.png"
-              alt="Quiz.Win logo"
-              width={738}
-              height={738}
+              alt="Eco3d.shop logo"
+              width={640}
+              height={508}
               className="w-7"
             />
-            <h1
-              className={cn(
-                "text-gray-100 text-2xl tracking-wider font-black mt-1",
-                comfortaa.className
-              )}
-            >
-              Quiz.Win
-            </h1>
+            <div className="relative">
+              <h1
+                className={cn(
+                  "absolute inset-0 translate-x-1 translate-y-1 text-gray-200 dark:text-gray-800 text-2xl tracking-wider font-black mt-1 -z-10",
+                  comfortaa.className
+                )}
+              >
+                Eco3D.shop
+              </h1>
+              <h1
+                className={cn(
+                  "dark:text-gray-100 text-2xl tracking-wider font-black mt-1 ",
+                  comfortaa.className
+                )}
+              >
+                Eco3D.shop
+              </h1>
+            </div>
           </Link>
           <div className="flex items-center gap-3 flex-grow justify-end relative overflow-hidden">
             <div className="absolute inset-0">

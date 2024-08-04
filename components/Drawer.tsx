@@ -190,9 +190,9 @@ export function Drawer({
             >
               <Image
                 src="/images/logo.png"
-                alt="Quiz.Win logo"
-                width={738}
-                height={738}
+                alt="Eco3D.shop logo"
+                width={640}
+                height={508}
                 className="w-7"
               />
               <h1
@@ -201,7 +201,7 @@ export function Drawer({
                   comfortaa.className
                 )}
               >
-                Quiz.Win
+                Eco3D.shop
               </h1>
             </Link>
             <div className="flex items-center gap-2 -mr-2">

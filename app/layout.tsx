@@ -8,20 +8,21 @@ import { cn } from "@/lib/utils";
 import Header from "@/components/Layout/Header";
 
 export const metadata: Metadata = {
-  title: "Quiz.Win",
+  title: "Eco3D.shop",
   description:
-    "Play, Learn, Win! Create and complete gamified quizzes at Quiz.Win",
+    "Discover eco-friendly 3D printed products made with biodegradable PHA at Eco3D.shop",
   authors: { name: "Aaron Gazzola" },
-  keywords: "quiz, gamified learning, play, learn, win, education, games",
+  keywords:
+    "3D printing, eco-friendly, biodegradable, PHA, sustainable products",
   robots: "index, follow",
   openGraph: {
-    title: "Quiz.Win",
+    title: "Eco3D.shop",
     description:
-      "Play, Learn, Win! Create and complete gamified quizzes at Quiz.Win",
+      "Explore sustainable 3D printed products made with biodegradable PHA at Eco3D.shop",
     type: "website",
-    url: "https://quiz.win",
-    siteName: "Quiz.Win",
-    images: "https://quiz.win/images/logo.png",
+    url: "https://eco3d.shop",
+    siteName: "Eco3D.shop",
+    images: "https://eco3d.shop/images/logo.png",
     locale: "en_US",
   },
 };
