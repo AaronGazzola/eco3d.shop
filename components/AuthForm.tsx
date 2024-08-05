@@ -191,7 +191,7 @@ const AuthForm = ({ formType: formTypeProp }: { formType?: AuthFormType }) => {
     <main className="flex flex-col items-center flex-grow justify-center py-10 sm:py-16 ">
       <Link href="/">
         <Image
-          alt="Eco3D.shop logo"
+          alt="Eco3D logo"
           height={640}
           width={508}
           src="/images/logo.png"

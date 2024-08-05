@@ -2,9 +2,9 @@ const production = process.env.NODE_ENV === "production";
 
 const configuration = {
   site: {
-    name: "Eco3D.shop",
+    name: "Eco3D",
     description:
-      "Discover eco-friendly 3D printed products made with biodegradable PHA at Eco3D.shop",
+      "Discover eco-friendly 3D printed products made with biodegradable PHA at Eco3D",
     siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
     twitterHandle: "",
     instagramHandle: "",

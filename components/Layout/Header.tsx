@@ -8,6 +8,7 @@ import { Drawer } from "@/components/Drawer";
 import { Direction } from "@/types/util.types";
 import { Gem } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import LogoBackground from "@/components/svg/LogoBackground";
 
 const Header = () => {
   return (
@@ -22,13 +23,18 @@ const Header = () => {
             href={configuration.paths.appHome}
             className="flex items-center gap-2 sm:gap-4 px-4"
           >
-            <Image
-              src="/images/logo.png"
-              alt="Eco3d.shop logo"
-              width={640}
-              height={508}
-              className="w-7"
-            />
+            <div className="relative">
+              <div className="hidden dark:block absolute inset-0 -z-10 scale-y-[1.03]">
+                <LogoBackground className="fill-white stroke-white" />
+              </div>
+              <Image
+                src="/images/logo.png"
+                alt="Eco3d logo"
+                width={640}
+                height={508}
+                className="w-14 z-20"
+              />
+            </div>
             <div className="relative">
               <h1
                 className={cn(
@@ -36,7 +42,7 @@ const Header = () => {
                   comfortaa.className
                 )}
               >
-                Eco3D.shop
+                Eco3D
               </h1>
               <h1
                 className={cn(
@@ -44,7 +50,7 @@ const Header = () => {
                   comfortaa.className
                 )}
               >
-                Eco3D.shop
+                Eco3D
               </h1>
             </div>
           </Link>

@@ -8,20 +8,20 @@ import { cn } from "@/lib/utils";
 import Header from "@/components/Layout/Header";
 
 export const metadata: Metadata = {
-  title: "Eco3D.shop",
+  title: "Eco3D",
   description:
-    "Discover eco-friendly 3D printed products made with biodegradable PHA at Eco3D.shop",
+    "Discover eco-friendly 3D printed products made with biodegradable PHA at Eco3D",
   authors: { name: "Aaron Gazzola" },
   keywords:
     "3D printing, eco-friendly, biodegradable, PHA, sustainable products",
   robots: "index, follow",
   openGraph: {
-    title: "Eco3D.shop",
+    title: "Eco3D",
     description:
-      "Explore sustainable 3D printed products made with biodegradable PHA at Eco3D.shop",
+      "Explore sustainable 3D printed products made with biodegradable PHA at Eco3D",
     type: "website",
     url: "https://eco3d.shop",
-    siteName: "Eco3D.shop",
+    siteName: "Eco3D",
     images: "https://eco3d.shop/images/logo.png",
     locale: "en_US",
   },

@@ -190,18 +190,18 @@ export function Drawer({
             >
               <Image
                 src="/images/logo.png"
-                alt="Eco3D.shop logo"
+                alt="Eco3D logo"
                 width={640}
                 height={508}
                 className="w-7"
               />
               <h1
                 className={cn(
-                  "text-gray-100 text-2xl tracking-wider font-black",
+                  "dark:text-gray-100 text-2xl tracking-wider font-black",
                   comfortaa.className
                 )}
               >
-                Eco3D.shop
+                Eco3D
               </h1>
             </Link>
             <div className="flex items-center gap-2 -mr-2">
