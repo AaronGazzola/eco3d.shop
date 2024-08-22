@@ -10,8 +10,6 @@ import LogoBackground from "@/components/svg/LogoBackground";
 import Image from "next/image";
 import { comfortaa } from "@/styles/fonts";
 
-// comment
-
 export const metadata: Metadata = {
   title: "Eco3D",
   description:
