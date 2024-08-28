@@ -4,7 +4,7 @@ import { comfortaa } from "@/styles/fonts";
 import { cn } from "@/lib/utils";
 import configuration from "@/lib/configuration";
 import Link from "next/link";
-import { Drawer } from "@/components/Drawer";
+import { Drawer } from "@/components/Layout/Drawer";
 import { Direction } from "@/types/util.types";
 import { Gem } from "lucide-react";
 import { Button } from "@/components/ui/button";
