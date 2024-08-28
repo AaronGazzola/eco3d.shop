@@ -1,43 +1,15 @@
 "use client";
 
-import { Check, Moon, Sun } from "lucide-react";
+import { Moon, ShoppingBasket, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { Switch } from "@/components/ui/switch";
-import { useAuth } from "@/providers/AuthClientProvider";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import useSupabase from "@/hooks/useSupabase";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 
 import { AuthFormType } from "@/types/auth.types";
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
-  SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useState } from "react";
@@ -46,43 +18,22 @@ import Image from "next/image";
 import configuration from "@/lib/configuration";
 import { comfortaa } from "@/styles/fonts";
 import { cn } from "@/lib/utils";
-import {
-  ChevronRight,
-  Menu,
-  Palette,
-  PanelRightClose,
-  Settings,
-  Settings2,
-  SquareChevronRight,
-  X,
-} from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-} from "@radix-ui/react-dropdown-menu";
-import {
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
+import { ChevronRight } from "lucide-react";
 import { Direction } from "@/types/util.types";
-const { SignIn, SignUp, ForgotPassword, ResetPassword } = AuthFormType;
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 
 export function Drawer({
   side = Direction.Left,
 }: {
   side?: Direction.Left | Direction.Right;
 }) {
-  const { setTheme, theme, resolvedTheme } = useTheme();
-  const [themeMenuIsOpen, setThemeMenuIsOpen] = useState(false);
+  const { setTheme, resolvedTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
 
   const onSubmit = async () => {};
 
-  const onThemeMenuOpenChange = (open: boolean) => {
-    setThemeMenuIsOpen(open);
+  const toggleTheme = () => {
+    setTheme(resolvedTheme === "dark" ? "light" : "dark");
   };
 
   return (
@@ -93,30 +44,24 @@ export function Drawer({
       <SheetTrigger asChild>
         <Button
           variant="ghost"
-          className="p-4 h-12 rounded-tr-none hover:bg-gray-500/50 px-2 sm:px-4"
+          className="p-4 h-12 rounded-tr-none px-2 sm:px-4 relative"
         >
-          Cart
+          <ShoppingBasket className="w-8 h-8" />
+          <Badge className="absolute right-1 bottom-0 px-1.5 py-px bg-green-700">
+            <span className="font-bold text-sm">20</span>
+          </Badge>
         </Button>
       </SheetTrigger>
       <SheetContent
         side={side}
         showCloseButton={false}
-        className="!w-full !max-w-md gap-6 flex flex-col border-l border-gray-600 p-2"
+        className="!w-full !max-w-md gap-6 flex flex-col border-l border-gray-600 p-0"
       >
-        <SheetHeader className="m-0 p-0">
-          <div className="w-full flex justify-between items-center ">
-            <Button
-              value="icon"
-              size="sm"
-              variant="outline"
-              className="border-none dark:text-gray-400 dark:hover:text-white border border-white outline-none"
-              onClick={() => setIsOpen(false)}
-            >
-              <X className="w-6 h-6" />
-            </Button>
+        <SheetHeader>
+          <div className="w-full flex justify-between items-center p-0.5 ">
             <Link
               href={configuration.paths.appHome}
-              className="flex items-center gap-4 "
+              className="flex items-center gap-4 ml-3"
               onClick={() => setIsOpen(false)}
             >
               <Image
@@ -135,57 +80,33 @@ export function Drawer({
                 Eco3D
               </h1>
             </Link>
-            <DropdownMenu
-              open={themeMenuIsOpen}
-              onOpenChange={onThemeMenuOpenChange}
-            >
-              <DropdownMenuTrigger>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "flex justify-center items-center dark:text-gray-400 dark:hover:text-white outline-none",
-                    themeMenuIsOpen && "dark:text-white"
-                  )}
-                >
-                  <Sun className="h-6 w-6 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                  <Moon className="absolute h-6 w-6 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 " />
-                  <span className="sr-only">Toggle theme</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  className="cursor-pointer"
-                  onClick={() => setTheme("light")}
-                >
-                  <div className="flex items-center gap-2">
-                    Light
-                    {theme === "light" && <Check className="w-3" />}
-                  </div>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="cursor-pointer"
-                  onClick={() => setTheme("dark")}
-                >
-                  <div className="flex items-center gap-2">
-                    Dark
-                    {theme === "dark" && <Check className="w-3" />}
-                  </div>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="cursor-pointer"
-                  onClick={() => setTheme("system")}
-                >
-                  <div className="flex items-center gap-2">
-                    System
-                    {theme === "system" && <Check className="w-3" />}
-                  </div>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleTheme}
+                className={cn(
+                  "flex justify-center items-center text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white outline-none p-2"
+                )}
+              >
+                <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 " />
+                <span className="sr-only">Toggle theme</span>
+              </Button>
+
+              <Button
+                value="icon"
+                size="sm"
+                variant="outline"
+                className="border-none dark:text-gray-400 dark:hover:text-white border border-white outline-none text-gray-600 hover:text-black p-4 h-12 rounded-tr-none px-2 sm:px-4"
+                onClick={() => setIsOpen(false)}
+              >
+                <ChevronRight className="w-8 h-8" />
+              </Button>
+            </div>
           </div>
         </SheetHeader>
-        <SheetTitle className="">Your cart</SheetTitle>
+        {/* <SheetTitle className="">Your cart</SheetTitle> */}
       </SheetContent>
     </Sheet>
   );
