@@ -24,7 +24,7 @@ const Header = () => {
           >
             <div className="relative">
               <div className="hidden dark:block absolute inset-0 -z-10 scale-y-[1.03]">
-                <LogoBackground className="fill-white stroke-white" />
+                <LogoBackground className="fill-gray-300 stroke-white" />
               </div>
               <Image
                 src="/images/logo.png"

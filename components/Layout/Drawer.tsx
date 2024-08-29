@@ -5,7 +5,6 @@ import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
 
-import { AuthFormType } from "@/types/auth.types";
 import {
   Sheet,
   SheetContent,
@@ -21,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 import { Direction } from "@/types/util.types";
 import { Badge } from "@/components/ui/badge";
+import LogoBackground from "@/components/svg/LogoBackground";
 
 export function Drawer({
   side = Direction.Left,
@@ -47,7 +47,7 @@ export function Drawer({
           className="p-4 h-12 rounded-tr-none px-2 sm:px-4 relative"
         >
           <ShoppingBasket className="w-8 h-8" />
-          <Badge className="absolute right-1 bottom-0 px-1.5 py-px bg-green-700">
+          <Badge className="absolute right-1 bottom-0 px-1.5 py-px bg-green-700 hover:bg-green-700">
             <span className="font-bold text-sm">20</span>
           </Badge>
         </Button>
@@ -58,19 +58,24 @@ export function Drawer({
         className="!w-full !max-w-md gap-6 flex flex-col border-l border-gray-600 p-0"
       >
         <SheetHeader>
-          <div className="w-full flex justify-between items-center p-0.5 ">
+          <div className="w-full flex justify-between items-center p-0.5">
             <Link
               href={configuration.paths.appHome}
               className="flex items-center gap-4 ml-3"
               onClick={() => setIsOpen(false)}
             >
-              <Image
-                src="/images/logo.png"
-                alt="Eco3D logo"
-                width={640}
-                height={508}
-                className="w-7 mb-0.5"
-              />
+              <div className="relative">
+                <div className="hidden dark:block absolute inset-0 -z-10 scale-y-[1.03]">
+                  <LogoBackground className="fill-gray-300 stroke-white" />
+                </div>
+                <Image
+                  src="/images/logo.png"
+                  alt="Eco3D logo"
+                  width={640}
+                  height={508}
+                  className="w-9 mb-1"
+                />
+              </div>
               <h1
                 className={cn(
                   "dark:text-gray-100 text-2xl tracking-wider font-black",
@@ -80,6 +85,7 @@ export function Drawer({
                 Eco3D
               </h1>
             </Link>
+
             <div className="flex items-center gap-3">
               <Button
                 variant="ghost"
