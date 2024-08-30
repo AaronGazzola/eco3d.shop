@@ -46,9 +46,9 @@ export function Drawer({
           variant="ghost"
           className="p-4 h-12 rounded-tr-none px-2 sm:px-4 relative"
         >
-          <ShoppingBasket className="w-8 h-8" />
+          <ShoppingBasket className="w-8 h-8 mb-0.5" />
           <Badge className="absolute right-1 bottom-0 px-1.5 py-px bg-green-700 hover:bg-green-700 text-white">
-            <span className="font-bold text-sm">20</span>
+            <span className="font-bold text-sm">0</span>
           </Badge>
         </Button>
       </SheetTrigger>

@@ -9,9 +9,9 @@ const FreeShippingProgress = () => {
         <div className="flex items-center gap-3 flex-grow justify-end sm:pr-4">
           <Button
             variant="ghost"
-            className="w-full flex items-center gap-1.5 sm:gap-3 flex-grow justify-start h-12 pl-2 sm:px-4 max-w-[260px] sm:max-w-[300px]"
+            className="w-full flex items-center gap-1.5 sm:gap-3 flex-grow justify-start h-12 pl-5 sm:px-4 max-w-[260px] sm:max-w-[300px]"
           >
-            <div className="relative h-full flex items-start pr-2 overflow-visible ">
+            <div className="relative h-full flex items-start pr-2 overflow-visible mb-0.5">
               <span className=" relative text-lg pr-6 font-bold text-green-700 dark:text-green-600">
                 <span className="absolute -top-0.5 -left-[9px] text-sm font-semibold">
                   $
