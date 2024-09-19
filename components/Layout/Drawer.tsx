@@ -21,6 +21,7 @@ import { ChevronRight } from "lucide-react";
 import { Direction } from "@/types/util.types";
 import { Badge } from "@/components/ui/badge";
 import LogoBackground from "@/components/svg/LogoBackground";
+import { Cart } from "@/components/Cart/Cart";
 
 export function Drawer({
   side = Direction.Left,
@@ -112,7 +113,7 @@ export function Drawer({
             </div>
           </div>
         </SheetHeader>
-        {/* <SheetTitle className="">Your cart</SheetTitle> */}
+        <Cart />
       </SheetContent>
     </Sheet>
   );

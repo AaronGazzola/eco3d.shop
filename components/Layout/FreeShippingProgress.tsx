@@ -16,7 +16,7 @@ const FreeShippingProgress = () => {
                 <span className="absolute -top-0.5 -left-[9px] text-sm font-semibold">
                   $
                 </span>
-                25
+                50
               </span>
               <div className="absolute -bottom-0 -right-0 w-7 h-7  flex items-end justify-end">
                 <div className="border-b-2 absolute w-6 h-1 border-gray-400 -rotate-45 top-1/2 left-1/2 translate-x-[calc(-50%-12px)] translate-y-[calc(-50%-0px)] "></div>
@@ -24,7 +24,7 @@ const FreeShippingProgress = () => {
                   <span className="absolute -top-1 -left-2 text-sm font-medium">
                     $
                   </span>
-                  25
+                  50
                 </span>
               </div>
             </div>

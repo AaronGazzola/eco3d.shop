@@ -12,3 +12,10 @@ export enum Table {
   Profiles = "profiles",
   Sessions = "sessions",
 }
+
+export interface CartItem {
+  id: number;
+  name: string;
+  price: number;
+  quantity: number;
+}
