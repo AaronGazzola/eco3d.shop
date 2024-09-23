@@ -1,11 +1,13 @@
 export enum Notifications {
   SignInSuccess = "Sign in successful!",
   SignUpSuccess = "Sign up successful!",
+  SignOutSuccess = "Sign out successful!",
   Success = "Success!",
   Error = "Error!",
   ResetPasswordSuccess = "Password reset!",
   ForgotPasswordSuccess = "Password reset link sent!",
   GetSessionError = "Error getting session.",
+  GetUserError = "Error getting user.",
   AccountVerified = "Account verified!",
   Welcome = "Welcome to Eco3D!",
 }
