@@ -13,7 +13,6 @@ import { Check, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
-import { useAuth } from "@/providers/AuthClientProvider";
 import Link from "next/link";
 import {
   AlertDialog,
@@ -27,9 +26,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import useSupabase from "@/hooks/useSupabase";
+import { useGetUser } from "@/hooks/useUserHooks";
 
 const UserMenu = () => {
-  const { user } = useAuth();
+  const { data: user } = useGetUser();
   const supabase = useSupabase();
   const { setTheme, theme, resolvedTheme } = useTheme();
   const [userMenuIsOpen, setUserMenuIsOpen] = useState(false);

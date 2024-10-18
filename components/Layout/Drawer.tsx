@@ -37,9 +37,10 @@ import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useAuth } from "@/providers/AuthClientProvider";
 import ActionButton from "@/components/Layout/ActionButton";
 import { maskEmail } from "@/lib/util/string.util";
+import { useGetUser } from "@/hooks/useUserHooks";
+import useSupabase from "@/hooks/useSupabase";
 
 // Define schema for form validation
 const formSchema = z.object({
@@ -53,7 +54,12 @@ export function Drawer({
 }) {
   const { setTheme, resolvedTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
-  const { user, signOut, signInWithMagicLink, isPending } = useAuth();
+  const { data: user, isPending } = useGetUser();
+
+  const supabase = useSupabase();
+  const signOut = () => supabase.auth.signOut();
+  const signInWithMagicLink = (email: string) =>
+    supabase.auth.signInWithOtp({ email });
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === "dark" ? "light" : "dark");

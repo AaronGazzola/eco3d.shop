@@ -1,10 +1,10 @@
-import AuthServerProvider from "@/providers/AuthServerProvider";
 import NotificationProvider from "@/providers/NotificationProvider";
 import ProgressProvider from "@/providers/ProgressProvider";
-import QueryProvider from "@/providers/QueryProvider";
+import QueryProvider from "@/providers/ServerQueryProvider";
 import SuspendedSearchParamsProvider from "@/providers/SearchParamsProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { ReactNode } from "react";
+import AuthProvider from "@/providers/AuthProvider";
 
 const Providers = ({ children }: { children: ReactNode }) => {
   return (
@@ -18,7 +18,7 @@ const Providers = ({ children }: { children: ReactNode }) => {
         <NotificationProvider>
           <SuspendedSearchParamsProvider>
             <QueryProvider>
-              <AuthServerProvider>{children}</AuthServerProvider>
+              <AuthProvider>{children}</AuthProvider>
             </QueryProvider>
           </SuspendedSearchParamsProvider>
         </NotificationProvider>

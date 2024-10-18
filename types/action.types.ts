@@ -1,5 +1,4 @@
 import { Database } from "@/types/database.types";
-import { ProfileRow } from "@/types/db.types";
 import { Notification } from "@/types/notification.types";
 import { Session, User } from "@supabase/supabase-js";
 
@@ -20,11 +19,6 @@ export interface AuthActionValues {
   email: string;
   password: string;
 }
-
-export type SessionResponse = ActionResponse<{
-  profile: ProfileRow;
-  session: Session;
-}>;
 
 export interface ForgotPasswordFormValues {
   email: string;

@@ -39,7 +39,7 @@ import { cn } from "@/lib/utils";
 import configuration from "@/lib/configuration";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/providers/AuthClientProvider";
+import { useQueryClient } from "@tanstack/react-query";
 
 const { SignIn, SignUp, ForgotPassword, ResetPassword } = AuthFormType;
 
@@ -84,7 +84,7 @@ const getSchema = (formType: AuthFormType) => {
 
 const AuthForm = ({ formType: formTypeProp }: { formType?: AuthFormType }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const { setUser } = useAuth();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParamsContext();
   const formTypeParam = searchParams.searchParams?.get("form");
   const [formType, setFormType] = useState<AuthFormType>(
@@ -173,7 +173,7 @@ const AuthForm = ({ formType: formTypeProp }: { formType?: AuthFormType }) => {
       position: NotificationPosition.TopRight,
     });
     // TODO: show success and email message on sign in
-    if (isSignIn && res?.data) setUser(res.data);
+    if (isSignIn && res?.data) queryClient.setQueryData(["user"], res.data);
     if (isSignIn || isResetPassword) router.push(configuration.paths.appHome);
     if (isSignUp) onChangeForm(SignIn);
     if (isForgotPassword) onChangeForm(SignIn);
