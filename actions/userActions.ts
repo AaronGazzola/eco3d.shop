@@ -89,3 +89,32 @@ export const upsertUserAction = async (user: {
     return getActionResponse({ error });
   }
 };
+
+// Action to sign in with magic link
+export const signInWithMagicLinkAction = async (email: string) => {
+  const supabase = getSupabaseServerActionClient();
+
+  try {
+    const { data, error } = await supabase.auth.signInWithOtp({ email });
+
+    if (error) throw new Error(error.message);
+
+    return getActionResponse({ data });
+  } catch (error) {
+    return getActionResponse({ error });
+  }
+};
+
+// Action to sign out
+export const signOutAction = async () => {
+  const supabase = getSupabaseServerActionClient();
+
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw new Error(error.message);
+
+    return getActionResponse();
+  } catch (error) {
+    return getActionResponse({ error });
+  }
+};

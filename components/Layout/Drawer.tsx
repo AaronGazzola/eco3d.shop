@@ -20,32 +20,7 @@ import { Direction } from "@/types/util.types";
 import { Badge } from "@/components/ui/badge";
 import LogoBackground from "@/components/svg/LogoBackground";
 import { Cart } from "@/components/Cart/Cart";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import ActionButton from "@/components/Layout/ActionButton";
-import { maskEmail } from "@/lib/util/string.util";
-import { useGetUser } from "@/hooks/useUserHooks";
-import useSupabase from "@/hooks/useSupabase";
-
-// Define schema for form validation
-const formSchema = z.object({
-  email: z.string().email({ message: "Invalid email address" }),
-});
+import AuthFormPopover from "@/components/Layout/AuthFormPopover";
 
 export function Drawer({
   side = Direction.Left,
@@ -54,26 +29,9 @@ export function Drawer({
 }) {
   const { setTheme, resolvedTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
-  const { data: user, isPending } = useGetUser();
-
-  const supabase = useSupabase();
-  const signOut = () => supabase.auth.signOut();
-  const signInWithMagicLink = (email: string) =>
-    supabase.auth.signInWithOtp({ email });
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === "dark" ? "light" : "dark");
-  };
-
-  const form = useForm({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      email: "",
-    },
-  });
-
-  const onSubmit = (values: { email: string }) => {
-    signInWithMagicLink(values.email);
   };
 
   return (
@@ -139,66 +97,7 @@ export function Drawer({
                 <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 " />
                 <span className="sr-only">Toggle theme</span>
               </Button>
-              <Popover>
-                <PopoverTrigger>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn(
-                      "flex justify-center items-center text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white outline-none p-2"
-                    )}
-                  >
-                    <CircleUser className="" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="border border-gray-500">
-                  {user ? (
-                    <div className="flex flex-col items-center">
-                      {user.email && (
-                        <h2 className="">{maskEmail(user.email)}</h2>
-                      )}
-                      <ActionButton
-                        onClick={signOut}
-                        isPending={isPending}
-                        className="w-full"
-                      >
-                        Sign out
-                      </ActionButton>
-                    </div>
-                  ) : (
-                    <Form {...form}>
-                      <form
-                        onSubmit={form.handleSubmit(onSubmit)}
-                        className="space-y-4"
-                      >
-                        <FormField
-                          control={form.control}
-                          name="email"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel> Sign in with magic link:</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="Enter your email"
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <ActionButton
-                          type="submit"
-                          className="w-full"
-                          isPending={isPending}
-                        >
-                          Submit
-                        </ActionButton>
-                      </form>
-                    </Form>
-                  )}
-                </PopoverContent>
-              </Popover>
+              <AuthFormPopover />
 
               <Button
                 value="icon"

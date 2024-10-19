@@ -5,6 +5,8 @@ import {
   getUserAction,
   updateUserAction,
   deleteUserAction,
+  signOutAction,
+  signInWithMagicLinkAction,
 } from "@/actions/userActions";
 
 // Hook to fetch user data (auth.users)
@@ -41,6 +43,35 @@ export const useDeleteUser = () => {
   return useMutation({
     mutationFn: async (userId: string) => {
       const { data } = await deleteUserAction(userId);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+    },
+  });
+};
+// Hook to sign in with magic link
+export const useSignInWithMagicLink = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (email: string) => {
+      const data = await signInWithMagicLinkAction(email);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+    },
+  });
+};
+
+// Hook to sign out
+export const useSignOut = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      const data = await signOutAction();
       return data;
     },
     onSuccess: () => {
