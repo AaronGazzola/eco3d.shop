@@ -95,7 +95,7 @@ const AuthFormPopover = () => {
                 className="w-full"
                 isPending={isPending}
               >
-                Submit
+                Send link
               </ActionButton>
             </form>
           </Form>

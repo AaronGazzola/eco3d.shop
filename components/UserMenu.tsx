@@ -26,7 +26,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import useSupabase from "@/hooks/useSupabase";
-import { useGetUser } from "@/hooks/useUserHooks";
+import { useGetUser } from "@/hooks/userHooks";
 
 const UserMenu = () => {
   const { data: user } = useGetUser();
