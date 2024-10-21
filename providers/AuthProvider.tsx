@@ -12,10 +12,6 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
       queryClient.setQueryData(["user"], session?.user ?? null);
     });
   }, [queryClient, supabase]);
-  console.log(
-    "AuthProvider",
-    queryClient.getQueriesData({ queryKey: ["user"] })
-  );
   return <>{children}</>;
 };
 

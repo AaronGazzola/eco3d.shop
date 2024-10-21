@@ -8,8 +8,15 @@ import {
   signOutAction,
   signInWithMagicLinkAction,
 } from "@/actions/userActions";
+import { useToastQueue } from "@/hooks/useToastQueue";
 
-// Hook to fetch user data (auth.users)
+enum SuccessMessages {
+  SIGN_IN_SUCCESS = "Sign in link sent! Check your email :)",
+  UPDATE_USER_SUCCESS = "User updated successfully",
+  DELETE_USER_SUCCESS = "User deleted successfully",
+  SIGN_OUT_SUCCESS = "Sign out successful",
+}
+
 export const useGetUser = () => {
   return useQuery<User | null, Error>({
     queryKey: ["user"],
@@ -17,13 +24,13 @@ export const useGetUser = () => {
       const { data } = await getUserAction();
       return data?.user || null;
     },
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
   });
 };
 
-// Hook to update user data (auth.users)
 export const useUpdateUser = () => {
   const queryClient = useQueryClient();
+  const { toast } = useToastQueue();
 
   return useMutation({
     mutationFn: async (user: Partial<User>) => {
@@ -32,13 +39,21 @@ export const useUpdateUser = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user"] });
+      toast({ title: SuccessMessages.UPDATE_USER_SUCCESS });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: error.message,
+        description: "Failed to update user",
+        open: true,
+      });
     },
   });
 };
 
-// Hook to delete user (auth.users)
 export const useDeleteUser = () => {
   const queryClient = useQueryClient();
+  const { toast } = useToastQueue();
 
   return useMutation({
     mutationFn: async (userId: string) => {
@@ -47,12 +62,21 @@ export const useDeleteUser = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user"] });
+      toast({ title: SuccessMessages.DELETE_USER_SUCCESS });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: error.message,
+        description: "Failed to delete user",
+        open: true,
+      });
     },
   });
 };
-// Hook to sign in with magic link
+
 export const useSignInWithMagicLink = () => {
   const queryClient = useQueryClient();
+  const { toast } = useToastQueue();
 
   return useMutation({
     mutationFn: async (email: string) => {
@@ -61,13 +85,22 @@ export const useSignInWithMagicLink = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user"] });
+      toast({ title: SuccessMessages.SIGN_IN_SUCCESS });
+      console.log("test");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: error.message,
+        description: "Failed to sign in",
+        open: true,
+      });
     },
   });
 };
 
-// Hook to sign out
 export const useSignOut = () => {
   const queryClient = useQueryClient();
+  const { toast } = useToastQueue();
 
   return useMutation({
     mutationFn: async () => {
@@ -76,6 +109,14 @@ export const useSignOut = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user"] });
+      toast({ title: SuccessMessages.SIGN_OUT_SUCCESS });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: error.message,
+        description: "Failed to sign out",
+        open: true,
+      });
     },
   });
 };
