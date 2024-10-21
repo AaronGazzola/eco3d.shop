@@ -1,10 +1,10 @@
-import NotificationProvider from "@/providers/NotificationProvider";
 import ProgressProvider from "@/providers/ProgressProvider";
 import QueryProvider from "@/providers/ServerQueryProvider";
 import SuspendedSearchParamsProvider from "@/providers/SearchParamsProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { ReactNode } from "react";
 import AuthProvider from "@/providers/AuthProvider";
+import ZIndexProvider from "@/providers/ZIndexProvider";
 
 const Providers = ({ children }: { children: ReactNode }) => {
   return (
@@ -14,15 +14,15 @@ const Providers = ({ children }: { children: ReactNode }) => {
       enableSystem
       disableTransitionOnChange
     >
-      <ProgressProvider>
-        <NotificationProvider>
+      <ZIndexProvider>
+        <ProgressProvider>
           <SuspendedSearchParamsProvider>
             <QueryProvider>
               <AuthProvider>{children}</AuthProvider>
             </QueryProvider>
           </SuspendedSearchParamsProvider>
-        </NotificationProvider>
-      </ProgressProvider>
+        </ProgressProvider>
+      </ZIndexProvider>
     </ThemeProvider>
   );
 };
