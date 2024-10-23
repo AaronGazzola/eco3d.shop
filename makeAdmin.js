@@ -40,9 +40,8 @@ async function grantAdminStatus(email) {
 
     console.log("Admin role granted successfully");
 
-    const { error: reAuthError } = await supabase.auth.admin.generateLink({
-      type: "magiclink",
-      email: email,
+    const { error: reAuthError } = await supabase.auth.signInWithOtp({
+      email,
     });
 
     if (reAuthError) {

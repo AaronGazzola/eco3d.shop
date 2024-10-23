@@ -86,3 +86,14 @@ AS $$
     RETURN bind_permissions > 0;
   END;
 $$;
+
+-- Create a policy to allow users to select their own roles
+create policy "Allow users to view their own roles" 
+on public.user_roles
+for select 
+to authenticated
+using (user_id = auth.uid());
+
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+
+GRANT SELECT ON public.user_roles TO authenticated;
