@@ -1,4 +1,4 @@
-import configuration from "@/lib/configuration";
+import configuration from "@/configuration";
 import { HttpStatusCode } from "@/types/http.types";
 import { CsrfError, createCsrfProtect } from "@edge-csrf/nextjs";
 import { NextRequest, NextResponse } from "next/server";
@@ -15,17 +15,15 @@ const csrffMiddleware = async (
   request: NextRequest,
   response: NextResponse
 ) => {
-  // set up CSRF protection
   const csrfProtect = createCsrfProtect({
     cookie: {
       secure: configuration.production,
       name: CSRF_SECRET_COOKIE,
     },
-    // ignore CSRF errors for server actions since protection is built-in
+
     ignoreMethods: isServerAction(request)
       ? ["POST"]
-      : // always ignore GET, HEAD, and OPTIONS requests
-        ["GET", "HEAD", "OPTIONS"],
+      : ["GET", "HEAD", "OPTIONS"],
   });
 
   try {

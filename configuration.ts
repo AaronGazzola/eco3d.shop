@@ -23,6 +23,7 @@ const configuration = {
     privacy: "/privacy",
     terms: "/terms",
     faq: "/faq",
+    notFound: "/404",
   },
   production,
 };

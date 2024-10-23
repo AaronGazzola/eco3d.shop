@@ -44,7 +44,7 @@ const AuthFormPopover = () => {
   const isPending = getUserIsPending || signOutIsPending || signInIsPending;
 
   return (
-    <Popover>
+    <Popover modal>
       <PopoverTrigger>
         <ActionButton
           variant="ghost"

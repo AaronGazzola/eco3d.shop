@@ -3,38 +3,57 @@ const { createClient } = require("@supabase/supabase-js");
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const devPhone = process.env.DEV_PHONE_NUMBER;
 
 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
 async function grantAdminStatus(email) {
   try {
-    const { data, error } = await supabase.auth.admin.listUsers();
-    if (error) throw error;
+    // Fetch the user from the Supabase Auth users
+    const { data: usersData, error: listUsersError } =
+      await supabase.auth.admin.listUsers();
+    if (listUsersError) throw listUsersError;
 
-    const users = data.users;
-    const user = users.find((u) => u.email === email);
-    if (!user) {
-      console.error("User not found");
+    const user = usersData.users.find((u) => u.email === email);
+    if (!user) return console.error("User not found");
+
+    // Check if the user already has the admin role in the user_roles table
+    const { data: roles, error: roleCheckError } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin");
+
+    if (roleCheckError)
+      return console.error("Error checking user roles:", roleCheckError);
+
+    if (roles && !!roles.length) return console.log("User is already an admin");
+
+    // Insert the admin role for the user into the user_roles table
+    const { error: roleError } = await supabase
+      .from("user_roles")
+      .insert([{ user_id: user.id, role: "admin" }]);
+
+    if (roleError) {
+      console.error("Error granting admin role:", roleError);
       return;
     }
 
-    const { error: updateError } = await supabase.auth.admin.updateUserById(
-      user.id,
-      {
-        app_metadata: { roles: ["super-admin", "admin"] },
-      }
-    );
-    if (updateError) {
-      console.error("Error updating admin status:", updateError);
+    console.log("Admin role granted successfully");
+
+    const { error: reAuthError } = await supabase.auth.admin.generateLink({
+      type: "magiclink",
+      email: email,
+    });
+
+    if (reAuthError) {
+      console.error("Error forcing JWT update via magic link:", reAuthError);
     } else {
-      console.log("Admin status granted successfully");
+      console.log("Magic link sent to reissue JWT with updated role");
     }
   } catch (error) {
     console.error("Unexpected error:", error);
   }
 }
 
-const phone = process.argv[2];
-
-grantAdminStatus(phone || devPhone);
+const email = process.argv[2];
+grantAdminStatus(email);

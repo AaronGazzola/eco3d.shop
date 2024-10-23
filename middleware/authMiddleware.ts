@@ -1,9 +1,9 @@
 import createMiddlewareClient from "@/clients/middleware-client";
-import configuration from "@/lib/configuration";
+import configuration from "@/configuration";
+
 import { NextRequest, NextResponse } from "next/server";
 
 async function authMiddleware(request: NextRequest, response: NextResponse) {
-  // TODO: update paths
   const authPaths = [configuration.paths.resetPassword];
   const guestPaths = [configuration.paths.auth];
   const pathname = request.nextUrl.pathname;

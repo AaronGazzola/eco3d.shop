@@ -80,7 +80,8 @@ export const useSignInWithMagicLink = () => {
 
   return useMutation({
     mutationFn: async (email: string) => {
-      const data = await signInWithMagicLinkAction(email);
+      const { data, error } = await signInWithMagicLinkAction(email);
+      if (error) throw new Error(error);
       return data;
     },
     onSuccess: () => {

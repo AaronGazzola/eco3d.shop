@@ -2,7 +2,7 @@
 import Image from "next/image";
 import { comfortaa } from "@/styles/fonts";
 import { cn } from "@/lib/utils";
-import configuration from "@/lib/configuration";
+import configuration from "@/configuration";
 import Link from "next/link";
 import { Drawer } from "@/components/Layout/Drawer";
 import { Direction } from "@/types/util.types";

@@ -12,7 +12,7 @@ import {
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import configuration from "@/lib/configuration";
+import configuration from "@/configuration";
 import { comfortaa } from "@/styles/fonts";
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
