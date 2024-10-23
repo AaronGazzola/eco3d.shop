@@ -2,12 +2,12 @@
 import Image from "next/image";
 import { comfortaa } from "@/styles/fonts";
 import { cn } from "@/lib/utils";
-import configuration from "@/configuration";
 import Link from "next/link";
 import { Drawer } from "@/components/Layout/Drawer";
 import { Direction } from "@/types/util.types";
 import LogoBackground from "@/components/svg/LogoBackground";
 import FreeShippingProgress from "@/components/Layout/FreeShippingProgress";
+import configuration from "@/configuration";
 
 const Header = () => {
   return (
