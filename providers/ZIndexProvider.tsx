@@ -9,9 +9,12 @@ import {
 } from "@/components/ui/toast";
 import { useToastQueue } from "@/hooks/useToastQueue";
 import { ReactNode } from "react";
+import { useDialogQueue } from "@/hooks/useDialogQueue";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 export const ZIndexProvider = ({ children }: { children: ReactNode }) => {
-  const { toasts, dismiss } = useToastQueue();
+  const { toasts, dismiss: dismissToast } = useToastQueue();
+  const { dialogs } = useDialogQueue();
 
   return (
     <>
@@ -20,7 +23,7 @@ export const ZIndexProvider = ({ children }: { children: ReactNode }) => {
           <Toast
             key={toast.id}
             open={toast.open}
-            onOpenChange={() => dismiss(toast.id)}
+            onOpenChange={() => dismissToast(toast.id)}
           >
             <div>
               <ToastTitle>{toast.title}</ToastTitle>
@@ -33,6 +36,16 @@ export const ZIndexProvider = ({ children }: { children: ReactNode }) => {
         ))}
         <ToastViewport />
       </ToastProvider>
+
+      {dialogs.map((dialog) => (
+        <Dialog
+          key={dialog.id}
+          open={dialog.open}
+          onOpenChange={(open) => dialog.onOpenChange?.(open)}
+        >
+          <DialogContent>{dialog.component}</DialogContent>
+        </Dialog>
+      ))}
       {children}
     </>
   );

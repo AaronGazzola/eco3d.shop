@@ -10,17 +10,17 @@ async function adminMiddleware(request: NextRequest, response: NextResponse) {
   const supabase = createMiddlewareClient(request, response);
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!session)
+  if (!user)
     return NextResponse.redirect(
       new URL(configuration.paths.notFound, request.url)
     );
   const { data: roles, error } = await supabase
     .from("user_roles")
     .select("role")
-    .eq("user_id", session.user.id)
+    .eq("user_id", user.id)
     .eq("role", "admin");
 
   console.log(roles, error);

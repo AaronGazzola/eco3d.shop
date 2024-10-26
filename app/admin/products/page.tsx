@@ -13,8 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { useDialogQueue } from "@/hooks/useDialogQueue";
 
 // Define Product and Variant types
 interface Variant {
@@ -101,8 +101,37 @@ const AdminProductsPage = () => {
     router.push(`/admin/products/${id}`);
   };
 
+  const { dialog, dismiss } = useDialogQueue();
+
   return (
     <div className="p-4">
+      <button
+        onClick={() =>
+          dialog(
+            <div>
+              <h1 className="text-2xl font-bold mb-4">Create Product</h1>
+              <input
+                type="text"
+                placeholder="Name"
+                className="border rounded-md p-2 mb-2"
+              />
+              <input
+                type="text"
+                placeholder="Description"
+                className="border rounded-md p-2 mb-2"
+              />
+              <button
+                onClick={() => dismiss()}
+                className="border rounded-md p-2 bg-primary text-white"
+              >
+                Create
+              </button>
+            </div>
+          )
+        }
+      >
+        test
+      </button>
       <h1 className="text-2xl font-bold mb-4">Admin Products</h1>
       <div className="rounded-md border">
         <Table>
