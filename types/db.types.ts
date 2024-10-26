@@ -8,7 +8,8 @@ export interface CartItem {
   quantity: number;
 }
 
-export interface initialQueryCache {
-  user?: User | null;
-  profile?: Tables<"profiles"> | null;
+export interface HookOptions<T> {
+  errorMessage?: string;
+  successMessage?: string;
+  initialData?: T | null;
 }

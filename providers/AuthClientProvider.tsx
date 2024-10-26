@@ -1,9 +1,16 @@
 "use client";
 import useSupabase from "@/hooks/useSupabase";
+import { User } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
 import React, { ReactNode, useEffect } from "react";
 
-const AuthProvider = ({ children }: { children: ReactNode }) => {
+const AuthClientProvider = ({
+  children,
+  user,
+}: {
+  children: ReactNode;
+  user?: User | null;
+}) => {
   const supabase = useSupabase();
   const queryClient = useQueryClient();
 
@@ -12,7 +19,8 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
       queryClient.setQueryData(["user"], session?.user ?? null);
     });
   }, [queryClient, supabase]);
+
   return <>{children}</>;
 };
 
-export default AuthProvider;
+export default AuthClientProvider;

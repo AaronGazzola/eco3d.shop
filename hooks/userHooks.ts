@@ -9,6 +9,8 @@ import {
   signInWithMagicLinkAction,
 } from "@/actions/userActions";
 import { useToastQueue } from "@/hooks/useToastQueue";
+import { HookOptions } from "@/types/db.types";
+import { ActionResponse } from "@/types/action.types";
 
 enum SuccessMessages {
   SIGN_IN_SUCCESS = "Sign in link sent! Check your email :)",
@@ -17,7 +19,7 @@ enum SuccessMessages {
   SIGN_OUT_SUCCESS = "Sign out successful",
 }
 
-export const useGetUser = () => {
+export const useGetUser = ({ initialData }: HookOptions<User> = {}) => {
   return useQuery<User | null, Error>({
     queryKey: ["user"],
     queryFn: async () => {
@@ -25,25 +27,42 @@ export const useGetUser = () => {
       return data?.user || null;
     },
     staleTime: 1000 * 60 * 5,
+    initialData,
   });
 };
 
-export const useUpdateUser = () => {
+export const useUpdateUser = ({
+  errorMessage,
+  successMessage,
+}: HookOptions<User> = {}) => {
   const queryClient = useQueryClient();
   const { toast } = useToastQueue();
 
   return useMutation({
-    mutationFn: async (user: Partial<User>) => {
+    mutationFn: async (
+      user: Partial<User>,
+      hookOptions?: HookOptions<User>
+    ) => {
       const { data } = await updateUserAction(user);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables, context, hookOptions?: HookOptions<User>) => {
       queryClient.invalidateQueries({ queryKey: ["user"] });
-      toast({ title: SuccessMessages.UPDATE_USER_SUCCESS });
-    },
-    onError: (error: Error) => {
       toast({
-        title: error.message,
+        title:
+          hookOptions?.successMessage ||
+          successMessage ||
+          SuccessMessages.UPDATE_USER_SUCCESS,
+      });
+    },
+    onError: (
+      error: Error,
+      variables,
+      context,
+      hookOptions?: HookOptions<User>
+    ) => {
+      toast({
+        title: hookOptions?.errorMessage || errorMessage || error.message,
         description: "Failed to update user",
         open: true,
       });
@@ -51,22 +70,35 @@ export const useUpdateUser = () => {
   });
 };
 
-export const useDeleteUser = () => {
+export const useDeleteUser = ({
+  errorMessage,
+  successMessage,
+}: HookOptions<User> = {}) => {
   const queryClient = useQueryClient();
   const { toast } = useToastQueue();
 
   return useMutation({
-    mutationFn: async (userId: string) => {
+    mutationFn: async (userId: string, hookOptions?: HookOptions<User>) => {
       const { data } = await deleteUserAction(userId);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables, context, hookOptions?: HookOptions<User>) => {
       queryClient.invalidateQueries({ queryKey: ["user"] });
-      toast({ title: SuccessMessages.DELETE_USER_SUCCESS });
-    },
-    onError: (error: Error) => {
       toast({
-        title: error.message,
+        title:
+          hookOptions?.successMessage ||
+          successMessage ||
+          SuccessMessages.DELETE_USER_SUCCESS,
+      });
+    },
+    onError: (
+      error: Error,
+      variables,
+      context,
+      hookOptions?: HookOptions<User>
+    ) => {
+      toast({
+        title: hookOptions?.errorMessage || errorMessage || error.message,
         description: "Failed to delete user",
         open: true,
       });
@@ -74,24 +106,36 @@ export const useDeleteUser = () => {
   });
 };
 
-export const useSignInWithMagicLink = () => {
+export const useSignInWithMagicLink = ({
+  errorMessage,
+  successMessage,
+}: HookOptions<User> = {}) => {
   const queryClient = useQueryClient();
   const { toast } = useToastQueue();
 
   return useMutation({
-    mutationFn: async (email: string) => {
+    mutationFn: async (email: string, hookOptions?: HookOptions<User>) => {
       const { data, error } = await signInWithMagicLinkAction(email);
       if (error) throw new Error(error);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables, context, hookOptions?: HookOptions<User>) => {
       queryClient.invalidateQueries({ queryKey: ["user"] });
-      toast({ title: SuccessMessages.SIGN_IN_SUCCESS });
-      console.log("test");
-    },
-    onError: (error: Error) => {
       toast({
-        title: error.message,
+        title:
+          hookOptions?.successMessage ||
+          successMessage ||
+          SuccessMessages.SIGN_IN_SUCCESS,
+      });
+    },
+    onError: (
+      error: Error,
+      variables,
+      context,
+      hookOptions?: HookOptions<User>
+    ) => {
+      toast({
+        title: hookOptions?.errorMessage || errorMessage || error.message,
         description: "Failed to sign in",
         open: true,
       });
@@ -99,25 +143,43 @@ export const useSignInWithMagicLink = () => {
   });
 };
 
-export const useSignOut = () => {
+export const useSignOut = ({
+  errorMessage,
+  successMessage,
+}: HookOptions<User> = {}) => {
   const queryClient = useQueryClient();
   const { toast } = useToastQueue();
 
-  return useMutation({
-    mutationFn: async () => {
+  const hook = useMutation<
+    ActionResponse<null>,
+    Error,
+    HookOptions<User> | undefined
+  >({
+    mutationFn: async (hookOptions?: HookOptions<User>) => {
       const data = await signOutAction();
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables, context) => {
+      const options = variables ?? {};
       queryClient.invalidateQueries({ queryKey: ["user"] });
-      toast({ title: SuccessMessages.SIGN_OUT_SUCCESS });
-    },
-    onError: (error: Error) => {
       toast({
-        title: error.message,
+        title:
+          options.successMessage ||
+          successMessage ||
+          SuccessMessages.SIGN_OUT_SUCCESS,
+      });
+    },
+    onError: (error: Error, variables, context) => {
+      const options = variables ?? {};
+      toast({
+        title: options.errorMessage || errorMessage || error.message,
         description: "Failed to sign out",
         open: true,
       });
     },
   });
+  return {
+    ...hook,
+    mutate: (HookOptions?: HookOptions<User>) => hook.mutate(HookOptions),
+  };
 };
