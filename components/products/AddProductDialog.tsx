@@ -1,6 +1,5 @@
 "use client";
-import React from "react";
-import * as Form from "@radix-ui/react-form";
+import ActionButton from "@/components/layout/ActionButton";
 import {
   DialogContent,
   DialogHeader,
@@ -8,7 +7,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import ActionButton from "@/components/layout/ActionButton";
+
+import * as Form from "@radix-ui/react-form";
 
 const AddProductDialog = () => (
   <DialogContent className="max-h-[95vh] overflow-auto">
