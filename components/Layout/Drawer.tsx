@@ -19,8 +19,8 @@ import { ChevronRight } from "lucide-react";
 import { Direction } from "@/types/util.types";
 import { Badge } from "@/components/ui/badge";
 import LogoBackground from "@/components/svg/LogoBackground";
-import { Cart } from "@/components/Cart/Cart";
-import AuthFormPopover from "@/components/Layout/AuthFormPopover";
+import { Cart } from "@/components/cart/Cart";
+import AuthFormPopover from "@/components/layout/AuthFormPopover";
 
 export function Drawer({
   side = Direction.Left,

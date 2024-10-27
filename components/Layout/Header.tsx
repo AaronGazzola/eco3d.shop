@@ -3,10 +3,10 @@ import Image from "next/image";
 import { comfortaa } from "@/styles/fonts";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { Drawer } from "@/components/Layout/Drawer";
+import { Drawer } from "@/components/layout/Drawer";
 import { Direction } from "@/types/util.types";
 import LogoBackground from "@/components/svg/LogoBackground";
-import FreeShippingProgress from "@/components/Layout/FreeShippingProgress";
+import FreeShippingProgress from "@/components/layout/FreeShippingProgress";
 import configuration from "@/configuration";
 
 const Header = () => {

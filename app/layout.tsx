@@ -2,10 +2,10 @@ import type { Metadata, Viewport } from "next";
 import "@/styles/globals.css";
 
 import Providers from "@/providers/Providers";
-import Footer from "@/components/Layout/Footer";
+import Footer from "@/components/layout/Footer";
 import { poppins } from "@/styles/fonts";
 import { cn } from "@/lib/utils";
-import Header from "@/components/Layout/Header";
+import Header from "@/components/layout/Header";
 
 export const metadata: Metadata = {
   title: "Eco3D",
