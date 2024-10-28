@@ -7,10 +7,12 @@ import {
   deleteUserAction,
   signOutAction,
   signInWithMagicLinkAction,
+  getUserRoleAction,
 } from "@/actions/userActions";
 import { useToastQueue } from "@/hooks/useToastQueue";
 import { HookOptions } from "@/types/db.types";
 import { ActionResponse } from "@/types/action.types";
+import { Tables } from "@/types/database.types";
 
 enum SuccessMessages {
   SIGN_IN_SUCCESS = "Sign in link sent! Check your email :)",
@@ -182,4 +184,24 @@ export const useSignOut = ({
     ...hook,
     mutate: (HookOptions?: HookOptions<User>) => hook.mutate(HookOptions),
   };
+};
+
+export const useGetUserRole = ({
+  initialData,
+}: HookOptions<Tables<"user_roles">[]> = {}) => {
+  return useQuery<Tables<"user_roles">[] | null, Error>({
+    queryKey: ["userRole"],
+    queryFn: async () => {
+      const { data, error } = await getUserRoleAction();
+      if (error) throw new Error(error);
+      return data || null;
+    },
+    staleTime: 1000 * 60 * 5,
+    initialData: initialData || [],
+  });
+};
+
+export const useIsAdmin = () => {
+  const { data } = useGetUserRole();
+  return data?.some((role) => role.role === "admin") || false;
 };

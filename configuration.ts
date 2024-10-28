@@ -13,6 +13,17 @@ const configuration = {
   },
   paths: {
     appHome: "/",
+    admin: {
+      path: "/admin",
+      products: "/admin/products",
+      product: (id: string) => `/admin/products/${id}`,
+      users: "/admin/users",
+      user: (id: string) => `/admin/users/${id}`,
+      orders: "/admin/orders",
+      order: (id: string) => `/admin/orders/${id}`,
+      queue: "/admin/queue",
+      queueItem: (id: string) => `/admin/queue/${id}`,
+    },
     auth: "/auth",
     signIn: "/auth?form=sign-in",
     forgotPassword: "/auth?form=forgot-password",

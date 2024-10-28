@@ -23,8 +23,6 @@ async function adminMiddleware(request: NextRequest, response: NextResponse) {
     .eq("user_id", user.id)
     .eq("role", "admin");
 
-  console.log(roles, error);
-
   if (error || !roles.length)
     return NextResponse.redirect(
       new URL(configuration.paths.notFound, request.url)

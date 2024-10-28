@@ -118,3 +118,25 @@ export const signOutAction = async () => {
     return getActionResponse({ error });
   }
 };
+
+// Get user role action (auth.users)
+export const getUserRoleAction = async () => {
+  const supabase = getSupabaseServerActionClient();
+  try {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError) throw new Error(userError.message);
+
+    const userId = userData.user?.id;
+    if (!userId) throw new Error("User not found");
+
+    const { data, error } = await supabase
+      .from("user_roles")
+      .select("*")
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+
+    return getActionResponse({ data });
+  } catch (error) {
+    return getActionResponse({ error });
+  }
+};
