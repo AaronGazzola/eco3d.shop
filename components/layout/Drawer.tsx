@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleUser, Moon, ShoppingBasket, Sun } from "lucide-react";
+import { Moon, ShoppingBasket, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,7 +9,6 @@ import {
   SheetHeader,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import configuration from "@/configuration";
@@ -24,11 +23,14 @@ import AuthFormPopover from "@/components/layout/AuthFormPopover";
 
 export function Drawer({
   side = Direction.Left,
+  onToggleDrawerIsOpen,
+  isOpen,
 }: {
   side?: Direction.Left | Direction.Right;
+  onToggleDrawerIsOpen: (isOpen?: boolean) => void;
+  isOpen: boolean;
 }) {
   const { setTheme, resolvedTheme } = useTheme();
-  const [isOpen, setIsOpen] = useState(false);
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === "dark" ? "light" : "dark");
@@ -37,7 +39,7 @@ export function Drawer({
   return (
     <Sheet
       open={isOpen}
-      onOpenChange={(open) => setIsOpen(open)}
+      onOpenChange={() => onToggleDrawerIsOpen()}
     >
       <SheetTrigger asChild>
         <Button
@@ -60,7 +62,7 @@ export function Drawer({
             <Link
               href={configuration.paths.appHome}
               className="flex items-center gap-4 ml-3"
-              onClick={() => setIsOpen(false)}
+              onClick={() => onToggleDrawerIsOpen(false)}
             >
               <div className="relative">
                 <div className="hidden dark:block absolute inset-0 -z-10 scale-y-[1.03]">
@@ -104,7 +106,7 @@ export function Drawer({
                 size="sm"
                 variant="outline"
                 className="border-none dark:text-gray-400 dark:hover:text-white border border-white outline-none text-gray-600 hover:text-black p-4 h-12 rounded-tr-none px-2 sm:px-4"
-                onClick={() => setIsOpen(false)}
+                onClick={() => onToggleDrawerIsOpen(false)}
               >
                 <ChevronRight className="w-8 h-8" />
               </Button>

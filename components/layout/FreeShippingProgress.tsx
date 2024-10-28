@@ -2,9 +2,12 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MailCheck } from "lucide-react";
 
-const FreeShippingProgress = () => {
+const FreeShippingProgress = ({ onClick }: { onClick: () => void }) => {
   return (
-    <div className="flex items-center gap-3 flex-grow justify-end relative overflow-hidden">
+    <div
+      onClick={onClick}
+      className="flex items-center gap-3 flex-grow justify-end relative overflow-hidden"
+    >
       <div className="absolute inset-0">
         <div className="flex items-center gap-3 flex-grow justify-end sm:pr-4">
           <Button

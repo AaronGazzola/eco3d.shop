@@ -8,8 +8,12 @@ import { Direction } from "@/types/util.types";
 import LogoBackground from "@/components/svg/LogoBackground";
 import FreeShippingProgress from "@/components/layout/FreeShippingProgress";
 import configuration from "@/configuration";
+import { useState } from "react";
 
 const Header = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const onToggleDrawerIsOpen = (open?: boolean) =>
+    setIsOpen((prev) => open ?? !prev);
   return (
     <>
       <header
@@ -53,8 +57,12 @@ const Header = () => {
               </h1>
             </div>
           </Link>
-          <FreeShippingProgress />
-          <Drawer side={Direction.Right} />
+          <FreeShippingProgress onClick={onToggleDrawerIsOpen} />
+          <Drawer
+            onToggleDrawerIsOpen={onToggleDrawerIsOpen}
+            isOpen={isOpen}
+            side={Direction.Right}
+          />
         </div>
       </header>
     </>
