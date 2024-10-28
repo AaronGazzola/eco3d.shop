@@ -23,14 +23,16 @@ const Header = () => {
           "sticky top-0 left-0 right-0 w-full min-h-12 flex items-stretch shadow-md justify-center bg-background py-0.5"
         )}
       >
-        <div className="flex h-full justify-between max-w-[100rem] items-center flex-grow pr-0.5">
+        <div className="flex h-full justify-between max-w-[100rem] flex-grow pr-0.5">
           <Logo />
           {isAdmin && (
-            <Link href={configuration.paths.admin.products}>
-              <Button variant="ghost">
-                <PackageSearch />
-              </Button>
-            </Link>
+            <div className="h-full items-end flex flex-grow ">
+              <Link href={configuration.paths.admin.products}>
+                <Button variant="ghost">
+                  <PackageSearch />
+                </Button>
+              </Link>
+            </div>
           )}
           <FreeShippingProgress onClick={onToggleDrawerIsOpen} />
           <Drawer
