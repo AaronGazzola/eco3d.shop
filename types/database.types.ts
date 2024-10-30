@@ -509,6 +509,80 @@ export type Database = {
         }
         Relationships: []
       }
+      promo_codes: {
+        Row: {
+          created_at: string | null
+          expiration_date: string
+          id: string
+          is_redeemed: boolean | null
+          percentage_discount: number
+          promo_code: string
+        }
+        Insert: {
+          created_at?: string | null
+          expiration_date: string
+          id?: string
+          is_redeemed?: boolean | null
+          percentage_discount: number
+          promo_code: string
+        }
+        Update: {
+          created_at?: string | null
+          expiration_date?: string
+          id?: string
+          is_redeemed?: boolean | null
+          percentage_discount?: number
+          promo_code?: string
+        }
+        Relationships: []
+      }
+      promo_keys: {
+        Row: {
+          created_at: string | null
+          id: string
+          item_code: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          item_code: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          item_code?: string
+        }
+        Relationships: []
+      }
+      redemptions: {
+        Row: {
+          id: string
+          promo_code_id: string | null
+          redeemed_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          id?: string
+          promo_code_id?: string | null
+          redeemed_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          id?: string
+          promo_code_id?: string | null
+          redeemed_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "redemptions_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       refunds: {
         Row: {
           created_at: string | null
