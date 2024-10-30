@@ -517,6 +517,7 @@ export type Database = {
           is_redeemed: boolean | null
           percentage_discount: number
           promo_code: string
+          promo_key_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -525,6 +526,7 @@ export type Database = {
           is_redeemed?: boolean | null
           percentage_discount: number
           promo_code: string
+          promo_key_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -533,8 +535,17 @@ export type Database = {
           is_redeemed?: boolean | null
           percentage_discount?: number
           promo_code?: string
+          promo_key_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "promo_codes_promo_key_id_fkey"
+            columns: ["promo_key_id"]
+            isOneToOne: false
+            referencedRelation: "promo_keys"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       promo_keys: {
         Row: {
