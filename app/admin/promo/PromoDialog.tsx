@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import * as React from "react";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils"; // Assuming you have a utility for classNames
 
 import {
   Form,
@@ -18,15 +18,20 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import ActionButton from "@/components/layout/ActionButton";
-import { useCreatePromoCodeAndKey } from "@/hooks/promoHooks";
+import {
+  useCreatePromoCodeAndKey,
+  useDeletePromoCodeAndKey,
+  useUpdatePromoCodeAndKey,
+} from "@/hooks/promoHooks";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { Calendar } from "@/components/ui/calendar";
+import { useDialogQueue } from "@/hooks/useDialogQueue";
 
 const formSchema = z.object({
   promoKey: z.string().min(2, {
@@ -36,12 +41,11 @@ const formSchema = z.object({
     message: "Promo Code cannot be empty.",
   }),
   discountPercent: z
-    .string()
+    .number()
     .min(1, {
       message: "Discount must be at least 1%.",
     })
-    .transform((value) => parseFloat(value))
-    .refine((value) => value >= 1 && value <= 50, {
+    .max(50, {
       message: "Discount must be between 1 and 50.",
     }),
   expirationDate: z.date().refine((date) => date >= new Date(), {
@@ -49,22 +53,52 @@ const formSchema = z.object({
   }),
 });
 
-const AddPromoDialog = () => {
-  const { mutate: createPromoCodeAndKey, isPending } =
+type PromoDialogProps = {
+  promoData?: {
+    id?: string;
+    promoKey: string;
+    promoCode: string;
+    discountPercent: number;
+    expirationDate: string;
+  };
+};
+
+const PromoDialog = ({ promoData }: PromoDialogProps) => {
+  const isEdit = Boolean(promoData);
+
+  const { dismiss } = useDialogQueue();
+
+  const {
+    mutate: deletePromoCodeAndKey,
+    isPending: isDeleting,
+    isSuccess: isDeleted,
+  } = useDeletePromoCodeAndKey();
+  const { mutate: createPromoCodeAndKey, isPending: isCreating } =
     useCreatePromoCodeAndKey();
+  const { mutate: updatePromoCodeAndKey, isPending: isUpdating } =
+    useUpdatePromoCodeAndKey();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      promoKey: "",
-      promoCode: "",
-      discountPercent: undefined,
-      expirationDate: new Date(
-        new Date().setFullYear(new Date().getFullYear() + 1)
-      ),
+      promoKey: promoData?.promoKey || "",
+      promoCode: promoData?.promoCode || "",
+      discountPercent: promoData?.discountPercent || undefined,
+      expirationDate: promoData
+        ? new Date(promoData.expirationDate)
+        : new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
     },
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
+    if (isEdit && promoData?.id)
+      return updatePromoCodeAndKey({
+        id: promoData.id,
+        code: values.promoCode,
+        key: values.promoKey,
+        discountPercentage: values.discountPercent,
+        expirationDate: values.expirationDate.toISOString(),
+      });
     createPromoCodeAndKey({
       code: values.promoCode,
       key: values.promoKey,
@@ -73,12 +107,17 @@ const AddPromoDialog = () => {
     });
   }
 
+  React.useEffect(() => {
+    if (isDeleted) dismiss();
+  }, [isDeleted, dismiss]);
+
   return (
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
         className="space-y-8"
       >
+        {/* Promo Key Field */}
         <FormField
           control={form.control}
           name="promoKey"
@@ -97,6 +136,7 @@ const AddPromoDialog = () => {
           )}
         />
 
+        {/* Promo Code Field */}
         <FormField
           control={form.control}
           name="promoCode"
@@ -117,6 +157,7 @@ const AddPromoDialog = () => {
           )}
         />
 
+        {/* Discount Percent Field */}
         <FormField
           control={form.control}
           name="discountPercent"
@@ -138,6 +179,7 @@ const AddPromoDialog = () => {
           )}
         />
 
+        {/* Expiration Date Field */}
         <FormField
           control={form.control}
           name="expirationDate"
@@ -179,11 +221,28 @@ const AddPromoDialog = () => {
             </FormItem>
           )}
         />
-
-        <ActionButton isPending={isPending}>Submit</ActionButton>
+        <div className="flex justify-between">
+          {isEdit && (
+            <ActionButton
+              type="button"
+              variant="destructive"
+              onClick={() => deletePromoCodeAndKey(promoData?.id)}
+              isPending={isDeleting}
+            >
+              Delete
+            </ActionButton>
+          )}
+          <ActionButton
+            type="submit"
+            className={cn(!isEdit && "w-full")}
+            isPending={isEdit ? isUpdating : isCreating}
+          >
+            {isEdit ? "Update" : "Create"}
+          </ActionButton>
+        </div>
       </form>
     </Form>
   );
 };
 
-export default AddPromoDialog;
+export default PromoDialog;

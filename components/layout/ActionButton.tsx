@@ -27,9 +27,9 @@ const ActionButton = ({
         </div>
         <div
           className={cn(
-            "absolute right-0 scale-0 transition-all duration-500 ease-out",
+            "absolute scale-0 right-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transition-all duration-500 ease-out",
             {
-              "translate-x-4 scale-100 transform": isPending,
+              "scale-100": isPending,
             }
           )}
         >

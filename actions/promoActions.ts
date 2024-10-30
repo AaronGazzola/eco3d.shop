@@ -73,7 +73,7 @@ export const createPromoCodeAndKeyAction = async (
 };
 
 export type UpdatePromoCodeAndKeyValues = {
-  id: number;
+  id: string;
   code?: string;
   key?: string;
   discountPercentage?: number;
@@ -126,7 +126,7 @@ export const updatePromoCodeAndKeyAction = async (
   }
 };
 
-export const deletePromoCodeAction = async (id: number) => {
+export const deletePromoCodeAction = async (id: string) => {
   try {
     const supabase = await getSupabaseServerActionClient();
     const { data: userRoleData, error: userRoleError } =
@@ -142,13 +142,17 @@ export const deletePromoCodeAction = async (id: number) => {
       .single();
     if (promoCodeError) throw new Error(promoCodeError.message);
 
-    const { error: promoKeyError } = await supabase
+    const { data: promoKeyData, error: promoKeyError } = await supabase
       .from("promo_keys")
       .delete()
-      .eq("id", promoCodeData.promo_key_id ?? "");
+      .eq("id", promoCodeData.promo_key_id ?? "")
+      .select("*")
+      .single();
     if (promoKeyError) throw new Error(promoKeyError.message);
 
-    return getActionResponse({ data: promoCodeData });
+    return getActionResponse({
+      data: { ...promoCodeData, promo_key: promoKeyData },
+    });
   } catch (error) {
     return getActionResponse({ error });
   }

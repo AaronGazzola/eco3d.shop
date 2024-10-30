@@ -7,6 +7,7 @@ import {
   CreatePromoCodeAndKeyValues,
   UpdatePromoCodeAndKeyValues,
   createPromoCodeAndKeyAction,
+  deletePromoCodeAction,
   getPromoCodesWithKeysAction,
   updatePromoCodeAndKeyAction,
 } from "@/actions/promoActions";
@@ -93,6 +94,37 @@ export const useUpdatePromoCodeAndKey = () => {
     onError: (error) => {
       toast({
         title: "Failed to update promo code",
+        description: error.message,
+        open: true,
+      });
+    },
+    retry: 3,
+    retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
+  });
+};
+
+export const useDeletePromoCodeAndKey = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToastQueue();
+
+  return useMutation<PromoCodeWithPromoKey | null, Error, string | undefined>({
+    mutationFn: async (id?: string) => {
+      if (!id) throw new Error("No promo code id provided");
+      const { data, error } = await deletePromoCodeAction(id);
+      if (error) throw new Error(error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["promoCodes"] });
+      toast({
+        title: "Promo code deleted",
+        description: "Promo code and key deleted successfully",
+        open: true,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to delete promo code",
         description: error.message,
         open: true,
       });

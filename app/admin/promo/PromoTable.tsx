@@ -15,11 +15,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useDialogQueue } from "@/hooks/useDialogQueue";
+import PromoDialog from "@/app/admin/promo/PromoDialog";
 
 export type Promo = {
+  id: string;
   promo_key: string;
   promo_code: string;
   discountPercent: number;
+  expirationDate: string;
+  isRedeemed: boolean;
 };
 
 export const columns: ColumnDef<Promo>[] = [
@@ -35,17 +40,23 @@ export const columns: ColumnDef<Promo>[] = [
     accessorKey: "discountPercent",
     header: "Discount (%)",
   },
+  {
+    accessorKey: "expirationDate",
+    header: "Expiration Date",
+  },
+  {
+    accessorKey: "isRedeemed",
+    header: "Redeemed",
+  },
 ];
 
-interface PromoTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
-  data: TData[];
+interface PromoTableProps {
+  columns: ColumnDef<Promo>[];
+  data: Promo[];
 }
 
-export function PromoTable<TData, TValue>({
-  columns,
-  data,
-}: PromoTableProps<TData, TValue>) {
+export function PromoTable({ columns, data }: PromoTableProps) {
+  const { dialog } = useDialogQueue();
   const table = useReactTable({
     data,
     columns,
@@ -75,10 +86,24 @@ export function PromoTable<TData, TValue>({
         </TableHeader>
         <TableBody>
           {table.getRowModel().rows?.length ? (
-            table.getRowModel().rows.map((row) => (
+            table.getRowModel().rows.map((row, i) => (
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
+                className="cursor-pointer"
+                onClick={() =>
+                  dialog(
+                    <PromoDialog
+                      promoData={{
+                        id: row.original.id,
+                        promoKey: row.original.promo_key,
+                        promoCode: row.original.promo_code,
+                        discountPercent: row.original.discountPercent,
+                        expirationDate: row.original.expirationDate,
+                      }}
+                    />
+                  )
+                }
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>
