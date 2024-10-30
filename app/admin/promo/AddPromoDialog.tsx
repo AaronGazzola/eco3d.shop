@@ -3,6 +3,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import * as React from "react";
+import { format } from "date-fns";
+import { Calendar as CalendarIcon } from "lucide-react";
 
 import {
   Form,
@@ -15,6 +18,15 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import ActionButton from "@/components/layout/ActionButton";
+import { useCreatePromoCodeAndKey } from "@/hooks/promoHooks";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
   promoKey: z.string().min(2, {
@@ -32,20 +44,33 @@ const formSchema = z.object({
     .refine((value) => value >= 1 && value <= 50, {
       message: "Discount must be between 1 and 50.",
     }),
+  expirationDate: z.date().refine((date) => date >= new Date(), {
+    message: "Expiration date must be in the future.",
+  }),
 });
 
 const AddPromoDialog = () => {
+  const { mutate: createPromoCodeAndKey, isPending } =
+    useCreatePromoCodeAndKey();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       promoKey: "",
       promoCode: "",
       discountPercent: undefined,
+      expirationDate: new Date(
+        new Date().setFullYear(new Date().getFullYear() + 1)
+      ),
     },
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
+    createPromoCodeAndKey({
+      code: values.promoCode,
+      key: values.promoKey,
+      discountPercentage: values.discountPercent,
+      expirationDate: values.expirationDate.toISOString(),
+    });
   }
 
   return (
@@ -113,7 +138,49 @@ const AddPromoDialog = () => {
           )}
         />
 
-        <ActionButton>Submit</ActionButton>
+        <FormField
+          control={form.control}
+          name="expirationDate"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Expiration Date</FormLabel>
+              <FormControl>
+                <Popover modal>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-[280px] justify-start text-left font-normal",
+                        !field.value && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {field.value ? (
+                        format(field.value, "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={field.value}
+                      onSelect={(date) => field.onChange(date)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </FormControl>
+              <FormDescription>
+                Select the expiration date for the promo code.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <ActionButton isPending={isPending}>Submit</ActionButton>
       </form>
     </Form>
   );

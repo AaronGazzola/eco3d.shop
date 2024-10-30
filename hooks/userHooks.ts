@@ -188,8 +188,8 @@ export const useSignOut = ({
 
 export const useGetUserRole = ({
   initialData,
-}: HookOptions<Tables<"user_roles">[]> = {}) => {
-  return useQuery<Tables<"user_roles">[] | null, Error>({
+}: HookOptions<Tables<"user_roles">> = {}) => {
+  return useQuery<Tables<"user_roles"> | null, Error>({
     queryKey: ["userRole"],
     queryFn: async () => {
       const { data, error } = await getUserRoleAction();
@@ -197,11 +197,11 @@ export const useGetUserRole = ({
       return data || null;
     },
     staleTime: 1000 * 60 * 5,
-    initialData: initialData || [],
+    initialData,
   });
 };
 
 export const useIsAdmin = () => {
   const { data } = useGetUserRole();
-  return data?.some((role) => role.role === "admin") || false;
+  return data?.role === "admin" || false;
 };

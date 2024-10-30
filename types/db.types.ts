@@ -9,8 +9,13 @@ export interface CartItem {
   quantity: number;
 }
 
-export interface HookOptions<T> {
+export interface HookOptions<T, K = { id: string }> {
+  updateData?: Partial<T> & K;
   errorMessage?: string;
   successMessage?: string;
   initialData?: T | null;
 }
+
+export type PromoCodeWithPromoKey = Tables<"promo_codes"> & {
+  promo_key: Tables<"promo_keys"> | null;
+};

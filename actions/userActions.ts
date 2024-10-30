@@ -132,7 +132,8 @@ export const getUserRoleAction = async () => {
     const { data, error } = await supabase
       .from("user_roles")
       .select("*")
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .single();
     if (error) throw new Error(error.message);
 
     return getActionResponse({ data });
