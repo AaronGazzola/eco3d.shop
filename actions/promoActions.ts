@@ -9,7 +9,7 @@ export const getPromoCodesWithKeysAction = async (): Promise<
   ActionResponse<PromoCodeWithPromoKey[]>
 > => {
   try {
-    const supabase = await getSupabaseServerActionClient();
+    const supabase = getSupabaseServerActionClient();
     const { data: userRoleData, error: userRollError } =
       await getUserRoleAction();
     if (userRollError) throw new Error(userRollError);
@@ -35,7 +35,7 @@ export const createPromoCodeAndKeyAction = async (
   input: CreatePromoCodeAndKeyValues
 ) => {
   try {
-    const supabase = await getSupabaseServerActionClient();
+    const supabase = getSupabaseServerActionClient();
 
     const { data: userRoleData, error: userRoleError } =
       await getUserRoleAction();
@@ -84,7 +84,7 @@ export const updatePromoCodeAndKeyAction = async (
   input: UpdatePromoCodeAndKeyValues
 ) => {
   try {
-    const supabase = await getSupabaseServerActionClient();
+    const supabase = getSupabaseServerActionClient();
     const { data: userRoleData, error: userRoleError } =
       await getUserRoleAction();
     if (userRoleError) throw new Error(userRoleError);
@@ -128,7 +128,7 @@ export const updatePromoCodeAndKeyAction = async (
 
 export const deletePromoCodeAction = async (id: string) => {
   try {
-    const supabase = await getSupabaseServerActionClient();
+    const supabase = getSupabaseServerActionClient();
     const { data: userRoleData, error: userRoleError } =
       await getUserRoleAction();
     if (userRoleError) throw new Error(userRoleError);
@@ -153,6 +153,25 @@ export const deletePromoCodeAction = async (id: string) => {
     return getActionResponse({
       data: { ...promoCodeData, promo_key: promoKeyData },
     });
+  } catch (error) {
+    return getActionResponse({ error });
+  }
+};
+
+export const getPromoCodeByItemCodeAction = async (
+  itemCode: string
+): Promise<ActionResponse<PromoCodeWithPromoKey>> => {
+  try {
+    const supabase = getSupabaseServerActionClient();
+    const { data: promoCode, error: promoCodeError } = await supabase
+      .from("promo_codes")
+      .select("*, promo_key:promo_keys!inner(*)")
+      .eq("promo_key.item_code", itemCode)
+      .single();
+
+    if (promoCodeError) throw new Error(promoCodeError.message);
+
+    return getActionResponse({ data: promoCode });
   } catch (error) {
     return getActionResponse({ error });
   }

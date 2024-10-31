@@ -8,6 +8,7 @@ import {
   UpdatePromoCodeAndKeyValues,
   createPromoCodeAndKeyAction,
   deletePromoCodeAction,
+  getPromoCodeByItemCodeAction,
   getPromoCodesWithKeysAction,
   updatePromoCodeAndKeyAction,
 } from "@/actions/promoActions";
@@ -132,4 +133,33 @@ export const useDeletePromoCodeAndKey = () => {
     retry: 3,
     retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
   });
+};
+
+export const useGetPromoCodeByItemCode = () => {
+  const supabase = useSupabase();
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation<PromoCodeWithPromoKey | null, Error, string>({
+    mutationFn: async (itemCode: string) => {
+      if (!supabase) throw new Error("Supabase client not initialized");
+      const { data, error } = await getPromoCodeByItemCodeAction(itemCode);
+      if (error) throw new Error(error);
+      return data;
+    },
+    onSuccess: (data, itemCode) => {
+      // Cache the result so that it can be re-used with useQuery
+      queryClient.setQueryData(["promoCode", itemCode], data);
+    },
+    onError: (error) => {
+      console.error("Failed to fetch promo code by item code:", error);
+    },
+  });
+
+  const getCachedPromoCode = (itemCode: string) =>
+    queryClient.getQueryData<PromoCodeWithPromoKey>(["promoCode", itemCode]);
+
+  return {
+    ...mutation,
+    data: getCachedPromoCode(mutation.variables ?? ""),
+  };
 };
