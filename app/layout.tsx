@@ -1,7 +1,6 @@
 import "@/styles/globals.css";
 import type { Metadata, Viewport } from "next";
 
-import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
 import { cn } from "@/lib/utils";
 import Providers from "@/providers/Providers";
@@ -53,7 +52,7 @@ export default function RootLayout({
           <main className="flex-grow flex flex-col items-center justify-center">
             {children}
           </main>
-          <Footer />
+          {/* <Footer /> */}
         </Providers>
       </body>
     </html>
