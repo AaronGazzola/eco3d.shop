@@ -1,11 +1,11 @@
-import type { Metadata, Viewport } from "next";
 import "@/styles/globals.css";
+import type { Metadata, Viewport } from "next";
 
-import Providers from "@/providers/Providers";
 import Footer from "@/components/layout/Footer";
-import { poppins } from "@/styles/fonts";
-import { cn } from "@/lib/utils";
 import Header from "@/components/layout/Header";
+import { cn } from "@/lib/utils";
+import Providers from "@/providers/Providers";
+import { poppins } from "@/styles/fonts";
 
 export const metadata: Metadata = {
   title: "Eco3D",
@@ -50,7 +50,9 @@ export default function RootLayout({
       >
         <Providers>
           <Header />
-          <main className="flex-grow">{children}</main>
+          <main className="flex-grow flex flex-col items-center justify-center">
+            {children}
+          </main>
           <Footer />
         </Providers>
       </body>

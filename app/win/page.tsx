@@ -19,8 +19,11 @@ const Page = () => {
     mutate: verifyCode,
     isPending,
     isError,
+    isSuccess,
+    reset,
   } = useGetPromoCodeByItemCode();
   const { dialog, dialogs } = useDialogQueue();
+  const dialogIsOpen = dialogs.length && dialogs[0].open;
   const [showError, setShowError] = useState(false);
 
   const onChange = (val: string) => {
@@ -30,10 +33,12 @@ const Page = () => {
   };
 
   useEffect(() => {
-    if (!promoCode || dialogs.length) return;
-    dialog(<PromoCodeDialog promoCode={promoCode} />);
-    setValue("");
-  }, [promoCode, dialog, dialogs]);
+    if (isSuccess && promoCode) {
+      dialog(<PromoCodeDialog promoCode={promoCode} />);
+      setValue("");
+      reset();
+    }
+  }, [promoCode, dialog, dialogIsOpen, isSuccess, reset]);
 
   useEffect(() => {
     if (!isError) return;
@@ -43,7 +48,7 @@ const Page = () => {
   }, [isError]);
 
   return (
-    <div className=" w-full h-full min-h-screen flex items-center pt-10 flex-col gap-10">
+    <div className=" w-full  flex items-center pt-10 flex-col gap-10 pb-10">
       <h1 className="text-2xl font-bold tracking-tight lg:text-4xl text-gray-800 dark:text-gray-300">
         Enter your code to win!
       </h1>
