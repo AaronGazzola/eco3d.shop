@@ -90,6 +90,16 @@ export const updatePromoCodeAndKeyAction = async (
     if (userRoleError) throw new Error(userRoleError);
     if (userRoleData?.role !== "admin") throw new Error("User is not an admin");
 
+    const { data: foundPromoCodeData, error: foundPromoCodeError } =
+      await supabase
+        .from("promo_codes")
+        .select("*")
+        .eq("id", input.id)
+        .single();
+    if (foundPromoCodeError) throw new Error(foundPromoCodeError.message);
+    if (foundPromoCodeData.is_seen)
+      throw new Error("Promo code has already been seen");
+
     const { data: promoCodeData, error: promoCodeError } = await supabase
       .from("promo_codes")
       .update({
