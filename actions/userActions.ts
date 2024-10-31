@@ -5,7 +5,7 @@ import getSupabaseServerActionClient from "@/clients/action-client";
 
 // Get user action (auth.users)
 export const getUserAction = async () => {
-  const supabase = getSupabaseServerActionClient();
+  const supabase = await getSupabaseServerActionClient();
   try {
     const { data: userData, error } = await supabase.auth.getUser();
 
@@ -24,7 +24,7 @@ export const updateUserAction = async (user: {
   first_name?: string;
   last_name?: string;
 }) => {
-  const supabase = getSupabaseServerActionClient();
+  const supabase = await getSupabaseServerActionClient();
 
   try {
     const { data: userData } = await supabase.auth.getUser();
@@ -49,7 +49,7 @@ export const updateUserAction = async (user: {
 
 // Delete user action (auth.users)
 export const deleteUserAction = async (userId: string) => {
-  const supabase = getSupabaseServerActionClient();
+  const supabase = await getSupabaseServerActionClient();
   try {
     const { error } = await supabase.auth.admin.deleteUser(userId);
 
@@ -68,7 +68,7 @@ export const upsertUserAction = async (user: {
   first_name?: string;
   last_name?: string;
 }) => {
-  const supabase = getSupabaseServerActionClient();
+  const supabase = await getSupabaseServerActionClient();
 
   try {
     const { data: userData } = await supabase.auth.signUp({
@@ -92,7 +92,7 @@ export const upsertUserAction = async (user: {
 
 // Action to sign in with magic link
 export const signInWithMagicLinkAction = async (email: string) => {
-  const supabase = getSupabaseServerActionClient();
+  const supabase = await getSupabaseServerActionClient();
 
   try {
     const { data, error } = await supabase.auth.signInWithOtp({ email });
@@ -107,7 +107,7 @@ export const signInWithMagicLinkAction = async (email: string) => {
 
 // Action to sign out
 export const signOutAction = async () => {
-  const supabase = getSupabaseServerActionClient();
+  const supabase = await getSupabaseServerActionClient();
 
   try {
     const { error } = await supabase.auth.signOut();
@@ -121,7 +121,7 @@ export const signOutAction = async () => {
 
 // Get user role action (auth.users)
 export const getUserRoleAction = async () => {
-  const supabase = getSupabaseServerActionClient();
+  const supabase = await getSupabaseServerActionClient();
   try {
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError) throw new Error(userError.message);

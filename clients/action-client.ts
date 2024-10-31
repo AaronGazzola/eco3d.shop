@@ -1,19 +1,19 @@
+"use server";
+import getSupabaseClientKeys from "@/clients/client-keys";
+import type { Database } from "@/types/database.types";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import "server-only";
 
-import { Database } from "@/types/database.types";
-import getSupabaseClientKeys from "@/clients/client-keys";
-
-export const createServerSupabaseClient = () => {
+export const createServerSupabaseClient = async () => {
   const keys = getSupabaseClientKeys();
 
   return createServerClient<Database>(keys.url, keys.anonKey, {
-    cookies: getCookiesStrategy(),
+    cookies: getCookiesStrategy({ readOnly: true }),
   });
 };
 
-const getSupabaseServerActionClient = (
+const getSupabaseServerActionClient = async (
   params = {
     admin: false,
   }
@@ -38,22 +38,39 @@ const getSupabaseServerActionClient = (
   return createServerSupabaseClient();
 };
 
-function getCookiesStrategy() {
+// Only allows reading cookies here, no modification
+function getCookiesStrategy({ readOnly = false } = {}) {
   const cookieStore = cookies();
+
+  if (readOnly) {
+    return {
+      get: (name: string) => {
+        return cookieStore.get(name)?.value;
+      },
+    };
+  }
 
   return {
     get: (name: string) => {
       return cookieStore.get(name)?.value;
     },
     set: (name: string, value: string, options: any) => {
-      cookieStore.set({ name, value, ...options });
+      if (typeof window !== "undefined") {
+        // Logic to set cookie in client-side if necessary
+      } else {
+        throw new Error(
+          "Cookies can only be modified in a Server Action or Route Handler"
+        );
+      }
     },
     remove: (name: string, options: any) => {
-      cookieStore.set({
-        name,
-        value: "",
-        ...options,
-      });
+      if (typeof window !== "undefined") {
+        // Logic to remove cookie in client-side if necessary
+      } else {
+        throw new Error(
+          "Cookies can only be modified in a Server Action or Route Handler"
+        );
+      }
     },
   };
 }

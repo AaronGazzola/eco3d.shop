@@ -9,7 +9,7 @@ export const getPromoCodesWithKeysAction = async (): Promise<
   ActionResponse<PromoCodeWithPromoKey[]>
 > => {
   try {
-    const supabase = getSupabaseServerActionClient();
+    const supabase = await getSupabaseServerActionClient();
     const { data: userRoleData, error: userRollError } =
       await getUserRoleAction();
     if (userRollError) throw new Error(userRollError);
@@ -35,7 +35,7 @@ export const createPromoCodeAndKeyAction = async (
   input: CreatePromoCodeAndKeyValues
 ) => {
   try {
-    const supabase = getSupabaseServerActionClient();
+    const supabase = await getSupabaseServerActionClient();
 
     const { data: userRoleData, error: userRoleError } =
       await getUserRoleAction();
@@ -84,7 +84,7 @@ export const updatePromoCodeAndKeyAction = async (
   input: UpdatePromoCodeAndKeyValues
 ) => {
   try {
-    const supabase = getSupabaseServerActionClient();
+    const supabase = await getSupabaseServerActionClient();
     const { data: userRoleData, error: userRoleError } =
       await getUserRoleAction();
     if (userRoleError) throw new Error(userRoleError);
@@ -128,7 +128,7 @@ export const updatePromoCodeAndKeyAction = async (
 
 export const deletePromoCodeAction = async (id: string) => {
   try {
-    const supabase = getSupabaseServerActionClient();
+    const supabase = await getSupabaseServerActionClient();
     const { data: userRoleData, error: userRoleError } =
       await getUserRoleAction();
     if (userRoleError) throw new Error(userRoleError);
@@ -162,7 +162,7 @@ export const getPromoCodeByItemCodeAction = async (
   itemCode: string
 ): Promise<ActionResponse<PromoCodeWithPromoKey>> => {
   try {
-    const supabase = getSupabaseServerActionClient();
+    const supabase = await getSupabaseServerActionClient();
 
     const { data: promoKey, error: promoKeyError } = await supabase
       .from("promo_keys")
