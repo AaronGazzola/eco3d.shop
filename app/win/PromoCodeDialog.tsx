@@ -22,7 +22,8 @@ const PromoCodeDialog = ({
       </div>
       <DialogDescription className="text-center">
         Use this promo code at checkout once our store opens to recieve{" "}
-        {percentage_discount}% off the total price of your order. Max spend $250
+        {percentage_discount}% off the total price of your order. Maximum spend
+        $250
         <br />
         <br /> Redeem before{" "}
         <strong>{dayjs(expiration_date).format("D-MMM-YY")}</strong>.
