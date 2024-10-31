@@ -49,9 +49,7 @@ export default function RootLayout({
       >
         <Providers>
           <Header />
-          <main className="flex-grow flex flex-col items-center justify-center">
-            {children}
-          </main>
+          <main className="flex-grow flex flex-col">{children}</main>
           {/* <Footer /> */}
         </Providers>
       </body>

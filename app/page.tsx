@@ -5,7 +5,7 @@ import Image from "next/image";
 
 export default function Home() {
   return (
-    <>
+    <div className="flex flex-col gap-3 items-center w-full flex-grow justify-center">
       <div className="relative">
         <div className="hidden dark:block absolute inset-0 -z-10 scale-y-[1.03]">
           <LogoBackground className="fill-white stroke-white" />
@@ -38,6 +38,6 @@ export default function Home() {
       </div>
       <p>100% Biodegradable 3D Printed Products</p>
       <p>Coming soon</p>
-    </>
+    </div>
   );
 }
