@@ -23,6 +23,7 @@ const configuration = {
       order: (id: string) => `/admin/orders/${id}`,
       queue: "/admin/queue",
       queueItem: (id: string) => `/admin/queue/${id}`,
+      promo: "/admin/promo",
     },
     auth: "/auth",
     signIn: "/auth?form=sign-in",

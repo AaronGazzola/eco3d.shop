@@ -1,15 +1,15 @@
 "use client";
-import { cn } from "@/lib/utils";
 import { Drawer } from "@/components/layout/Drawer";
-import { Direction } from "@/types/util.types";
 import FreeShippingProgress from "@/components/layout/FreeShippingProgress";
-import { useState } from "react";
 import Logo from "@/components/layout/Logo";
-import { useIsAdmin } from "@/hooks/userHooks";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import configuration from "@/configuration";
-import { PackageSearch } from "lucide-react";
+import { useIsAdmin } from "@/hooks/userHooks";
+import { cn } from "@/lib/utils";
+import { Direction } from "@/types/util.types";
+import { PackageSearch, TicketPercent } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
 
 const Header = () => {
   const isAdmin = useIsAdmin();
@@ -30,6 +30,11 @@ const Header = () => {
               <Link href={configuration.paths.admin.products}>
                 <Button variant="ghost">
                   <PackageSearch />
+                </Button>
+              </Link>
+              <Link href={configuration.paths.admin.promo}>
+                <Button variant="ghost">
+                  <TicketPercent />
                 </Button>
               </Link>
             </div>

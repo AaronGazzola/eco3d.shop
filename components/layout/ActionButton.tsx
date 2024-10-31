@@ -17,23 +17,17 @@ const ActionButton = ({
       {...props}
     >
       <div className="relative flex items-center">
-        <div
-          className={cn(
-            "transition-transform duration-500 ease-out",
-            isPending && "-translate-x-4 transform"
-          )}
-        >
-          {children}
-        </div>
-        <div
-          className={cn(
-            "absolute scale-0 right-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transition-all duration-500 ease-out",
-            {
-              "scale-100": isPending,
-            }
-          )}
-        >
-          <LoaderCircle className="h-6 w-6 animate-spin" />
+        {children}
+
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div
+            className={cn(
+              "scale-0 transition-all duration-500 ease-out",
+              isPending && "scale-100"
+            )}
+          >
+            <LoaderCircle className="h-6 w-6 animate-spin" />
+          </div>
         </div>
       </div>
     </Button>
