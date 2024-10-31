@@ -48,7 +48,7 @@ const Page = () => {
   }, [isError]);
 
   return (
-    <div className=" w-full  flex items-center pt-10 flex-col gap-10 pb-10">
+    <div className=" w-full flex-grow justify-center flex items-center pt-10 flex-col gap-10 pb-10">
       <h1 className="text-2xl font-bold tracking-tight lg:text-4xl text-gray-800 dark:text-gray-300">
         Enter your code to win!
       </h1>
@@ -92,6 +92,7 @@ const Page = () => {
           <InputOTPSlot index={5} />
         </InputOTPGroup>
       </InputOTP>
+      <div className="h-10"></div>
     </div>
   );
 };
