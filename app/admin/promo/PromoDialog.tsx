@@ -116,9 +116,7 @@ const PromoDialog = ({ promoData }: PromoDialogProps) => {
 
   return (
     <>
-      <DialogTitle>
-        <h2 className="text-lg font-medium">Add Promo</h2>
-      </DialogTitle>
+      <DialogTitle className="text-lg font-medium">Add Promo</DialogTitle>
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}

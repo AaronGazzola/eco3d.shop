@@ -1,0 +1,2 @@
+ALTER TABLE promo_codes
+ADD COLUMN is_seen BOOLEAN DEFAULT FALSE;

@@ -163,10 +163,21 @@ export const getPromoCodeByItemCodeAction = async (
 ): Promise<ActionResponse<PromoCodeWithPromoKey>> => {
   try {
     const supabase = getSupabaseServerActionClient();
+
+    const { data: promoKey, error: promoKeyError } = await supabase
+      .from("promo_keys")
+      .select("id")
+      .eq("item_code", itemCode)
+      .single();
+
+    if (promoKeyError || !promoKey)
+      throw new Error(promoKeyError?.message || "Promo key not found");
+
     const { data: promoCode, error: promoCodeError } = await supabase
       .from("promo_codes")
+      .update({ is_seen: true })
+      .eq("promo_key_id", promoKey.id)
       .select("*, promo_key:promo_keys!inner(*)")
-      .eq("promo_key.item_code", itemCode)
       .single();
 
     if (promoCodeError) throw new Error(promoCodeError.message);

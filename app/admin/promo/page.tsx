@@ -18,6 +18,7 @@ const PromoPage = () => {
       discountPercent: promoCode.percentage_discount,
       expirationDate: promoCode.expiration_date,
       isRedeemed: !!promoCode.is_redeemed,
+      isSeen: !!promoCode.is_seen
     })) ?? [];
 
   return (

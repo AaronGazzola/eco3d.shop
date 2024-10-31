@@ -7,6 +7,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
+import PromoDialog from "@/app/admin/promo/PromoDialog";
 import {
   Table,
   TableBody,
@@ -16,7 +17,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useDialogQueue } from "@/hooks/useDialogQueue";
-import PromoDialog from "@/app/admin/promo/PromoDialog";
 
 export type Promo = {
   id: string;
@@ -47,6 +47,10 @@ export const columns: ColumnDef<Promo>[] = [
   {
     accessorKey: "isRedeemed",
     header: "Redeemed",
+  },
+  {
+    accessorKey: "isSeen",
+    header: "Seen",
   },
 ];
 

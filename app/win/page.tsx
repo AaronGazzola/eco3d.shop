@@ -6,9 +6,11 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { useGetPromoCodeByItemCode } from "@/hooks/promoHooks";
+import { useDialogQueue } from "@/hooks/useDialogQueue";
 import { cn } from "@/lib/utils";
 import { Box, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import PromoCodeDialog from "./PromoCodeDialog";
 
 const Page = () => {
   const [value, setValue] = useState("");
@@ -18,13 +20,27 @@ const Page = () => {
     isPending,
     isError,
   } = useGetPromoCodeByItemCode();
+  const { dialog, dialogs } = useDialogQueue();
+  const [showError, setShowError] = useState(false);
 
   const onChange = (val: string) => {
     setValue(val);
     if (val.length < 6) return;
     verifyCode(val);
   };
-  if (promoCode) return <div>{promoCode.promo_code}</div>;
+
+  useEffect(() => {
+    if (!promoCode || dialogs.length) return;
+    dialog(<PromoCodeDialog promoCode={promoCode} />);
+    setValue("");
+  }, [promoCode, dialog, dialogs]);
+
+  useEffect(() => {
+    if (!isError) return;
+    setValue("");
+    setShowError(true);
+    setTimeout(() => setShowError(false), 2000);
+  }, [isError]);
 
   return (
     <div className=" w-full h-full min-h-screen flex items-center pt-10 flex-col gap-10">
@@ -45,7 +61,7 @@ const Page = () => {
           <div
             className={cn(
               "flex items-center justify-center absolute inset-0 transition-opacity",
-              (!isPending || isError) && "opacity-0"
+              (!isPending || showError) && "opacity-0"
             )}
           >
             <Box className={cn("w-5", isPending && "animate-pulse")} />
@@ -53,7 +69,7 @@ const Page = () => {
           <div
             className={cn(
               "flex items-center justify-center absolute inset-0 transition-opacity",
-              (!isError || isPending) && "opacity-0"
+              (!showError || isPending) && "opacity-0"
             )}
           >
             <X className="w-5" />
@@ -61,7 +77,7 @@ const Page = () => {
           <InputOTPSeparator
             className={cn(
               "transition-opacity",
-              (isError || isPending) && "opacity-0"
+              (showError || isPending) && "opacity-0"
             )}
           />
         </div>

@@ -515,6 +515,7 @@ export type Database = {
           expiration_date: string
           id: string
           is_redeemed: boolean | null
+          is_seen: boolean | null
           percentage_discount: number
           promo_code: string
           promo_key_id: string | null
@@ -524,6 +525,7 @@ export type Database = {
           expiration_date: string
           id?: string
           is_redeemed?: boolean | null
+          is_seen?: boolean | null
           percentage_discount: number
           promo_code: string
           promo_key_id?: string | null
@@ -533,6 +535,7 @@ export type Database = {
           expiration_date?: string
           id?: string
           is_redeemed?: boolean | null
+          is_seen?: boolean | null
           percentage_discount?: number
           promo_code?: string
           promo_key_id?: string | null
