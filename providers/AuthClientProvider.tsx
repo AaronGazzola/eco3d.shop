@@ -2,7 +2,7 @@
 import useSupabase from "@/hooks/useSupabase";
 import { User } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
-import React, { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect } from "react";
 
 const AuthClientProvider = ({
   children,
