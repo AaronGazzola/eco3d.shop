@@ -69,16 +69,19 @@ const PromoDialog = ({ promoData }: PromoDialogProps) => {
     mutate: deletePromoCodeAndKey,
     isPending: isDeleting,
     isSuccess: isDeleted,
+    reset: resetDelete,
   } = useDeletePromoCodeAndKey();
   const {
     mutate: createPromoCodeAndKey,
     isPending: isCreating,
     isSuccess: isCreated,
+    reset: resetCreate,
   } = useCreatePromoCodeAndKey();
   const {
     mutate: updatePromoCodeAndKey,
     isPending: isUpdating,
     isSuccess: isUpdated,
+    reset: resetUpdate,
   } = useUpdatePromoCodeAndKey();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -112,7 +115,18 @@ const PromoDialog = ({ promoData }: PromoDialogProps) => {
 
   useEffect(() => {
     if (isDeleted || isCreated || isUpdated) dismiss();
-  }, [isDeleted, dismiss, isCreated, isUpdated]);
+    if (isCreated) resetCreate();
+    if (isDeleted) resetDelete();
+    if (isUpdated) resetUpdate();
+  }, [
+    isDeleted,
+    dismiss,
+    isCreated,
+    isUpdated,
+    resetCreate,
+    resetDelete,
+    resetUpdate,
+  ]);
 
   return (
     <>

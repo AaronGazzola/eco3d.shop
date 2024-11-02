@@ -1,6 +1,4 @@
 import { Tables } from "@/types/database.types";
-import { User } from "@supabase/supabase-js";
-import { ColumnDef } from "@tanstack/react-table";
 
 export interface CartItem {
   id: number;
@@ -18,4 +16,10 @@ export interface HookOptions<T, K = { id: string }> {
 
 export type PromoCodeWithPromoKey = Tables<"promo_codes"> & {
   promo_key: Tables<"promo_keys"> | null;
+};
+
+export type Product = Tables<"products">;
+
+export type ProductWithVariants = Tables<"products"> & {
+  product_variants: Tables<"product_variants">[];
 };

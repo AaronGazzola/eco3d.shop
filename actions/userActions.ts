@@ -141,3 +141,13 @@ export const getUserRoleAction = async () => {
     return getActionResponse({ error });
   }
 };
+
+export const getUserIsAdminAction = async () => {
+  try {
+    const { data, error } = await getUserRoleAction();
+    if (error) throw new Error(error);
+    return getActionResponse({ data: data?.role === "admin" });
+  } catch (error) {
+    return getActionResponse({ error });
+  }
+};

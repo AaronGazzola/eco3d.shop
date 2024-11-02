@@ -1,4 +1,4 @@
-import { getLocalSession } from "@/lib/util/localStorage";
+import { getLocalSession } from "@/lib/util/localStorage.util";
 
 const useLocalSession = () => {
   const localSession = getLocalSession();
