@@ -1,6 +1,7 @@
 // app/admin/product/columns.tsx
 "use client";
 import ProductDialog from "@/app/admin/products/ProductDialog";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -10,31 +11,94 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useDialogQueue } from "@/hooks/useDialogQueue";
+import { ProductWithVariants } from "@/types/db.types";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@radix-ui/react-collapsible";
 import {
   ColumnDef,
+  Row,
   flexRender,
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { ChevronDown, EditIcon, Plus } from "lucide-react";
 
 interface DataTableProps<TData> {
   columns: ColumnDef<TData>[];
   data: TData[];
 }
 
-export type Product = {
-  id: string;
-  name: string;
-  description: string | null;
-  variants: {
-    id: string;
-    variantName: string;
-    stockQuantity: number;
-    estimatedPrintTime: unknown;
-  }[];
+const EditCell = ({ row }: { row: Row<ProductWithVariants> }) => {
+  const { dialog } = useDialogQueue();
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={() =>
+        dialog(
+          <ProductDialog
+            productData={{
+              id: row.original.id,
+              name: row.original.name,
+              description: row.original.description,
+              variants: row.original.product_variants || [],
+            }}
+          />
+        )
+      }
+    >
+      <EditIcon className="w-4" />
+    </Button>
+  );
 };
 
-export const productColumns: ColumnDef<Product>[] = [
+const VariantCell = ({ row }: { row: Row<ProductWithVariants> }) => {
+  return (
+    <Collapsible className="flex flex-col">
+      <Button
+        variant="ghost"
+        className="flex gap-2 w-min"
+      >
+        <span>Add variant</span> <Plus className="w-4" />
+      </Button>
+      {row.original.product_variants?.length && (
+        <CollapsibleTrigger className="w-full">
+          <Button
+            variant="ghost"
+            className="flex gap-2 w-full"
+          >
+            <span>Show {row.original.product_variants?.length} Variants</span>
+            <ChevronDown className="w-4" />
+          </Button>
+        </CollapsibleTrigger>
+      )}
+      <CollapsibleContent>
+        <div className="flex flex-col">
+          {row.original.product_variants?.map((variant) => (
+            <div
+              key={variant.id}
+              className="flex justify-between"
+            >
+              <div>{variant.variant_name}</div>
+              <div>{variant.stock_quantity}</div>
+              <div>{variant.estimated_print_seconds}</div>
+            </div>
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+};
+
+export const productColumns: ColumnDef<ProductWithVariants>[] = [
+  {
+    id: "edit",
+    header: "Edit",
+    cell: ({ row }) => <EditCell row={row} />,
+  },
   {
     accessorKey: "name",
     header: "Product Name",
@@ -46,25 +110,14 @@ export const productColumns: ColumnDef<Product>[] = [
   {
     id: "variants",
     header: "Variants",
-    cell: ({ row }) => (
-      <div>
-        {row.original.variants.map((variant) => (
-          <div
-            key={variant.id}
-            className="ml-4"
-          >
-            {variant.variantName} - Stock: {variant.stockQuantity}
-          </div>
-        ))}
-      </div>
-    ),
+    cell: ({ row }) => <VariantCell row={row} />,
   },
 ];
 
 export function ProductTable<TData>({
   columns,
   data,
-}: DataTableProps<Product>) {
+}: DataTableProps<ProductWithVariants>) {
   const table = useReactTable({
     data,
     columns,
@@ -95,21 +148,8 @@ export function ProductTable<TData>({
           {table.getRowModel().rows?.length ? (
             table.getRowModel().rows.map((row) => (
               <TableRow
-                className="cursor-pointer"
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
-                onClick={() =>
-                  dialog(
-                    <ProductDialog
-                      productData={{
-                        id: row.original.id,
-                        name: row.original.name,
-                        description: row.original.description,
-                        variants: row.original.variants,
-                      }}
-                    />
-                  )
-                }
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>

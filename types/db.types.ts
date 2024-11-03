@@ -21,5 +21,5 @@ export type PromoCodeWithPromoKey = Tables<"promo_codes"> & {
 export type Product = Tables<"products">;
 
 export type ProductWithVariants = Tables<"products"> & {
-  product_variants: Tables<"product_variants">[];
+  product_variants?: Tables<"product_variants">[];
 };
