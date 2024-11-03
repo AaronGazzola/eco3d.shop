@@ -22,6 +22,7 @@ import {
   useUpdateProduct,
 } from "@/hooks/productHooks";
 import { useDialogQueue } from "@/hooks/useDialogQueue";
+import { Tables } from "@/types/database.types";
 import { DialogTitle } from "@radix-ui/react-dialog";
 import { useEffect } from "react";
 
@@ -32,15 +33,11 @@ const formSchema = z.object({
   description: z.string().optional(),
 });
 
-type ProductDialogProps = {
-  productData?: {
-    id?: string;
-    name: string;
-    description?: string;
-  };
-};
-
-const ProductDialog = ({ productData }: ProductDialogProps) => {
+const ProductDialog = ({
+  productData,
+}: {
+  productData: Partial<Tables<"products">>;
+}) => {
   const isEdit = Boolean(productData);
   const { dismiss } = useDialogQueue();
 

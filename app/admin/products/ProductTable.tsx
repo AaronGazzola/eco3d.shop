@@ -1,5 +1,6 @@
 // app/admin/product/columns.tsx
 "use client";
+import ProductDialog from "@/app/admin/products/ProductDialog";
 import {
   Table,
   TableBody,
@@ -8,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useDialogQueue } from "@/hooks/useDialogQueue";
 import {
   ColumnDef,
   flexRender,
@@ -59,12 +61,16 @@ export const productColumns: ColumnDef<Product>[] = [
   },
 ];
 
-export function ProductTable<TData>({ columns, data }: DataTableProps<TData>) {
+export function ProductTable<TData>({
+  columns,
+  data,
+}: DataTableProps<Product>) {
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
+  const { dialog } = useDialogQueue();
 
   return (
     <div className="rounded-md border">
@@ -89,8 +95,20 @@ export function ProductTable<TData>({ columns, data }: DataTableProps<TData>) {
           {table.getRowModel().rows?.length ? (
             table.getRowModel().rows.map((row) => (
               <TableRow
+                className="cursor-pointer"
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
+                onClick={() =>
+                  dialog(
+                    <ProductDialog
+                      productData={{
+                        id: row.original.id,
+                        name: row.original.name,
+                        description: row.original.description,
+                      }}
+                    />
+                  )
+                }
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>
