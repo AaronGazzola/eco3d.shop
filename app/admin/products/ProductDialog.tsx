@@ -22,7 +22,13 @@ import {
   useUpdateProduct,
 } from "@/hooks/productHooks";
 import { useDialogQueue } from "@/hooks/useDialogQueue";
+import { formatPrintSeconds } from "@/lib/util/number.util";
 import { Tables } from "@/types/database.types";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@radix-ui/react-collapsible";
 import { DialogTitle } from "@radix-ui/react-dialog";
 import { useEffect } from "react";
 
@@ -36,7 +42,9 @@ const formSchema = z.object({
 const ProductDialog = ({
   productData,
 }: {
-  productData: Partial<Tables<"products">>;
+  productData?: Partial<Tables<"products">> & {
+    variants: Partial<Tables<"product_variants">>[];
+  };
 }) => {
   const isEdit = Boolean(productData);
   const { dismiss } = useDialogQueue();
@@ -137,6 +145,17 @@ const ProductDialog = ({
               </FormItem>
             )}
           />
+
+          {productData?.variants.map((variant, index) => (
+            <Collapsible key={variant.id}>
+              <CollapsibleTrigger>
+                {variant.variant_name} - Stock: {variant.stock_quantity}
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                {formatPrintSeconds(variant.estimated_print_seconds)}
+              </CollapsibleContent>
+            </Collapsible>
+          ))}
 
           <div className="flex justify-between">
             {isEdit && (

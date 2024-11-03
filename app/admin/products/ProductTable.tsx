@@ -105,6 +105,7 @@ export function ProductTable<TData>({
                         id: row.original.id,
                         name: row.original.name,
                         description: row.original.description,
+                        variants: row.original.variants,
                       }}
                     />
                   )
