@@ -1,6 +1,7 @@
 // app/admin/product/columns.tsx
 "use client";
 import ProductDialog from "@/app/admin/products/ProductDialog";
+import ProductVariantDialog from "@/app/admin/products/ProductVariantDialog";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -56,11 +57,13 @@ const EditCell = ({ row }: { row: Row<ProductWithVariants> }) => {
 };
 
 const VariantCell = ({ row }: { row: Row<ProductWithVariants> }) => {
+  const { dialog } = useDialogQueue();
   return (
     <Collapsible className="flex flex-col">
       <Button
         variant="ghost"
         className="flex gap-2 w-min"
+        onClick={() => dialog(<ProductVariantDialog />)}
       >
         <span>Add variant</span> <Plus className="w-4" />
       </Button>

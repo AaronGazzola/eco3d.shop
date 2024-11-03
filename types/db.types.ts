@@ -23,3 +23,5 @@ export type Product = Tables<"products">;
 export type ProductWithVariants = Tables<"products"> & {
   product_variants?: Tables<"product_variants">[];
 };
+
+export type ProductVariant = Tables<"product_variants">;
