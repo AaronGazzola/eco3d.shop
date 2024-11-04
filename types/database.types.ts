@@ -188,6 +188,7 @@ export type Database = {
           print_queue_id: string | null
           product_variant_id: string | null
           quantity: number
+          status: Database["public"]["Enums"]["order_status"] | null
         }
         Insert: {
           created_at?: string | null
@@ -197,6 +198,7 @@ export type Database = {
           print_queue_id?: string | null
           product_variant_id?: string | null
           quantity: number
+          status?: Database["public"]["Enums"]["order_status"] | null
         }
         Update: {
           created_at?: string | null
@@ -206,6 +208,7 @@ export type Database = {
           print_queue_id?: string | null
           product_variant_id?: string | null
           quantity?: number
+          status?: Database["public"]["Enums"]["order_status"] | null
         }
         Relationships: [
           {
@@ -219,7 +222,7 @@ export type Database = {
             foreignKeyName: "order_items_print_queue_id_fkey"
             columns: ["print_queue_id"]
             isOneToOne: false
-            referencedRelation: "print_queue"
+            referencedRelation: "print_queues"
             referencedColumns: ["id"]
           },
           {
@@ -358,46 +361,78 @@ export type Database = {
           },
         ]
       }
-      print_queue: {
+      print_queue_items: {
         Row: {
           created_at: string | null
-          estimated_print_seconds: number | null
           id: string
+          is_processed: boolean | null
           order_item_id: string | null
-          printer_id: string | null
-          priority: number | null
-          status: string
+          print_queue_id: string | null
+          product_variant_id: string | null
+          quantity: number
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
-          estimated_print_seconds?: number | null
           id?: string
+          is_processed?: boolean | null
           order_item_id?: string | null
-          printer_id?: string | null
-          priority?: number | null
-          status?: string
+          print_queue_id?: string | null
+          product_variant_id?: string | null
+          quantity: number
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
-          estimated_print_seconds?: number | null
           id?: string
+          is_processed?: boolean | null
           order_item_id?: string | null
-          printer_id?: string | null
-          priority?: number | null
-          status?: string
+          print_queue_id?: string | null
+          product_variant_id?: string | null
+          quantity?: number
           updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "print_queue_order_item_id_fkey"
+            foreignKeyName: "print_queue_items_order_item_id_fkey"
             columns: ["order_item_id"]
             isOneToOne: false
             referencedRelation: "order_items"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "print_queue_items_print_queue_id_fkey"
+            columns: ["print_queue_id"]
+            isOneToOne: false
+            referencedRelation: "print_queues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_queue_items_product_variant_id_fkey"
+            columns: ["product_variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      print_queues: {
+        Row: {
+          created_at: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       print_time_tiers: {
         Row: {
@@ -439,6 +474,7 @@ export type Database = {
           created_at: string | null
           custom_attributes: Json | null
           estimated_print_seconds: number | null
+          group_size: number | null
           id: string
           print_queue_id: string | null
           product_id: string | null
@@ -450,6 +486,7 @@ export type Database = {
           created_at?: string | null
           custom_attributes?: Json | null
           estimated_print_seconds?: number | null
+          group_size?: number | null
           id?: string
           print_queue_id?: string | null
           product_id?: string | null
@@ -461,6 +498,7 @@ export type Database = {
           created_at?: string | null
           custom_attributes?: Json | null
           estimated_print_seconds?: number | null
+          group_size?: number | null
           id?: string
           print_queue_id?: string | null
           product_id?: string | null
@@ -473,7 +511,7 @@ export type Database = {
             foreignKeyName: "product_variants_print_queue_id_fkey"
             columns: ["print_queue_id"]
             isOneToOne: false
-            referencedRelation: "print_queue"
+            referencedRelation: "print_queues"
             referencedColumns: ["id"]
           },
           {
