@@ -66,14 +66,39 @@ DECLARE
     v_group_size INTEGER;
     v_unassigned_quantity INTEGER;
     v_print_queue_id UUID;
+    v_stock_quantity INTEGER;
 BEGIN
     -- Ensure the function only runs if no unprocessed items are in the queue for this order_item_id
     IF (NEW.status = 'payment_received' AND (OLD.status IS DISTINCT FROM NEW.status) AND NOT EXISTS (
         SELECT 1 FROM print_queue_items WHERE order_item_id = NEW.id AND is_processed = FALSE)) THEN
-        SELECT COALESCE(group_size, 0) INTO v_group_size FROM product_variants WHERE id = NEW.product_variant_id;
+        
+        SELECT COALESCE(group_size, 0), COALESCE(stock_quantity, 0) 
+        INTO v_group_size, v_stock_quantity
+        FROM product_variants 
+        WHERE id = NEW.product_variant_id;
 
         v_remaining_quantity := NEW.quantity;
 
+        -- Step 0: Deduct available stock from product_variants.stock_quantity
+        IF v_stock_quantity > 0 THEN
+            IF v_stock_quantity >= v_remaining_quantity THEN
+                -- Deduct the full remaining quantity from stock
+                UPDATE product_variants
+                SET stock_quantity = stock_quantity - v_remaining_quantity
+                WHERE id = NEW.product_variant_id;
+
+                v_remaining_quantity := 0;
+            ELSE
+                -- Deduct whatever is available in stock
+                UPDATE product_variants
+                SET stock_quantity = 0
+                WHERE id = NEW.product_variant_id;
+
+                v_remaining_quantity := v_remaining_quantity - v_stock_quantity;
+            END IF;
+        END IF;
+
+        -- Proceed to fulfill using print queue
         IF v_remaining_quantity > 0 THEN
             -- Step 1: Check for any unassigned items in the print_queue_items that can be used
             IF v_group_size > 0 THEN
@@ -85,14 +110,14 @@ BEGIN
                 IF v_unassigned_quantity > 0 THEN
                     IF v_unassigned_quantity >= v_remaining_quantity THEN
                         WITH cte AS (
-    SELECT id
-    FROM print_queue_items
-    WHERE product_variant_id = NEW.product_variant_id AND order_item_id IS NULL AND is_processed = FALSE
-    LIMIT v_remaining_quantity
-)
-UPDATE print_queue_items
-SET order_item_id = NEW.id
-WHERE id IN (SELECT id FROM cte);
+                            SELECT id
+                            FROM print_queue_items
+                            WHERE product_variant_id = NEW.product_variant_id AND order_item_id IS NULL AND is_processed = FALSE
+                            LIMIT v_remaining_quantity
+                        )
+                        UPDATE print_queue_items
+                        SET order_item_id = NEW.id
+                        WHERE id IN (SELECT id FROM cte);
                         v_remaining_quantity := 0;
                     ELSE
                         UPDATE print_queue_items
