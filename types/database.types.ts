@@ -120,6 +120,38 @@ export type Database = {
           },
         ]
       }
+      images: {
+        Row: {
+          created_at: string | null
+          display_order: number
+          id: string
+          image_path: string
+          product_variant_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          display_order: number
+          id?: string
+          image_path: string
+          product_variant_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          display_order?: number
+          id?: string
+          image_path?: string
+          product_variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "images_product_variant_id_fkey"
+            columns: ["product_variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string | null
@@ -476,6 +508,7 @@ export type Database = {
           estimated_print_seconds: number | null
           group_size: number | null
           id: string
+          primary_image_id: string | null
           print_queue_id: string | null
           product_id: string | null
           stock_quantity: number
@@ -488,6 +521,7 @@ export type Database = {
           estimated_print_seconds?: number | null
           group_size?: number | null
           id?: string
+          primary_image_id?: string | null
           print_queue_id?: string | null
           product_id?: string | null
           stock_quantity?: number
@@ -500,6 +534,7 @@ export type Database = {
           estimated_print_seconds?: number | null
           group_size?: number | null
           id?: string
+          primary_image_id?: string | null
           print_queue_id?: string | null
           product_id?: string | null
           stock_quantity?: number
@@ -507,6 +542,13 @@ export type Database = {
           variant_name?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "product_variants_primary_image_id_fkey"
+            columns: ["primary_image_id"]
+            isOneToOne: false
+            referencedRelation: "images"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "product_variants_print_queue_id_fkey"
             columns: ["print_queue_id"]
