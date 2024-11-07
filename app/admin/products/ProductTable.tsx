@@ -1,7 +1,7 @@
 // app/admin/product/columns.tsx
+
 "use client";
 import ProductDialog from "@/app/admin/products/ProductDialog";
-import ProductVariantDialog from "@/app/admin/products/ProductVariantDialog";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -11,13 +11,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import ConfirmDeleteDialog from "@/components/ux/ConfirmDeleteDialog";
+import configuration from "@/configuration";
 import { useDialogQueue } from "@/hooks/useDialogQueue";
 import { ProductWithVariants } from "@/types/db.types";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@radix-ui/react-collapsible";
+import { DataTableProps } from "@/types/ui.types";
 import {
   ColumnDef,
   Row,
@@ -25,82 +23,62 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ChevronDown, EditIcon, Plus } from "lucide-react";
-
-interface DataTableProps<TData> {
-  columns: ColumnDef<TData>[];
-  data: TData[];
-}
+import dayjs from "dayjs";
+import { EditIcon, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const EditCell = ({ row }: { row: Row<ProductWithVariants> }) => {
   const { dialog } = useDialogQueue();
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={() =>
-        dialog(
-          <ProductDialog
-            productData={{
-              id: row.original.id,
-              name: row.original.name,
-              description: row.original.description,
-              variants: row.original.product_variants || [],
-            }}
-          />
-        )
-      }
-    >
-      <EditIcon className="w-4" />
-    </Button>
+    <div className="flex gap-2">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={(e) => {
+          e.stopPropagation();
+          dialog(
+            <ProductDialog
+              productData={{
+                id: row.original.id,
+                name: row.original.name,
+                description: row.original.description,
+                variants: row.original.product_variants || [],
+              }}
+            />
+          );
+        }}
+      >
+        <EditIcon className="w-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={(e) => {
+          e.stopPropagation();
+          dialog(
+            <ConfirmDeleteDialog
+              name={row.original.name}
+              id={row.original.id}
+              table="products"
+            />
+          );
+        }}
+      >
+        <Trash2 className="w-4" />
+      </Button>
+    </div>
   );
 };
 
-const VariantCell = ({ row }: { row: Row<ProductWithVariants> }) => {
-  const { dialog } = useDialogQueue();
-  return (
-    <Collapsible className="flex flex-col">
-      <Button
-        variant="ghost"
-        className="flex gap-2 w-min"
-        onClick={() => dialog(<ProductVariantDialog />)}
-      >
-        <span>Add variant</span> <Plus className="w-4" />
-      </Button>
-      {row.original.product_variants?.length && (
-        <CollapsibleTrigger className="w-full">
-          <Button
-            variant="ghost"
-            className="flex gap-2 w-full"
-          >
-            <span>Show {row.original.product_variants?.length} Variants</span>
-            <ChevronDown className="w-4" />
-          </Button>
-        </CollapsibleTrigger>
-      )}
-      <CollapsibleContent>
-        <div className="flex flex-col">
-          {row.original.product_variants?.map((variant) => (
-            <div
-              key={variant.id}
-              className="flex justify-between"
-            >
-              <div>{variant.variant_name}</div>
-              <div>{variant.stock_quantity}</div>
-              <div>{variant.estimated_print_seconds}</div>
-            </div>
-          ))}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-  );
+const DateCell = ({ row }: { row: Row<ProductWithVariants> }) => {
+  return <div>{dayjs(row.original.created_at).format("H:mm a D-MMM-YY")}</div>;
 };
 
 export const productColumns: ColumnDef<ProductWithVariants>[] = [
   {
     id: "edit",
-    header: "Edit",
-    cell: ({ row }) => <EditCell row={row} />,
+    header: "Actions",
+    cell: EditCell,
   },
   {
     accessorKey: "name",
@@ -108,12 +86,17 @@ export const productColumns: ColumnDef<ProductWithVariants>[] = [
   },
   {
     accessorKey: "description",
-    header: "Description",
+    header: "Product Description",
   },
   {
-    id: "variants",
-    header: "Variants",
-    cell: ({ row }) => <VariantCell row={row} />,
+    accessorKey: "created_at",
+    header: "Created At",
+    cell: DateCell,
+  },
+  {
+    accessorKey: "updated_at",
+    header: "Updated At",
+    cell: DateCell,
   },
 ];
 
@@ -121,8 +104,9 @@ export function ProductTable<TData>({
   columns,
   data,
 }: DataTableProps<ProductWithVariants>) {
+  const router = useRouter();
   const table = useReactTable({
-    data,
+    data: data || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -153,9 +137,16 @@ export function ProductTable<TData>({
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
+                className="cursor-pointer"
+                onClick={() =>
+                  router.push(configuration.paths.admin.product(row.id))
+                }
               >
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
+                  <TableCell
+                    key={cell.id}
+                    className="max-w-[300px]"
+                  >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}

@@ -216,7 +216,7 @@ const ProductVariantDialog = ({
                 type="button"
                 variant="destructive"
                 onClick={() => deleteVariant(variantData?.id!)}
-                isPending={isDeleting}
+                loading={isDeleting}
               >
                 Delete
               </ActionButton>
@@ -224,7 +224,7 @@ const ProductVariantDialog = ({
             <ActionButton
               type="submit"
               className={cn(!isEdit && "w-full")}
-              isPending={isEdit ? isUpdating : isCreating}
+              loading={isEdit ? isUpdating : isCreating}
             >
               {isEdit ? "Update" : "Create"}
             </ActionButton>

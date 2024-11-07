@@ -11,13 +11,14 @@ import { useToastQueue } from "@/hooks/useToastQueue";
 import { HookOptions, Product, ProductWithVariants } from "@/types/db.types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-// Enum for default messages
+// TODO: update rather than invalidate cache
+// init cache from server provider
+
 enum DefaultMessages {
-  SuccessMessage = "Operation successful",
-  ErrorMessage = "Operation failed",
+  SuccessMessage = "Product updated",
+  ErrorMessage = "Error updating product",
 }
 
-// Fetch Products Hook
 export const useGetProducts = () => {
   return useQuery<ProductWithVariants[] | null, Error>({
     queryKey: ["products"],
@@ -33,7 +34,6 @@ export const useGetProducts = () => {
   });
 };
 
-// Create Product Hook
 export const useCreateProduct = ({
   errorMessage,
   successMessage,
@@ -50,13 +50,15 @@ export const useCreateProduct = ({
     },
     onError: (error) => {
       toast({
-        title: error.message || errorMessage || DefaultMessages.ErrorMessage,
+        title: "Product creation failed",
+        description:
+          error.message || errorMessage || DefaultMessages.ErrorMessage,
       });
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast({
-        title: successMessage || DefaultMessages.SuccessMessage,
+        title: "Product created",
       });
     },
     retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
@@ -80,7 +82,9 @@ export const useUpdateProduct = ({
     },
     onError: (error) => {
       toast({
-        title: error.message || errorMessage || DefaultMessages.ErrorMessage,
+        title: DefaultMessages.ErrorMessage,
+        description:
+          error.message || errorMessage || DefaultMessages.ErrorMessage,
       });
     },
     onSuccess: (data) => {
@@ -110,14 +114,15 @@ export const useDeleteProduct = ({
     },
     onError: (error) => {
       toast({
-        title: error.message || errorMessage || DefaultMessages.ErrorMessage,
-        open: true,
+        title: "Error deleting product",
+        description:
+          error.message || errorMessage || DefaultMessages.ErrorMessage,
       });
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast({
-        title: successMessage || DefaultMessages.SuccessMessage,
+        title: "Product deleted",
       });
     },
     retryDelay: (attempt) => Math.min(attempt * 1000, 3000),

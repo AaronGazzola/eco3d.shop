@@ -1,6 +1,5 @@
 "use client";
 
-import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -16,11 +15,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  useCreateProduct,
-  useDeleteProduct,
-  useUpdateProduct,
-} from "@/hooks/productHooks";
+import { useCreateProduct, useUpdateProduct } from "@/hooks/productHooks";
 import { useDialogQueue } from "@/hooks/useDialogQueue";
 import { Tables } from "@/types/database.types";
 import { DialogTitle } from "@radix-ui/react-dialog";
@@ -43,12 +38,6 @@ const ProductDialog = ({
   const isEdit = Boolean(productData);
   const { dismiss } = useDialogQueue();
 
-  const {
-    mutate: deleteProduct,
-    isPending: isDeleting,
-    reset: resetDelete,
-    isSuccess: isDeleted,
-  } = useDeleteProduct();
   const {
     mutate: createProduct,
     isPending: isCreating,
@@ -80,19 +69,10 @@ const ProductDialog = ({
   }
 
   useEffect(() => {
-    if (isDeleted || isCreated || isUpdated) dismiss();
+    if (isCreated || isUpdated) dismiss();
     if (isCreated) resetCreate();
-    if (isDeleted) resetDelete();
     if (isUpdated) resetUpdate();
-  }, [
-    isDeleted,
-    dismiss,
-    isCreated,
-    isUpdated,
-    resetCreate,
-    resetDelete,
-    resetUpdate,
-  ]);
+  }, [dismiss, isCreated, isUpdated, resetCreate, resetUpdate]);
 
   return (
     <>
@@ -141,20 +121,10 @@ const ProductDialog = ({
           />
 
           <div className="flex justify-between">
-            {isEdit && (
-              <ActionButton
-                type="button"
-                variant="destructive"
-                onClick={() => deleteProduct(productData?.id!)}
-                isPending={isDeleting}
-              >
-                Delete
-              </ActionButton>
-            )}
             <ActionButton
               type="submit"
-              className={cn(!isEdit && "w-full")}
-              isPending={isEdit ? isUpdating : isCreating}
+              className="w-full"
+              loading={isUpdating || isCreating}
             >
               {isEdit ? "Update" : "Create"}
             </ActionButton>

@@ -1,4 +1,13 @@
 import ActionButton from "@/components/layout/ActionButton";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   useGetUser,
@@ -10,18 +19,8 @@ import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Popover } from "@radix-ui/react-popover";
 import { CircleUser } from "lucide-react";
-import React from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
 });
@@ -62,7 +61,7 @@ const AuthFormPopover = () => {
             {user.email && <h2 className="">{maskEmail(user.email)}</h2>}
             <ActionButton
               onClick={() => signOut()}
-              isPending={isPending}
+              loading={isPending}
               className="w-full"
             >
               Sign out
@@ -93,7 +92,7 @@ const AuthFormPopover = () => {
               <ActionButton
                 type="submit"
                 className="w-full"
-                isPending={isPending}
+                loading={isPending}
               >
                 Send link
               </ActionButton>

@@ -1,19 +1,18 @@
 import { Button, ButtonProps } from "@/components/ui/button";
-import { LoaderCircle } from "lucide-react";
-import React from "react";
 import { cn } from "@/lib/utils";
+import { LoaderCircle } from "lucide-react";
 interface ActionButtonProps extends ButtonProps {
-  isPending?: boolean;
+  loading?: boolean;
 }
 
 const ActionButton = ({
-  isPending = false,
+  loading = false,
   children,
   ...props
 }: ActionButtonProps) => {
   return (
     <Button
-      disabled={isPending}
+      disabled={loading}
       {...props}
     >
       <div className="relative flex items-center">
@@ -23,7 +22,7 @@ const ActionButton = ({
           <div
             className={cn(
               "scale-0 transition-all duration-500 ease-out",
-              isPending && "scale-100"
+              loading && "scale-100"
             )}
           >
             <LoaderCircle className="h-6 w-6 animate-spin" />

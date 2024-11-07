@@ -246,7 +246,7 @@ const PromoDialog = ({ promoData }: PromoDialogProps) => {
                 type="button"
                 variant="destructive"
                 onClick={() => deletePromoCodeAndKey(promoData?.id)}
-                isPending={isDeleting}
+                loading={isDeleting}
               >
                 Delete
               </ActionButton>
@@ -254,7 +254,7 @@ const PromoDialog = ({ promoData }: PromoDialogProps) => {
             <ActionButton
               type="submit"
               className={cn(!isEdit && "w-full")}
-              isPending={isEdit ? isUpdating : isCreating}
+              loading={isEdit ? isUpdating : isCreating}
             >
               {isEdit ? "Update" : "Create"}
             </ActionButton>
