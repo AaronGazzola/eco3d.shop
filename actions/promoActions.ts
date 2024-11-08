@@ -78,6 +78,7 @@ export type UpdatePromoCodeAndKeyValues = {
   key?: string;
   discountPercentage?: number;
   expirationDate?: string;
+  isSeen?: boolean;
 };
 
 export const updatePromoCodeAndKeyAction = async (
@@ -97,9 +98,8 @@ export const updatePromoCodeAndKeyAction = async (
         .eq("id", input.id)
         .single();
     if (foundPromoCodeError) throw new Error(foundPromoCodeError.message);
-    if (foundPromoCodeData.is_seen)
+    if (foundPromoCodeData.is_seen && input.isSeen == null)
       throw new Error("Promo code has already been seen");
-
     const { data: promoCodeData, error: promoCodeError } = await supabase
       .from("promo_codes")
       .update({
@@ -108,10 +108,12 @@ export const updatePromoCodeAndKeyAction = async (
           percentage_discount: input.discountPercentage,
         }),
         ...(input.expirationDate && { expiration_date: input.expirationDate }),
+        ...(input.isSeen != null && { is_seen: input.isSeen }),
       })
       .eq("id", input.id)
       .select("*, promo_key:promo_keys (*)")
       .single();
+
     if (promoCodeError) throw new Error(promoCodeError.message);
     let promoKeyData = null;
     if (input.key) {

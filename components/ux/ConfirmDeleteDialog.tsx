@@ -1,5 +1,6 @@
 import ActionButton from "@/components/layout/ActionButton";
 import { useDeleteProduct } from "@/hooks/productHooks";
+import { useDeletePromoCodeAndKey } from "@/hooks/promoHooks";
 import { useDialogQueue } from "@/hooks/useDialogQueue";
 import { Database } from "@/types/database.types";
 import { DialogTitle } from "@radix-ui/react-dialog";
@@ -15,15 +16,34 @@ const ConfirmDeleteDialog = ({
   table: keyof Database["public"]["Tables"];
 }) => {
   const { dismiss } = useDialogQueue();
-  //   TODO: extend this for other tables:
+  const isProduct = table === "products";
+  const isPromoCode = table === "promo_codes";
+
   const {
-    isPending: loading,
-    isSuccess: deleted,
+    isPending: productIsLoading,
+    isSuccess: productIsDeleted,
     mutate: deleteProduct,
   } = useDeleteProduct();
+  const {
+    isPending: promoCodeIsLoading,
+    isSuccess: promoCodeIsDeleted,
+    mutate: deletePromoCodeAndKey,
+  } = useDeletePromoCodeAndKey();
+
+  const loading = isProduct ? productIsLoading : promoCodeIsLoading;
+
   useEffect(() => {
-    if (deleted) dismiss();
-  }, [deleted, dismiss]);
+    if (productIsDeleted && isProduct) dismiss();
+    if (promoCodeIsDeleted && isPromoCode) dismiss();
+  }, [
+    productIsDeleted,
+    promoCodeIsDeleted,
+    table,
+    dismiss,
+    isProduct,
+    isPromoCode,
+  ]);
+
   return (
     <>
       <DialogTitle className="text-lg font-medium">
@@ -32,7 +52,8 @@ const ConfirmDeleteDialog = ({
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          deleteProduct(id);
+          if (isProduct) deleteProduct(id);
+          if (isPromoCode) deletePromoCodeAndKey(id);
         }}
       >
         <div className="flex w-full justify-between items-center">

@@ -12,6 +12,7 @@ import useSupabase from "@/hooks/useSupabase";
 import { useToastQueue } from "@/hooks/useToastQueue";
 import { HookOptions, PromoCodeWithPromoKey } from "@/types/db.types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
 enum DefaultMessages {
   SuccessMessage = "Profile updated successfully",
@@ -73,66 +74,80 @@ export const useCreatePromoCodeAndKey = () => {
 export const useUpdatePromoCodeAndKey = () => {
   const queryClient = useQueryClient();
   const { toast } = useToastQueue();
+  const [loading, setloading] = useState(false);
 
-  return useMutation<
-    PromoCodeWithPromoKey | null,
-    Error,
-    UpdatePromoCodeAndKeyValues
-  >({
-    mutationFn: async (updateValues: UpdatePromoCodeAndKeyValues) => {
-      const { data, error } = await updatePromoCodeAndKeyAction(updateValues);
-      if (error) throw new Error(error);
-      return data;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["promoCodes"] });
-      toast({
-        title: "Promo code updated",
-        description: "Promo code and key updated successfully",
-        open: true,
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Failed to update promo code",
-        description: error.message,
-        open: true,
-      });
-    },
-    retry: 3,
-    retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
-  });
+  return {
+    ...useMutation<
+      PromoCodeWithPromoKey | null,
+      Error,
+      UpdatePromoCodeAndKeyValues
+    >({
+      mutationFn: async (updateValues: UpdatePromoCodeAndKeyValues) => {
+        setloading(true);
+        const { data, error } = await updatePromoCodeAndKeyAction(updateValues);
+        if (error) throw new Error(error);
+        return data;
+      },
+      onSuccess: (data) => {
+        setloading(false);
+        queryClient.invalidateQueries({ queryKey: ["promoCodes"] });
+        toast({
+          title: "Promo code updated",
+          description: "Promo code and key updated successfully",
+          open: true,
+        });
+      },
+      onError: (error) => {
+        setloading(false);
+        toast({
+          title: "Failed to update promo code",
+          description: error.message,
+          open: true,
+        });
+      },
+      retry: 3,
+      retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
+    }),
+    loading,
+  };
 };
 
 export const useDeletePromoCodeAndKey = () => {
   const queryClient = useQueryClient();
   const { toast } = useToastQueue();
+  const [loading, setLoading] = useState(false);
 
-  return useMutation<PromoCodeWithPromoKey | null, Error, string | undefined>({
-    mutationFn: async (id?: string) => {
-      if (!id) throw new Error("No promo code id provided");
-      const { data, error } = await deletePromoCodeAction(id);
-      if (error) throw new Error(error);
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["promoCodes"] });
-      toast({
-        title: "Promo code deleted",
-        description: "Promo code and key deleted successfully",
-        open: true,
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Failed to delete promo code",
-        description: error.message,
-        open: true,
-      });
-    },
-    retry: 3,
-    retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
-  });
+  return {
+    ...useMutation<PromoCodeWithPromoKey | null, Error, string | undefined>({
+      mutationFn: async (id?: string) => {
+        setLoading(true);
+        if (!id) throw new Error("No promo code id provided");
+        const { data, error } = await deletePromoCodeAction(id);
+        if (error) throw new Error(error);
+        return data;
+      },
+      onSuccess: () => {
+        setLoading(false);
+        queryClient.invalidateQueries({ queryKey: ["promoCodes"] });
+        toast({
+          title: "Promo code deleted",
+          description: "Promo code and key deleted successfully",
+          open: true,
+        });
+      },
+      onError: (error) => {
+        setLoading(false);
+        toast({
+          title: "Failed to delete promo code",
+          description: error.message,
+          open: true,
+        });
+      },
+      retry: 3,
+      retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
+    }),
+    loading,
+  };
 };
 
 export const useGetPromoCodeByItemCode = () => {

@@ -24,6 +24,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import ConfirmDeleteDialog from "@/components/ux/ConfirmDeleteDialog";
 import {
   useCreatePromoCodeAndKey,
   useDeletePromoCodeAndKey,
@@ -31,8 +32,8 @@ import {
 } from "@/hooks/promoHooks";
 import { useDialogQueue } from "@/hooks/useDialogQueue";
 import { DialogTitle } from "@radix-ui/react-dialog";
-import { CalendarIcon } from "lucide-react";
-import { useEffect } from "react";
+import { CalendarIcon, Eye, EyeOff } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const formSchema = z.object({
   promoKey: z.string().min(2, {
@@ -57,19 +58,21 @@ type PromoDialogProps = {
     promoCode: string;
     discountPercent: number;
     expirationDate: string;
+    isSeen: boolean;
   };
 };
 
 const PromoDialog = ({ promoData }: PromoDialogProps) => {
   const isEdit = Boolean(promoData);
+  const [prevIsSeen, setPrevIsSeen] = useState(promoData?.isSeen);
 
-  const { dismiss } = useDialogQueue();
+  const { dismiss, dialog } = useDialogQueue();
 
   const {
-    mutate: deletePromoCodeAndKey,
     isPending: isDeleting,
     isSuccess: isDeleted,
     reset: resetDelete,
+    loading: deleteIsLoading,
   } = useDeletePromoCodeAndKey();
   const {
     mutate: createPromoCodeAndKey,
@@ -82,6 +85,14 @@ const PromoDialog = ({ promoData }: PromoDialogProps) => {
     isPending: isUpdating,
     isSuccess: isUpdated,
     reset: resetUpdate,
+    loading: updateIsLoading,
+  } = useUpdatePromoCodeAndKey();
+  const {
+    mutate: updateSeenPromoCode,
+    isPending: isSeenIsUpdating,
+    isSuccess: isSeenIsUpdated,
+    reset: isSeenResetUpdate,
+    loading: isSeenUpdateIsLoading,
   } = useUpdatePromoCodeAndKey();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -113,8 +124,23 @@ const PromoDialog = ({ promoData }: PromoDialogProps) => {
     });
   }
 
+  const onToggleIsSeen = () => {
+    if (!isEdit || !promoData?.id) return;
+    updateSeenPromoCode({
+      id: promoData.id,
+      isSeen: !promoData.isSeen,
+    });
+    setPrevIsSeen(promoData?.isSeen);
+  };
+
   useEffect(() => {
-    if (isDeleted || isCreated || isUpdated) dismiss();
+    if (
+      isDeleted ||
+      isCreated ||
+      (isUpdated && prevIsSeen === promoData?.isSeen)
+    )
+      dismiss();
+
     if (isCreated) resetCreate();
     if (isDeleted) resetDelete();
     if (isUpdated) resetUpdate();
@@ -126,6 +152,8 @@ const PromoDialog = ({ promoData }: PromoDialogProps) => {
     resetCreate,
     resetDelete,
     resetUpdate,
+    promoData?.isSeen,
+    prevIsSeen,
   ]);
 
   return (
@@ -242,19 +270,38 @@ const PromoDialog = ({ promoData }: PromoDialogProps) => {
           />
           <div className="flex justify-between">
             {isEdit && (
-              <ActionButton
-                type="button"
-                variant="destructive"
-                onClick={() => deletePromoCodeAndKey(promoData?.id)}
-                loading={isDeleting}
-              >
-                Delete
-              </ActionButton>
+              <>
+                <ActionButton
+                  type="button"
+                  variant="destructive"
+                  onClick={() =>
+                    dialog(
+                      <ConfirmDeleteDialog
+                        id={promoData?.id ?? ""}
+                        name={promoData?.promoKey ?? ""}
+                        table="promo_codes"
+                      />
+                    )
+                  }
+                  loading={isDeleting}
+                >
+                  Delete
+                </ActionButton>
+                <ActionButton
+                  type="button"
+                  variant="ghost"
+                  disabled={isUpdating}
+                  loading={isSeenUpdateIsLoading}
+                  onClick={onToggleIsSeen}
+                >
+                  {promoData?.isSeen ? <Eye /> : <EyeOff />}
+                </ActionButton>
+              </>
             )}
             <ActionButton
               type="submit"
               className={cn(!isEdit && "w-full")}
-              loading={isEdit ? isUpdating : isCreating}
+              loading={isEdit ? updateIsLoading : isCreating}
             >
               {isEdit ? "Update" : "Create"}
             </ActionButton>

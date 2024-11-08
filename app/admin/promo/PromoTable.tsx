@@ -184,6 +184,7 @@ export function PromoTable({ columns, data }: PromoTableProps) {
                           promoCode: row.original.promo_code,
                           discountPercent: row.original.discountPercent,
                           expirationDate: row.original.expirationDate,
+                          isSeen: row.original.isSeen,
                         }}
                       />
                     )
