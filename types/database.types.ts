@@ -402,6 +402,7 @@ export type Database = {
           print_queue_id: string | null
           product_variant_id: string | null
           quantity: number
+          reserved_until: string | null
           updated_at: string | null
         }
         Insert: {
@@ -412,6 +413,7 @@ export type Database = {
           print_queue_id?: string | null
           product_variant_id?: string | null
           quantity: number
+          reserved_until?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -422,6 +424,7 @@ export type Database = {
           print_queue_id?: string | null
           product_variant_id?: string | null
           quantity?: number
+          reserved_until?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -812,11 +815,19 @@ export type Database = {
         }
         Returns: boolean
       }
+      cleanup_expired_print_queue_items: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       custom_access_token_hook: {
         Args: {
           event: Json
         }
         Returns: Json
+      }
+      schedule_cleanup: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
     }
     Enums: {
@@ -833,6 +844,7 @@ export type Database = {
         | "payment_received"
         | "in_production"
         | "refunded"
+        | "at_checkout"
       payment_status: "pending" | "completed" | "failed"
       refund_status: "pending" | "approved" | "rejected" | "processed"
     }
