@@ -14,6 +14,8 @@ import { HookOptions, PromoCodeWithPromoKey } from "@/types/db.types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+// TODO: remove loading state
+
 enum DefaultMessages {
   SuccessMessage = "Profile updated successfully",
   ErrorMessage = "Failed to update profile",

@@ -35,6 +35,8 @@ import { DialogTitle } from "@radix-ui/react-dialog";
 import { CalendarIcon, Eye, EyeOff } from "lucide-react";
 import { useEffect, useState } from "react";
 
+// TODO: disable update until fom valid, include is seen as checkbox in form, remove duplicate update hook
+
 const formSchema = z.object({
   promoKey: z.string().min(2, {
     message: "Promo Key must be at least 2 characters.",
