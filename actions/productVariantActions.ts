@@ -7,7 +7,7 @@ import { ProductVariant } from "@/types/db.types";
 
 // Fetch product variants by product ID
 export const getProductVariantsAction = async (
-  productId: string
+  productId: string,
 ): Promise<ActionResponse<ProductVariant[]>> => {
   try {
     const supabase = await getSupabaseServerActionClient();
@@ -37,7 +37,7 @@ export type CreateProductVariantValues = {
 };
 
 export const createProductVariantAction = async (
-  input: CreateProductVariantValues
+  input: CreateProductVariantValues,
 ) => {
   try {
     const supabase = await getSupabaseServerActionClient();
@@ -68,7 +68,7 @@ export const createProductVariantAction = async (
 
 // Update a product variant
 export const updateProductVariantAction = async (
-  input: Partial<ProductVariant> & { id: string }
+  input: Partial<ProductVariant> & { id: string },
 ) => {
   try {
     const supabase = await getSupabaseServerActionClient();

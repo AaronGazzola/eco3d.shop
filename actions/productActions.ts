@@ -16,7 +16,7 @@ export const getProductsAction = async (): Promise<
 
     // Updated the select query to include product variants
     const { data: products, error: productsError } = await supabase.from(
-      "products"
+      "products",
     ).select(`
         *,
         product_variants (*)
@@ -61,7 +61,7 @@ export const createProductAction = async (input: CreateProductValues) => {
 };
 
 export const updateProductAction = async (
-  input: Partial<Product> & { id: string }
+  input: Partial<Product> & { id: string },
 ) => {
   try {
     const supabase = await getSupabaseServerActionClient();

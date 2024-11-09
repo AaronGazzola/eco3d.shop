@@ -24,10 +24,7 @@ const AddProductDialog = () => (
           </Form.Message>
         </div>
         <Form.Control asChild>
-          <Input
-            type="text"
-            required
-          />
+          <Input type="text" required />
         </Form.Control>
       </Form.Field>
 

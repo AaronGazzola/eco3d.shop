@@ -20,10 +20,7 @@ const ProductPage = () => {
           Add Product
         </ActionButton>
       </div>
-      <ProductTable
-        columns={productColumns}
-        data={data}
-      />
+      <ProductTable columns={productColumns} data={data} />
     </div>
   );
 };

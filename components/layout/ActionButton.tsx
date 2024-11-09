@@ -11,10 +11,7 @@ const ActionButton = ({
   ...props
 }: ActionButtonProps) => {
   return (
-    <Button
-      disabled={loading}
-      {...props}
-    >
+    <Button disabled={loading} {...props}>
       <div className="relative flex items-center">
         {children}
 
@@ -22,7 +19,7 @@ const ActionButton = ({
           <div
             className={cn(
               "scale-0 transition-all duration-500 ease-out",
-              loading && "scale-100"
+              loading && "scale-100",
             )}
           >
             <LoaderCircle className="h-6 w-6 animate-spin" />

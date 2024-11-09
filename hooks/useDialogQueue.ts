@@ -30,12 +30,12 @@ export function useDialogQueue() {
     mutationFn: (dialog: Dialog) => {
       return Promise.resolve([...dialogs, dialog]);
     },
-    onMutate: (newDialog) => {
+    onMutate: newDialog => {
       queryClient.setQueryData(
         DIALOG_QUERY_KEY,
         (oldDialogs: Dialog[] | undefined) => {
           return [newDialog, ...(oldDialogs || [])];
-        }
+        },
       );
     },
   });
@@ -43,7 +43,7 @@ export function useDialogQueue() {
   const dismissDialogMutation = useMutation({
     mutationFn: () => {
       return Promise.resolve(
-        dialogs.map((d, index) => (index === 0 ? { ...d, open: false } : d))
+        dialogs.map((d, index) => (index === 0 ? { ...d, open: false } : d)),
       );
     },
     onMutate: () => {
@@ -51,8 +51,8 @@ export function useDialogQueue() {
         DIALOG_QUERY_KEY,
         (oldDialogs: Dialog[] | undefined) =>
           oldDialogs?.map((d, index) =>
-            index === 0 ? { ...d, open: false } : d
-          )
+            index === 0 ? { ...d, open: false } : d,
+          ),
       );
     },
   });
@@ -63,7 +63,7 @@ export function useDialogQueue() {
       open: true,
       component,
       id,
-      onOpenChange: (open) => {
+      onOpenChange: open => {
         if (!open) dismiss();
       },
     };
@@ -75,9 +75,9 @@ export function useDialogQueue() {
         queryClient.setQueryData(
           DIALOG_QUERY_KEY,
           (oldDialogs: Dialog[] | undefined) =>
-            oldDialogs?.map((dialog) =>
-              dialog.id === id ? { ...dialog, ...updatedProps } : dialog
-            )
+            oldDialogs?.map(dialog =>
+              dialog.id === id ? { ...dialog, ...updatedProps } : dialog,
+            ),
         );
       },
     };

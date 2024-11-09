@@ -19,7 +19,7 @@ export const ZIndexProvider = ({ children }: { children: ReactNode }) => {
   return (
     <>
       <ToastProvider>
-        {toasts.map((toast) => (
+        {toasts.map(toast => (
           <Toast
             key={toast.id}
             open={toast.open}
@@ -37,11 +37,11 @@ export const ZIndexProvider = ({ children }: { children: ReactNode }) => {
         <ToastViewport />
       </ToastProvider>
 
-      {dialogs.map((dialog) => (
+      {dialogs.map(dialog => (
         <Dialog
           key={dialog.id}
           open={dialog.open}
-          onOpenChange={(open) => dialog.onOpenChange?.(open)}
+          onOpenChange={open => dialog.onOpenChange?.(open)}
         >
           <DialogContent>{dialog.component}</DialogContent>
         </Dialog>

@@ -34,7 +34,7 @@ const EditCell = ({ row }: { row: Row<ProductWithVariants> }) => {
       <Button
         variant="ghost"
         size="sm"
-        onClick={(e) => {
+        onClick={e => {
           e.stopPropagation();
           dialog(
             <ProductDialog
@@ -44,7 +44,7 @@ const EditCell = ({ row }: { row: Row<ProductWithVariants> }) => {
                 description: row.original.description,
                 variants: row.original.product_variants || [],
               }}
-            />
+            />,
           );
         }}
       >
@@ -53,14 +53,14 @@ const EditCell = ({ row }: { row: Row<ProductWithVariants> }) => {
       <Button
         variant="ghost"
         size="sm"
-        onClick={(e) => {
+        onClick={e => {
           e.stopPropagation();
           dialog(
             <ConfirmDeleteDialog
               name={row.original.name}
               id={row.original.id}
               table="products"
-            />
+            />,
           );
         }}
       >
@@ -116,15 +116,15 @@ export function ProductTable<TData>({
     <div className="rounded-md border">
       <Table>
         <TableHeader>
-          {table.getHeaderGroups().map((headerGroup) => (
+          {table.getHeaderGroups().map(headerGroup => (
             <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
+              {headerGroup.headers.map(header => (
                 <TableHead key={header.id}>
                   {header.isPlaceholder
                     ? null
                     : flexRender(
                         header.column.columnDef.header,
-                        header.getContext()
+                        header.getContext(),
                       )}
                 </TableHead>
               ))}
@@ -133,7 +133,7 @@ export function ProductTable<TData>({
         </TableHeader>
         <TableBody>
           {table.getRowModel().rows?.length ? (
-            table.getRowModel().rows.map((row) => (
+            table.getRowModel().rows.map(row => (
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
@@ -142,11 +142,8 @@ export function ProductTable<TData>({
                   router.push(configuration.paths.admin.product(row.id))
                 }
               >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell
-                    key={cell.id}
-                    className="max-w-[300px]"
-                  >
+                {row.getVisibleCells().map(cell => (
+                  <TableCell key={cell.id} className="max-w-[300px]">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}
@@ -154,10 +151,7 @@ export function ProductTable<TData>({
             ))
           ) : (
             <TableRow>
-              <TableCell
-                colSpan={columns.length}
-                className="h-24 text-center"
-              >
+              <TableCell colSpan={columns.length} className="h-24 text-center">
                 No products found.
               </TableCell>
             </TableRow>

@@ -80,10 +80,7 @@ const ProductDialog = ({
         {isEdit ? "Edit Product" : "Add Product"}
       </DialogTitle>
       <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-8"
-        >
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           {/* Product Name Field */}
           <FormField
             control={form.control}
@@ -92,10 +89,7 @@ const ProductDialog = ({
               <FormItem>
                 <FormLabel>Product Name</FormLabel>
                 <FormControl>
-                  <Input
-                    placeholder="Product Name"
-                    {...field}
-                  />
+                  <Input placeholder="Product Name" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -110,10 +104,7 @@ const ProductDialog = ({
               <FormItem>
                 <FormLabel>Description</FormLabel>
                 <FormControl>
-                  <Textarea
-                    placeholder="Product Description"
-                    {...field}
-                  />
+                  <Textarea placeholder="Product Description" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

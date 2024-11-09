@@ -48,20 +48,20 @@ export const useCreateProduct = ({
       if (error) throw new Error(error);
       return data;
     },
-    onError: (error) => {
+    onError: error => {
       toast({
         title: "Product creation failed",
         description:
           error.message || errorMessage || DefaultMessages.ErrorMessage,
       });
     },
-    onSuccess: (data) => {
+    onSuccess: data => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast({
         title: "Product created",
       });
     },
-    retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
+    retryDelay: attempt => Math.min(attempt * 1000, 3000),
   });
 };
 
@@ -80,20 +80,20 @@ export const useUpdateProduct = ({
       if (error) throw new Error(error);
       return data;
     },
-    onError: (error) => {
+    onError: error => {
       toast({
         title: DefaultMessages.ErrorMessage,
         description:
           error.message || errorMessage || DefaultMessages.ErrorMessage,
       });
     },
-    onSuccess: (data) => {
+    onSuccess: data => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast({
         title: successMessage || DefaultMessages.SuccessMessage,
       });
     },
-    retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
+    retryDelay: attempt => Math.min(attempt * 1000, 3000),
   });
 };
 
@@ -112,19 +112,19 @@ export const useDeleteProduct = ({
       if (error) throw new Error(error);
       return data;
     },
-    onError: (error) => {
+    onError: error => {
       toast({
         title: "Error deleting product",
         description:
           error.message || errorMessage || DefaultMessages.ErrorMessage,
       });
     },
-    onSuccess: (data) => {
+    onSuccess: data => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast({
         title: "Product deleted",
       });
     },
-    retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
+    retryDelay: attempt => Math.min(attempt * 1000, 3000),
   });
 };

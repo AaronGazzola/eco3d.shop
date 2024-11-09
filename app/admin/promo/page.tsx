@@ -11,14 +11,14 @@ const PromoPage = () => {
   const { data: promoCodes } = useGetPromoCodes();
 
   const data =
-    promoCodes?.map((promoCode) => ({
+    promoCodes?.map(promoCode => ({
       id: promoCode.id,
       promo_key: promoCode.promo_key?.item_code || "",
       promo_code: promoCode.promo_code,
       discountPercent: promoCode.percentage_discount,
       expirationDate: promoCode.expiration_date,
       isRedeemed: !!promoCode.is_redeemed,
-      isSeen: !!promoCode.is_seen
+      isSeen: !!promoCode.is_seen,
     })) ?? [];
 
   return (
@@ -28,10 +28,7 @@ const PromoPage = () => {
           Add Promo
         </ActionButton>
       </div>
-      <PromoTable
-        columns={columns}
-        data={data}
-      />
+      <PromoTable columns={columns} data={data} />
     </div>
   );
 };

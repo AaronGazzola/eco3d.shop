@@ -37,10 +37,7 @@ export function Drawer({
   };
 
   return (
-    <Sheet
-      open={isOpen}
-      onOpenChange={() => onToggleDrawerIsOpen()}
-    >
+    <Sheet open={isOpen} onOpenChange={() => onToggleDrawerIsOpen()}>
       <SheetTrigger asChild>
         <Button
           variant="ghost"
@@ -79,7 +76,7 @@ export function Drawer({
               <h1
                 className={cn(
                   "dark:text-gray-100 text-2xl tracking-wider font-black",
-                  comfortaa.className
+                  comfortaa.className,
                 )}
               >
                 Eco3D
@@ -92,7 +89,7 @@ export function Drawer({
                 size="icon"
                 onClick={toggleTheme}
                 className={cn(
-                  "flex justify-center items-center text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white outline-none p-2"
+                  "flex justify-center items-center text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white outline-none p-2",
                 )}
               >
                 <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />

@@ -43,7 +43,7 @@ export const useUpdateUser = ({
   return useMutation({
     mutationFn: async (
       user: Partial<User>,
-      hookOptions?: HookOptions<User>
+      hookOptions?: HookOptions<User>,
     ) => {
       const { data } = await updateUserAction(user);
       return data;
@@ -61,7 +61,7 @@ export const useUpdateUser = ({
       error: Error,
       variables,
       context,
-      hookOptions?: HookOptions<User>
+      hookOptions?: HookOptions<User>,
     ) => {
       toast({
         title: hookOptions?.errorMessage || errorMessage || error.message,
@@ -97,7 +97,7 @@ export const useDeleteUser = ({
       error: Error,
       variables,
       context,
-      hookOptions?: HookOptions<User>
+      hookOptions?: HookOptions<User>,
     ) => {
       toast({
         title: hookOptions?.errorMessage || errorMessage || error.message,
@@ -134,7 +134,7 @@ export const useSignInWithMagicLink = ({
       error: Error,
       variables,
       context,
-      hookOptions?: HookOptions<User>
+      hookOptions?: HookOptions<User>,
     ) => {
       toast({
         title: hookOptions?.errorMessage || errorMessage || error.message,

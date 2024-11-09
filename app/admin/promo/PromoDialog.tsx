@@ -45,10 +45,10 @@ const formSchema = z.object({
     message: "Promo Code cannot be empty.",
   }),
   discountPercent: z.preprocess(
-    (val) => parseInt(val as string, 10),
-    z.number().min(1).max(50)
+    val => parseInt(val as string, 10),
+    z.number().min(1).max(50),
   ),
-  expirationDate: z.date().refine((date) => date >= new Date(), {
+  expirationDate: z.date().refine(date => date >= new Date(), {
     message: "Expiration date must be in the future.",
   }),
 });
@@ -162,10 +162,7 @@ const PromoDialog = ({ promoData }: PromoDialogProps) => {
     <>
       <DialogTitle className="text-lg font-medium">Add Promo</DialogTitle>
       <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-8"
-        >
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           {/* Promo Key Field */}
           <FormField
             control={form.control}
@@ -174,10 +171,7 @@ const PromoDialog = ({ promoData }: PromoDialogProps) => {
               <FormItem>
                 <FormLabel>Promo Key</FormLabel>
                 <FormControl>
-                  <Input
-                    placeholder="123456"
-                    {...field}
-                  />
+                  <Input placeholder="123456" {...field} />
                 </FormControl>
                 <FormDescription>Code displayed on promo items</FormDescription>
                 <FormMessage />
@@ -193,10 +187,7 @@ const PromoDialog = ({ promoData }: PromoDialogProps) => {
               <FormItem>
                 <FormLabel>Promo Code</FormLabel>
                 <FormControl>
-                  <Input
-                    placeholder="3DYAY"
-                    {...field}
-                  />
+                  <Input placeholder="3DYAY" {...field} />
                 </FormControl>
                 <FormDescription>
                   Unique code used to apply discount
@@ -214,11 +205,7 @@ const PromoDialog = ({ promoData }: PromoDialogProps) => {
               <FormItem>
                 <FormLabel>Discount Percent</FormLabel>
                 <FormControl>
-                  <Input
-                    type="number"
-                    placeholder="Percent(1-50)"
-                    {...field}
-                  />
+                  <Input type="number" placeholder="Percent(1-50)" {...field} />
                 </FormControl>
                 <FormDescription>
                   Enter the discount up to 50% off.
@@ -242,7 +229,7 @@ const PromoDialog = ({ promoData }: PromoDialogProps) => {
                         variant={"outline"}
                         className={cn(
                           "w-[280px] justify-start text-left font-normal",
-                          !field.value && "text-muted-foreground"
+                          !field.value && "text-muted-foreground",
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
@@ -257,7 +244,7 @@ const PromoDialog = ({ promoData }: PromoDialogProps) => {
                       <Calendar
                         mode="single"
                         selected={field.value}
-                        onSelect={(date) => field.onChange(date)}
+                        onSelect={date => field.onChange(date)}
                         initialFocus
                       />
                     </PopoverContent>
@@ -282,7 +269,7 @@ const PromoDialog = ({ promoData }: PromoDialogProps) => {
                         id={promoData?.id ?? ""}
                         name={promoData?.promoKey ?? ""}
                         table="promo_codes"
-                      />
+                      />,
                     )
                   }
                   loading={isDeleting}

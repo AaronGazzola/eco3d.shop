@@ -16,7 +16,7 @@ export const createServerSupabaseClient = async () => {
 const getSupabaseServerActionClient = async (
   params = {
     admin: false,
-  }
+  },
 ) => {
   const keys = getSupabaseClientKeys();
 
@@ -59,7 +59,7 @@ function getCookiesStrategy({ readOnly = false } = {}) {
         // Logic to set cookie in client-side if necessary
       } else {
         throw new Error(
-          "Cookies can only be modified in a Server Action or Route Handler"
+          "Cookies can only be modified in a Server Action or Route Handler",
         );
       }
     },
@@ -68,7 +68,7 @@ function getCookiesStrategy({ readOnly = false } = {}) {
         // Logic to remove cookie in client-side if necessary
       } else {
         throw new Error(
-          "Cookies can only be modified in a Server Action or Route Handler"
+          "Cookies can only be modified in a Server Action or Route Handler",
         );
       }
     },

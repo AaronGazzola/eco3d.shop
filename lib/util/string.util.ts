@@ -1,7 +1,7 @@
 export function maskEmail(
   email?: string | null,
   firstPartStars = 5,
-  secondPartStars = 4
+  secondPartStars = 4,
 ): string {
   if (!email) return "";
   const [local, domain] = email.split("@");

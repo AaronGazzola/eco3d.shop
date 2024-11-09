@@ -13,7 +13,7 @@ function isServerAction(request: NextRequest) {
 
 const csrffMiddleware = async (
   request: NextRequest,
-  response: NextResponse
+  response: NextResponse,
 ) => {
   const csrfProtect = createCsrfProtect({
     cookie: {

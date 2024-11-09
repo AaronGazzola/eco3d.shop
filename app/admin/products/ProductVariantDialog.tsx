@@ -114,10 +114,7 @@ const ProductVariantDialog = ({
         {isEdit ? "Edit Variant" : "Add Variant"}
       </DialogTitle>
       <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-8"
-        >
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           {/* Variant Name Field */}
           <FormField
             control={form.control}
@@ -126,10 +123,7 @@ const ProductVariantDialog = ({
               <FormItem>
                 <FormLabel>Variant Name</FormLabel>
                 <FormControl>
-                  <Input
-                    placeholder="Variant Name"
-                    {...field}
-                  />
+                  <Input placeholder="Variant Name" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -182,10 +176,7 @@ const ProductVariantDialog = ({
               <FormItem>
                 <FormLabel>Custom Attributes (JSON)</FormLabel>
                 <FormControl>
-                  <Textarea
-                    placeholder='{"key": "value"}'
-                    {...field}
-                  />
+                  <Textarea placeholder='{"key": "value"}' {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -200,10 +191,7 @@ const ProductVariantDialog = ({
               <FormItem>
                 <FormLabel>Print Queue ID</FormLabel>
                 <FormControl>
-                  <Input
-                    placeholder="Print Queue ID"
-                    {...field}
-                  />
+                  <Input placeholder="Print Queue ID" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

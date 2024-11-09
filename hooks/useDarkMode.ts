@@ -7,7 +7,7 @@ const useDarkMode = () => {
     const userPreference = localStorage.getItem("theme");
     const userPreferenceIsDark = userPreference === "dark";
     const systemPreferenceIsDark = window.matchMedia(
-      "(prefers-color-scheme: dark)"
+      "(prefers-color-scheme: dark)",
     ).matches;
 
     if (userPreferenceIsDark || (!userPreference && systemPreferenceIsDark)) {

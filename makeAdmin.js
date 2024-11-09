@@ -13,7 +13,7 @@ async function grantAdminStatus(email) {
       await supabase.auth.admin.listUsers();
     if (listUsersError) throw listUsersError;
 
-    const user = usersData.users.find((u) => u.email === email);
+    const user = usersData.users.find(u => u.email === email);
     if (!user) return console.error("User not found");
 
     // Check if the user already has the admin role in the user_roles table

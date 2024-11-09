@@ -41,7 +41,7 @@ const FreeShippingProgress = ({ onClick }: { onClick: () => void }) => {
             </div>
             <div
               className={cn(
-                "w-7 h-10 rounded-full flex flex-col items-center justify-center py-1 group-hover:dark:text-white dark:text-green-500 "
+                "w-7 h-10 rounded-full flex flex-col items-center justify-center py-1 group-hover:dark:text-white dark:text-green-500 ",
               )}
             >
               <MailCheck className="text-green-700 w-7 h-7" />

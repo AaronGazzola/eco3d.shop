@@ -9,7 +9,7 @@ require("dotenv").config({ path: path.resolve(__dirname, ".env.local") });
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 if (!supabaseUrl) {
   console.error(
-    "NEXT_PUBLIC_SUPABASE_URL is not defined in the environment variables."
+    "NEXT_PUBLIC_SUPABASE_URL is not defined in the environment variables.",
   );
   process.exit(1);
 }

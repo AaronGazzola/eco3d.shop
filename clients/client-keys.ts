@@ -14,7 +14,7 @@ export default function getSupabaseClientKeys() {
 
   invariant(
     env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    `Supabase Anon Key not provided`
+    `Supabase Anon Key not provided`,
   );
 
   return {

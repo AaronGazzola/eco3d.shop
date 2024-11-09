@@ -53,7 +53,7 @@ export const useCreatePromoCodeAndKey = () => {
       if (error) throw new Error(error);
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: data => {
       queryClient.invalidateQueries({ queryKey: ["promoCodes"] });
       toast({
         title: "Promo code created",
@@ -61,7 +61,7 @@ export const useCreatePromoCodeAndKey = () => {
         open: true,
       });
     },
-    onError: (error) => {
+    onError: error => {
       toast({
         title: "Failed to create promo code",
         description: error.message,
@@ -69,7 +69,7 @@ export const useCreatePromoCodeAndKey = () => {
       });
     },
     retry: 3,
-    retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
+    retryDelay: attempt => Math.min(attempt * 1000, 3000),
   });
 };
 
@@ -90,7 +90,7 @@ export const useUpdatePromoCodeAndKey = () => {
         if (error) throw new Error(error);
         return data;
       },
-      onSuccess: (data) => {
+      onSuccess: data => {
         setloading(false);
         queryClient.invalidateQueries({ queryKey: ["promoCodes"] });
         toast({
@@ -99,7 +99,7 @@ export const useUpdatePromoCodeAndKey = () => {
           open: true,
         });
       },
-      onError: (error) => {
+      onError: error => {
         setloading(false);
         toast({
           title: "Failed to update promo code",
@@ -108,7 +108,7 @@ export const useUpdatePromoCodeAndKey = () => {
         });
       },
       retry: 3,
-      retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
+      retryDelay: attempt => Math.min(attempt * 1000, 3000),
     }),
     loading,
   };
@@ -137,7 +137,7 @@ export const useDeletePromoCodeAndKey = () => {
           open: true,
         });
       },
-      onError: (error) => {
+      onError: error => {
         setLoading(false);
         toast({
           title: "Failed to delete promo code",
@@ -146,7 +146,7 @@ export const useDeletePromoCodeAndKey = () => {
         });
       },
       retry: 3,
-      retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
+      retryDelay: attempt => Math.min(attempt * 1000, 3000),
     }),
     loading,
   };
@@ -167,7 +167,7 @@ export const useGetPromoCodeByItemCode = () => {
       // Cache the result so that it can be re-used with useQuery
       queryClient.setQueryData(["promoCode", itemCode], data);
     },
-    onError: (error) => {
+    onError: error => {
       console.error("Failed to fetch promo code by item code:", error);
     },
   });

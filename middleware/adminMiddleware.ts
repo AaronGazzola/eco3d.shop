@@ -15,7 +15,7 @@ async function adminMiddleware(request: NextRequest, response: NextResponse) {
 
   if (!user)
     return NextResponse.redirect(
-      new URL(configuration.paths.notFound, request.url)
+      new URL(configuration.paths.notFound, request.url),
     );
   const { data: roles, error } = await supabase
     .from("user_roles")
@@ -25,7 +25,7 @@ async function adminMiddleware(request: NextRequest, response: NextResponse) {
 
   if (error || !roles.length)
     return NextResponse.redirect(
-      new URL(configuration.paths.notFound, request.url)
+      new URL(configuration.paths.notFound, request.url),
     );
 
   return response;

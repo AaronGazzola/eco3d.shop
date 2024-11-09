@@ -17,11 +17,11 @@ async function authMiddleware(request: NextRequest, response: NextResponse) {
 
   if (user && isGuestPath)
     return NextResponse.redirect(
-      new URL(configuration.paths.appHome, request.url)
+      new URL(configuration.paths.appHome, request.url),
     );
   if (!user && isAuthPath)
     return NextResponse.redirect(
-      new URL(configuration.paths.signIn, request.url)
+      new URL(configuration.paths.signIn, request.url),
     );
 
   return response;

@@ -20,7 +20,7 @@ const useUpdateSearchParams = () => {
       if (navPath) return void router.push(`${navPath}?${params}`);
       void router.replace(`${pathname}?${params}`);
     },
-    [searchParams, pathname, router]
+    [searchParams, pathname, router],
   );
 };
 

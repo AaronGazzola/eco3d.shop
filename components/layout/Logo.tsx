@@ -28,7 +28,7 @@ const Logo = () => {
         <h1
           className={cn(
             "absolute inset-0 translate-x-1 translate-y-1 text-gray-200 dark:text-gray-800 text-2xl tracking-wider font-black mt-1 -z-10",
-            comfortaa.className
+            comfortaa.className,
           )}
         >
           Eco3D
@@ -36,7 +36,7 @@ const Logo = () => {
         <h1
           className={cn(
             "dark:text-gray-100 text-2xl tracking-wider font-black mt-1 ",
-            comfortaa.className
+            comfortaa.className,
           )}
         >
           Eco3D

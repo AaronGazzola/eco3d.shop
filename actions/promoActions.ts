@@ -32,7 +32,7 @@ export type CreatePromoCodeAndKeyValues = {
 };
 
 export const createPromoCodeAndKeyAction = async (
-  input: CreatePromoCodeAndKeyValues
+  input: CreatePromoCodeAndKeyValues,
 ) => {
   try {
     const supabase = await getSupabaseServerActionClient();
@@ -82,7 +82,7 @@ export type UpdatePromoCodeAndKeyValues = {
 };
 
 export const updatePromoCodeAndKeyAction = async (
-  input: UpdatePromoCodeAndKeyValues
+  input: UpdatePromoCodeAndKeyValues,
 ) => {
   try {
     const supabase = await getSupabaseServerActionClient();
@@ -171,7 +171,7 @@ export const deletePromoCodeAction = async (id: string) => {
 };
 
 export const getPromoCodeByItemCodeAction = async (
-  itemCode: string
+  itemCode: string,
 ): Promise<ActionResponse<PromoCodeWithPromoKey>> => {
   try {
     const supabase = await getSupabaseServerActionClient();

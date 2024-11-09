@@ -12,7 +12,7 @@ import "server-only";
 const getSupabaseRouteHandlerClient = (
   params = {
     admin: false,
-  }
+  },
 ) => {
   const keys = getSupabaseClientKeys();
 

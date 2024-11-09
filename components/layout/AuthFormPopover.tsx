@@ -49,7 +49,7 @@ const AuthFormPopover = () => {
           variant="ghost"
           size="icon"
           className={cn(
-            "flex justify-center items-center text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white outline-none p-2"
+            "flex justify-center items-center text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white outline-none p-2",
           )}
         >
           <CircleUser className="" />
@@ -69,10 +69,7 @@ const AuthFormPopover = () => {
           </div>
         ) : (
           <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-4"
-            >
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="email"
@@ -80,10 +77,7 @@ const AuthFormPopover = () => {
                   <FormItem>
                     <FormLabel> Sign in with magic link:</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="Enter your email"
-                        {...field}
-                      />
+                      <Input placeholder="Enter your email" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

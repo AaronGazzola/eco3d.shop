@@ -52,11 +52,7 @@ const Page = () => {
       <h1 className="text-2xl font-bold tracking-tight lg:text-4xl text-gray-800 dark:text-gray-300">
         Enter your code to win!
       </h1>
-      <InputOTP
-        value={value}
-        onChange={onChange}
-        maxLength={6}
-      >
+      <InputOTP value={value} onChange={onChange} maxLength={6}>
         <InputOTPGroup>
           <InputOTPSlot index={0} />
           <InputOTPSlot index={1} />
@@ -66,7 +62,7 @@ const Page = () => {
           <div
             className={cn(
               "flex items-center justify-center absolute inset-0 transition-opacity",
-              (!isPending || showError) && "opacity-0"
+              (!isPending || showError) && "opacity-0",
             )}
           >
             <Box className={cn("w-5", isPending && "animate-pulse")} />
@@ -74,7 +70,7 @@ const Page = () => {
           <div
             className={cn(
               "flex items-center justify-center absolute inset-0 transition-opacity",
-              (!showError || isPending) && "opacity-0"
+              (!showError || isPending) && "opacity-0",
             )}
           >
             <X className="w-5" />
@@ -82,7 +78,7 @@ const Page = () => {
           <InputOTPSeparator
             className={cn(
               "transition-opacity",
-              (showError || isPending) && "opacity-0"
+              (showError || isPending) && "opacity-0",
             )}
           />
         </div>

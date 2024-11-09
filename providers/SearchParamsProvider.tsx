@@ -7,7 +7,7 @@ interface SearchParamsContextProps {
 }
 
 const SearchParamsContext = createContext<SearchParamsContextProps | undefined>(
-  undefined
+  undefined,
 );
 
 const SearchParamsProvider: FC<{ children: ReactNode }> = ({ children }) => {
@@ -24,7 +24,7 @@ export const useSearchParamsContext = (): SearchParamsContextProps => {
   const context = useContext(SearchParamsContext);
   if (context === undefined) {
     throw new Error(
-      "useSearchParamsContext must be used within a SearchParamsProvider"
+      "useSearchParamsContext must be used within a SearchParamsProvider",
     );
   }
   return context;

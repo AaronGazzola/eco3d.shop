@@ -47,12 +47,12 @@ export const useCreateProductVariant = ({
       if (error) throw new Error(error);
       return data;
     },
-    onError: (error) => {
+    onError: error => {
       toast({
         title: error.message || errorMessage || DefaultMessages.ErrorMessage,
       });
     },
-    onSuccess: (data) => {
+    onSuccess: data => {
       queryClient.invalidateQueries({
         queryKey: ["product_variants", data?.product_id],
       });
@@ -60,7 +60,7 @@ export const useCreateProductVariant = ({
         title: successMessage || DefaultMessages.SuccessMessage,
       });
     },
-    retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
+    retryDelay: attempt => Math.min(attempt * 1000, 3000),
   });
 };
 
@@ -80,12 +80,12 @@ export const useUpdateProductVariant = ({
       if (error) throw new Error(error);
       return data;
     },
-    onError: (error) => {
+    onError: error => {
       toast({
         title: error.message || errorMessage || DefaultMessages.ErrorMessage,
       });
     },
-    onSuccess: (data) => {
+    onSuccess: data => {
       queryClient.invalidateQueries({
         queryKey: ["product_variants", data?.product_id],
       });
@@ -93,7 +93,7 @@ export const useUpdateProductVariant = ({
         title: successMessage || DefaultMessages.SuccessMessage,
       });
     },
-    retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
+    retryDelay: attempt => Math.min(attempt * 1000, 3000),
   });
 };
 
@@ -112,13 +112,13 @@ export const useDeleteProductVariant = ({
       if (error) throw new Error(error);
       return data;
     },
-    onError: (error) => {
+    onError: error => {
       toast({
         title: error.message || errorMessage || DefaultMessages.ErrorMessage,
         open: true,
       });
     },
-    onSuccess: (data) => {
+    onSuccess: data => {
       queryClient.invalidateQueries({
         queryKey: ["product_variants", data?.product_id],
       });
@@ -126,6 +126,6 @@ export const useDeleteProductVariant = ({
         title: successMessage || DefaultMessages.SuccessMessage,
       });
     },
-    retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
+    retryDelay: attempt => Math.min(attempt * 1000, 3000),
   });
 };

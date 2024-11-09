@@ -5,7 +5,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 export default function createMiddlewareClient(
   request: NextRequest,
-  response: NextResponse
+  response: NextResponse,
 ) {
   const keys = getSupabaseClientKeys();
 

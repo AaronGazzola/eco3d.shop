@@ -50,25 +50,17 @@ const ConfirmDeleteDialog = ({
         Are you sure you want to delete <strong>{name}</strong>?
       </DialogTitle>
       <form
-        onSubmit={(e) => {
+        onSubmit={e => {
           e.preventDefault();
           if (isProduct) deleteProduct(id);
           if (isPromoCode) deletePromoCodeAndKey(id);
         }}
       >
         <div className="flex w-full justify-between items-center">
-          <ActionButton
-            variant="outline"
-            type="button"
-            onClick={dismiss}
-          >
+          <ActionButton variant="outline" type="button" onClick={dismiss}>
             Cancel
           </ActionButton>
-          <ActionButton
-            variant="destructive"
-            type="submit"
-            loading={loading}
-          >
+          <ActionButton variant="destructive" type="submit" loading={loading}>
             Delete
           </ActionButton>
         </div>

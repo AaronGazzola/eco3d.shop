@@ -12,7 +12,7 @@ import "server-only";
 const getSupabaseServerComponentClient = (
   params = {
     admin: false,
-  }
+  },
 ) => {
   const keys = getSupabaseClientKeys();
 

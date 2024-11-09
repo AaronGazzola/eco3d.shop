@@ -24,11 +24,8 @@ const dummyCartData = [
 export const Cart = () => {
   return (
     <div className="w-full h-full flex flex-col items-stretch">
-      {dummyCartData.map((item) => (
-        <CartItem
-          key={item.id}
-          item={item}
-        />
+      {dummyCartData.map(item => (
+        <CartItem key={item.id} item={item} />
       ))}
     </div>
   );

@@ -33,12 +33,12 @@ export function useToastQueue() {
     mutationFn: (toast: ToasterToast) => {
       return Promise.resolve([...toasts, toast].slice(0, TOAST_LIMIT));
     },
-    onMutate: (newToast) => {
+    onMutate: newToast => {
       queryClient.setQueryData(
         TOAST_QUERY_KEY,
         (oldToasts: ToasterToast[] | undefined) => {
           return [newToast, ...(oldToasts || [])].slice(0, TOAST_LIMIT);
-        }
+        },
       );
     },
   });
@@ -46,14 +46,14 @@ export function useToastQueue() {
   const dismissToastMutation = useMutation({
     mutationFn: (toastId: string) => {
       return Promise.resolve(
-        toasts.map((t) => (t.id === toastId ? { ...t, open: false } : t))
+        toasts.map(t => (t.id === toastId ? { ...t, open: false } : t)),
       );
     },
-    onMutate: (toastId) => {
+    onMutate: toastId => {
       queryClient.setQueryData(
         TOAST_QUERY_KEY,
         (oldToasts: ToasterToast[] | undefined) =>
-          oldToasts?.map((t) => (t.id === toastId ? { ...t, open: false } : t))
+          oldToasts?.map(t => (t.id === toastId ? { ...t, open: false } : t)),
       );
     },
   });
@@ -64,7 +64,7 @@ export function useToastQueue() {
       ...props,
       id,
       open: true,
-      onOpenChange: (open) => {
+      onOpenChange: open => {
         if (!open) dismiss(id);
       },
     };
@@ -76,9 +76,9 @@ export function useToastQueue() {
         queryClient.setQueryData(
           TOAST_QUERY_KEY,
           (oldToasts: ToasterToast[] | undefined) =>
-            oldToasts?.map((toast) =>
-              toast.id === id ? { ...toast, ...updatedProps } : toast
-            )
+            oldToasts?.map(toast =>
+              toast.id === id ? { ...toast, ...updatedProps } : toast,
+            ),
         );
       },
     };
@@ -88,7 +88,7 @@ export function useToastQueue() {
     if (toastId) {
       dismissToastMutation.mutate(toastId);
     } else {
-      toasts.forEach((t) => dismiss(t.id));
+      toasts.forEach(t => dismiss(t.id));
     }
   };
 
