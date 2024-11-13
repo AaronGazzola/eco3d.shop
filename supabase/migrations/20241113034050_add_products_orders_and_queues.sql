@@ -285,7 +285,13 @@ DECLARE
     v_print_queue_id UUID;
     v_stock_quantity INTEGER;
 BEGIN
-    IF ((NEW.status = 'payment_received' OR NEW.status = 'at_checkout') AND (OLD.status IS DISTINCT FROM NEW.status)) THEN
+    IF NEW.status = 'pending' AND OLD.status IS DISTINCT FROM NEW.status THEN
+        DELETE FROM print_queue_items
+        WHERE order_item_id = NEW.id;
+        RETURN NEW;
+    END IF;
+
+    IF NEW.status = 'at_checkout' AND OLD.status IS DISTINCT FROM NEW.status THEN
         SELECT COALESCE(group_size, 0), COALESCE(stock_quantity, 0) 
         INTO v_group_size, v_stock_quantity
         FROM product_variants 
@@ -299,7 +305,7 @@ BEGIN
                 SET stock_quantity = stock_quantity - v_remaining_quantity
                 WHERE id = NEW.product_variant_id;
 
-                v_remaining_quantity := 0;
+                RETURN NEW;
             ELSE
                 UPDATE product_variants
                 SET stock_quantity = 0
@@ -324,12 +330,12 @@ BEGIN
                             LIMIT v_remaining_quantity
                         )
                         UPDATE print_queue_items
-                        SET order_item_id = NEW.id, reserved_until = NULL
+                        SET order_item_id = NEW.id, reserved_until = now() + interval '1 hour'
                         WHERE id IN (SELECT id FROM cte);
-                        v_remaining_quantity := 0;
+                        RETURN NEW;
                     ELSE
                         UPDATE print_queue_items
-                        SET order_item_id = NEW.id, reserved_until = NULL
+                        SET order_item_id = NEW.id, reserved_until = now() + interval '1 hour'
                         WHERE product_variant_id = NEW.product_variant_id AND order_item_id IS NULL AND is_processed = FALSE;
                         v_remaining_quantity := v_remaining_quantity - v_unassigned_quantity;
                     END IF;
@@ -345,7 +351,7 @@ BEGIN
                         NEW.product_variant_id,
                         LEAST(v_group_size, v_remaining_quantity),
                         FALSE,
-                        CASE WHEN NEW.status = 'payment_received' THEN NULL ELSE now() + interval '1 hour' END,
+                        now() + interval '1 hour',
                         now(),
                         now()
                     );
@@ -355,6 +361,13 @@ BEGIN
             END IF;
         END IF;
     END IF;
+
+    IF NEW.status = 'payment_received' AND OLD.status IS DISTINCT FROM NEW.status THEN
+        UPDATE print_queue_items
+        SET reserved_until = NULL
+        WHERE order_item_id = NEW.id;
+    END IF;
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
