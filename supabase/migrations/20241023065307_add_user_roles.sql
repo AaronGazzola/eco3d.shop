@@ -96,4 +96,5 @@ using (user_id = auth.uid());
 
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 
+-- NOTE: This policy is not ideal, since it allows all users to see all roles, but I (Aaron) wasn't able to get the RLS to work otherwise. 
 GRANT SELECT ON public.user_roles TO authenticated;
