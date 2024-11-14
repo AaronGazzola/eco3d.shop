@@ -271,7 +271,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_update_order_items_status
+CREATE OR REPLACE TRIGGER trigger_update_order_items_status
 AFTER UPDATE OF status ON orders
 FOR EACH ROW
 EXECUTE FUNCTION update_order_items_status();
@@ -285,13 +285,18 @@ DECLARE
     v_print_queue_id UUID;
     v_stock_quantity INTEGER;
 BEGIN
-    IF NEW.status = 'pending' AND OLD.status IS DISTINCT FROM NEW.status THEN
-        DELETE FROM print_queue_items
+        IF NEW.status = 'pending' AND OLD.status = 'at_checkout' THEN
+                UPDATE product_variants
+        SET stock_quantity = stock_quantity + NEW.quantity
+        WHERE id = NEW.product_variant_id;
+
+                DELETE FROM print_queue_items
         WHERE order_item_id = NEW.id;
+
         RETURN NEW;
     END IF;
 
-    IF NEW.status = 'at_checkout' AND OLD.status IS DISTINCT FROM NEW.status THEN
+        IF NEW.status = 'at_checkout' AND OLD.status IS DISTINCT FROM NEW.status THEN
         SELECT COALESCE(group_size, 0), COALESCE(stock_quantity, 0) 
         INTO v_group_size, v_stock_quantity
         FROM product_variants 
@@ -299,7 +304,7 @@ BEGIN
 
         v_remaining_quantity := NEW.quantity;
 
-        IF v_stock_quantity > 0 THEN
+                IF v_stock_quantity > 0 THEN
             IF v_stock_quantity >= v_remaining_quantity THEN
                 UPDATE product_variants
                 SET stock_quantity = stock_quantity - v_remaining_quantity
@@ -315,7 +320,7 @@ BEGIN
             END IF;
         END IF;
 
-        IF v_remaining_quantity > 0 THEN
+                IF v_remaining_quantity > 0 THEN
             IF v_group_size > 0 THEN
                 SELECT COALESCE(SUM(quantity), 0) INTO v_unassigned_quantity
                 FROM print_queue_items
@@ -342,7 +347,7 @@ BEGIN
                 END IF;
             END IF;
 
-            IF v_remaining_quantity > 0 THEN
+                        IF v_remaining_quantity > 0 THEN
                 WHILE v_remaining_quantity > 0 LOOP
                     INSERT INTO print_queue_items (print_queue_id, order_item_id, product_variant_id, quantity, is_processed, reserved_until, created_at, updated_at)
                     VALUES (
@@ -362,7 +367,7 @@ BEGIN
         END IF;
     END IF;
 
-    IF NEW.status = 'payment_received' AND OLD.status IS DISTINCT FROM NEW.status THEN
+        IF NEW.status = 'payment_received' AND OLD.status IS DISTINCT FROM NEW.status THEN
         UPDATE print_queue_items
         SET reserved_until = NULL
         WHERE order_item_id = NEW.id;
@@ -372,10 +377,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_process_print_order
+CREATE OR REPLACE TRIGGER trigger_process_print_order
 AFTER UPDATE OF status ON order_items
 FOR EACH ROW
-WHEN (NEW.status = 'payment_received'::order_status OR NEW.status = 'at_checkout'::order_status)
+WHEN (NEW.status = 'payment_received'::order_status OR NEW.status = 'at_checkout'::order_status OR NEW.status = 'pending'::order_status)
 EXECUTE FUNCTION process_print_order();
 
 CREATE OR REPLACE FUNCTION cleanup_expired_print_queue_items()
