@@ -4,7 +4,7 @@ import type { Metadata, Viewport } from "next";
 import Header from "@/components/layout/Header";
 import { cn } from "@/lib/utils";
 import Providers from "@/providers/Providers";
-import { poppins } from "@/styles/fonts";
+import { poppins, urbanist } from "@/styles/fonts";
 
 export const metadata: Metadata = {
   title: "Eco3D",
@@ -41,10 +41,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={cn(poppins.variable, urbanist.variable)}>
       <body
         className={
-          (cn(poppins.className), "flex flex-col  antialiased min-h-screen")
+          (cn(poppins.className, urbanist.className),
+          "flex flex-col  antialiased min-h-screen")
         }
       >
         <Providers>
