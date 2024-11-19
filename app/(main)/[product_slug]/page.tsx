@@ -55,7 +55,7 @@ const page = () => {
             <BreadcrumbItem>
               <BreadcrumbLink>
                 <div className="flex items-center gap-1.5">
-                  <ShoppingBasket className="w-4 h-4 mt-px" /> Add to cart
+                  <ShoppingBasket className="w-5 h-5 -mt-px" /> Add to cart
                 </div>
               </BreadcrumbLink>
             </BreadcrumbItem>
