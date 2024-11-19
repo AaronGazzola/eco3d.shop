@@ -22,7 +22,7 @@ const FreeShippingProgress = ({ onClick }: { onClick: () => void }) => {
                 50
               </span>
               <div className="absolute -bottom-0 -right-0 w-7 h-7  flex items-end justify-end">
-                <div className="border-b-2 absolute w-6 h-1 border-gray-400 -rotate-45 top-1/2 left-1/2 translate-x-[calc(-50%-12px)] translate-y-[calc(-50%-0px)] "></div>
+                <div className="border-b-2 absolute w-6 h-1 border-gray-400 -rotate-45 top-1/2 left-1/2 translate-x-[calc(-50%-12px)] translate-y-[calc(-50%-0px)] " />
                 <span className=" -mr-1 -mb-1 relative font-bold text-gray-600 dark:text-gray-400">
                   <span className="absolute -top-1 -left-2 text-sm font-medium">
                     $
