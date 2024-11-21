@@ -36,8 +36,8 @@ export const urbanist = Urbanist({
   style: ["normal", "italic"],
   display: "swap",
   preload: true,
-  fallback: ["Arial", "sans-serif"],
-  adjustFontFallback: true,
-  subsets: ["latin", "latin-ext"],
   variable: "--font-urbanist", // Add this
+  subsets: ["latin", "latin-ext"],
+  fallback: ["system-ui", "arial"],
+  adjustFontFallback: true,
 });
