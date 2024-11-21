@@ -20,7 +20,7 @@ const Header = () => {
     <>
       <header
         className={cn(
-          "sticky top-0 left-0 right-0 w-full min-h-12 flex items-stretch shadow-md justify-center bg-background py-0.5 z-100",
+          "sticky top-0 left-0 right-0 w-full min-h-12 flex items-stretch shadow-md justify-center bg-background py-0.5 z-50",
         )}
       >
         <div className="flex h-full justify-between max-w-[100rem] flex-grow pr-0.5 items-stretch">
