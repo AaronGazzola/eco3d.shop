@@ -1,10 +1,10 @@
 import { Products } from "@/types/product.types";
 import ProductCard from "@/components/products/ProductCard";
-import { Key } from "react";
+import { cn } from "@/lib/utils";
 
-export default function ProductsList() {
+export default function ProductsList({ className }: { className?: string }) {
   return (
-    <div className="w-full">
+    <div className={cn(`w-full`, className)}>
       <div className="container w-[80%] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {ProductsMockData.products.map(product => {
           return <ProductCard key={product.id} {...product} />;

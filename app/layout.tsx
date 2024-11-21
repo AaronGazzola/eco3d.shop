@@ -45,7 +45,7 @@ export default function RootLayout({
       <body
         className={
           (cn(poppins.className, urbanist.className),
-          "flex flex-col  antialiased min-h-screen")
+          "flex flex-col antialiased min-h-screen")
         }
       >
         <Providers>
