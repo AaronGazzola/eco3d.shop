@@ -23,8 +23,8 @@ export default function Hero() {
         className="object-cover z-[-1]"
       />
       <div className="absolute inset-0 bg-[#0F3901] opacity-70 z-[-1]" />
-      <div className="container w-[80%] px-2 h-full flex flex-col md:flex-row items-center justify-between">
-        <div className="text-white md:w-[520px]">
+      <div className="container w-[80%] px-2 h-full flex flex-col md:flex-row items-center justify-between gap-5">
+        <div className="text-white w-[45%]">
           <div className="text-[60px] leading-[72px] font-semibold">
             {config.information.title}
           </div>
@@ -33,9 +33,7 @@ export default function Hero() {
           </div>
           <Button className="mt-[32px]">{config.information.start}</Button>
         </div>
-        <div className="">
-          <Advertisement />
-        </div>
+        <div className="w-[55%] h-full">{/* <Advertisement /> */}</div>
       </div>
     </div>
   );
