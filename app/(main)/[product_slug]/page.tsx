@@ -97,10 +97,10 @@ const BreadcrumbItemComponent = ({
 const Page = () => {
   const [activeStep, setActiveStep] = useState(Customise);
   return (
-    <div className="flex flex-col items-stretch w-full overflow-hidden flex-grow">
+    <div className="flex flex-col items-stretch w-full overflow-hidden flex-grow ">
       <div className="w-full flex items-center justify-center">
-        <div className="w-full flex justify-center group px-4 py-2.5 space-x-2 ">
-          <div className="max-w-7xl w-full">
+        <div className="max-w-7xl w-full flex">
+          <div className="py-2.5 px-4 xl:rounded-bl-lg rounded-br-lg  bg-amber-700/[2%] border-b border-r border-amber-950/10">
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItemComponent
@@ -164,7 +164,7 @@ const Page = () => {
               <div className="w-full max-w-7xl flex-grow ">
                 <div
                   className={cn(
-                    "flex-grow p-4 flex items-center gap-4 text-gray-800",
+                    "flex-grow p-4 pt-3 flex items-center gap-4 text-gray-800",
                     isActive && "text-green-800",
                   )}
                 >
