@@ -10,9 +10,10 @@ interface ProductCardProps extends Product {}
 
 export default function ProductCard({
   id,
-  photo,
+  photos,
   name,
   price,
+  description,
   createdAt,
   deliveryStartDate,
   deliveryEndDate,
@@ -31,13 +32,32 @@ export default function ProductCard({
         <Loading className="h-[200px]" />
       ) : (
         <>
-          <div className="w-full aspect-square relative">
-            <Image src={photo} fill alt={name} className="object-cover" />
+          <div className="w-full aspect-square grid grid-cols-2 gap-[4px]">
+            {photos.map(photo => {
+              return (
+                <div key={photo} className="relative">
+                  <Image
+                    src={photo}
+                    fill
+                    alt={name}
+                    className="object-cover rounded-[6px]"
+                  />
+                </div>
+              );
+            })}
           </div>
           <div className="flex flex-col gap-[8px] mt-[14px] mb-[10px]">
-            <div className="text-[20px] font-bold text-gray-900 ">{name}</div>
-            <div className="text-[16px] font-medium">${price} AUD</div>
-            <div className="text-[12px] font-semibold text-primary-500">
+            <div className="text-[28px] leading-[33.6px] font-bold text-[#37363B]">
+              {name}
+            </div>
+            <div className="text-[22px] leading-[26.4px] font-medium text-[#424242]">
+              ${price} AUD
+            </div>
+            <div className="text-[17px] leading-[20.4px] font-normal text-[#616161]">
+              {description}
+            </div>
+
+            <div className="bg-[#348319] rounded-[4px] text-[16px] leading-[19.2px] font-normal text-white px-[8px] py-[5px] self-auto w-fit">
               {0} Items available
             </div>
           </div>
