@@ -1,6 +1,7 @@
 import Hero from "./components/Hero";
 import ProductsList from "./components/ProductsList";
 import { LandingPageSearchBar } from "@/components/searchbar";
+import Footer from "@/components/layout/Footer";
 
 export default function Home() {
   return (
@@ -12,7 +13,7 @@ export default function Home() {
         </div>
         <ProductsList className="py-[82px]" />
       </div>
-      <div>This is footer.</div>
+      <Footer />
     </div>
   );
 }

@@ -1,8 +1,9 @@
 export interface Product {
   id: string;
-  photo: string;
+  photos: string[];
   name: string;
   price: number;
+  description: string;
   createdAt: string;
   deliveryStartDate: string;
   deliveryEndDate: string;
