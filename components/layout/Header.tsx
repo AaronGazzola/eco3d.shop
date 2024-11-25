@@ -23,7 +23,7 @@ const Header = () => {
           "sticky top-0 left-0 right-0 w-full min-h-12 flex items-stretch shadow-md justify-center bg-background py-0.5",
         )}
       >
-        <div className="flex h-full justify-between max-w-[100rem] flex-grow pr-0.5 items-stretch">
+        <div className="flex h-full justify-between flex-grow pr-0.5 items-stretch max-w-7xl">
           <Logo />
           {isAdmin && (
             <div className="items-center flex flex-grow">
