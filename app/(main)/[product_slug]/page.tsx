@@ -1,5 +1,6 @@
 "use client";
 
+import ProductPageStep from "@/app/(main)/[product_slug]/ProductPageStep";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -7,7 +8,6 @@ import {
   BreadcrumbList,
 } from "@/components/ui/breadcrumb";
 import configuration from "@/configuration";
-import { cn } from "@/lib/utils";
 import { AddToCartStep } from "@/types/ui.types";
 import {
   Check,
@@ -19,8 +19,6 @@ import {
 import { useState } from "react";
 
 const { Customise, Personalise, AddToCart, Select } = AddToCartStep;
-
-const COLLAPSED_HEIGHT = 70;
 
 const BreadcrumbItemComponent = ({
   href,
@@ -76,7 +74,7 @@ const BreadcrumbItemComponent = ({
         {/* <div className="absolute bottom-0 left-0 right-0 border-b border-green-800/80 transform translate-y-1"></div> */}
         <BreadcrumbLink className="font-bold text-base text-black">
           <div className="flex items-center gap-1.5 rounded-lg pl-1.5 pr-2 pb-px font-medium border border-green-900/50">
-            {icon} <span className="hidden sm:block">{step}</span>
+            {icon} <span className="hidden xs:block">{step}</span>
           </div>
         </BreadcrumbLink>
       </BreadcrumbItem>
@@ -135,68 +133,14 @@ const Page = () => {
           </div>
         </div>
       </div>
-      {[Customise, Personalise, AddToCart].map(step => {
-        const isCustomise = step === Customise;
-        const isPersonalise = step === Personalise;
-        const isAddToCart = step === AddToCart;
-        const isActive = step === activeStep;
-        const icon =
-          step === Customise ? (
-            <Ruler className="w-7 h-7 mt-px" />
-          ) : step === Personalise ? (
-            <Pencil className="w-7 h-7 mt-px" />
-          ) : step === AddToCart ? (
-            <ShoppingBasket className="w-9 h-9 -mt-px" />
-          ) : null;
-        return (
-          <div
-            key={step}
-            onClick={() => setActiveStep(step)}
-            style={{
-              minHeight: COLLAPSED_HEIGHT,
-            }}
-            className={cn(
-              "transition-all ease-out duration-500 relative overflow-hidden cursor-pointer shadow-md",
-              isActive && "flex-grow",
-            )}
-          >
-            <div className={cn("absolute inset-0 flex justify-center")}>
-              <div className="w-full max-w-7xl flex-grow ">
-                <div
-                  className={cn(
-                    "flex-grow p-4 pt-3 flex items-center gap-4 text-gray-800",
-                    isActive && "text-green-800",
-                  )}
-                >
-                  {icon}
-                  <h1 className="text-[2rem] font-semibold ">{step}</h1>
-                </div>
-                <div className="pb-4">
-                  <p className="mt-2">
-                    This is the content for the {step} section. It expands to
-                    fill the available space and scrolls if the content
-                    overflows.
-                  </p>
-                  <div className="mt-4 space-y-2">
-                    <p>
-                      Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                      Vivamus lacinia odio vitae vestibulum vestibulum.
-                    </p>
-                    <p>
-                      Cras venenatis euismod malesuada. Nullam ac urna eu felis
-                      dapibus condimentum sit amet a augue.
-                    </p>
-                    <p>
-                      Donec sodales, nisi id mattis convallis, sem velit
-                      facilisis ipsum, eget mollis orci odio id libero.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })}
+      {[Customise, Personalise, AddToCart].map(step => (
+        <ProductPageStep
+          key={step}
+          step={step}
+          activeStep={activeStep}
+          onChangeActiveStep={setActiveStep}
+        />
+      ))}
     </div>
   );
 };
