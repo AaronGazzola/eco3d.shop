@@ -52,7 +52,7 @@ export function Drawer({
       <SheetContent
         side={side}
         showCloseButton={false}
-        className="!w-full !max-w-md gap-6 flex flex-col border-l border-gray-600 p-0"
+        className="!w-full !max-w-md flex flex-col border-l border-gray-600 p-0"
       >
         <SheetHeader>
           <div className="w-full flex justify-between items-center p-0.5">
