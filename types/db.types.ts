@@ -3,6 +3,7 @@ import { Tables } from "@/types/database.types";
 export interface CartItem {
   id: number;
   name: string;
+  photo: string;
   price: number;
   quantity?: number;
   description: string;
