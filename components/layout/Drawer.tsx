@@ -1,7 +1,9 @@
 "use client";
 
-import { Moon, ShoppingBasket, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
+import { Cart } from "@/components/cart/Cart";
+import AuthFormPopover from "@/components/layout/AuthFormPopover";
+import LogoBackground from "@/components/svg/LogoBackground";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -9,35 +11,35 @@ import {
   SheetHeader,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import Link from "next/link";
-import Image from "next/image";
 import configuration from "@/configuration";
-import { comfortaa } from "@/styles/fonts";
+import { useUIStore } from "@/hooks/useUIStore";
 import { cn } from "@/lib/utils";
-import { ChevronRight } from "lucide-react";
+import { comfortaa } from "@/styles/fonts";
 import { Direction } from "@/types/util.types";
-import { Badge } from "@/components/ui/badge";
-import LogoBackground from "@/components/svg/LogoBackground";
-import { Cart } from "@/components/cart/Cart";
-import AuthFormPopover from "@/components/layout/AuthFormPopover";
+import { ChevronRight, ShoppingBasket } from "lucide-react";
+import { useTheme } from "next-themes";
+import Image from "next/image";
+import Link from "next/link";
+import { useEffect } from "react";
 
 export function Drawer({
   side = Direction.Left,
-  onToggleDrawerIsOpen,
-  isOpen,
 }: {
   side?: Direction.Left | Direction.Right;
-  onToggleDrawerIsOpen: (isOpen?: boolean) => void;
-  isOpen: boolean;
 }) {
+  const { isDrawerOpen, toggleDrawer } = useUIStore();
   const { setTheme, resolvedTheme } = useTheme();
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === "dark" ? "light" : "dark");
   };
 
+  useEffect(() => {
+    setTheme("light");
+  }, [setTheme]);
+
   return (
-    <Sheet open={isOpen} onOpenChange={() => onToggleDrawerIsOpen()}>
+    <Sheet open={isDrawerOpen} onOpenChange={() => toggleDrawer()}>
       <SheetTrigger asChild>
         <Button
           variant="ghost"
@@ -59,7 +61,7 @@ export function Drawer({
             <Link
               href={configuration.paths.appHome}
               className="flex items-center gap-4 ml-3"
-              onClick={() => onToggleDrawerIsOpen(false)}
+              onClick={() => toggleDrawer(false)}
             >
               <div className="relative">
                 <div className="hidden dark:block absolute inset-0 -z-10 scale-y-[1.03]">
@@ -84,26 +86,13 @@ export function Drawer({
             </Link>
 
             <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleTheme}
-                className={cn(
-                  "flex justify-center items-center text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white outline-none p-2",
-                )}
-              >
-                <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 " />
-                <span className="sr-only">Toggle theme</span>
-              </Button>
               <AuthFormPopover />
-
               <Button
                 value="icon"
                 size="sm"
                 variant="outline"
                 className="border-none dark:text-gray-400 dark:hover:text-white border border-white outline-none text-gray-600 hover:text-black p-4 h-12 rounded-tr-none px-2 sm:px-4"
-                onClick={() => onToggleDrawerIsOpen(false)}
+                onClick={() => toggleDrawer(false)}
               >
                 <ChevronRight className="w-8 h-8" />
               </Button>

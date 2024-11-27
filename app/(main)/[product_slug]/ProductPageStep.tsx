@@ -1,4 +1,4 @@
-import { camelCaseToSpacedAndCapitalized } from "@/lib/util/string.util";
+import { camelCaseToFormattedString } from "@/lib/util/string.util";
 import { cn } from "@/lib/utils";
 import { AddToCartStep } from "@/types/ui.types";
 import { ChevronDown, Pencil, Ruler, ShoppingBasket } from "lucide-react";
@@ -69,7 +69,7 @@ const ProductPageStep = ({
 
   return (
     <div
-      onClick={() => onChangeActiveStep(step)}
+      onClick={() => !isDisabled && onChangeActiveStep(step)}
       className={cn(
         "absolute inset-0 flex flex-col items-center",
         isPersonaliseStep && "z-10",
@@ -103,7 +103,7 @@ const ProductPageStep = ({
           <div className="flex items-center gap-4">
             {icon}
             <h1 className={cn("text-[2rem] font-semibold", fontColorClass)}>
-              {camelCaseToSpacedAndCapitalized(step)}
+              {camelCaseToFormattedString(step)}
             </h1>
           </div>
           {isNext && !isDisabled && (

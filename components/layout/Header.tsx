@@ -1,21 +1,21 @@
 "use client";
+
 import { Drawer } from "@/components/layout/Drawer";
 import FreeShippingProgress from "@/components/layout/FreeShippingProgress";
 import Logo from "@/components/layout/Logo";
 import { Button } from "@/components/ui/button";
 import configuration from "@/configuration";
+import { useUIStore } from "@/hooks/useUIStore";
 import { useIsAdmin } from "@/hooks/userHooks";
 import { cn } from "@/lib/utils";
 import { Direction } from "@/types/util.types";
 import { PackageSearch, TicketPercent } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
 
 const Header = () => {
   const isAdmin = useIsAdmin();
-  const [isOpen, setIsOpen] = useState(false);
-  const onToggleDrawerIsOpen = (open?: boolean) =>
-    setIsOpen(prev => open ?? !prev);
+  const toggleDrawer = useUIStore(state => state.toggleDrawer);
+
   return (
     <>
       <header
@@ -39,12 +39,8 @@ const Header = () => {
               </Link>
             </div>
           )}
-          <FreeShippingProgress onClick={onToggleDrawerIsOpen} />
-          <Drawer
-            onToggleDrawerIsOpen={onToggleDrawerIsOpen}
-            isOpen={isOpen}
-            side={Direction.Right}
-          />
+          <FreeShippingProgress onClick={() => toggleDrawer()} />
+          <Drawer side={Direction.Right} />
         </div>
       </header>
     </>
