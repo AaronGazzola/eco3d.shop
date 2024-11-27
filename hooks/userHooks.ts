@@ -1,18 +1,18 @@
 "use client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { User } from "@supabase/supabase-js";
 import {
-  getUserAction,
-  updateUserAction,
   deleteUserAction,
-  signOutAction,
-  signInWithMagicLinkAction,
+  getUserAction,
   getUserRoleAction,
+  signOutAction,
+  updateUserAction,
 } from "@/actions/userActions";
+import useSupabase from "@/hooks/useSupabase";
 import { useToastQueue } from "@/hooks/useToastQueue";
-import { HookOptions } from "@/types/db.types";
 import { ActionResponse } from "@/types/action.types";
 import { Tables } from "@/types/database.types";
+import { HookOptions } from "@/types/db.types";
+import { User } from "@supabase/supabase-js";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 enum SuccessMessages {
   SIGN_IN_SUCCESS = "Sign in link sent! Check your email :)",
@@ -114,11 +114,12 @@ export const useSignInWithMagicLink = ({
 }: HookOptions<User> = {}) => {
   const queryClient = useQueryClient();
   const { toast } = useToastQueue();
+  const supabase = useSupabase();
 
   return useMutation({
     mutationFn: async (email: string, hookOptions?: HookOptions<User>) => {
-      const { data, error } = await signInWithMagicLinkAction(email);
-      if (error) throw new Error(error);
+      const { data, error } = await supabase.auth.signInWithOtp({ email });
+      if (error) throw new Error(error.message);
       return data;
     },
     onSuccess: (data, variables, context, hookOptions?: HookOptions<User>) => {
