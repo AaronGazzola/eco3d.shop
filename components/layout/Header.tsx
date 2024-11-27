@@ -1,4 +1,8 @@
 "use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import { PackageSearch, TicketPercent } from "lucide-react";
 import { Drawer } from "@/components/layout/Drawer";
 import FreeShippingProgress from "@/components/layout/FreeShippingProgress";
 import Logo from "@/components/layout/Logo";
@@ -7,9 +11,6 @@ import configuration from "@/configuration";
 import { useIsAdmin } from "@/hooks/userHooks";
 import { cn } from "@/lib/utils";
 import { Direction } from "@/types/util.types";
-import { PackageSearch, TicketPercent } from "lucide-react";
-import Link from "next/link";
-import { useState } from "react";
 
 const Header = () => {
   const isAdmin = useIsAdmin();

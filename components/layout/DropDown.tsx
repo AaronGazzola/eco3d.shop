@@ -26,11 +26,11 @@ export const DropDown = ({
     <Select>
       <SelectTrigger
         className={cn(
-          "relative text-gray-500 font-normal text-[20px] leading-[24px]",
+          "relative text-gray-500 font-normal text-[16px] leading-[18px] h-5",
           className,
         )}
       >
-        <div className="absolute left-[20px] h-full flex items-center">
+        <div className="absolute left-[10px] lg:left-[20px] h-full flex items-center">
           {icon}
         </div>
         <SelectValue placeholder={placeholder} />

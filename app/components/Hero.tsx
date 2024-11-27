@@ -1,7 +1,6 @@
 import { Icon } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import Advertisement from "./Advertisement";
 
 const config = {
   information: {

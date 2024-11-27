@@ -5,7 +5,7 @@ import { FilterIcon, UpDownIcon } from "@/components/icons";
 
 export const LandingPageSearchBar = () => {
   return (
-    <div className="w-full flex p-[16px] rounded-[84px] gap-[16px] bg-white items-center">
+    <div className="w-full flex p-[16px] rounded-[84px] gap-[8px] md:gap-[16px] bg-white items-center">
       <div className="flex-1 relative">
         <div className="absolute left-[20px] h-full flex items-center">
           <MagnifierIcon />
@@ -21,13 +21,13 @@ export const LandingPageSearchBar = () => {
       <div>
         <DropDown
           {...config.sortByDropDown}
-          className="rounded-[47px] border border-[#E0E0E0] w-[190px] pl-[50px] py-[20px] h-[64px]"
+          className="rounded-[47px] border border-[#E0E0E0] w-[120px] lg:w-[190px] pl-[30px] lg:pl-[40px] h-[48px]"
         />
       </div>
       <div>
         <DropDown
           {...config.filterByDropDown}
-          className="rounded-[47px] border border-[#E0E0E0] w-[190px] pl-[50px] py-[20px] h-[64px]"
+          className="rounded-[47px] border border-[#E0E0E0] w-[100px] lg:w-[190px] pl-[30px] lg:pl-[40px] h-[48px]"
         />
       </div>
     </div>
@@ -36,7 +36,7 @@ export const LandingPageSearchBar = () => {
 
 const config = {
   sortByDropDown: {
-    icon: <UpDownIcon />,
+    icon: <UpDownIcon width={16} height={16} />,
     placeholder: "Sort By",
     options: [
       { value: "None" },
@@ -46,7 +46,7 @@ const config = {
     ],
   },
   filterByDropDown: {
-    icon: <FilterIcon />,
+    icon: <FilterIcon width={16} height={16} />,
     placeholder: "Filter",
     options: [
       { value: "None" },

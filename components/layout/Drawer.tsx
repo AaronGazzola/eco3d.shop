@@ -2,6 +2,8 @@
 
 import { Moon, ShoppingBasket, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
+import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -9,8 +11,6 @@ import {
   SheetHeader,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import Link from "next/link";
-import Image from "next/image";
 import configuration from "@/configuration";
 import { comfortaa } from "@/styles/fonts";
 import { cn } from "@/lib/utils";
