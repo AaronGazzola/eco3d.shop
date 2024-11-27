@@ -1,3 +1,4 @@
+import { camelCaseToSpacedAndCapitalized } from "@/lib/util/string.util";
 import { cn } from "@/lib/utils";
 import { AddToCartStep } from "@/types/ui.types";
 import { ChevronDown, Pencil, Ruler, ShoppingBasket } from "lucide-react";
@@ -17,6 +18,10 @@ const ProductPageStep = ({
   onChangeActiveStep: (step: AddToCartStep) => void;
   isDisabled?: boolean;
 }) => {
+  const isCustomeiseStep = step === Customise;
+  const isPersonaliseStep = step === Personalise;
+  const isAddToCartStep = step === AddToCart;
+  const isSelectStep = step === Select;
   const isActive = step === activeStep;
   const isNext =
     (step === Personalise && activeStep === Customise) ||
@@ -24,15 +29,18 @@ const ProductPageStep = ({
   const isDisabled =
     isDisabledProp || (step === AddToCart && activeStep === Customise);
   const isComplete =
-    (step === Personalise && activeStep === AddToCart) ||
-    (step === Customise &&
-      (activeStep === Personalise || activeStep === AddToCart));
+    (isPersonaliseStep && activeStep === AddToCart) ||
+    (isCustomeiseStep && activeStep !== Customise);
 
-  const fontColorClass = isDisabled
-    ? "text-gray-500"
-    : isNext
-      ? "text-gray-50 hover:text-white"
-      : "";
+  const fontColorClass = isActive
+    ? "text-green-800"
+    : isDisabled && isNext
+      ? "text-gray-100"
+      : isDisabled
+        ? "text-gray-500"
+        : isNext
+          ? "text-gray-50 hover:text-white"
+          : "text-gray-800";
   const icon =
     step === Customise ? (
       <Ruler className={cn("w-7 h-7 mt-px", fontColorClass)} />
@@ -41,44 +49,66 @@ const ProductPageStep = ({
     ) : step === AddToCart ? (
       <ShoppingBasket className={cn("w-9 h-9 -mt-px", fontColorClass)} />
     ) : null;
+
+  const isAtTop = isComplete || isActive;
+
+  const bottomHeight = isPersonaliseStep
+    ? COLLAPSED_HEIGHT * 2
+    : isAddToCartStep
+      ? COLLAPSED_HEIGHT
+      : 0;
+  const top = isAtTop
+    ? `${
+        isPersonaliseStep
+          ? COLLAPSED_HEIGHT
+          : isAddToCartStep
+            ? COLLAPSED_HEIGHT * 2
+            : 0
+      }px`
+    : `calc(100% - ${bottomHeight}px)`;
+
   return (
     <div
-      key={step}
-      onClick={() => !isDisabled && onChangeActiveStep(step)}
-      style={{
-        minHeight: COLLAPSED_HEIGHT,
-      }}
+      onClick={() => onChangeActiveStep(step)}
       className={cn(
-        "transition-all ease-in-out duration-700 relative overflow-hidden cursor-pointer shadow-md",
-        isActive && "flex-grow",
+        "absolute inset-0 flex flex-col items-center",
+        isPersonaliseStep && "z-10",
+        isAddToCartStep && "z-20",
       )}
+      style={{
+        top,
+        transition: "top 0.6s ease-in-out",
+      }}
     >
       <div
         className={cn(
-          "absolute inset-0 flex justify-center group",
-          isNext && "bg-green-700/90 hover:bg-green-700",
-          isDisabled && "bg-gray-200 && cursor-not-allowed",
+          "max-w-4xl w-full flex-grow rounded-t-xl overflow-hidden shadow-xl border-t transition-colors ease duration-250",
+          isDisabled && !isNext
+            ? "bg-gray-200 && cursor-not-allowed"
+            : isDisabled && isNext
+              ? "bg-green-800/70  cursor-not-allowed"
+              : isNext
+                ? "bg-green-700/90 hover:bg-green-700 cursor-pointer"
+                : "",
+          isComplete && "bg-gray-50",
+          isActive && "bg-white",
         )}
-        style={{
-          maxHeight: isActive ? "100vh" : COLLAPSED_HEIGHT,
-        }}
       >
-        <div className="w-full max-w-7xl flex-grow ">
-          <div
-            className={cn(
-              "flex-grow p-4 pt-3 flex items-center gap-4 text-gray-800",
-              isActive && "text-green-800",
-            )}
-          >
+        <div
+          className={cn(
+            "flex-grow p-4 pt-3 pr-10 flex items-center justify-between gap-4 ",
+            isActive && "text-green-800",
+          )}
+        >
+          <div className="flex items-center gap-4">
             {icon}
             <h1 className={cn("text-[2rem] font-semibold", fontColorClass)}>
-              {step}
+              {camelCaseToSpacedAndCapitalized(step)}
             </h1>
-            {/* TODO: add order details summary related completed step  */}
-            {isNext && !isDisabled && (
-              <ChevronDown className="w-7 h-7 mt-1 text-white" />
-            )}
           </div>
+          {isNext && !isDisabled && (
+            <ChevronDown className="w-8 h-8 mt-1 text-white" />
+          )}
         </div>
       </div>
     </div>

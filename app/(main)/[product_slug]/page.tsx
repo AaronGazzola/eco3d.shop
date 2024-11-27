@@ -95,14 +95,13 @@ const BreadcrumbItemComponent = ({
 const Page = () => {
   const [activeStep, setActiveStep] = useState(Customise);
   return (
-    <div className="flex flex-col items-stretch w-full overflow-hidden flex-grow ">
-      <div className="w-full flex items-center justify-center">
-        <div className="max-w-7xl w-full flex">
+    <div className="flex flex-col items-stretch w-full overflow-hidden flex-grow space-y-3">
+      <div className="w-full flex items-center flex-gow justify-center relative ">
+        <div className="max-w-4xl w-full flex">
           <div className="py-2.5 px-4 xl:rounded-bl-lg rounded-br-lg  bg-amber-700/[2%] border-b border-r border-amber-950/10">
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItemComponent
-                  isComplete
                   href={configuration.paths.appHome}
                   step={Select}
                   activeStep={activeStep}
@@ -133,14 +132,17 @@ const Page = () => {
           </div>
         </div>
       </div>
-      {[Customise, Personalise, AddToCart].map(step => (
-        <ProductPageStep
-          key={step}
-          step={step}
-          activeStep={activeStep}
-          onChangeActiveStep={setActiveStep}
-        />
-      ))}
+
+      <div className="flex-grow w-full relative">
+        {[Customise, Personalise, AddToCart].map(step => (
+          <ProductPageStep
+            key={step}
+            step={step}
+            activeStep={activeStep}
+            onChangeActiveStep={setActiveStep}
+          />
+        ))}
+      </div>
     </div>
   );
 };

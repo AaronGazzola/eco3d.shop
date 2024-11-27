@@ -16,3 +16,10 @@ export function maskEmail(
 
   return `${maskedLocal}@${maskedDomainName}.${domainExt}`;
 }
+
+export function camelCaseToSpacedAndCapitalized(input: string): string {
+  return input
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z])/g, match => match.toUpperCase())
+    .replace(/^\w/, match => match.toUpperCase());
+}
