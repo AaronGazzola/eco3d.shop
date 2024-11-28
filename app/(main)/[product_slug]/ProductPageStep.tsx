@@ -89,10 +89,10 @@ const ProductPageStep = ({
           isDisabled && !isNext
             ? "bg-gray-200 && cursor-not-allowed"
             : isDisabled && isNext
-              ? "bg-green-800/70  cursor-not-allowed"
+              ? "bg-green-800  cursor-not-allowed"
               : isNext
-                ? "bg-green-700/90 hover:bg-green-700 cursor-pointer"
-                : "",
+                ? "bg-green-700 hover:bg-green-700 cursor-pointer"
+                : "bg-white",
           isComplete && "bg-gray-50",
           isActive && "bg-white",
         )}
@@ -113,13 +113,20 @@ const ProductPageStep = ({
             <ChevronDown className="w-8 h-8 mt-1 text-white" />
           )}
         </div>
-        {isCustomeiseStep ? (
-          <CustomiseForm />
-        ) : isPersonaliseStep ? (
-          <PersonaliseForm />
-        ) : isAddToCartStep ? (
-          <AddToCartSummary />
-        ) : null}
+        <div
+          className={cn(
+            "flex-grow h-full transition-opacity duration-250 ease-in",
+            !isActive && "opacity-0",
+          )}
+        >
+          {isCustomeiseStep ? (
+            <CustomiseForm />
+          ) : isPersonaliseStep ? (
+            <PersonaliseForm />
+          ) : isAddToCartStep ? (
+            <AddToCartSummary />
+          ) : null}
+        </div>
       </div>
     </div>
   );
