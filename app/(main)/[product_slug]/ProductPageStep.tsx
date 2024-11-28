@@ -1,3 +1,6 @@
+import { AddToCartSummary } from "@/app/(main)/[product_slug]/AddToCartSummary";
+import { CustomiseForm } from "@/app/(main)/[product_slug]/CustomiseForm";
+import { PersonaliseForm } from "@/app/(main)/[product_slug]/PersonaliseForm";
 import { camelCaseToFormattedString } from "@/lib/util/string.util";
 import { cn } from "@/lib/utils";
 import { AddToCartStep } from "@/types/ui.types";
@@ -110,6 +113,13 @@ const ProductPageStep = ({
             <ChevronDown className="w-8 h-8 mt-1 text-white" />
           )}
         </div>
+        {isCustomeiseStep ? (
+          <CustomiseForm />
+        ) : isPersonaliseStep ? (
+          <PersonaliseForm />
+        ) : isAddToCartStep ? (
+          <AddToCartSummary />
+        ) : null}
       </div>
     </div>
   );
