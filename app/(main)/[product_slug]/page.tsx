@@ -97,7 +97,7 @@ const Page = () => {
   return (
     <div className="flex flex-col items-stretch w-full overflow-hidden flex-grow space-y-3">
       <div className="w-full flex items-center flex-gow justify-center relative ">
-        <div className="max-w-4xl w-full flex">
+        <div className="max-w-4xl w-full flex px-4">
           <div className="py-2.5 px-4 xl:rounded-bl-lg rounded-br-lg  bg-amber-700/[2%] border-b border-r border-amber-950/10">
             <Breadcrumb>
               <BreadcrumbList>
