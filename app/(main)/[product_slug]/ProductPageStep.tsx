@@ -9,7 +9,7 @@ import { ChevronDown, Pencil, Ruler, ShoppingBasket } from "lucide-react";
 const { Customise, Personalise, AddToCart, Select } = AddToCartStep;
 
 // TODO: Move to enums
-export const COLLAPSED_PRODUCT_STEP_HEIGHT = 70;
+export const COLLAPSED_PRODUCT_STEP_HEIGHT = 75;
 export const EXPANDED_HEADER_HEIGHT = 92;
 
 const ProductPageStep = ({
@@ -87,7 +87,7 @@ const ProductPageStep = ({
     >
       <div
         className={cn(
-          "max-w-4xl w-full flex-grow rounded-t-xl overflow-hidden shadow-xl  transition-all ease duration-250 px-4",
+          "max-w-4xl w-full flex-grow rounded-t-xl overflow-hidden shadow-xl  transition-colors ease duration-250 px-4",
           isDisabled && !isNext
             ? "bg-gray-200 && cursor-not-allowed"
             : isDisabled && isNext
@@ -104,8 +104,8 @@ const ProductPageStep = ({
         <div className={cn("flex-grow relative h-full")}>
           <div
             className={cn(
-              "absolute inset-0 pr-10 flex flex-col gap-4 transition-all delay-500 duration-300 p-3 pb-0 ",
-              isActive ? "text-green-800 pt-5" : "pt-3",
+              "absolute inset-0 pr-10 flex flex-col gap-4 transition-all p-3 pb-0 pt-3",
+              isActive && "text-green-800",
             )}
             style={{
               bottom: isCustomeiseStep
