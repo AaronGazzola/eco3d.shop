@@ -8,7 +8,6 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form,
   FormField,
@@ -16,8 +15,9 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Square, SquareCheckBig } from "lucide-react";
 import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -45,7 +45,7 @@ export function CustomiseForm() {
           {[...Array(3)].map((_, index) => (
             <CarouselItem
               key={index}
-              className="flex items-center justify-center relative h-full w-full "
+              className="flex items-center justify-center relative h-full w-full"
             >
               <CarouselPrevious className="absolute left-6 top-1/2 transform -translate-y-1/2 z-10 bg-white shadow rounded-full p-2" />
               <CarouselNext className="absolute right-2 top-1/2 transform -translate-y-1/2 z-10 bg-white shadow rounded-full p-2" />
@@ -73,13 +73,35 @@ export function CustomiseForm() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Size</FormLabel>
-                  <RadioGroup {...field} className="flex gap-4">
-                    {["small", "medium", "large"].map(size => (
-                      <RadioGroupItem key={size} value={size}>
-                        {size}
-                      </RadioGroupItem>
-                    ))}
-                  </RadioGroup>
+                  <div className="flex gap-4">
+                    {["Small", "Medium", "Large"].map(size => {
+                      const isActive = field.value === size;
+                      return (
+                        <Button
+                          key={size}
+                          type="button"
+                          variant={isActive ? "secondary" : "outline"}
+                          onClick={() => field.onChange(size)}
+                          className="flex-1 gap-3 text-base group"
+                        >
+                          <div
+                            className={cn(
+                              "rounded-full w-5 h-5 border-2  flex items-center justify-center group-hover:border-white",
+                              isActive ? "border-white" : "border-secondary ",
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                !isActive && "opacity-0",
+                                "rounded-full w-1 h-1 bg-white",
+                              )}
+                            ></div>
+                          </div>
+                          {size}
+                        </Button>
+                      );
+                    })}
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
@@ -91,27 +113,37 @@ export function CustomiseForm() {
                 <FormItem>
                   <FormLabel>Colors</FormLabel>
                   <div className="flex gap-4">
-                    {["natural", "black", "white"].map(color => (
-                      <Checkbox
-                        key={color}
-                        value={color}
-                        onCheckedChange={checked =>
-                          checked
-                            ? field.onChange([...field.value, color])
-                            : field.onChange(
-                                field.value.filter(item => item !== color),
-                              )
-                        }
-                      >
-                        {color}
-                      </Checkbox>
-                    ))}
+                    {["Natural", "Black", "White"].map((color: string) => {
+                      const isActive = (field.value as string[]).includes(
+                        color,
+                      );
+                      return (
+                        <Button
+                          key={color}
+                          type="button"
+                          variant={isActive ? "secondary" : "outline"}
+                          onClick={() => {
+                            const newValue = isActive
+                              ? field.value.filter(c => c !== color)
+                              : [...field.value, color];
+                            field.onChange(newValue);
+                          }}
+                          className={cn("flex-1 gap-3 text-base")}
+                        >
+                          {isActive ? (
+                            <SquareCheckBig className="w-5 h-5" />
+                          ) : (
+                            <Square className="w-5 h-5" />
+                          )}
+                          {color}
+                        </Button>
+                      );
+                    })}
                   </div>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <Button type="submit">Next</Button>
           </form>
         </Form>
       </div>
