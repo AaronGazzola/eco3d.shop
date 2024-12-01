@@ -53,7 +53,6 @@ const BreadcrumbItemComponent = ({
     </div>
   );
 
-  if (isComplete) console.log({ step, activeStep });
   if (isComplete)
     return (
       <BreadcrumbItem onClick={onClick}>

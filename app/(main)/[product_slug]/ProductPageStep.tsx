@@ -120,10 +120,10 @@ const ProductPageStep = ({
               <h1 className={cn("text-[2rem] font-semibold", fontColorClass)}>
                 {camelCaseToFormattedString(step)}
               </h1>
+              {isNext && !isDisabled && (
+                <ChevronDown className="w-8 h-8 mt-1 text-white" />
+              )}
             </div>
-            {isNext && !isDisabled && (
-              <ChevronDown className="w-8 h-8 mt-1 text-white" />
-            )}
 
             {isCustomeiseStep ? (
               <CustomiseForm />
