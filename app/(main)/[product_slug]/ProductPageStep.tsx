@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { camelCaseToFormattedString } from "@/lib/util/string.util";
 import { cn } from "@/lib/utils";
 import { AddToCartStep } from "@/types/ui.types";
-import { ArrowRight, Pencil, Ruler, ShoppingBasket } from "lucide-react";
+import { ChevronDown, Pencil, Ruler, ShoppingBasket } from "lucide-react";
 
 const { Customise, Personalise, AddToCart, Select } = AddToCartStep;
 
@@ -38,9 +38,7 @@ const ProductPageStep = ({
     (isPersonaliseStep && activeStep === AddToCart) ||
     (isCustomeiseStep && activeStep !== Customise);
 
-  const fontColorClass = isActive
-    ? "text-green-800"
-    : "text-gray-700 group-hover:text-secondary";
+  const fontColorClass = isActive ? "text-green-800" : "text-gray-700";
 
   // const fontColorClass = isActive
   //   ? "text-green-800"
@@ -97,7 +95,7 @@ const ProductPageStep = ({
       ) : (
         <div
           className={cn(
-            "max-w-4xl w-full flex-grow rounded-t-xl overflow-hidden shadow-xl  transition-colors ease duration-250 px-4 border group bg-gradient-to-b from-white via-white to-[hsl(141,71%,29%)] min-h-screen",
+            "max-w-4xl w-full flex-grow rounded-t-xl overflow-hidden shadow-xl  transition-colors ease duration-250 px-4 border group bg-gradient-to-b from-white via-white to-[hsl(141,71%,29%)] min-h-[115vh]",
           )}
         >
           <div className={cn("flex-grow relative h-full")}>
@@ -115,7 +113,7 @@ const ProductPageStep = ({
               }}
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-4">
                   {icon}
                   <h1
                     className={cn("text-[2rem] font-semibold", fontColorClass)}
@@ -133,7 +131,7 @@ const ProductPageStep = ({
                 >
                   <>
                     <span className="mb-[3px]">Next</span>
-                    <ArrowRight className="w-5 h-5 stroke-[3px]" />
+                    <ChevronDown className="w-5 h-5 stroke-[3px]" />
                   </>
                 </Button>
               </div>

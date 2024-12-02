@@ -41,7 +41,7 @@ export function CustomiseForm() {
   const form = useForm({
     resolver: zodResolver(customiseSchema),
     defaultValues: {
-      size: "medium",
+      size: "Small",
       colors: [],
     },
   });
@@ -74,7 +74,7 @@ export function CustomiseForm() {
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-4 p-4 pt-0"
+            className="space-y-5 p-4 pt-0"
           >
             <h2 className="text-2xl font-semibold text-gray-800">
               Customise your Model V8:
@@ -186,7 +186,7 @@ export function CustomiseForm() {
                               field.onChange(newValue);
                             }}
                             className={cn(
-                              "flex-1 font-bold group gap-2 z-10",
+                              "flex-1 font-bold group gap-3 z-10",
                               isLocked && "cursor-default opacity-80",
                             )}
                           >
@@ -200,16 +200,23 @@ export function CustomiseForm() {
                           {/* TODO: animate drop down */}
                           {isActive && (
                             <FormDescription className="flex gap-2 items-center p-1 w-full justify-center font-bold text-secondary ">
-                              {isLocked ? (
-                                <>
-                                  <Lock className="w-4 h-4 stroke-[3px]" />
-                                  <span className="">Required</span>
-                                </>
-                              ) : (
-                                <span className="whitespace-nowrap w-min text-secondary bg-white px-3.5 pt-5 pb-2 rounded shadow border -mt-6">
-                                  + $3.39
-                                </span>
-                              )}
+                              <span
+                                className={cn(
+                                  "whitespace-nowrap w-min text-secondary bg-white px-3.5 pt-5 pb-2 rounded shadow border -mt-6 flex items-center gap-1.5",
+                                  isLocked && "bg-gray-50 select-none",
+                                )}
+                              >
+                                {isLocked ? (
+                                  <>
+                                    <Lock className="w-4 h-4 stroke-[3px] text-gray-700" />
+                                    <span className="text-gray-700">
+                                      Required
+                                    </span>
+                                  </>
+                                ) : (
+                                  "+ $3.39"
+                                )}
+                              </span>
                             </FormDescription>
                           )}
                         </div>
