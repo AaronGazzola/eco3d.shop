@@ -74,22 +74,20 @@ export function CustomiseForm() {
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-5 p-4 pt-0"
+            className="space-y-4 p-4 pt-0"
           >
             <h2 className="text-2xl font-semibold text-gray-800">
               Customise your Model V8:
             </h2>
 
-            <div className="flex flex-col w-full gap-2">
+            <div className="flex flex-col w-full gap-4">
               <div className="flex w-full items-center justify-center">
-                <div className="flex-grow justify-center items-center px-2">
-                  <hr className="w-full" />
+                <div className="flex-grow justify-center items-center flex">
+                  <hr className="w-7/12" />
                 </div>
-                <span className="text-sm font-semibold text-gray-800 ">
-                  Size
-                </span>
-                <div className="flex-grow px-2">
-                  <hr className="w-full" />
+                <span className="font-semibold text-gray-800 ">Size</span>
+                <div className="flex-grow justify-center items-center flex">
+                  <hr className="w-7/12" />
                 </div>
               </div>
               <div className="w-full border shadow flex items-center text-xs p-1 px-2.5 text-green-900 font-semibold gap-1">
@@ -118,20 +116,27 @@ export function CustomiseForm() {
                     {["Small", "Medium", "Large"].map(size => {
                       const isActive = field.value === size;
                       return (
-                        <div key={size} className="flex-1 flex-col gap-2 group">
+                        <div
+                          key={size}
+                          className="flex-1 flex flex-col gap-2 group"
+                        >
                           <Button
                             type="button"
                             variant={isActive ? "secondary" : "outline"}
                             onClick={() => field.onChange(size)}
-                            className="flex-1 gap-3 text-base group"
+                            className="gap-3 font-bold group hover:opacity-100 z-10"
                           >
-                            {isActive ? <CircleDot /> : <Circle />}
+                            {isActive ? (
+                              <CircleDot className="w-[1.1rem] h-[1.1rem]" />
+                            ) : (
+                              <Circle className="w-[1.1rem] h-[1.1rem]" />
+                            )}
                             {size}
                           </Button>
                           {isActive && (
-                            <FormDescription className="flex gap-2 items-center p-1 w-full justify-center group-hover:text-black">
-                              <span className="text-secondary font-semibold">
-                                +$2.49
+                            <FormDescription className="flex gap-2 items-center p-1 w-full justify-center font-bold text-secondary">
+                              <span className="whitespace-nowrap w-min text-secondary bg-white px-3.5 pt-5 pb-2 rounded shadow border -mt-7">
+                                + $3.39
                               </span>
                             </FormDescription>
                           )}
@@ -143,18 +148,18 @@ export function CustomiseForm() {
                 </FormItem>
               )}
             />
-            <div className="flex w-full items-center justify-center">
-              <div className="flex-grow justify-center items-center px-2">
-                <hr className="w-full" />
+            <div className="flex flex-col gap-5">
+              <div className="flex w-full items-center justify-center">
+                <div className="flex-grow justify-center items-center flex">
+                  <hr className="w-7/12" />
+                </div>
+                <span className="font-semibold text-gray-800 ">Colors</span>
+                <div className="flex-grow justify-center items-center flex">
+                  <hr className="w-7/12" />
+                </div>
               </div>
-              <span className="text-sm font-semibold text-gray-800 ">
-                Colors
-              </span>
-              <div className="flex-grow px-2">
-                <hr className="w-full" />
-              </div>
+              <div className="w-full rounded-lg bg-gray-400 h-5"></div>
             </div>
-            <div className="w-full rounded-lg bg-gray-400 h-5"></div>
             <FormField
               control={form.control}
               name="colors"
@@ -168,7 +173,7 @@ export function CustomiseForm() {
                       return (
                         <div
                           key={color}
-                          className="flex-1 flex-col gap-2 group"
+                          className="flex-grow flex h-min flex-col group gap-1"
                         >
                           <Button
                             key={color}
@@ -181,7 +186,7 @@ export function CustomiseForm() {
                               field.onChange(newValue);
                             }}
                             className={cn(
-                              "flex-1 text-base group gap-2",
+                              "flex-1 font-bold group gap-2 z-10",
                               isLocked && "cursor-default opacity-80",
                             )}
                           >
@@ -192,16 +197,17 @@ export function CustomiseForm() {
                             )}
                             {color}
                           </Button>
+                          {/* TODO: animate drop down */}
                           {isActive && (
-                            <FormDescription className="flex gap-2 items-center p-1 w-full justify-center group-hover:text-black">
+                            <FormDescription className="flex gap-2 items-center p-1 w-full justify-center font-bold text-secondary ">
                               {isLocked ? (
                                 <>
-                                  <Lock className="w-4 h-4" />
-                                  Required
+                                  <Lock className="w-4 h-4 stroke-[3px]" />
+                                  <span className="">Required</span>
                                 </>
                               ) : (
-                                <span className="text-secondary font-semibold">
-                                  +$3.39
+                                <span className="whitespace-nowrap w-min text-secondary bg-white px-3.5 pt-5 pb-2 rounded shadow border -mt-6">
+                                  + $3.39
                                 </span>
                               )}
                             </FormDescription>

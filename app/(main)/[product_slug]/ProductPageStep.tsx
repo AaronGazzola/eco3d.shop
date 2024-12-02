@@ -1,10 +1,11 @@
 import { AddToCartSummary } from "@/app/(main)/[product_slug]/AddToCartSummary";
 import { CustomiseForm } from "@/app/(main)/[product_slug]/CustomiseForm";
 import { PersonaliseForm } from "@/app/(main)/[product_slug]/PersonaliseForm";
+import { Button } from "@/components/ui/button";
 import { camelCaseToFormattedString } from "@/lib/util/string.util";
 import { cn } from "@/lib/utils";
 import { AddToCartStep } from "@/types/ui.types";
-import { ChevronDown, Pencil, Ruler, ShoppingBasket } from "lucide-react";
+import { ArrowRight, Pencil, Ruler, ShoppingBasket } from "lucide-react";
 
 const { Customise, Personalise, AddToCart, Select } = AddToCartStep;
 
@@ -39,13 +40,17 @@ const ProductPageStep = ({
 
   const fontColorClass = isActive
     ? "text-green-800"
-    : isDisabled && isNext
-      ? "text-gray-100"
-      : isDisabled
-        ? "text-gray-500"
-        : isNext
-          ? "text-gray-50 hover:text-white"
-          : "text-gray-800";
+    : "text-gray-700 group-hover:text-secondary";
+
+  // const fontColorClass = isActive
+  //   ? "text-green-800"
+  //   : isDisabled && isNext
+  //     ? "text-gray-100"
+  //     : isDisabled
+  //       ? "text-gray-500"
+  //       : isNext
+  //         ? "text-gray-50 hover:text-white"
+  //         : "text-gray-800";
   const icon =
     step === Customise ? (
       <Ruler className={cn("w-7 h-7 mt-px", fontColorClass)} />
@@ -74,7 +79,9 @@ const ProductPageStep = ({
 
   return (
     <div
-      onClick={() => !isDisabled && onChangeActiveStep(step)}
+      onClick={() =>
+        !isDisabled && !isAddToCartStep && onChangeActiveStep(step)
+      }
       className={cn(
         "absolute inset-0 flex flex-col items-center",
         isPersonaliseStep && "z-10",
@@ -85,56 +92,61 @@ const ProductPageStep = ({
         transition: "top 0.6s ease-in-out",
       }}
     >
-      <div
-        className={cn(
-          "max-w-4xl w-full flex-grow rounded-t-xl overflow-hidden shadow-xl  transition-colors ease duration-250 px-4",
-          isDisabled && !isNext
-            ? "bg-gray-200 && cursor-not-allowed"
-            : isDisabled && isNext
-              ? "bg-green-800  cursor-not-allowed"
-              : isNext
-                ? "bg-green-700 hover:bg-green-700 cursor-pointer"
-                : "bg-white",
-          isComplete && "bg-gray-50",
-          isActive && "bg-white",
-          isAtTop && "border-t",
-          !isActive && "select-none",
-        )}
-      >
-        <div className={cn("flex-grow relative h-full")}>
-          <div
-            className={cn(
-              "absolute inset-0 pr-10 flex flex-col gap-4 transition-all p-3 pb-0 pt-3",
-              isActive && "text-green-800",
-            )}
-            style={{
-              bottom: isCustomeiseStep
-                ? 2 * COLLAPSED_PRODUCT_STEP_HEIGHT
-                : isPersonaliseStep
-                  ? COLLAPSED_PRODUCT_STEP_HEIGHT
-                  : 0,
-            }}
-          >
-            <div className="flex items-center gap-4">
-              {icon}
-              <h1 className={cn("text-[2rem] font-semibold", fontColorClass)}>
-                {camelCaseToFormattedString(step)}
-              </h1>
-              {isNext && !isDisabled && (
-                <ChevronDown className="w-8 h-8 mt-1 text-white" />
+      {isAddToCartStep ? (
+        <AddToCartSummary />
+      ) : (
+        <div
+          className={cn(
+            "max-w-4xl w-full flex-grow rounded-t-xl overflow-hidden shadow-xl  transition-colors ease duration-250 px-4 border group bg-gradient-to-b from-white via-white to-[hsl(141,71%,29%)] min-h-screen",
+          )}
+        >
+          <div className={cn("flex-grow relative h-full")}>
+            <div
+              className={cn(
+                "absolute inset-0 pr-10 flex flex-col gap-4 transition-all p-3 pb-0 pt-3",
+                isActive && "text-green-800",
               )}
-            </div>
+              style={{
+                bottom: isCustomeiseStep
+                  ? 2 * COLLAPSED_PRODUCT_STEP_HEIGHT
+                  : isPersonaliseStep
+                    ? COLLAPSED_PRODUCT_STEP_HEIGHT
+                    : 0,
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {icon}
+                  <h1
+                    className={cn("text-[2rem] font-semibold", fontColorClass)}
+                  >
+                    {camelCaseToFormattedString(step)}
+                  </h1>
+                </div>
 
-            {isCustomeiseStep ? (
-              <CustomiseForm />
-            ) : isPersonaliseStep ? (
-              <PersonaliseForm />
-            ) : isAddToCartStep ? (
-              <AddToCartSummary />
-            ) : null}
+                <Button
+                  variant="default"
+                  className={cn(
+                    (isAtTop || !isPersonaliseStep) && "opacity-0",
+                    "transition-opacity min-w-[20rem] font-bold text-xl flex items-center gap-4",
+                  )}
+                >
+                  <>
+                    <span className="mb-[3px]">Next</span>
+                    <ArrowRight className="w-5 h-5 stroke-[3px]" />
+                  </>
+                </Button>
+              </div>
+
+              {isCustomeiseStep ? (
+                <CustomiseForm />
+              ) : isPersonaliseStep ? (
+                <PersonaliseForm />
+              ) : null}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
