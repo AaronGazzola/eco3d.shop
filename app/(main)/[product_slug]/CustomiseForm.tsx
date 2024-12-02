@@ -76,10 +76,6 @@ export function CustomiseForm() {
             onSubmit={form.handleSubmit(onSubmit)}
             className="space-y-5 p-4 pt-0"
           >
-            <h2 className="text-2xl font-semibold text-gray-800">
-              Customise your Model V8:
-            </h2>
-
             <div className="flex flex-col w-full gap-4">
               <div className="flex w-full items-center justify-center">
                 <div className="flex-grow justify-center items-center flex">

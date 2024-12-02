@@ -5,8 +5,8 @@ import { Equal, Plus, ShoppingBasket } from "lucide-react";
 export function AddToCartSummary() {
   return (
     <div className="w-full border shadow-lg bg-white h-full flex items-center justify-center">
-      <div className="max-w-4xl w-full flex items-center justify-between gap-4">
-        <div className="h-full flex-grow flex items-center justify-center gap-2">
+      <div className="max-w-4xl px-6 w-full flex items-center justify-between gap-4">
+        <div className="h-full flex-grow flex items-center justify-center gap-2 border">
           <div className="flex items-center">
             <div className="flex flex-col items-center border border-primary rounded-full bg-gray-50 p-1 px-6 font-bold text-gray-900">
               <span className="text-sm">Small</span>

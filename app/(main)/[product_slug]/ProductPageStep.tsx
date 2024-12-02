@@ -113,27 +113,48 @@ const ProductPageStep = ({
               }}
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  {icon}
-                  <h1
-                    className={cn("text-[2rem] font-semibold", fontColorClass)}
-                  >
-                    {camelCaseToFormattedString(step)}
-                  </h1>
+                <div className="flex items-center gap-4 w-full justify-between">
+                  <div className="flex gap-4 items-center">
+                    {icon}
+                    <h1
+                      className={cn(
+                        "text-[2rem] font-semibold",
+                        fontColorClass,
+                      )}
+                    >
+                      {camelCaseToFormattedString(step)}
+                    </h1>
+                  </div>
                 </div>
+                <div className="flex gap-4 relative flex-grow min-w-[50%] px-4">
+                  <h2
+                    className={cn(
+                      "transition-opacity text-xl font-semibold text-gray-800 whitespace-nowrap",
 
-                <Button
-                  variant="default"
-                  className={cn(
-                    (isAtTop || !isPersonaliseStep) && "opacity-0",
-                    "transition-opacity min-w-[20rem] font-bold text-xl flex items-center gap-4",
-                  )}
-                >
-                  <>
-                    <span className="mb-[3px]">Next</span>
-                    <ChevronDown className="w-5 h-5 stroke-[3px]" />
-                  </>
-                </Button>
+                      !isActive && "opacity-0",
+                    )}
+                  >
+                    {isCustomeiseStep
+                      ? "Customise size and colour"
+                      : isPersonaliseStep
+                        ? "Personalise with an inscription"
+                        : null}
+                  </h2>
+                  <div className="absolute inset-0">
+                    <Button
+                      variant="default"
+                      className={cn(
+                        (isAtTop || !isPersonaliseStep) && "opacity-0",
+                        "transition-opacity w-full font-bold text-xl flex items-center gap-4",
+                      )}
+                    >
+                      <>
+                        <span className="mb-[3px]">Next</span>
+                        <ChevronDown className="w-5 h-5 stroke-[3px]" />
+                      </>
+                    </Button>
+                  </div>
+                </div>
               </div>
 
               {isCustomeiseStep ? (
