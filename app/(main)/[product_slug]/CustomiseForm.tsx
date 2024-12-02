@@ -13,12 +13,21 @@ import {
   FormDescription,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Lock, Square, SquareCheckBig } from "lucide-react";
+import {
+  Axis3D,
+  Circle,
+  CircleDot,
+  Dot,
+  Lock,
+  MoveHorizontal,
+  MoveVertical,
+  Square,
+  SquareCheckBig,
+} from "lucide-react";
 import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -61,45 +70,72 @@ export function CustomiseForm() {
           ))}
         </CarouselContent>
       </Carousel>
-      <div className="relative overflow-hidden rounded-lg"></div>
       <div className="lg:w-1/2 w-full">
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-6 p-4"
+            className="space-y-5 p-4 pt-0"
           >
+            <h2 className="text-2xl font-semibold text-gray-800">
+              Customise your Model V8:
+            </h2>
+
+            <div className="flex flex-col w-full gap-2">
+              <div className="flex w-full items-center justify-center">
+                <div className="flex-grow justify-center items-center px-2">
+                  <hr className="w-full" />
+                </div>
+                <span className="text-sm font-semibold text-gray-800 ">
+                  Size
+                </span>
+                <div className="flex-grow px-2">
+                  <hr className="w-full" />
+                </div>
+              </div>
+              <div className="w-full border shadow flex items-center text-xs p-1 px-2.5 text-green-900 font-semibold gap-1">
+                <MoveHorizontal className="w-4 h-4" />
+                <span>Width</span>
+                <div className="h-3 border w-px" />
+                <span className="whitespace-nowrap text-gray-900">30 cm</span>
+                <Dot />
+                <MoveVertical className="w-4 h-4" />
+                <span>Height</span>
+                <div className="h-3 border w-px" />
+                <span className="whitespace-nowrap text-gray-900">30 cm</span>
+                <Dot />
+                <Axis3D className="w-4 h-4" />
+                <span>Depth</span>
+                <div className="h-3 border w-px" />
+                <span className="whitespace-nowrap text-gray-900">30cm</span>
+              </div>
+            </div>
             <FormField
               control={form.control}
               name="size"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Size</FormLabel>
                   <div className="flex gap-4">
                     {["Small", "Medium", "Large"].map(size => {
                       const isActive = field.value === size;
                       return (
-                        <Button
-                          key={size}
-                          type="button"
-                          variant={isActive ? "secondary" : "outline"}
-                          onClick={() => field.onChange(size)}
-                          className="flex-1 gap-3 text-base group"
-                        >
-                          <div
-                            className={cn(
-                              "rounded-full w-4 h-4 border-2  flex items-center justify-center group-hover:border-white",
-                              isActive ? "border-white" : "border-secondary ",
-                            )}
+                        <div key={size} className="flex-1 flex-col gap-2 group">
+                          <Button
+                            type="button"
+                            variant={isActive ? "secondary" : "outline"}
+                            onClick={() => field.onChange(size)}
+                            className="flex-1 gap-3 text-base group"
                           >
-                            <div
-                              className={cn(
-                                !isActive && "opacity-0",
-                                "rounded-full w-1 h-1 bg-white",
-                              )}
-                            ></div>
-                          </div>
-                          {size}
-                        </Button>
+                            {isActive ? <CircleDot /> : <Circle />}
+                            {size}
+                          </Button>
+                          {isActive && (
+                            <FormDescription className="flex gap-2 items-center p-1 w-full justify-center group-hover:text-black">
+                              <span className="text-secondary font-semibold">
+                                +$2.49
+                              </span>
+                            </FormDescription>
+                          )}
+                        </div>
                       );
                     })}
                   </div>
@@ -107,12 +143,23 @@ export function CustomiseForm() {
                 </FormItem>
               )}
             />
+            <div className="flex w-full items-center justify-center">
+              <div className="flex-grow justify-center items-center px-2">
+                <hr className="w-full" />
+              </div>
+              <span className="text-sm font-semibold text-gray-800 ">
+                Colors
+              </span>
+              <div className="flex-grow px-2">
+                <hr className="w-full" />
+              </div>
+            </div>
+            <div className="w-full rounded-lg bg-gray-400 h-5"></div>
             <FormField
               control={form.control}
               name="colors"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Colors</FormLabel>
                   <div className="flex gap-4">
                     {["Natural", "Black", "White"].map((color: string, i) => {
                       const isLocked = i === 0 || i === 1;
@@ -145,10 +192,18 @@ export function CustomiseForm() {
                             )}
                             {color}
                           </Button>
-                          {isLocked && (
+                          {isActive && (
                             <FormDescription className="flex gap-2 items-center p-1 w-full justify-center group-hover:text-black">
-                              <Lock className="w-4 h-4" />
-                              Required
+                              {isLocked ? (
+                                <>
+                                  <Lock className="w-4 h-4" />
+                                  Required
+                                </>
+                              ) : (
+                                <span className="text-secondary font-semibold">
+                                  +$3.39
+                                </span>
+                              )}
                             </FormDescription>
                           )}
                         </div>
