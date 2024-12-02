@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/carousel";
 import {
   Form,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -17,7 +18,7 @@ import {
 } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Square, SquareCheckBig } from "lucide-react";
+import { Lock, Square, SquareCheckBig } from "lucide-react";
 import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -86,7 +87,7 @@ export function CustomiseForm() {
                         >
                           <div
                             className={cn(
-                              "rounded-full w-5 h-5 border-2  flex items-center justify-center group-hover:border-white",
+                              "rounded-full w-4 h-4 border-2  flex items-center justify-center group-hover:border-white",
                               isActive ? "border-white" : "border-secondary ",
                             )}
                           >
@@ -113,30 +114,44 @@ export function CustomiseForm() {
                 <FormItem>
                   <FormLabel>Colors</FormLabel>
                   <div className="flex gap-4">
-                    {["Natural", "Black", "White"].map((color: string) => {
-                      const isActive = (field.value as string[]).includes(
-                        color,
-                      );
+                    {["Natural", "Black", "White"].map((color: string, i) => {
+                      const isLocked = i === 0 || i === 1;
+                      const isActive =
+                        (field.value as string[]).includes(color) || isLocked;
                       return (
-                        <Button
+                        <div
                           key={color}
-                          type="button"
-                          variant={isActive ? "secondary" : "outline"}
-                          onClick={() => {
-                            const newValue = isActive
-                              ? field.value.filter(c => c !== color)
-                              : [...field.value, color];
-                            field.onChange(newValue);
-                          }}
-                          className={cn("flex-1 gap-3 text-base")}
+                          className="flex-1 flex-col gap-2 group"
                         >
-                          {isActive ? (
-                            <SquareCheckBig className="w-5 h-5" />
-                          ) : (
-                            <Square className="w-5 h-5" />
+                          <Button
+                            key={color}
+                            type="button"
+                            variant={isActive ? "secondary" : "outline"}
+                            onClick={() => {
+                              const newValue = isActive
+                                ? field.value.filter(c => c !== color)
+                                : [...field.value, color];
+                              field.onChange(newValue);
+                            }}
+                            className={cn(
+                              "flex-1 text-base group gap-2",
+                              isLocked && "cursor-default opacity-80",
+                            )}
+                          >
+                            {isActive ? (
+                              <SquareCheckBig className="w-[1.2rem] h-[1.2rem]" />
+                            ) : (
+                              <Square className="w-[1.2rem] h-[1.2rem]" />
+                            )}
+                            {color}
+                          </Button>
+                          {isLocked && (
+                            <FormDescription className="flex gap-2 items-center p-1 w-full justify-center group-hover:text-black">
+                              <Lock className="w-4 h-4" />
+                              Required
+                            </FormDescription>
                           )}
-                          {color}
-                        </Button>
+                        </div>
                       );
                     })}
                   </div>
