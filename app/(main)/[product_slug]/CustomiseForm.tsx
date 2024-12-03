@@ -49,30 +49,35 @@ export function CustomiseForm() {
   const onSubmit = () => {};
 
   return (
-    <div className="flex flex-col justify-center lg:flex-row lg:space-x-6 h-full overflow-y-auto">
-      <Carousel className="w-auto h-full aspect-square min-w-[300px]">
-        <CarouselContent className="flex items-center">
-          {[...Array(3)].map((_, index) => (
-            <CarouselItem
-              key={index}
-              className="flex items-center justify-center relative h-full w-full"
-            >
-              <CarouselPrevious className="absolute left-6 top-1/2 transform -translate-y-1/2 z-10 bg-white shadow rounded-full p-2" />
-              <CarouselNext className="absolute right-2 top-1/2 transform -translate-y-1/2 z-10 bg-white shadow rounded-full p-2" />
-              <Image
-                className="rounded-lg shadow-lg"
-                src="/images/promo/Aaron Set 1 Sept 20-19.jpg"
-                alt="promo"
-                width={500}
-                height={500}
-              />
-            </CarouselItem>
-          ))}
-        </CarouselContent>
-      </Carousel>
-      <div className="lg:w-1/2 w-full flex items-start">
+    <div className="flex flex-col justify-center lg:flex-row h-full overflow-y-auto">
+      <div className="w-1/2 h-full flex flex-col">
+        <Carousel className="aspect-square ">
+          <CarouselContent className="flex items-center">
+            {[...Array(3)].map((_, index) => (
+              <CarouselItem
+                key={index}
+                className="flex items-center justify-center relative h-full w-full"
+              >
+                <CarouselPrevious className="absolute left-6 top-1/2 transform -translate-y-1/2 z-10 bg-white shadow rounded-full p-2" />
+                <CarouselNext className="absolute right-2 top-1/2 transform -translate-y-1/2 z-10 bg-white shadow rounded-full p-2" />
+                <Image
+                  className="rounded-lg shadow-lg"
+                  src="/images/promo/Aaron Set 1 Sept 20-19.jpg"
+                  alt="promo"
+                  width={500}
+                  height={500}
+                />
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+        </Carousel>
+      </div>
+      <div className="w-1/2 h-full flex flex-col">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="aspect-square flex flex-col justify-center p-6"
+          >
             <div className="flex flex-col w-full">
               <div className="flex w-full items-center justify-center">
                 <div className="flex-grow justify-center items-center flex">
@@ -127,7 +132,12 @@ export function CustomiseForm() {
                             {size}
                           </Button>
                           {isActive && (
-                            <FormDescription className="flex gap-2 items-center p-1 w-full justify-center font-bold text-secondary">
+                            <FormDescription
+                              className={cn(
+                                "flex gap-2 items-center p-1 w-full justify-center font-bold text-secondary",
+                                size === "Small" && "opacity-0",
+                              )}
+                            >
                               <span className="whitespace-nowrap w-min text-secondary bg-white px-3.5 pt-5 pb-2 rounded shadow border -mt-7">
                                 + $3.39
                               </span>
