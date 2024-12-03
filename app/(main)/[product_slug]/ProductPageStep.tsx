@@ -91,11 +91,13 @@ const ProductPageStep = ({
       }}
     >
       {isAddToCartStep ? (
-        <AddToCartSummary />
+        <AddToCartSummary isNext={isNext} />
       ) : (
         <div
           className={cn(
-            "max-w-4xl w-full flex-grow rounded-t-xl overflow-hidden shadow-xl  transition-colors ease duration-250 px-4 border group bg-gradient-to-b from-white via-white to-[hsl(141,71%,29%)] min-h-[115vh]",
+            // bg-gradient-to-b from-white via-white to-[hsl(141,71%,29%)] min-h-[115vh]
+            "max-w-4xl w-full flex-grow rounded-t-xl overflow-hidden shadow-xl   transition-colors ease duration-250 px-4 border group bg-white",
+            isNext && "shadow-[0_-5px_15px_2px_rgba(22,101,52,0.2)]",
           )}
         >
           <div className={cn("flex-grow relative h-full")}>
@@ -127,9 +129,9 @@ const ProductPageStep = ({
                   </div>
                 </div>
                 <div className="flex gap-4 relative flex-grow min-w-[50%] px-4">
-                  <h2
+                  {/* <h2
                     className={cn(
-                      "transition-opacity text-xl font-semibold text-gray-800 whitespace-nowrap",
+                      "transition-opacity text-xl font-semibold text-secondary whitespace-nowrap",
 
                       !isActive && "opacity-0",
                     )}
@@ -139,24 +141,24 @@ const ProductPageStep = ({
                       : isPersonaliseStep
                         ? "Personalise with an inscription"
                         : null}
-                  </h2>
-                  <div className="absolute inset-0">
-                    <Button
-                      variant="default"
-                      className={cn(
-                        (isAtTop || !isPersonaliseStep) && "opacity-0",
-                        "transition-opacity w-full font-bold text-xl flex items-center gap-4",
-                      )}
-                    >
-                      <>
-                        <span className="mb-[3px]">Next</span>
-                        <ChevronDown className="w-5 h-5 stroke-[3px]" />
-                      </>
-                    </Button>
-                  </div>
+                  </h2> */}
+                  {/* <div className="absolute inset-0"> */}
+                  <Button
+                    variant="default"
+                    className={cn(
+                      (isAtTop || !isPersonaliseStep) &&
+                        "opacity-0 pointer-events-none cursor-default",
+                      "transition-opacity w-full font-bold text-xl flex items-center gap-4",
+                    )}
+                  >
+                    <>
+                      <span className="mb-[3px]">Next</span>
+                      <ChevronDown className="w-5 h-5 stroke-[3px]" />
+                    </>
+                  </Button>
+                  {/* </div> */}
                 </div>
               </div>
-
               {isCustomeiseStep ? (
                 <CustomiseForm />
               ) : isPersonaliseStep ? (

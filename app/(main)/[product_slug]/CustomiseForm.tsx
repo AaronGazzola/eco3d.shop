@@ -49,7 +49,7 @@ export function CustomiseForm() {
   const onSubmit = () => {};
 
   return (
-    <div className="flex flex-col lg:flex-row lg:space-x-6 h-full overflow-y-auto">
+    <div className="flex flex-col justify-center lg:flex-row lg:space-x-6 h-full overflow-y-auto">
       <Carousel className="w-auto h-full aspect-square min-w-[300px]">
         <CarouselContent className="flex items-center">
           {[...Array(3)].map((_, index) => (
@@ -70,13 +70,10 @@ export function CustomiseForm() {
           ))}
         </CarouselContent>
       </Carousel>
-      <div className="lg:w-1/2 w-full">
+      <div className="lg:w-1/2 w-full flex items-start">
         <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-5 p-4 pt-0"
-          >
-            <div className="flex flex-col w-full gap-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="">
+            <div className="flex flex-col w-full">
               <div className="flex w-full items-center justify-center">
                 <div className="flex-grow justify-center items-center flex">
                   <hr className="w-7/12" />
@@ -86,7 +83,7 @@ export function CustomiseForm() {
                   <hr className="w-7/12" />
                 </div>
               </div>
-              <div className="w-full border shadow flex items-center text-xs p-1 px-2.5 text-green-900 font-semibold gap-1">
+              <div className="w-full border shadow flex items-center text-xs p-1 px-2.5 text-green-900 font-semibold gap-1 mt-3 mb-5">
                 <MoveHorizontal className="w-4 h-4" />
                 <span>Width</span>
                 <div className="h-3 border w-px" />
@@ -144,17 +141,17 @@ export function CustomiseForm() {
                 </FormItem>
               )}
             />
-            <div className="flex flex-col gap-5">
+            <div className="flex flex-col mt-8">
               <div className="flex w-full items-center justify-center">
                 <div className="flex-grow justify-center items-center flex">
                   <hr className="w-7/12" />
                 </div>
-                <span className="font-semibold text-gray-800 ">Colors</span>
+                <span className="font-semibold text-gray-800 ">Color</span>
                 <div className="flex-grow justify-center items-center flex">
                   <hr className="w-7/12" />
                 </div>
               </div>
-              <div className="w-full rounded-lg bg-gray-400 h-5"></div>
+              <div className="w-full rounded-lg bg-gray-400 h-8 mt-3 mb-5"></div>
             </div>
             <FormField
               control={form.control}
