@@ -10,6 +10,15 @@ const config = {
   ],
   prefix: "",
   theme: {
+    fontSize: {
+      sm: ['14px', '20px'],
+    },
+    fontWeight: {
+      medium: "600"
+    },
+    lineHeight: {
+      sm: "19.2px"
+    },
     screens: {
       xs: "480px",
       sm: "640px",
@@ -27,6 +36,12 @@ const config = {
     },
     extend: {
       colors: {
+        customwhite: {
+          primary: "#FFFFFF"
+        },
+        customgreen: {
+          primary: "#348319"
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

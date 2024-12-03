@@ -50,7 +50,11 @@ export default function RootLayout({
       >
         <Providers>
           <Header />
-          <main className="flex-grow flex flex-col">{children}</main>
+          <main
+            className="flex-grow flex flex-col" style={{ height: "calc(100vh - 52px)" }}
+          >
+            {children}
+          </main>
           <Footer />
         </Providers>
       </body>
