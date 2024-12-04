@@ -2,6 +2,7 @@
 "use client";
 import { ProductWithVariants } from "@/types/db.types";
 
+import { AttributesTab } from "@/app/(main)/[product_slug]/AttributesTab";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft } from "lucide-react";
@@ -40,7 +41,7 @@ export function AdminProductPage({
         </TabsContent>
 
         <TabsContent value="attributes">
-          Attributes content coming soon
+          <AttributesTab productId={product.id} />
         </TabsContent>
 
         <TabsContent value="images">Images content coming soon</TabsContent>
