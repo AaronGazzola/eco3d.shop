@@ -1,6 +1,6 @@
 import type { Config } from "tailwindcss";
 
-const config = {
+const config = { 
   darkMode: ["class"],
   content: [
     "./pages/**/*.{ts,tsx}",
@@ -14,7 +14,9 @@ const config = {
       sm: ['14px', '20px'],
     },
     fontWeight: {
-      medium: "600"
+      medium_normal: "500",
+      medium: "600",
+      medium_bold: "700"
     },
     lineHeight: {
       sm: "19.2px"
@@ -36,12 +38,7 @@ const config = {
     },
     extend: {
       colors: {
-        customwhite: {
-          primary: "#FFFFFF"
-        },
-        customgreen: {
-          primary: "#348319"
-        },
+        white: "hsl(var(--text-white))",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -111,6 +108,11 @@ const config = {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "caret-blink": "caret-blink 1.25s ease-out infinite",
+      },
+      fontFamily: {
+        poppins: ['Poppins'],
+        comfortaa: ['Comfortaa'],
+        rubik: ['Rubik'],
       },
     },
   },
