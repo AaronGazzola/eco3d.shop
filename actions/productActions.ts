@@ -106,3 +106,29 @@ export const deleteProductAction = async (id: string) => {
     return getActionResponse({ error });
   }
 };
+
+export const getProductByIdAction = async (
+  id: string,
+): Promise<ActionResponse<ProductWithVariants>> => {
+  try {
+    const supabase = await getSupabaseServerActionClient();
+    const { data: user, error: userError } = await getUserAction();
+    if (!user) throw new Error("Please sign in to view products");
+
+    const { data: product, error: productError } = await supabase
+      .from("products")
+      .select(
+        `
+        *,
+        product_variants (*)
+      `,
+      )
+      .eq("id", id)
+      .single();
+
+    if (productError) throw new Error(productError.message);
+    return getActionResponse({ data: product });
+  } catch (error) {
+    return getActionResponse({ error });
+  }
+};
