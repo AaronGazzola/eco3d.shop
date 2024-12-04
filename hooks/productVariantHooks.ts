@@ -10,13 +10,11 @@ import { useToastQueue } from "@/hooks/useToastQueue";
 import { HookOptions, ProductVariant } from "@/types/db.types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-// Enum for default messages
 enum DefaultMessages {
   SuccessMessage = "Operation successful",
   ErrorMessage = "Operation failed",
 }
 
-// Fetch Product Variants Hook
 export const useGetProductVariants = (productId: string) => {
   return useQuery<ProductVariant[] | null, Error>({
     queryKey: ["product_variants", productId],
@@ -31,7 +29,6 @@ export const useGetProductVariants = (productId: string) => {
   });
 };
 
-// Create Product Variant Hook
 export const useCreateProductVariant = ({
   errorMessage,
   successMessage,
@@ -56,6 +53,7 @@ export const useCreateProductVariant = ({
       queryClient.invalidateQueries({
         queryKey: ["product_variants", data?.product_id],
       });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
       toast({
         title: successMessage || DefaultMessages.SuccessMessage,
       });
@@ -64,7 +62,6 @@ export const useCreateProductVariant = ({
   });
 };
 
-// Update Product Variant Hook
 export const useUpdateProductVariant = ({
   errorMessage,
   successMessage,
@@ -89,6 +86,7 @@ export const useUpdateProductVariant = ({
       queryClient.invalidateQueries({
         queryKey: ["product_variants", data?.product_id],
       });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
       toast({
         title: successMessage || DefaultMessages.SuccessMessage,
       });
@@ -97,7 +95,6 @@ export const useUpdateProductVariant = ({
   });
 };
 
-// Delete Product Variant Hook
 export const useDeleteProductVariant = ({
   errorMessage,
   successMessage,
@@ -122,6 +119,7 @@ export const useDeleteProductVariant = ({
       queryClient.invalidateQueries({
         queryKey: ["product_variants", data?.product_id],
       });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
       toast({
         title: successMessage || DefaultMessages.SuccessMessage,
       });
