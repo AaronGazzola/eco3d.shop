@@ -25,3 +25,7 @@ export type ProductWithVariants = Tables<"products"> & {
 };
 
 export type ProductVariant = Tables<"product_variants">;
+
+export type ProductVariantWithImages = Tables<"product_variants"> & {
+  images: Tables<"images">[];
+};

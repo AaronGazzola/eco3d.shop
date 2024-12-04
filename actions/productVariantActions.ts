@@ -3,12 +3,12 @@ import getActionResponse from "@/actions/getActionResponse";
 import { getUserAction, getUserIsAdminAction } from "@/actions/userActions";
 import getSupabaseServerActionClient from "@/clients/action-client";
 import { ActionResponse } from "@/types/action.types";
-import { ProductVariant } from "@/types/db.types";
+import { ProductVariant, ProductVariantWithImages } from "@/types/db.types";
 
 // Fetch product variants by product ID
 export const getProductVariantsAction = async (
   productId: string,
-): Promise<ActionResponse<ProductVariant[]>> => {
+): Promise<ActionResponse<ProductVariantWithImages[]>> => {
   try {
     const supabase = await getSupabaseServerActionClient();
     const { data: user, error } = await getUserAction();
@@ -16,17 +16,27 @@ export const getProductVariantsAction = async (
 
     const { data: variants, error: variantsError } = await supabase
       .from("product_variants")
-      .select("*")
+      .select(
+        `
+      *,
+      images!product_variant_id(*) 
+    `,
+      )
       .eq("product_id", productId);
 
     if (variantsError) throw new Error(variantsError.message);
 
-    return getActionResponse({ data: variants });
+    // Transform data to ensure images is always an array
+    const transformedVariants = variants?.map(variant => ({
+      ...variant,
+      images: variant.images || [],
+    }));
+
+    return getActionResponse({ data: transformedVariants });
   } catch (error) {
     return getActionResponse({ error });
   }
 };
-
 // Create a new product variant
 export type CreateProductVariantValues = {
   variant_name: string;
@@ -111,6 +121,91 @@ export const deleteProductVariantAction = async (id: string) => {
     if (deleteError) throw new Error(deleteError.message);
 
     return getActionResponse({ data: deletedVariant });
+  } catch (error) {
+    return getActionResponse({ error });
+  }
+};
+
+// productVariantActions.ts - Add these functions
+
+export const uploadVariantImageAction = async (
+  file: File,
+  variantId: string,
+) => {
+  try {
+    const supabase = await getSupabaseServerActionClient();
+    const path = `product-variants/${variantId}/${file.name}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("products")
+      .upload(path, file);
+    if (uploadError) throw new Error(uploadError.message);
+
+    const { data: imageData, error: dbError } = await supabase
+      .from("images")
+      .insert({
+        product_variant_id: variantId,
+        image_path: path,
+        display_order: 0,
+      })
+      .select()
+      .single();
+
+    if (dbError) throw new Error(dbError.message);
+
+    return getActionResponse({ data: imageData });
+  } catch (error) {
+    return getActionResponse({ error });
+  }
+};
+
+export const deleteVariantImageAction = async (imageId: string) => {
+  try {
+    const supabase = await getSupabaseServerActionClient();
+
+    const { data: image, error: fetchError } = await supabase
+      .from("images")
+      .select("image_path")
+      .eq("id", imageId)
+      .single();
+    if (fetchError) throw new Error(fetchError.message);
+
+    const { error: storageError } = await supabase.storage
+      .from("products")
+      .remove([image.image_path]);
+    if (storageError) throw new Error(storageError.message);
+
+    const { error: dbError } = await supabase
+      .from("images")
+      .delete()
+      .eq("id", imageId)
+      .select()
+      .single();
+    if (dbError) throw new Error(dbError.message);
+
+    return getActionResponse({ data: image });
+  } catch (error) {
+    return getActionResponse({ error });
+  }
+};
+
+export const deleteAllVariantImagesAction = async (variantId: string) => {
+  try {
+    const supabase = await getSupabaseServerActionClient();
+
+    const { error: storageError } = await supabase.storage
+      .from("products")
+      .remove([`product-variants/${variantId}/*`]);
+    if (storageError) throw new Error(storageError.message);
+
+    const { data: images, error: dbError } = await supabase
+      .from("images")
+      .delete()
+      .eq("product_variant_id", variantId)
+      .select();
+    if (dbError) throw new Error(dbError.message);
+
+    return getActionResponse({ data: images });
   } catch (error) {
     return getActionResponse({ error });
   }
