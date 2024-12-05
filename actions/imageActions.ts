@@ -23,15 +23,12 @@ export const updateImageOrderAction = async (
       p_new_order: newOrder,
       p_variant_id: variantId,
     });
-    console.log(data, error);
 
     const { data: updatedImage } = await supabase
       .from("images")
       .select("*")
       .eq("id", imageId)
       .single();
-
-    console.log(currentImage.display_order, updatedImage?.display_order);
 
     return getActionResponse({ data: null });
   } catch (error) {

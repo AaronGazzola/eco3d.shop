@@ -21,8 +21,8 @@ import {
 import { useGetProductVariants } from "@/hooks/productVariantHooks";
 import { getStorageUrl } from "@/lib/util/storage.util";
 import {
-  ChevronDown,
-  ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Image as ImageIcon,
   Trash2,
   Upload,
@@ -68,11 +68,12 @@ export function ImagesTab({ productId }: { productId: string }) {
 
   const handleReorder = async (
     imageId: string,
-    direction: "up" | "down",
+    direction: "left" | "right",
     currentOrder: number,
     variantId: string,
   ) => {
-    const newOrder = direction === "down" ? currentOrder - 1 : currentOrder + 1;
+    const newOrder =
+      direction === "left" ? (currentOrder || 1) - 1 : currentOrder + 1;
     await updateOrder.mutateAsync({ imageId, newOrder, variantId });
   };
 
@@ -145,31 +146,31 @@ export function ImagesTab({ productId }: { productId: string }) {
                         fill
                         className="object-cover"
                       />
-                      <div className="absolute right-1 top-1 flex flex-col gap-1">
+                      <div className="absolute left-0 right-1 top-1 flex gap-1 justify-around">
                         <Button
                           variant="secondary"
                           size="icon"
-                          className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="w-6 h-6 opacity-0 group-hover:disabled:opacity-50 disabled:opacity-0 group-hover:opacity-100 transition-opacity"
                           onClick={() =>
                             handleReorder(
                               image.id,
-                              "up",
+                              "left",
                               image.display_order,
                               variant.id,
                             )
                           }
                           disabled={image.display_order === 0}
                         >
-                          <ChevronUp className="w-4 h-4" />
+                          <ChevronLeft className="w-4 h-4" />
                         </Button>
                         <Button
                           variant="secondary"
                           size="icon"
-                          className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="w-6 h-6 opacity-0 group-hover:disabled:opacity-50 disabled:opacity-0 group-hover:opacity-100 transition-opacity"
                           onClick={() =>
                             handleReorder(
                               image.id,
-                              "down",
+                              "right",
                               image.display_order,
                               variant.id,
                             )
@@ -178,7 +179,7 @@ export function ImagesTab({ productId }: { productId: string }) {
                             image.display_order === variant.images.length - 1
                           }
                         >
-                          <ChevronDown className="w-4 h-4" />
+                          <ChevronRight className="w-4 h-4" />
                         </Button>
                       </div>
                       <Button

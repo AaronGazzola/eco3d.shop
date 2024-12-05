@@ -26,13 +26,11 @@ export const useUpdateImageOrder = (productId: string) => {
       newOrder: number;
       variantId: string;
     }) => {
-      console.log(imageId, newOrder, variantId);
       const { data, error } = await updateImageOrderAction(
         imageId,
         newOrder,
         variantId,
       );
-      console.log(data, error);
       if (error) throw new Error(error);
       return data;
     },
