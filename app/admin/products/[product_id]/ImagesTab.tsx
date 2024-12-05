@@ -15,21 +15,27 @@ import { Card } from "@/components/ui/card";
 import {
   useDeleteAllVariantImages,
   useDeleteVariantImage,
-  useGetProductVariants,
+  useUpdateImageOrder,
   useUploadVariantImage,
-} from "@/hooks/productVariantHooks";
+} from "@/hooks/imageHooks";
+import { useGetProductVariants } from "@/hooks/productVariantHooks";
 import { getStorageUrl } from "@/lib/util/storage.util";
-import { Image as ImageIcon, Trash2, Upload } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Image as ImageIcon,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import Image from "next/image";
 import { useRef, useState } from "react";
-
-// TODO: handle order
 
 export function ImagesTab({ productId }: { productId: string }) {
   const { data: variants } = useGetProductVariants(productId);
   const uploadImage = useUploadVariantImage();
   const deleteImage = useDeleteVariantImage();
   const deleteAllImages = useDeleteAllVariantImages();
+  const updateOrder = useUpdateImageOrder(productId);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteImageId, setDeleteImageId] = useState<string>();
   const [deleteVariantId, setDeleteVariantId] = useState<string>();
@@ -58,6 +64,16 @@ export function ImagesTab({ productId }: { productId: string }) {
       setDeleteImageId(undefined);
       setDeleteVariantId(undefined);
     }
+  };
+
+  const handleReorder = async (
+    imageId: string,
+    direction: "up" | "down",
+    currentOrder: number,
+    variantId: string,
+  ) => {
+    const newOrder = direction === "down" ? currentOrder - 1 : currentOrder + 1;
+    await updateOrder.mutateAsync({ imageId, newOrder, variantId });
   };
 
   return (
@@ -118,29 +134,67 @@ export function ImagesTab({ productId }: { productId: string }) {
 
           <div className="flex gap-4 overflow-x-auto pb-2">
             {variant.images?.length ? (
-              variant.images.map(image => (
-                <div key={image.id} className="relative group">
-                  <div className="w-32 h-32 relative rounded-lg overflow-hidden">
-                    <Image
-                      src={getStorageUrl(image.image_path)}
-                      alt={variant.variant_name}
-                      fill
-                      className="object-cover"
-                    />
+              variant.images
+                .sort((a, b) => a.display_order - b.display_order)
+                .map(image => (
+                  <div key={image.id} className="relative group">
+                    <div className="w-32 h-32 relative rounded-lg overflow-hidden">
+                      <Image
+                        src={getStorageUrl(image.image_path)}
+                        alt={variant.variant_name}
+                        fill
+                        className="object-cover"
+                      />
+                      <div className="absolute right-1 top-1 flex flex-col gap-1">
+                        <Button
+                          variant="secondary"
+                          size="icon"
+                          className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() =>
+                            handleReorder(
+                              image.id,
+                              "up",
+                              image.display_order,
+                              variant.id,
+                            )
+                          }
+                          disabled={image.display_order === 0}
+                        >
+                          <ChevronUp className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="icon"
+                          className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() =>
+                            handleReorder(
+                              image.id,
+                              "down",
+                              image.display_order,
+                              variant.id,
+                            )
+                          }
+                          disabled={
+                            image.display_order === variant.images.length - 1
+                          }
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute bottom-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => {
+                          setDeleteImageId(image.id);
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <Button
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => {
-                      setDeleteImageId(image.id);
-                      setDeleteDialogOpen(true);
-                    }}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))
+                ))
             ) : (
               <div className="w-32 h-32 border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground">
                 <ImageIcon className="w-8 h-8" />

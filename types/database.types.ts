@@ -884,6 +884,14 @@ export type Database = {
         }
         Returns: Json
       }
+      reorder_images: {
+        Args: {
+          p_image_id: string
+          p_new_order: number
+          p_variant_id: string
+        }
+        Returns: undefined
+      }
       schedule_cleanup: {
         Args: Record<PropertyKey, never>
         Returns: undefined
