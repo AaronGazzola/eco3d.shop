@@ -18,9 +18,12 @@ import {
   useGetProductVariants,
   useUploadVariantImage,
 } from "@/hooks/productVariantHooks";
+import { getStorageUrl } from "@/lib/util/storage.util";
 import { Image as ImageIcon, Trash2, Upload } from "lucide-react";
 import Image from "next/image";
 import { useRef, useState } from "react";
+
+// TODO: handle order
 
 export function ImagesTab({ productId }: { productId: string }) {
   const { data: variants } = useGetProductVariants(productId);
@@ -119,7 +122,7 @@ export function ImagesTab({ productId }: { productId: string }) {
                 <div key={image.id} className="relative group">
                   <div className="w-32 h-32 relative rounded-lg overflow-hidden">
                     <Image
-                      src={image.image_path}
+                      src={getStorageUrl(image.image_path)}
                       alt={variant.variant_name}
                       fill
                       className="object-cover"

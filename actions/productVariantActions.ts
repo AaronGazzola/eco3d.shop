@@ -126,34 +126,26 @@ export const deleteProductVariantAction = async (id: string) => {
   }
 };
 
-// productVariantActions.ts - Add these functions
-
-export const uploadVariantImageAction = async (
-  file: File,
+export const createVariantImageAction = async (
   variantId: string,
+  imagePath: string,
+  order: number = 0,
 ) => {
   try {
     const supabase = await getSupabaseServerActionClient();
-    const path = `product-variants/${variantId}/${file.name}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from("products")
-      .upload(path, file);
-    if (uploadError) throw new Error(uploadError.message);
-
-    const { data: imageData, error: dbError } = await supabase
+    const { data, error } = await supabase
       .from("images")
       .insert({
         product_variant_id: variantId,
-        image_path: path,
-        display_order: 0,
+        image_path: imagePath,
+        display_order: order,
       })
       .select()
       .single();
 
-    if (dbError) throw new Error(dbError.message);
-
-    return getActionResponse({ data: imageData });
+    if (error) throw error;
+    return getActionResponse({ data });
   } catch (error) {
     return getActionResponse({ error });
   }

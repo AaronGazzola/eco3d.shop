@@ -2,13 +2,14 @@
 import {
   CreateProductVariantValues,
   createProductVariantAction,
+  createVariantImageAction,
   deleteAllVariantImagesAction,
   deleteProductVariantAction,
   deleteVariantImageAction,
   getProductVariantsAction,
   updateProductVariantAction,
-  uploadVariantImageAction,
 } from "@/actions/productVariantActions";
+import useSupabase from "@/hooks/useSupabase";
 import { useToastQueue } from "@/hooks/useToastQueue";
 import {
   HookOptions,
@@ -142,6 +143,7 @@ export const useUploadVariantImage = ({
 }: HookOptions<ProductVariant, {}> = {}) => {
   const queryClient = useQueryClient();
   const { toast } = useToastQueue();
+  const supabase = useSupabase();
 
   return useMutation({
     mutationFn: async ({
@@ -151,26 +153,35 @@ export const useUploadVariantImage = ({
       file: File;
       variantId: string;
     }) => {
-      const { data, error } = await uploadVariantImageAction(file, variantId);
-      if (error) throw new Error(error);
+      const path = `product-variants/${variantId}/${file.name}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("product-images")
+        .upload(path, file);
+
+      if (uploadError) throw uploadError;
+
+      const { error: dbError, data } = await createVariantImageAction(
+        variantId,
+        path,
+      );
+
+      if (dbError) throw dbError;
       return data;
     },
     onError: error => {
       toast({
-        title: error.message || errorMessage || DefaultMessages.ErrorMessage,
-        open: true,
+        title: error.message || errorMessage || "Failed to upload image",
       });
     },
     onSuccess: data => {
       queryClient.invalidateQueries({
-        queryKey: ["product_variants", data?.product_variant_id],
+        queryKey: ["product_variants"],
       });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
       toast({
         title: successMessage || "Image uploaded successfully",
       });
     },
-    retryDelay: attempt => Math.min(attempt * 1000, 3000),
   });
 };
 
