@@ -10,17 +10,6 @@ const config = {
   ],
   prefix: "",
   theme: {
-    fontSize: {
-      sm: ['14px', '20px'],
-    },
-    fontWeight: {
-      medium_normal: "500",
-      medium: "600",
-      medium_bold: "700"
-    },
-    lineHeight: {
-      sm: "19.2px"
-    },
     screens: {
       xs: "480px",
       sm: "640px",
