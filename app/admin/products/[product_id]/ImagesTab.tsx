@@ -47,7 +47,7 @@ export function ImagesTab({ productId }: { productId: string }) {
 
   const handleFileUpload = async (variantId: string, files: FileList) => {
     for (const file of files) {
-      await uploadImage.mutateAsync({ file, variantId });
+      await uploadImage.mutateAsync({ file, variantId, productId });
     }
   };
 
@@ -74,8 +74,6 @@ export function ImagesTab({ productId }: { productId: string }) {
     const newOrder = direction === "left" ? currentOrder - 1 : currentOrder + 1;
     await updateOrder.mutateAsync({ variantImageId, newOrder, variantId });
   };
-
-  console.log(variants?.map(variant => variant.variant_images));
 
   return (
     <div className="space-y-4 p-4 h-full overflow-y-auto">
@@ -179,7 +177,7 @@ export function ImagesTab({ productId }: { productId: string }) {
                           }
                           disabled={
                             variantImage.display_order ===
-                            (variant?.variant_images?.length || -1) - 1
+                            (variant?.variant_images?.length || 0) - 1
                           }
                         >
                           <ChevronRight className="w-4 h-4" />

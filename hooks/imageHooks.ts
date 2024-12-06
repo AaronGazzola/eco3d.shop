@@ -9,11 +9,7 @@ import {
 import { DefaultMessages } from "@/hooks/productVariantHooks";
 import useSupabase from "@/hooks/useSupabase";
 import { useToastQueue } from "@/hooks/useToastQueue";
-import {
-  HookOptions,
-  ProductVariant,
-  ProductVariantWithImages,
-} from "@/types/db.types";
+import { HookOptions, ProductVariant } from "@/types/db.types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 export const useUpdateImageOrder = (productId: string) => {
@@ -65,40 +61,35 @@ export const useUploadVariantImage = ({
     mutationFn: async ({
       file,
       variantId,
+      productId,
     }: {
       file: File;
       variantId: string;
+      productId: string;
     }) => {
       const path = `product-variants/${variantId}/${file.name}`;
-
-      const { error: uploadError, data: imageUploadData } =
-        await supabase.storage.from("product-images").upload(path, file);
-
+      const { error: uploadError } = await supabase.storage
+        .from("product-images")
+        .upload(path, file);
       if (uploadError) throw uploadError;
-
       const { error: dbError, data } = await createVariantImageAction(
         variantId,
         path,
       );
       if (dbError) throw dbError;
-      return data;
+      return { data, productId };
+    },
+    onSuccess: (result, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["product_variants", result.productId],
+      });
+      toast({
+        title: successMessage || "Image uploaded successfully",
+      });
     },
     onError: error => {
       toast({
         title: error.message || errorMessage || "Failed to upload image",
-      });
-    },
-    onSuccess: (data, variables) => {
-      const variant = queryClient.getQueryData<ProductVariantWithImages[]>([
-        "product_variants",
-      ]);
-      if (variant?.[0]?.product_id) {
-        queryClient.invalidateQueries({
-          queryKey: ["product_variants", variant[0].product_id],
-        });
-      }
-      toast({
-        title: successMessage || "Image uploaded successfully",
       });
     },
   });

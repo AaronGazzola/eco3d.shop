@@ -920,6 +920,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      reorder_variant_images: {
+        Args: {
+          p_variant_image_id: string
+          p_new_order: number
+          p_variant_id: string
+        }
+        Returns: undefined
+      }
       schedule_cleanup: {
         Args: Record<PropertyKey, never>
         Returns: undefined

@@ -4,27 +4,18 @@ import getActionResponse from "@/actions/getActionResponse";
 import getSupabaseServerActionClient from "@/clients/action-client";
 
 export const updateImageOrderAction = async (
-  imageId: string,
+  variantImageId: string,
   newOrder: number,
   variantId: string,
 ) => {
   try {
     const supabase = await getSupabaseServerActionClient();
 
-    const { data: currentOrder } = await supabase
-      .from("variant_images")
-      .select("display_order")
-      .eq("image_id", imageId)
-      .eq("product_variant_id", variantId)
-      .single();
-
-    if (!currentOrder) throw new Error("Image not found");
-
-    const { error } = await supabase
-      .from("variant_images")
-      .update({ display_order: newOrder })
-      .eq("image_id", imageId)
-      .eq("product_variant_id", variantId);
+    const { error } = await supabase.rpc("reorder_variant_images", {
+      p_variant_image_id: variantImageId,
+      p_new_order: newOrder,
+      p_variant_id: variantId,
+    });
 
     if (error) throw error;
     return getActionResponse({ data: null });
