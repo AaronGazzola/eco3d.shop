@@ -164,6 +164,30 @@ export const createProductVariantAction = async (
   }
 };
 
+export const updateManyProductVariantsAction = async (
+  ids: string[],
+  data: Partial<Omit<ProductVariant, "id">>,
+) => {
+  try {
+    const supabase = await getSupabaseServerActionClient();
+    const { data: isAdmin, error: userRoleError } =
+      await getUserIsAdminAction();
+    if (userRoleError) throw new Error(userRoleError);
+    if (!isAdmin) throw new Error("User is not an admin");
+
+    const { data: updatedVariants, error: updateError } = await supabase
+      .from("product_variants")
+      .update(data)
+      .in("id", ids)
+      .select("*");
+
+    if (updateError) throw new Error(updateError.message);
+    return getActionResponse({ data: updatedVariants });
+  } catch (error) {
+    return getActionResponse({ error });
+  }
+};
+
 // Update a product variant
 export const updateProductVariantAction = async (
   input: Partial<ProductVariant> & { id: string },
@@ -185,6 +209,28 @@ export const updateProductVariantAction = async (
     if (updateError) throw new Error(updateError.message);
 
     return getActionResponse({ data: updatedVariant });
+  } catch (error) {
+    return getActionResponse({ error });
+  }
+};
+
+export const deleteManyProductVariantsAction = async (ids: string[]) => {
+  try {
+    const supabase = await getSupabaseServerActionClient();
+    const { data: isAdmin, error: userRoleError } =
+      await getUserIsAdminAction();
+    if (userRoleError) throw new Error(userRoleError);
+    if (!isAdmin) throw new Error("User is not an admin");
+
+    const { data: deletedVariants, error: deleteError } = await supabase
+      .from("product_variants")
+      .delete()
+      .in("id", ids)
+      .select("*");
+
+    if (deleteError) throw new Error(deleteError.message);
+
+    return getActionResponse({ data: deletedVariants });
   } catch (error) {
     return getActionResponse({ error });
   }

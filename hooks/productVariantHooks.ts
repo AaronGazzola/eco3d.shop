@@ -1,8 +1,10 @@
 "use client";
 import {
   addProductVariantAttributeAction,
+  deleteManyProductVariantsAction,
   deleteProductVariantAction,
   getProductVariantsAction,
+  updateManyProductVariantsAction,
   updateProductVariantAction,
 } from "@/actions/productVariantActions";
 import { useToastQueue } from "@/hooks/useToastQueue";
@@ -103,6 +105,83 @@ export const useUpdateProductVariant = ({
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast({
         title: successMessage || DefaultMessages.SuccessMessage,
+      });
+    },
+    retryDelay: attempt => Math.min(attempt * 1000, 3000),
+  });
+};
+
+export const useUpdateManyProductVariants = ({
+  errorMessage,
+  successMessage,
+}: HookOptions<ProductVariant, {}> = {}) => {
+  const queryClient = useQueryClient();
+  const { toast } = useToastQueue();
+
+  return useMutation({
+    mutationFn: async ({
+      ids,
+      data,
+    }: {
+      ids: string[];
+      data: Partial<Omit<ProductVariant, "id">>;
+    }) => {
+      const { data: response, error } = await updateManyProductVariantsAction(
+        ids,
+        data,
+      );
+      if (error) throw new Error(error);
+      return response;
+    },
+    onError: error => {
+      toast({
+        title: error.message || errorMessage || DefaultMessages.ErrorMessage,
+      });
+    },
+    onSuccess: data => {
+      if (data?.[0]?.product_id) {
+        queryClient.invalidateQueries({
+          queryKey: ["product_variants", data[0].product_id],
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      toast({
+        title: successMessage || "Variants updated successfully",
+      });
+    },
+    retryDelay: attempt => Math.min(attempt * 1000, 3000),
+  });
+};
+
+export const useDeleteManyProductVariants = ({
+  errorMessage,
+  successMessage,
+}: HookOptions<ProductVariant, {}> = {}) => {
+  const queryClient = useQueryClient();
+  const { toast } = useToastQueue();
+
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (!ids.length) throw new Error("No variants selected");
+      const { data, error } = await deleteManyProductVariantsAction(ids);
+      if (error) throw new Error(error);
+      return data;
+    },
+    onError: error => {
+      toast({
+        title: error.message || errorMessage || DefaultMessages.ErrorMessage,
+        open: true,
+      });
+    },
+    onSuccess: data => {
+      if (data?.[0]?.product_id) {
+        queryClient.invalidateQueries({
+          queryKey: ["product_variants", data[0].product_id],
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      toast({
+        title: successMessage || "Variants deleted successfully",
       });
     },
     retryDelay: attempt => Math.min(attempt * 1000, 3000),

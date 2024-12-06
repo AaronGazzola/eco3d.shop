@@ -10,29 +10,62 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  useUpdateManyProductVariants,
+  useUpdateProductVariant,
+} from "@/hooks/productVariantHooks";
+import { useDialogQueue } from "@/hooks/useDialogQueue";
 import { Tables } from "@/types/database.types";
 import { useState } from "react";
 
 interface Props {
   productVariant: Tables<"product_variants">;
+  selectedIds?: string[];
 }
 
-export function CreateVariantDialog({ productVariant }: Props) {
+export function CreateVariantDialog({ productVariant, selectedIds }: Props) {
+  const { dismiss } = useDialogQueue();
+  const updateVariant = useUpdateProductVariant();
+  const updateManyVariants = useUpdateManyProductVariants();
   const [formData, setFormData] = useState<CreateProductVariantValues>({
-    variant_name: "",
-    product_id: productVariant.id,
-    stock_quantity: 0,
-    custom_attributes: {},
+    variant_name: productVariant.variant_name || "",
+    product_id: productVariant.product_id!,
+    stock_quantity: productVariant.stock_quantity || 0,
+    estimated_print_seconds: productVariant.estimated_print_seconds || 0,
+    custom_attributes:
+      typeof productVariant.custom_attributes === "object"
+        ? (productVariant.custom_attributes as Record<string, any>)
+        : {},
   });
 
-  const onSubmit = (data: CreateProductVariantValues) => {};
+  const onSubmit = async (data: CreateProductVariantValues) => {
+    if (selectedIds) {
+      await updateManyVariants.mutateAsync({
+        ids: selectedIds,
+        data: {
+          variant_name: data.variant_name,
+          stock_quantity: data.stock_quantity,
+          estimated_print_seconds: data.estimated_print_seconds,
+        },
+      });
+    } else {
+      await updateVariant.mutateAsync({
+        updateData: { ...data, id: productVariant.id },
+      });
+    }
+    dismiss();
+  };
 
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Create New Variant</DialogTitle>
+        <DialogTitle>
+          {selectedIds ? "Edit Selected Variants" : "Edit Variant"}
+        </DialogTitle>
         <DialogDescription>
-          Add a new variant for this product
+          {selectedIds
+            ? `Editing ${selectedIds.length} variants`
+            : "Edit this variant"}
         </DialogDescription>
       </DialogHeader>
 
@@ -52,7 +85,7 @@ export function CreateVariantDialog({ productVariant }: Props) {
         </div>
 
         <div className="grid gap-2">
-          <Label htmlFor="stock">Initial Stock</Label>
+          <Label htmlFor="stock">Stock Quantity</Label>
           <Input
             id="stock"
             type="number"
@@ -86,7 +119,12 @@ export function CreateVariantDialog({ productVariant }: Props) {
         <DialogClose asChild>
           <Button variant="outline">Cancel</Button>
         </DialogClose>
-        <Button onClick={() => onSubmit(formData)}>Create Variant</Button>
+        <Button
+          onClick={() => onSubmit(formData)}
+          disabled={updateVariant.isPending}
+        >
+          {updateVariant.isPending ? "Saving..." : "Save Changes"}
+        </Button>
       </DialogFooter>
     </>
   );

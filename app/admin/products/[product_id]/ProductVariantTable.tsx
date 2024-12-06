@@ -1,6 +1,6 @@
-// app/admin/products/[product_id]/ProductVariantTable.tsx
 "use client";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -10,7 +10,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import ConfirmDeleteDialog from "@/components/ux/ConfirmDeleteDialog";
-import configuration from "@/configuration";
 import { useGetProductVariants } from "@/hooks/productVariantHooks";
 import { useDialogQueue } from "@/hooks/useDialogQueue";
 import { ProductVariant } from "@/types/db.types";
@@ -23,7 +22,6 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { EditIcon, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { CreateVariantDialog } from "./CreateVariantDialog";
 
 const EditCell = ({ row }: { row: Row<ProductVariant> }) => {
@@ -74,6 +72,26 @@ const AttributesCell = ({ row }: { row: Row<ProductVariant> }) => {
 
 export const variantColumns: ColumnDef<ProductVariant>[] = [
   {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={table.getIsAllPageRowsSelected()}
+        onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={value => row.toggleSelected(!!value)}
+        onClick={e => e.stopPropagation()}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
+  {
     id: "edit",
     header: "Actions",
     cell: EditCell,
@@ -102,66 +120,109 @@ export function ProductVariantTable<TData>({
   data,
 }: DataTableProps<ProductVariant>) {
   const { data: variants } = useGetProductVariants(data?.[0]?.product_id, data);
-  const router = useRouter();
+  const { dialog } = useDialogQueue();
+
   const table = useReactTable({
     data: variants || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
     getRowId: row => row.id,
+    enableRowSelection: true,
   });
 
+  const handleBulkDelete = () => {
+    const selectedRows = table.getSelectedRowModel().rows;
+    const ids = selectedRows.map(row => row.original.id);
+    dialog(
+      <ConfirmDeleteDialog
+        name={`${selectedRows.length} variants`}
+        ids={ids}
+        table="product_variants"
+      />,
+    );
+  };
+
+  const handleBulkEdit = () => {
+    const selectedRows = table.getSelectedRowModel().rows;
+    const selectedIds = selectedRows.map(row => row.original.id);
+    dialog(
+      <CreateVariantDialog
+        productVariant={selectedRows[0].original}
+        selectedIds={selectedIds}
+      />,
+    );
+  };
+
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          {table.getHeaderGroups().map(headerGroup => (
-            <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map(header => (
-                <TableHead key={header.id}>
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
-                </TableHead>
-              ))}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows?.length ? (
-            table.getRowModel().rows.map(row => (
-              <TableRow
-                key={row.id}
-                data-state={row.getIsSelected() && "selected"}
-                className="cursor-pointer"
-                onClick={() => {
-                  router.push(
-                    configuration.paths.admin.product(
-                      row.original.product_id!,
-                    ) +
-                      "/" +
-                      row.id,
-                  );
-                }}
-              >
-                {row.getVisibleCells().map(cell => (
-                  <TableCell key={cell.id} className="max-w-[300px]">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
+    <div>
+      {table.getSelectedRowModel().rows.length > 0 && (
+        <div className="flex gap-2 mb-4">
+          <Button onClick={handleBulkEdit}>
+            Edit Selected ({table.getSelectedRowModel().rows.length})
+          </Button>
+          <Button variant="destructive" onClick={handleBulkDelete}>
+            Delete Selected
+          </Button>
+        </div>
+      )}
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map(headerGroup => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map(header => (
+                  <TableHead key={header.id}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
+                  </TableHead>
                 ))}
               </TableRow>
-            ))
-          ) : (
-            <TableRow>
-              <TableCell colSpan={columns.length} className="h-24 text-center">
-                No variants found.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map(row => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                  className="cursor-pointer"
+                  // onClick={() => {
+                  //   router.push(
+                  //     configuration.paths.admin.product(
+                  //       row.original.product_id!,
+                  //     ) +
+                  //       "/" +
+                  //       row.id,
+                  //   );
+                  // }}
+                >
+                  {row.getVisibleCells().map(cell => (
+                    <TableCell key={cell.id} className="max-w-[300px]">
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
+                  No variants found.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
