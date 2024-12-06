@@ -1,6 +1,6 @@
 "use server";
 import getActionResponse from "@/actions/getActionResponse";
-import { getUserAction, getUserIsAdminAction } from "@/actions/userActions";
+import { getUserIsAdminAction } from "@/actions/userActions";
 import getSupabaseServerActionClient from "@/clients/action-client";
 import { ActionResponse } from "@/types/action.types";
 import { Json } from "@/types/database.types";
@@ -113,37 +113,36 @@ export const addProductVariantAttributeAction = async (
 };
 
 // Fetch product variants by product ID
+// productVariantActions.ts - update only the getProductVariantsAction
 export const getProductVariantsAction = async (
-  productId: string,
-): Promise<ActionResponse<ProductVariantWithImages[]>> => {
+  productId?: string | null,
+): Promise<ActionResponse<ProductVariantWithImages[] | null>> => {
+  if (!productId) throw new Error("Product ID is required to fetch variants");
+
   try {
     const supabase = await getSupabaseServerActionClient();
-    const { data: user, error } = await getUserAction();
-    if (!user) throw new Error("Please sign in to view product variants");
 
-    const { data: variants, error: variantsError } = await supabase
+    const { data, error } = await supabase
       .from("product_variants")
       .select(
         `
-      *,
-      images!product_variant_id(*) 
-    `,
+        *,
+        variant_images (
+          *,
+          images (*)
+        )
+      `,
       )
-      .eq("product_id", productId);
+      .eq("product_id", productId)
+      .order("variant_name");
 
-    if (variantsError) throw new Error(variantsError.message);
-
-    // Transform data to ensure images is always an array
-    const transformedVariants = variants?.map(variant => ({
-      ...variant,
-      images: variant.images || [],
-    }));
-
-    return getActionResponse({ data: transformedVariants });
+    if (error) throw new Error(error.message);
+    return getActionResponse({ data });
   } catch (error) {
     return getActionResponse({ error });
   }
 };
+
 // Create a new product variant
 export type CreateProductVariantValues = {
   variant_name: string;

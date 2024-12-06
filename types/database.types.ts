@@ -179,34 +179,20 @@ export type Database = {
       images: {
         Row: {
           created_at: string | null
-          display_order: number
           id: string
           image_path: string
-          product_variant_id: string | null
         }
         Insert: {
           created_at?: string | null
-          display_order: number
           id?: string
           image_path: string
-          product_variant_id?: string | null
         }
         Update: {
           created_at?: string | null
-          display_order?: number
           id?: string
           image_path?: string
-          product_variant_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "images_product_variant_id_fkey"
-            columns: ["product_variant_id"]
-            isOneToOne: false
-            referencedRelation: "product_variants"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -865,6 +851,45 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      variant_images: {
+        Row: {
+          created_at: string | null
+          display_order: number
+          id: string
+          image_id: string | null
+          product_variant_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          display_order: number
+          id?: string
+          image_id?: string | null
+          product_variant_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          display_order?: number
+          id?: string
+          image_id?: string | null
+          product_variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "variant_images_image_id_fkey"
+            columns: ["image_id"]
+            isOneToOne: false
+            referencedRelation: "images"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "variant_images_product_variant_id_fkey"
+            columns: ["product_variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

@@ -1,3 +1,4 @@
+// db.types.ts
 import { Tables } from "@/types/database.types";
 
 export interface CartItem {
@@ -20,12 +21,14 @@ export type PromoCodeWithPromoKey = Tables<"promo_codes"> & {
 
 export type Product = Tables<"products">;
 
-export type ProductVariant = Tables<"product_variants">;
-
-export type ProductVariantWithImages = Tables<"product_variants"> & {
-  images?: Tables<"images">[];
+export type DBImage = Tables<"images">;
+export type VariantImage = Tables<"variant_images"> & {
+  images: DBImage | null;
 };
-
+export type ProductVariant = Tables<"product_variants">;
+export type ProductVariantWithImages = ProductVariant & {
+  variant_images: VariantImage[];
+};
 export type ProductWithVariants = Tables<"products"> & {
   product_variants?: ProductVariantWithImages[];
 };

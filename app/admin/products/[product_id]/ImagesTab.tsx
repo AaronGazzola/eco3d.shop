@@ -1,5 +1,4 @@
 "use client";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,15 +66,16 @@ export function ImagesTab({ productId }: { productId: string }) {
   };
 
   const handleReorder = async (
-    imageId: string,
+    variantImageId: string,
     direction: "left" | "right",
     currentOrder: number,
     variantId: string,
   ) => {
-    const newOrder =
-      direction === "left" ? (currentOrder || 1) - 1 : currentOrder + 1;
-    await updateOrder.mutateAsync({ imageId, newOrder, variantId });
+    const newOrder = direction === "left" ? currentOrder - 1 : currentOrder + 1;
+    await updateOrder.mutateAsync({ variantImageId, newOrder, variantId });
   };
+
+  console.log(variants?.map(variant => variant.variant_images));
 
   return (
     <div className="space-y-4 p-4 h-full overflow-y-auto">
@@ -134,14 +134,16 @@ export function ImagesTab({ productId }: { productId: string }) {
           </div>
 
           <div className="flex gap-4 overflow-x-auto pb-2">
-            {variant.images?.length ? (
-              variant.images
+            {variant.variant_images?.length ? (
+              variant.variant_images
                 .sort((a, b) => a.display_order - b.display_order)
-                .map(image => (
-                  <div key={image.id} className="relative group">
+                .map(variantImage => (
+                  <div key={variantImage.id} className="relative group">
                     <div className="w-32 h-32 relative rounded-lg overflow-hidden">
                       <Image
-                        src={getStorageUrl(image.image_path)}
+                        src={getStorageUrl(
+                          variantImage.images?.image_path || "",
+                        )}
                         alt={variant.variant_name}
                         fill
                         className="object-cover"
@@ -153,13 +155,13 @@ export function ImagesTab({ productId }: { productId: string }) {
                           className="w-6 h-6 opacity-0 group-hover:disabled:opacity-50 disabled:opacity-0 group-hover:opacity-100 transition-opacity"
                           onClick={() =>
                             handleReorder(
-                              image.id,
+                              variantImage.id,
                               "left",
-                              image.display_order,
+                              variantImage.display_order,
                               variant.id,
                             )
                           }
-                          disabled={image.display_order === 0}
+                          disabled={variantImage.display_order === 0}
                         >
                           <ChevronLeft className="w-4 h-4" />
                         </Button>
@@ -169,15 +171,15 @@ export function ImagesTab({ productId }: { productId: string }) {
                           className="w-6 h-6 opacity-0 group-hover:disabled:opacity-50 disabled:opacity-0 group-hover:opacity-100 transition-opacity"
                           onClick={() =>
                             handleReorder(
-                              image.id,
+                              variantImage.id,
                               "right",
-                              image.display_order,
+                              variantImage.display_order,
                               variant.id,
                             )
                           }
                           disabled={
-                            image.display_order ===
-                            (variant?.images?.length || -1) - 1
+                            variantImage.display_order ===
+                            (variant?.variant_images?.length || -1) - 1
                           }
                         >
                           <ChevronRight className="w-4 h-4" />
@@ -188,7 +190,7 @@ export function ImagesTab({ productId }: { productId: string }) {
                         size="icon"
                         className="absolute bottom-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={() => {
-                          setDeleteImageId(image.id);
+                          setDeleteImageId(variantImage.images?.id);
                           setDeleteDialogOpen(true);
                         }}
                       >

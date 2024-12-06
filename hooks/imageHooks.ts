@@ -9,7 +9,11 @@ import {
 import { DefaultMessages } from "@/hooks/productVariantHooks";
 import useSupabase from "@/hooks/useSupabase";
 import { useToastQueue } from "@/hooks/useToastQueue";
-import { HookOptions, ProductVariant } from "@/types/db.types";
+import {
+  HookOptions,
+  ProductVariant,
+  ProductVariantWithImages,
+} from "@/types/db.types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 export const useUpdateImageOrder = (productId: string) => {
@@ -18,16 +22,16 @@ export const useUpdateImageOrder = (productId: string) => {
 
   return useMutation({
     mutationFn: async ({
-      imageId,
+      variantImageId,
       newOrder,
       variantId,
     }: {
-      imageId: string;
+      variantImageId: string;
       newOrder: number;
       variantId: string;
     }) => {
       const { data, error } = await updateImageOrderAction(
-        imageId,
+        variantImageId,
         newOrder,
         variantId,
       );
@@ -67,9 +71,8 @@ export const useUploadVariantImage = ({
     }) => {
       const path = `product-variants/${variantId}/${file.name}`;
 
-      const { error: uploadError, data: uploadData } = await supabase.storage
-        .from("product-images")
-        .upload(path, file);
+      const { error: uploadError, data: imageUploadData } =
+        await supabase.storage.from("product-images").upload(path, file);
 
       if (uploadError) throw uploadError;
 
@@ -85,10 +88,15 @@ export const useUploadVariantImage = ({
         title: error.message || errorMessage || "Failed to upload image",
       });
     },
-    onSuccess: data => {
-      queryClient.invalidateQueries({
-        queryKey: ["product_variants"],
-      });
+    onSuccess: (data, variables) => {
+      const variant = queryClient.getQueryData<ProductVariantWithImages[]>([
+        "product_variants",
+      ]);
+      if (variant?.[0]?.product_id) {
+        queryClient.invalidateQueries({
+          queryKey: ["product_variants", variant[0].product_id],
+        });
+      }
       toast({
         title: successMessage || "Image uploaded successfully",
       });

@@ -1,3 +1,4 @@
+// imageActions.ts
 "use server";
 import getActionResponse from "@/actions/getActionResponse";
 import getSupabaseServerActionClient from "@/clients/action-client";
@@ -10,26 +11,22 @@ export const updateImageOrderAction = async (
   try {
     const supabase = await getSupabaseServerActionClient();
 
-    const { data: currentImage } = await supabase
-      .from("images")
-      .select("*")
-      .eq("id", imageId)
+    const { data: currentOrder } = await supabase
+      .from("variant_images")
+      .select("display_order")
+      .eq("image_id", imageId)
+      .eq("product_variant_id", variantId)
       .single();
 
-    if (!currentImage) throw new Error("Image not found");
+    if (!currentOrder) throw new Error("Image not found");
 
-    const { data, error } = await supabase.rpc("reorder_images", {
-      p_image_id: imageId,
-      p_new_order: newOrder,
-      p_variant_id: variantId,
-    });
+    const { error } = await supabase
+      .from("variant_images")
+      .update({ display_order: newOrder })
+      .eq("image_id", imageId)
+      .eq("product_variant_id", variantId);
 
-    const { data: updatedImage } = await supabase
-      .from("images")
-      .select("*")
-      .eq("id", imageId)
-      .single();
-
+    if (error) throw error;
     return getActionResponse({ data: null });
   } catch (error) {
     return getActionResponse({ error });
@@ -40,31 +37,29 @@ export const deleteVariantImageAction = async (imageId: string) => {
   try {
     const supabase = await getSupabaseServerActionClient();
 
-    const { data: image, error: fetchError } = await supabase
+    const { data: image } = await supabase
       .from("images")
       .select("image_path")
       .eq("id", imageId)
       .single();
-    if (fetchError) throw new Error(fetchError.message);
 
-    const fullPath = image.image_path;
+    if (!image) throw new Error("Image not found");
+
+    await supabase.from("variant_images").delete().eq("image_id", imageId);
 
     const { error: storageError } = await supabase.storage
       .from("product-images")
-      .remove([fullPath]);
-    if (storageError) throw new Error(storageError.message);
+      .remove([image.image_path]);
+    if (storageError) throw storageError;
 
     const { error: dbError } = await supabase
       .from("images")
       .delete()
-      .eq("id", imageId)
-      .select()
-      .single();
-    if (dbError) throw new Error(dbError.message);
+      .eq("id", imageId);
+    if (dbError) throw dbError;
 
     return getActionResponse({ data: image });
   } catch (error) {
-    console.error("Delete variant image action error:", error);
     return getActionResponse({ error });
   }
 };
@@ -72,26 +67,23 @@ export const deleteVariantImageAction = async (imageId: string) => {
 export const deleteAllVariantImagesAction = async (variantId: string) => {
   try {
     const supabase = await getSupabaseServerActionClient();
+
     const { data: images } = await supabase
-      .from("images")
-      .select("image_path")
+      .from("variant_images")
+      .select("images (*)")
       .eq("product_variant_id", variantId);
 
     if (images?.length) {
-      const { error: storageError } = await supabase.storage
-        .from("product-images")
-        .remove(images.map(img => img.image_path));
-      if (storageError) throw new Error(storageError.message);
+      const paths = images.map(vi => vi?.images?.image_path ?? "");
+      await supabase.storage.from("product-images").remove(paths);
     }
 
-    const { data, error: dbError } = await supabase
-      .from("images")
+    await supabase
+      .from("variant_images")
       .delete()
-      .eq("product_variant_id", variantId)
-      .select();
-    if (dbError) throw new Error(dbError.message);
+      .eq("product_variant_id", variantId);
 
-    return getActionResponse({ data });
+    return getActionResponse({ data: images });
   } catch (error) {
     return getActionResponse({ error });
   }
@@ -104,21 +96,30 @@ export const createVariantImageAction = async (
   try {
     const supabase = await getSupabaseServerActionClient();
 
-    const { data: maxOrderImage } = await supabase
+    const { error: imageError, data: image } = await supabase
       .from("images")
+      .insert({ image_path: imagePath })
+      .select()
+      .single();
+
+    if (imageError) throw imageError;
+    if (!image) throw new Error("Failed to create image");
+
+    const { data: maxOrder } = await supabase
+      .from("variant_images")
       .select("display_order")
       .eq("product_variant_id", variantId)
       .order("display_order", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
-    const nextOrder = (maxOrderImage?.display_order ?? -1) + 1;
+    const nextOrder = (maxOrder?.display_order ?? -1) + 1;
 
     const { data, error } = await supabase
-      .from("images")
+      .from("variant_images")
       .insert({
         product_variant_id: variantId,
-        image_path: imagePath,
+        image_id: image.id,
         display_order: nextOrder,
       })
       .select()

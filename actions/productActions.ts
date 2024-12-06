@@ -5,7 +5,6 @@ import getSupabaseServerActionClient from "@/clients/action-client";
 import { ActionResponse } from "@/types/action.types";
 import { Product, ProductWithVariants } from "@/types/db.types";
 
-// Fetch products
 export const getProductsAction = async (): Promise<
   ActionResponse<ProductWithVariants[]>
 > => {
@@ -14,23 +13,26 @@ export const getProductsAction = async (): Promise<
     const { data: user, error } = await getUserAction();
     if (!user) throw new Error("Please sign in to view products");
 
-    // Updated the select query to include product variants
     const { data: products, error: productsError } = await supabase.from(
       "products",
     ).select(`
         *,
-        product_variants (*)
+        product_variants (
+          *,
+          variant_images (
+            *,
+            images (*)
+          )
+        )
       `);
 
     if (productsError) throw new Error(productsError.message);
-
     return getActionResponse({ data: products });
   } catch (error) {
     return getActionResponse({ error });
   }
 };
 
-// Create a new product
 export type CreateProductValues = {
   name: string;
   description?: string | null;
@@ -84,7 +86,6 @@ export const updateProductAction = async (
   }
 };
 
-// Delete a product
 export const deleteProductAction = async (id: string) => {
   try {
     const supabase = await getSupabaseServerActionClient();
@@ -120,7 +121,13 @@ export const getProductByIdAction = async (
       .select(
         `
         *,
-        product_variants (*)
+        product_variants (
+          *,
+          variant_images (
+            *,
+            images (*)
+          )
+        )
       `,
       )
       .eq("id", id)
