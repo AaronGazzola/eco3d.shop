@@ -20,7 +20,7 @@ enum DefaultMessages {
   ErrorMessage = "Error updating product",
 }
 
-export const useGetProducts = () => {
+export const useGetProducts = (initialData?: ProductWithVariants[] | null) => {
   return useQuery<ProductWithVariants[] | null, Error>({
     queryKey: ["products"],
     queryFn: async () => {
@@ -32,6 +32,7 @@ export const useGetProducts = () => {
       return data;
     },
     staleTime: 1000 * 60 * 5,
+    initialData,
   });
 };
 
