@@ -1,15 +1,12 @@
 "use client";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  useCreateProductVariant,
+  useAddProductVariantAttribute,
   useDeleteProductVariant,
   useGetProductVariants,
-  useUpdateProductVariant,
 } from "@/hooks/productVariantHooks";
-import { Json } from "@/types/database.types";
 import { Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -23,8 +20,7 @@ const isJsonObject = (value: unknown): value is Record<string, unknown> => {
 
 export function AttributesTab({ productId }: { productId: string }) {
   const { data: variants } = useGetProductVariants(productId);
-  const updateVariant = useUpdateProductVariant();
-  const createVariant = useCreateProductVariant();
+  const addAttribute = useAddProductVariantAttribute();
   const deleteVariant = useDeleteProductVariant();
   const [attributeMap, setAttributeMap] = useState<AttributeMap>({});
   const [newAttribute, setNewAttribute] = useState("");
@@ -33,7 +29,6 @@ export function AttributesTab({ productId }: { productId: string }) {
 
   useEffect(() => {
     if (!variants) return;
-
     const map: AttributeMap = {};
     variants.forEach(variant => {
       if (isJsonObject(variant.custom_attributes)) {
@@ -46,25 +41,6 @@ export function AttributesTab({ productId }: { productId: string }) {
     setAttributeMap(map);
   }, [variants]);
 
-  const generateVariants = (attributes: AttributeMap) => {
-    const entries = Object.entries(attributes);
-    const combinations = entries.reduce<Record<string, string>[]>(
-      (acc, [key, values]) => {
-        if (acc.length === 0) {
-          return Array.from(values).map(value => ({ [key]: value }));
-        }
-        return acc.flatMap(combo =>
-          Array.from(values).map(value => ({
-            ...combo,
-            [key]: value,
-          })),
-        );
-      },
-      [],
-    );
-    return combinations;
-  };
-
   const handleAddAttribute = () => {
     if (!newAttribute) return;
     setAttributeMap(prev => ({ ...prev, [newAttribute]: new Set() }));
@@ -74,50 +50,26 @@ export function AttributesTab({ productId }: { productId: string }) {
 
   const handleAddValue = () => {
     if (!selectedAttribute || !newValue) return;
+
     const newMap = { ...attributeMap };
     newMap[selectedAttribute] = new Set([
       ...newMap[selectedAttribute],
       newValue,
     ]);
     setAttributeMap(newMap);
-    setNewValue("");
 
-    const newCombinations = generateVariants(newMap);
-
-    newCombinations.forEach(combo => {
-      const existingVariant = variants?.find(v => {
-        if (!isJsonObject(v.custom_attributes)) return false;
-        const attrs = v.custom_attributes as Record<string, Json>;
-        return Object.entries(combo).every(
-          ([key, value]) => attrs[key] === value,
-        );
-      });
-
-      if (existingVariant && isJsonObject(existingVariant.custom_attributes)) {
-        updateVariant.mutate({
-          updateData: {
-            id: existingVariant.id,
-            custom_attributes: {
-              ...existingVariant.custom_attributes,
-              ...combo,
-            },
-          },
-        });
-      } else {
-        createVariant.mutate({
-          variant_name: Object.values(combo).join("-"),
-          product_id: productId,
-          custom_attributes: combo,
-        });
-      }
+    addAttribute.mutate({
+      productId,
+      attributeName: selectedAttribute,
+      options: Array.from(newMap[selectedAttribute]),
     });
+
+    setNewValue("");
   };
 
   const handleRemoveValue = (attribute: string, value: string) => {
     const newMap = { ...attributeMap };
-    newMap[attribute] = new Set(
-      Array.from(newMap[attribute]).filter(v => v !== value),
-    );
+    newMap[attribute].delete(value);
     setAttributeMap(newMap);
 
     const variantsToDelete =

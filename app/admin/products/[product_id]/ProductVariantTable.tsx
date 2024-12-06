@@ -62,6 +62,7 @@ const EditCell = ({ row }: { row: Row<ProductVariant> }) => {
 
 const AttributesCell = ({ row }: { row: Row<ProductVariant> }) => {
   const attributes = row.original.custom_attributes;
+  if (!attributes) return null;
   return (
     <pre className="text-xs">
       {Object.entries(attributes as Record<string, string>)
@@ -108,7 +109,6 @@ export function ProductVariantTable<TData>({
     getCoreRowModel: getCoreRowModel(),
     getRowId: row => row.id,
   });
-  console.log(variants);
 
   return (
     <div className="rounded-md border">

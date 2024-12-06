@@ -1,7 +1,6 @@
 "use client";
 import {
-  CreateProductVariantValues,
-  createProductVariantAction,
+  addProductVariantAttributeAction,
   deleteProductVariantAction,
   getProductVariantsAction,
   updateProductVariantAction,
@@ -38,36 +37,42 @@ export const useGetProductVariants = (
   });
 };
 
-export const useCreateProductVariant = ({
-  errorMessage,
-  successMessage,
-}: HookOptions<ProductVariant, {}> = {}) => {
+export const useAddProductVariantAttribute = () => {
   const queryClient = useQueryClient();
   const { toast } = useToastQueue();
 
   return useMutation({
-    mutationFn: async (input: CreateProductVariantValues) => {
-      if (!input?.variant_name || !input?.product_id)
-        throw new Error("Variant name and product ID are required");
-      const { data, error } = await createProductVariantAction(input);
+    mutationFn: async ({
+      productId,
+      attributeName,
+      options,
+    }: {
+      productId: string;
+      attributeName: string;
+      options: string[];
+    }) => {
+      const { data, error } = await addProductVariantAttributeAction(
+        productId,
+        attributeName,
+        options,
+      );
       if (error) throw new Error(error);
       return data;
     },
     onError: error => {
       toast({
-        title: error.message || errorMessage || DefaultMessages.ErrorMessage,
+        title: error.message || DefaultMessages.ErrorMessage,
       });
     },
-    onSuccess: data => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
-        queryKey: ["product_variants", data?.product_id],
+        queryKey: ["product_variants", variables.productId],
       });
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast({
-        title: successMessage || DefaultMessages.SuccessMessage,
+        title: DefaultMessages.SuccessMessage,
       });
     },
-    retryDelay: attempt => Math.min(attempt * 1000, 3000),
   });
 };
 

@@ -139,7 +139,6 @@ export const useDeleteProduct = ({
     },
     onSuccess: data => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      console.log(data?.id);
       queryClient.invalidateQueries({ queryKey: ["product", data?.id] });
       toast({
         title: data?.id,

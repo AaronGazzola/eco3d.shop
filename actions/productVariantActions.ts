@@ -5,6 +5,94 @@ import getSupabaseServerActionClient from "@/clients/action-client";
 import { ActionResponse } from "@/types/action.types";
 import { ProductVariant, ProductVariantWithImages } from "@/types/db.types";
 
+type Attribute = {
+  name: string;
+  options: string[];
+};
+
+export const addProductVariantAttributeAction = async (
+  productId: string,
+  attributeName: string,
+  attributeOptions: string[],
+) => {
+  try {
+    const supabase = await getSupabaseServerActionClient();
+
+    const { data: existingVariants, error: variantsError } = await supabase
+      .from("product_variants")
+      .select("*")
+      .eq("product_id", productId);
+
+    if (variantsError) throw new Error(variantsError.message);
+
+    // Get all unique attributes and their values
+    const allAttributes: Record<string, Set<string>> = {};
+
+    // Add existing attributes from all variants
+    existingVariants.forEach(variant => {
+      if (
+        variant.custom_attributes &&
+        typeof variant.custom_attributes === "object" &&
+        !Array.isArray(variant.custom_attributes)
+      ) {
+        Object.entries(
+          variant.custom_attributes as Record<string, unknown>,
+        ).forEach(([key, value]) => {
+          if (!allAttributes[key]) allAttributes[key] = new Set();
+          if (value) allAttributes[key].add(value.toString());
+        });
+      }
+    });
+
+    // Add new attribute and its values
+    allAttributes[attributeName] = new Set(attributeOptions);
+
+    // Generate all possible combinations
+    const combinations = Object.entries(allAttributes).reduce<
+      Record<string, string>[]
+    >((acc, [key, valueSet]) => {
+      const values = Array.from(valueSet);
+      if (acc.length === 0) {
+        return values.map(value => ({ [key]: value }));
+      }
+      return acc.flatMap(combo =>
+        values.map(value => ({
+          ...combo,
+          [key]: value,
+        })),
+      );
+    }, []);
+
+    // Delete existing variants
+    const { error: deleteError } = await supabase
+      .from("product_variants")
+      .delete()
+      .eq("product_id", productId);
+
+    if (deleteError) throw new Error(deleteError.message);
+
+    // Create all new variants with complete combinations
+    const { error: insertError } = await supabase
+      .from("product_variants")
+      .insert(
+        combinations.map(combo => ({
+          product_id: productId,
+          variant_name: Object.entries(combo)
+            .map(([k, v]) => `${k}:${v}`)
+            .join("-"),
+          custom_attributes: combo,
+          stock_quantity: 0,
+        })),
+      );
+
+    if (insertError) throw new Error(insertError.message);
+
+    return getActionResponse({ data: null });
+  } catch (error) {
+    return getActionResponse({ error });
+  }
+};
+
 // Fetch product variants by product ID
 export const getProductVariantsAction = async (
   productId: string,

@@ -17,14 +17,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  useCreateProductVariant,
   useDeleteProductVariant,
   useUpdateProductVariant,
 } from "@/hooks/productVariantHooks";
 import { useDialogQueue } from "@/hooks/useDialogQueue";
 import { Tables } from "@/types/database.types";
 import { DialogTitle } from "@radix-ui/react-dialog";
-import { useEffect } from "react";
 
 const variantFormSchema = z.object({
   variant_name: z
@@ -52,12 +50,12 @@ const ProductVariantDialog = ({
     reset: resetDelete,
     isSuccess: isDeleted,
   } = useDeleteProductVariant();
-  const {
-    mutate: createVariant,
-    isPending: isCreating,
-    isSuccess: isCreated,
-    reset: resetCreate,
-  } = useCreateProductVariant();
+  // const {
+  //   mutate: createVariant,
+  //   isPending: isCreating,
+  //   isSuccess: isCreated,
+  //   reset: resetCreate,
+  // } = useCreateProductVariant();
   const {
     mutate: updateVariant,
     isPending: isUpdating,
@@ -78,35 +76,35 @@ const ProductVariantDialog = ({
   });
 
   function onSubmit(values: z.infer<typeof variantFormSchema>) {
-    const formattedValues = {
-      ...values,
-      custom_attributes: values.custom_attributes
-        ? JSON.parse(values.custom_attributes)
-        : null,
-      product_id: variantData?.product_id || "",
-    };
-    if (isEdit && variantData?.id) {
-      return updateVariant({
-        updateData: { id: variantData.id, ...formattedValues },
-      });
-    }
-    createVariant(formattedValues);
+    // const formattedValues = {
+    //   ...values,
+    //   custom_attributes: values.custom_attributes
+    //     ? JSON.parse(values.custom_attributes)
+    //     : null,
+    //   product_id: variantData?.product_id || "",
+    // };
+    // if (isEdit && variantData?.id) {
+    //   return updateVariant({
+    //     updateData: { id: variantData.id, ...formattedValues },
+    //   });
+    // }
+    // createVariant(formattedValues);
   }
 
-  useEffect(() => {
-    if (isDeleted || isCreated || isUpdated) dismiss();
-    if (isCreated) resetCreate();
-    if (isDeleted) resetDelete();
-    if (isUpdated) resetUpdate();
-  }, [
-    isDeleted,
-    dismiss,
-    isCreated,
-    isUpdated,
-    resetCreate,
-    resetDelete,
-    resetUpdate,
-  ]);
+  // useEffect(() => {
+  //   if (isDeleted || isCreated || isUpdated) dismiss();
+  //   if (isCreated) resetCreate();
+  //   if (isDeleted) resetDelete();
+  //   if (isUpdated) resetUpdate();
+  // }, [
+  //   isDeleted,
+  //   dismiss,
+  //   isCreated,
+  //   isUpdated,
+  //   resetCreate,
+  //   resetDelete,
+  //   resetUpdate,
+  // ]);
 
   return (
     <>
@@ -212,7 +210,7 @@ const ProductVariantDialog = ({
             <ActionButton
               type="submit"
               className={cn(!isEdit && "w-full")}
-              loading={isEdit ? isUpdating : isCreating}
+              // loading={isEdit ? isUpdating : isCreating}
             >
               {isEdit ? "Update" : "Create"}
             </ActionButton>
