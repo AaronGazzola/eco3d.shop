@@ -1,16 +1,16 @@
-// app/admin/products/[product_id]/ProductClient.tsx
 "use client";
-import { ProductWithVariants } from "@/types/db.types";
-
 import { PublishToggle } from "@/app/admin/products/PublishToggle";
 import { AttributesTab } from "@/app/admin/products/[product_id]/AttributesTab";
 import { ImagesTab } from "@/app/admin/products/[product_id]/ImagesTab";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useGetProductById } from "@/hooks/productHooks";
+import { useGetProductById, useUpdateProduct } from "@/hooks/productHooks";
 import { useDialogQueue } from "@/hooks/useDialogQueue";
+import { ProductWithVariants } from "@/types/db.types";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { ProductVariantTable, variantColumns } from "./ProductVariantTable";
 
 export function AdminProductPage({
@@ -19,10 +19,22 @@ export function AdminProductPage({
   product: ProductWithVariants;
 }) {
   const { data: product } = useGetProductById(productProp.id, productProp);
+  const updateProduct = useUpdateProduct();
   const router = useRouter();
   const { dialog } = useDialogQueue();
+  const [slug, setSlug] = useState(product?.slug || "");
 
   if (!product) return null;
+
+  const handleSaveSlug = () => {
+    if (!product) return;
+    updateProduct.mutate({
+      updateData: {
+        id: product.id,
+        slug,
+      },
+    });
+  };
 
   return (
     <div className="container py-6 space-y-6">
@@ -41,6 +53,18 @@ export function AdminProductPage({
 
       <h1 className="text-3xl font-bold">{product.name}</h1>
       <p className="text-muted-foreground">{product.description}</p>
+
+      <div className="flex gap-4 items-center">
+        <Input
+          value={slug}
+          onChange={e => setSlug(e.target.value)}
+          placeholder="product-slug"
+          className="max-w-md"
+        />
+        <Button onClick={handleSaveSlug} disabled={updateProduct.isPending}>
+          Save Slug
+        </Button>
+      </div>
 
       <Tabs defaultValue="variants">
         <TabsList>
