@@ -3,6 +3,7 @@ import getActionResponse from "@/actions/getActionResponse";
 import { getUserAction, getUserIsAdminAction } from "@/actions/userActions";
 import getSupabaseServerActionClient from "@/clients/action-client";
 import { ActionResponse } from "@/types/action.types";
+import { Json } from "@/types/database.types";
 import { ProductVariant, ProductVariantWithImages } from "@/types/db.types";
 
 type Attribute = {
@@ -14,6 +15,8 @@ export const addProductVariantAttributeAction = async (
   productId: string,
   attributeName: string,
   attributeOptions: string[],
+  isMultiValue: boolean = false,
+  combinations?: Record<string, unknown>[],
 ) => {
   try {
     const supabase = await getSupabaseServerActionClient();
@@ -25,45 +28,61 @@ export const addProductVariantAttributeAction = async (
 
     if (variantsError) throw new Error(variantsError.message);
 
-    // Get all unique attributes and their values
-    const allAttributes: Record<string, Set<string>> = {};
+    // Track both values and type for each attribute
+    const allAttributes: Record<
+      string,
+      { values: Set<string>; isMulti: boolean }
+    > = {};
 
-    // Add existing attributes from all variants
     existingVariants.forEach(variant => {
       if (
         variant.custom_attributes &&
-        typeof variant.custom_attributes === "object" &&
-        !Array.isArray(variant.custom_attributes)
+        typeof variant.custom_attributes === "object"
       ) {
         Object.entries(
           variant.custom_attributes as Record<string, unknown>,
         ).forEach(([key, value]) => {
-          if (!allAttributes[key]) allAttributes[key] = new Set();
-          if (value) allAttributes[key].add(value.toString());
+          if (!allAttributes[key]) {
+            allAttributes[key] = {
+              values: new Set(),
+              isMulti: Array.isArray(value),
+            };
+          }
+          if (Array.isArray(value)) {
+            value.forEach(v => allAttributes[key].values.add(v.toString()));
+          } else if (value) {
+            allAttributes[key].values.add(value.toString());
+          }
         });
       }
     });
 
-    // Add new attribute and its values
-    allAttributes[attributeName] = new Set(attributeOptions);
+    // Update or add the new attribute
+    allAttributes[attributeName] = {
+      values: new Set(attributeOptions),
+      isMulti: isMultiValue,
+    };
 
-    // Generate all possible combinations
-    const combinations = Object.entries(allAttributes).reduce<
-      Record<string, string>[]
-    >((acc, [key, valueSet]) => {
-      const values = Array.from(valueSet);
-      if (acc.length === 0) {
-        return values.map(value => ({ [key]: value }));
-      }
-      return acc.flatMap(combo =>
-        values.map(value => ({
-          ...combo,
-          [key]: value,
-        })),
+    const variantCombinations =
+      combinations ||
+      Object.entries(allAttributes).reduce<Record<string, unknown>[]>(
+        (acc, [key, { values, isMulti }]) => {
+          const valueArray = Array.from(values);
+          if (acc.length === 0) {
+            return valueArray.map(value => ({
+              [key]: isMulti ? [value] : value,
+            }));
+          }
+          return acc.flatMap(combo =>
+            valueArray.map(value => ({
+              ...combo,
+              [key]: isMulti ? [value] : value,
+            })),
+          );
+        },
+        [],
       );
-    }, []);
 
-    // Delete existing variants
     const { error: deleteError } = await supabase
       .from("product_variants")
       .delete()
@@ -71,17 +90,17 @@ export const addProductVariantAttributeAction = async (
 
     if (deleteError) throw new Error(deleteError.message);
 
-    // Create all new variants with complete combinations
     const { error: insertError } = await supabase
       .from("product_variants")
       .insert(
-        combinations.map(combo => ({
+        variantCombinations.map(combo => ({
           product_id: productId,
           variant_name: Object.entries(combo)
-            .map(([k, v]) => `${k}:${v}`)
+            .map(([k, v]) => `${k}:${Array.isArray(v) ? v.join(",") : v}`)
             .join("-"),
-          custom_attributes: combo,
+          custom_attributes: combo as Json,
           stock_quantity: 0,
+          attributes: {},
         })),
       );
 

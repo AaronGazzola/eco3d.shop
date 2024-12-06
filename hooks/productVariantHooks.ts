@@ -48,23 +48,24 @@ export const useAddProductVariantAttribute = () => {
       productId,
       attributeName,
       options,
+      isMultiValue,
+      combinations,
     }: {
       productId: string;
       attributeName: string;
       options: string[];
+      isMultiValue?: boolean;
+      combinations?: Record<string, unknown>[];
     }) => {
       const { data, error } = await addProductVariantAttributeAction(
         productId,
         attributeName,
         options,
+        isMultiValue,
+        combinations,
       );
       if (error) throw new Error(error);
       return data;
-    },
-    onError: error => {
-      toast({
-        title: error.message || DefaultMessages.ErrorMessage,
-      });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
