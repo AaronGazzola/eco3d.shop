@@ -128,7 +128,7 @@ export function AttributesTab({ productId }: { productId: string }) {
       ) || [];
 
     variantsToDelete.forEach(variant => {
-      deleteVariant.mutate(variant.id);
+      deleteVariant.mutate({ id: variant.id });
     });
   };
 

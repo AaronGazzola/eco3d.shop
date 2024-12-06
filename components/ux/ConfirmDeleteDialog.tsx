@@ -1,5 +1,6 @@
 import ActionButton from "@/components/layout/ActionButton";
 import { useDeleteProduct } from "@/hooks/productHooks";
+import { useDeleteProductVariant } from "@/hooks/productVariantHooks";
 import { useDeletePromoCodeAndKey } from "@/hooks/promoHooks";
 import { useDialogQueue } from "@/hooks/useDialogQueue";
 import { Database } from "@/types/database.types";
@@ -17,6 +18,7 @@ const ConfirmDeleteDialog = ({
 }) => {
   const { dismiss } = useDialogQueue();
   const isProduct = table === "products";
+  const isProductVariant = table === "product_variants";
   const isPromoCode = table === "promo_codes";
 
   const {
@@ -25,16 +27,26 @@ const ConfirmDeleteDialog = ({
     mutate: deleteProduct,
   } = useDeleteProduct();
   const {
+    isPending: productVariantIsLoading,
+    isSuccess: productVariantIsDeleted,
+    mutate: deleteProductVariant,
+  } = useDeleteProductVariant();
+  const {
     isPending: promoCodeIsLoading,
     isSuccess: promoCodeIsDeleted,
     mutate: deletePromoCodeAndKey,
   } = useDeletePromoCodeAndKey();
 
-  const loading = isProduct ? productIsLoading : promoCodeIsLoading;
+  const loading = isProduct
+    ? productIsLoading
+    : isProductVariant
+      ? productVariantIsLoading
+      : promoCodeIsLoading;
 
   useEffect(() => {
     if (productIsDeleted && isProduct) dismiss();
     if (promoCodeIsDeleted && isPromoCode) dismiss();
+    if (productVariantIsDeleted && isProductVariant) dismiss();
   }, [
     productIsDeleted,
     promoCodeIsDeleted,
@@ -42,6 +54,8 @@ const ConfirmDeleteDialog = ({
     dismiss,
     isProduct,
     isPromoCode,
+    isProductVariant,
+    productVariantIsDeleted,
   ]);
 
   return (
@@ -54,6 +68,7 @@ const ConfirmDeleteDialog = ({
           e.preventDefault();
           if (isProduct) deleteProduct(id);
           if (isPromoCode) deletePromoCodeAndKey(id);
+          if (isProductVariant) deleteProductVariant({ id });
         }}
       >
         <div className="flex w-full justify-between items-center">

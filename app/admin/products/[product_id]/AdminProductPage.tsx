@@ -6,16 +6,20 @@ import { AttributesTab } from "@/app/admin/products/[product_id]/AttributesTab";
 import { ImagesTab } from "@/app/admin/products/[product_id]/ImagesTab";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useGetProductById } from "@/hooks/productHooks";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ProductVariantTable, variantColumns } from "./ProductVariantTable";
 
 export function AdminProductPage({
-  product,
+  product: productProp,
 }: {
   product: ProductWithVariants;
 }) {
+  const { data: product } = useGetProductById(productProp.id, productProp);
   const router = useRouter();
+
+  if (!product) return null;
 
   return (
     <div className="container py-6 space-y-6">

@@ -176,7 +176,8 @@ export function ImagesTab({ productId }: { productId: string }) {
                             )
                           }
                           disabled={
-                            image.display_order === variant.images.length - 1
+                            image.display_order ===
+                            (variant?.images?.length || -1) - 1
                           }
                         >
                           <ChevronRight className="w-4 h-4" />

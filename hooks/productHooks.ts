@@ -3,6 +3,7 @@ import {
   CreateProductValues,
   createProductAction,
   deleteProductAction,
+  getProductByIdAction,
   getProductsAction,
   updateProductAction,
 } from "@/actions/productActions";
@@ -31,6 +32,23 @@ export const useGetProducts = () => {
       return data;
     },
     staleTime: 1000 * 60 * 5,
+  });
+};
+
+export const useGetProductById = (
+  productId: string,
+  initialData?: Product | null,
+) => {
+  return useQuery<ProductWithVariants | null, Error>({
+    queryKey: ["product", productId],
+    queryFn: async () => {
+      if (!productId) throw new Error("Product ID is required");
+      const { data, error } = await getProductByIdAction(productId);
+      if (error) throw new Error(error);
+      return data;
+    },
+    staleTime: 1000 * 60 * 5,
+    initialData,
   });
 };
 
@@ -121,8 +139,10 @@ export const useDeleteProduct = ({
     },
     onSuccess: data => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      console.log(data?.id);
+      queryClient.invalidateQueries({ queryKey: ["product", data?.id] });
       toast({
-        title: "Product deleted",
+        title: data?.id,
       });
     },
     retryDelay: attempt => Math.min(attempt * 1000, 3000),

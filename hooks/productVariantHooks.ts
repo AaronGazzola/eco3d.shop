@@ -19,7 +19,10 @@ export enum DefaultMessages {
   ErrorMessage = "Operation failed",
 }
 
-export const useGetProductVariants = (productId: string) => {
+export const useGetProductVariants = (
+  productId?: string | null,
+  initialData?: ProductVariantWithImages[] | null,
+) => {
   return useQuery<ProductVariantWithImages[] | null, Error>({
     queryKey: ["product_variants", productId],
     queryFn: async () => {
@@ -30,6 +33,8 @@ export const useGetProductVariants = (productId: string) => {
       return data;
     },
     staleTime: 1000 * 60 * 5,
+    enabled: !!productId,
+    initialData,
   });
 };
 
@@ -107,7 +112,7 @@ export const useDeleteProductVariant = ({
   const { toast } = useToastQueue();
 
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id }: { id: string }) => {
       if (!id) throw new Error("Variant ID is required");
       const { data, error } = await deleteProductVariantAction(id);
       if (error) throw new Error(error);

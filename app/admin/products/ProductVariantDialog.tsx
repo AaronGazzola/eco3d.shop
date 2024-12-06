@@ -203,7 +203,7 @@ const ProductVariantDialog = ({
               <ActionButton
                 type="button"
                 variant="destructive"
-                onClick={() => deleteVariant(variantData?.id!)}
+                onClick={() => deleteVariant({ id: variantData?.id! })}
                 loading={isDeleting}
               >
                 Delete

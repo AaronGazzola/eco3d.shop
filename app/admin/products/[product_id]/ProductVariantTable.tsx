@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import ConfirmDeleteDialog from "@/components/ux/ConfirmDeleteDialog";
 import configuration from "@/configuration";
+import { useGetProductVariants } from "@/hooks/productVariantHooks";
 import { useDialogQueue } from "@/hooks/useDialogQueue";
 import { ProductVariant } from "@/types/db.types";
 import { DataTableProps } from "@/types/ui.types";
@@ -60,9 +61,12 @@ const EditCell = ({ row }: { row: Row<ProductVariant> }) => {
 };
 
 const AttributesCell = ({ row }: { row: Row<ProductVariant> }) => {
+  const attributes = row.original.custom_attributes;
   return (
     <pre className="text-xs">
-      {JSON.stringify(row.original.attributes, null, 2)}
+      {Object.entries(attributes as Record<string, string>)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join("\n")}
     </pre>
   );
 };
@@ -96,13 +100,15 @@ export function ProductVariantTable<TData>({
   columns,
   data,
 }: DataTableProps<ProductVariant>) {
+  const { data: variants } = useGetProductVariants(data?.[0]?.product_id, data);
   const router = useRouter();
   const table = useReactTable({
-    data: data || [],
+    data: variants || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
     getRowId: row => row.id,
   });
+  console.log(variants);
 
   return (
     <div className="rounded-md border">
