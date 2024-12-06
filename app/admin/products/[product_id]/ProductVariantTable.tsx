@@ -1,4 +1,5 @@
 "use client";
+import { UpdateVariantDialog } from "@/app/admin/products/[product_id]/UpdateVariantDialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -22,7 +23,6 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { EditIcon, Trash2 } from "lucide-react";
-import { CreateVariantDialog } from "./CreateVariantDialog";
 
 const EditCell = ({ row }: { row: Row<ProductVariant> }) => {
   const { dialog } = useDialogQueue();
@@ -33,7 +33,7 @@ const EditCell = ({ row }: { row: Row<ProductVariant> }) => {
         size="sm"
         onClick={e => {
           e.stopPropagation();
-          dialog(<CreateVariantDialog productVariant={row.original} />);
+          dialog(<UpdateVariantDialog productVariant={row.original} />);
         }}
       >
         <EditIcon className="w-4" />
@@ -111,7 +111,20 @@ export const variantColumns: ColumnDef<ProductVariant>[] = [
   },
   {
     accessorKey: "estimated_print_seconds",
-    header: "Print Time (s)",
+    header: "Print Time",
+    cell: ({ row }) => {
+      const seconds = row.original.estimated_print_seconds || 0;
+      const days = Math.floor(seconds / (24 * 3600));
+      const hours = Math.floor((seconds % (24 * 3600)) / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+
+      const parts = [];
+      if (days) parts.push(`${days}d`);
+      if (hours) parts.push(`${hours}h`);
+      if (minutes) parts.push(`${minutes}m`);
+
+      return parts.length ? parts.join(" ") : "0m";
+    },
   },
 ];
 
@@ -146,7 +159,7 @@ export function ProductVariantTable<TData>({
     const selectedRows = table.getSelectedRowModel().rows;
     const selectedIds = selectedRows.map(row => row.original.id);
     dialog(
-      <CreateVariantDialog
+      <UpdateVariantDialog
         productVariant={selectedRows[0].original}
         selectedIds={selectedIds}
       />,
@@ -155,16 +168,22 @@ export function ProductVariantTable<TData>({
 
   return (
     <div>
-      {table.getSelectedRowModel().rows.length > 0 && (
-        <div className="flex gap-2 mb-4">
-          <Button onClick={handleBulkEdit}>
-            Edit Selected ({table.getSelectedRowModel().rows.length})
-          </Button>
-          <Button variant="destructive" onClick={handleBulkDelete}>
-            Delete Selected
-          </Button>
-        </div>
-      )}
+      <div className="flex gap-2 mt-3 mb-4">
+        <Button
+          onClick={handleBulkEdit}
+          disabled={!table.getSelectedRowModel().rows.length}
+        >
+          Edit Selected ({table.getSelectedRowModel().rows.length})
+        </Button>
+        <Button
+          disabled={!table.getSelectedRowModel().rows.length}
+          variant="destructive"
+          onClick={handleBulkDelete}
+        >
+          Delete Selected
+        </Button>
+      </div>
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
