@@ -72,15 +72,10 @@ export function AttributesTab({ productId }: { productId: string }) {
     newMap[attribute].delete(value);
     setAttributeMap(newMap);
 
-    const variantsToDelete =
-      variants?.filter(
-        v =>
-          isJsonObject(v.custom_attributes) &&
-          v.custom_attributes[attribute] === value,
-      ) || [];
-
-    variantsToDelete.forEach(variant => {
-      deleteVariant.mutate({ id: variant.id });
+    addAttribute.mutate({
+      productId,
+      attributeName: attribute,
+      options: Array.from(newMap[attribute]),
     });
   };
 
