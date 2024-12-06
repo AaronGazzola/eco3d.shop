@@ -13,7 +13,7 @@ import {
 import ConfirmDeleteDialog from "@/components/ux/ConfirmDeleteDialog";
 import { useGetProductVariants } from "@/hooks/productVariantHooks";
 import { useDialogQueue } from "@/hooks/useDialogQueue";
-import { ProductVariant } from "@/types/db.types";
+import { ProductVariantWithImages } from "@/types/db.types";
 import { DataTableProps } from "@/types/ui.types";
 import {
   ColumnDef,
@@ -24,7 +24,7 @@ import {
 } from "@tanstack/react-table";
 import { EditIcon, Trash2 } from "lucide-react";
 
-const EditCell = ({ row }: { row: Row<ProductVariant> }) => {
+const EditCell = ({ row }: { row: Row<ProductVariantWithImages> }) => {
   const { dialog } = useDialogQueue();
   return (
     <div className="flex gap-2">
@@ -58,7 +58,7 @@ const EditCell = ({ row }: { row: Row<ProductVariant> }) => {
   );
 };
 
-const AttributesCell = ({ row }: { row: Row<ProductVariant> }) => {
+const AttributesCell = ({ row }: { row: Row<ProductVariantWithImages> }) => {
   const attributes = row.original.custom_attributes;
   if (!attributes) return null;
   return (
@@ -70,7 +70,7 @@ const AttributesCell = ({ row }: { row: Row<ProductVariant> }) => {
   );
 };
 
-export const variantColumns: ColumnDef<ProductVariant>[] = [
+export const variantColumns: ColumnDef<ProductVariantWithImages>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -128,10 +128,10 @@ export const variantColumns: ColumnDef<ProductVariant>[] = [
   },
 ];
 
-export function ProductVariantTable<TData>({
+export function ProductVariantTable({
   columns,
   data,
-}: DataTableProps<ProductVariant>) {
+}: DataTableProps<ProductVariantWithImages>) {
   const { data: variants } = useGetProductVariants(data?.[0]?.product_id, data);
   const { dialog } = useDialogQueue();
 
@@ -209,15 +209,6 @@ export function ProductVariantTable<TData>({
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
                   className="cursor-pointer"
-                  // onClick={() => {
-                  //   router.push(
-                  //     configuration.paths.admin.product(
-                  //       row.original.product_id!,
-                  //     ) +
-                  //       "/" +
-                  //       row.id,
-                  //   );
-                  // }}
                 >
                   {row.getVisibleCells().map(cell => (
                     <TableCell key={cell.id} className="max-w-[300px]">
@@ -232,7 +223,7 @@ export function ProductVariantTable<TData>({
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={columns.length}
+                  colSpan={columns.length + 1}
                   className="h-24 text-center"
                 >
                   No variants found.
