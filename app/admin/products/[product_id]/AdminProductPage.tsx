@@ -2,11 +2,13 @@
 "use client";
 import { ProductWithVariants } from "@/types/db.types";
 
+import { PublishToggle } from "@/app/admin/products/PublishToggle";
 import { AttributesTab } from "@/app/admin/products/[product_id]/AttributesTab";
 import { ImagesTab } from "@/app/admin/products/[product_id]/ImagesTab";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGetProductById } from "@/hooks/productHooks";
+import { useDialogQueue } from "@/hooks/useDialogQueue";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ProductVariantTable, variantColumns } from "./ProductVariantTable";
@@ -18,15 +20,24 @@ export function AdminProductPage({
 }) {
   const { data: product } = useGetProductById(productProp.id, productProp);
   const router = useRouter();
+  const { dialog } = useDialogQueue();
 
   if (!product) return null;
 
   return (
     <div className="container py-6 space-y-6">
-      <Button variant="ghost" onClick={() => router.back()}>
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Products
-      </Button>
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" onClick={() => router.back()}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Products
+        </Button>
+        <div className="flex items-center gap-4">
+          <PublishToggle product={product} />
+          <span className="text-sm text-muted-foreground">
+            {product.published ? "Published" : "Draft"}
+          </span>
+        </div>
+      </div>
 
       <h1 className="text-3xl font-bold">{product.name}</h1>
       <p className="text-muted-foreground">{product.description}</p>
