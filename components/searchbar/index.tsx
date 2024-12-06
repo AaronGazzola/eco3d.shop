@@ -3,6 +3,7 @@ import { ArrowDownUp, ListFilter, ChevronDown, SearchIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import { comfortaa } from "@/styles/fonts";
 import { cn } from "@/lib/utils";
+import { Input } from "../ui/input";
 
 export default function SearchBar() {
   const [query, setQuery] = useState("");
@@ -19,6 +20,7 @@ export default function SearchBar() {
               />
             </div>
 
+            {/* To DO INPUT */}
             <input
               id="search"
               name="search"
@@ -26,10 +28,18 @@ export default function SearchBar() {
               placeholder="Search products"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              className={cn("block w-full font-comfortaa font-medium text-xl h-9 leading-5 py-2 pl-3 pr-10 text-[#757575] placeholder:text-gray-400 bg-transparent focus:outline-none focus:ring-2 sm:text-sm", comfortaa.className)}
+              className={cn(
+                "block w-full font-comfortaa font-medium text-xl h-9 leading-5 py-2 pl-3 pr-10 text-[#757575] placeholder:text-gray-400 bg-transparent focus:outline-none focus:ring-2 sm:text-sm",
+                comfortaa.className,
+              )}
             />
 
-            <Button className={cn("font-semibold flex items-center justify-center text-base px-4 py-2 text-white  border border-transparent rounded-[57px] h-9", comfortaa.className)}>
+            <Button
+              className={cn(
+                "font-semibold flex items-center justify-center text-base px-4 py-2 text-white  border border-transparent rounded-[57px] h-9",
+                comfortaa.className,
+              )}
+            >
               Search
             </Button>
           </div>
@@ -37,7 +47,9 @@ export default function SearchBar() {
 
         <div className="relative flex sm:flex-row gap-3 items-center justify-between m-0 max-w-xl">
           <div className="font-comfortaa font-medium leading-6 flex items-center text-xl sm:text-[14px] text-[#757575] p-4 rounded-full border gap-7 w-max">
-            <div className={cn("flex justify-between gap-2", comfortaa.className)}>
+            <div
+              className={cn("flex justify-between gap-2", comfortaa.className)}
+            >
               <ArrowDownUp height={24} width={24} className="color-[#757575]" />
               Sort By
             </div>
@@ -45,7 +57,9 @@ export default function SearchBar() {
           </div>
 
           <div className="font-comfortaa font-medium leading-6 sm:font-[15px] flex items-center text-xl text-[#757575] sm:text-[14px] p-4 rounded-full border gap-7 w-max">
-            <div className={cn("flex justify-between gap-2", comfortaa.className)}>
+            <div
+              className={cn("flex justify-between gap-2", comfortaa.className)}
+            >
               <ListFilter height={24} width={24} className="color-[#757575]" />
               Filter
             </div>

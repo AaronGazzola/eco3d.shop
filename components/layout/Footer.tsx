@@ -4,7 +4,8 @@ import Link from "next/link";
 
 const Footer = () => {
   return (
-    <div className="mt-[5rem] w-full bg-gradient-to-r from-green-900 via-green-950 to-green-900 flex items-center justify-center text-gray-200 font-black text-sm shadow">
+    // <div className="mt-[5rem] w-full bg-gradient-to-r from-green-900 via-green-950 to-green-900 flex items-center justify-center text-gray-200 font-black text-sm shadow">
+    <div className="w-full bg-gradient-to-r from-green-900 via-green-950 to-green-900 flex items-center justify-center text-gray-200 font-black text-sm shadow">
       <Link
         href={configuration.paths.faq}
         className="px-1 xs:px-3 sm:px-4 hover:bg-green-800 hover:text-gray-50"

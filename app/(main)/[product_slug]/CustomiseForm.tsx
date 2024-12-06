@@ -62,7 +62,7 @@ export function CustomiseForm() {
                 <CarouselNext className="absolute right-2 top-1/2 transform -translate-y-1/2 z-10 bg-white shadow rounded-full p-2" />
                 <Image
                   className="rounded-lg shadow-lg"
-                  src="/images/promo/Aaron Set 1 Sept 20-19.jpg"
+                  src="/images/promo/Aaron_Sept_20_19.jpg"
                   alt="promo"
                   width={500}
                   height={500}

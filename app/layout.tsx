@@ -6,7 +6,6 @@ import Header from "@/components/layout/Header";
 import { cn } from "@/lib/utils";
 import Providers from "@/providers/Providers";
 import { poppins } from "@/styles/fonts";
-import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Eco3D",
@@ -50,13 +49,11 @@ export default function RootLayout({
         }
       >
         <Providers>
-          <Suspense>
           <Header />
           <main className="flex-grow flex flex-col min-h-screen">
             {children}
           </main>
           <Footer />
-          </Suspense>
         </Providers>
       </body>
     </html>

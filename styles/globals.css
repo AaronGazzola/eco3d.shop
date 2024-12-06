@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -67,5 +69,21 @@
   }
   #nprogress > * {
     background: hsl(var(--muted-foreground)) !important;
+  }
+
+  @font-face {
+    font-family: 'Futura';
+    src: url('/fonts/Futura-Regular.woff2') format('woff2'),
+         url('/fonts/Futura-Regular.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+  }
+  
+  @font-face {
+    font-family: 'Futura';
+    src: url('/fonts/Futura-Bold.woff2') format('woff2'),
+         url('/fonts/Futura-Bold.woff') format('woff');
+    font-weight: 700;
+    font-style: normal;
   }
 }

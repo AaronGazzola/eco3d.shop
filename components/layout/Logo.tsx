@@ -10,7 +10,7 @@ const Logo = () => {
   return (
     <Link
       href={configuration.paths.appHome}
-      className="flex items-center gap-2 sm:gap-4 px-4"
+      className="flex items-center gap-2 sm:gap-4 px-4 pl-28"
     >
       <div className="relative">
         <div className="hidden dark:block absolute inset-0 -z-10 scale-y-[1.03]">

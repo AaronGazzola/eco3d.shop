@@ -102,6 +102,9 @@ const config = {
         poppins: ['Poppins'],
         comfortaa: ['Comfortaa'],
         rubik: ['Rubik'],
+        dancing_script: ['Dancing Script'],
+        futura: ['Futura']
+
       },
     },
   },
