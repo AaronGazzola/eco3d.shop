@@ -1,4 +1,5 @@
 "use client";
+import { assignImageToVariantAction } from "@/actions/imageActions";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,16 +13,29 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
   useDeleteAllVariantImages,
   useDeleteVariantImage,
   useUpdateImageOrder,
   useUploadVariantImage,
 } from "@/hooks/imageHooks";
 import { useGetProductVariants } from "@/hooks/productVariantHooks";
+import { useToastQueue } from "@/hooks/useToastQueue";
 import { getStorageUrl } from "@/lib/util/storage.util";
+import { cn } from "@/lib/utils";
+import { ProductVariantWithImages } from "@/types/db.types";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronLeft,
   ChevronRight,
+  Copy,
   Image as ImageIcon,
   Trash2,
   Upload,
@@ -39,6 +53,57 @@ export function ImagesTab({ productId }: { productId: string }) {
   const [deleteImageId, setDeleteImageId] = useState<string>();
   const [deleteVariantId, setDeleteVariantId] = useState<string>();
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
+  const [reuseDialogOpen, setReuseDialogOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<{
+    id: string;
+    path: string;
+  } | null>(null);
+  const [targetVariantId, setTargetVariantId] = useState<string>();
+  const queryClient = useQueryClient();
+  const { toast } = useToastQueue();
+
+  const assignExistingImage = useMutation({
+    mutationFn: async ({
+      imageId,
+      variantId,
+    }: {
+      imageId: string;
+      variantId: string;
+    }) => {
+      const { data, error } = await assignImageToVariantAction(
+        imageId,
+        variantId,
+      );
+      if (error) throw new Error(error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["product_variants", productId],
+      });
+      setReuseDialogOpen(false);
+      setSelectedImage(null);
+      setTargetVariantId(undefined);
+      toast({
+        title: "Image assigned successfully",
+      });
+    },
+
+    onError: error => {
+      toast({
+        title: error.message,
+        open: true,
+      });
+    },
+  });
+
+  const handleAssignImage = async () => {
+    if (!selectedImage || !targetVariantId) return;
+    await assignExistingImage.mutateAsync({
+      imageId: selectedImage.id,
+      variantId: targetVariantId,
+    });
+  };
 
   const setFileInputRef =
     (variantId: string) => (el: HTMLInputElement | null) => {
@@ -75,6 +140,23 @@ export function ImagesTab({ productId }: { productId: string }) {
     await updateOrder.mutateAsync({ variantImageId, newOrder, variantId });
   };
 
+  const getAllImages = (variants: ProductVariantWithImages[]) => {
+    const images = new Set<string>();
+    variants.forEach(variant => {
+      variant.variant_images?.forEach(vi => {
+        if (vi.images?.id && vi.images.image_path) {
+          images.add(
+            JSON.stringify({
+              id: vi.images.id,
+              path: vi.images.image_path,
+            }),
+          );
+        }
+      });
+    });
+    return Array.from(images).map(img => JSON.parse(img));
+  };
+
   return (
     <div className="space-y-4 p-4 h-full overflow-y-auto">
       {variants?.map(variant => (
@@ -103,6 +185,17 @@ export function ImagesTab({ productId }: { productId: string }) {
               >
                 <Upload className="w-4 h-4 mr-2" />
                 Upload Images
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setTargetVariantId(variant.id);
+                  setReuseDialogOpen(true);
+                }}
+              >
+                <Copy className="w-4 h-4 mr-2" />
+                Reuse Image
               </Button>
               <input
                 type="file"
@@ -205,6 +298,7 @@ export function ImagesTab({ productId }: { productId: string }) {
           </div>
         </Card>
       ))}
+
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -222,6 +316,45 @@ export function ImagesTab({ productId }: { productId: string }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={reuseDialogOpen} onOpenChange={setReuseDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Select Image to Reuse</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="h-[400px] pr-4">
+            <div className="grid grid-cols-3 gap-4">
+              {variants &&
+                getAllImages(variants).map(img => (
+                  <div
+                    key={img.id}
+                    className={cn(
+                      "relative cursor-pointer rounded-lg overflow-hidden",
+                      selectedImage?.id === img.id && "ring-2 ring-primary",
+                    )}
+                    onClick={() => setSelectedImage(img)}
+                  >
+                    <Image
+                      src={getStorageUrl(img.path)}
+                      alt=""
+                      width={200}
+                      height={200}
+                      className="object-cover aspect-square"
+                    />
+                  </div>
+                ))}
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button
+              onClick={handleAssignImage}
+              disabled={!selectedImage || !targetVariantId}
+            >
+              Assign Image
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

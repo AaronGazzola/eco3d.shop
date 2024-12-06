@@ -3,6 +3,40 @@
 import getActionResponse from "@/actions/getActionResponse";
 import getSupabaseServerActionClient from "@/clients/action-client";
 
+export const assignImageToVariantAction = async (
+  imageId: string,
+  variantId: string,
+) => {
+  try {
+    const supabase = await getSupabaseServerActionClient();
+
+    const { data: maxOrder } = await supabase
+      .from("variant_images")
+      .select("display_order")
+      .eq("product_variant_id", variantId)
+      .order("display_order", { ascending: false })
+      .limit(1)
+      .single();
+
+    const nextOrder = (maxOrder?.display_order ?? -1) + 1;
+
+    const { data, error } = await supabase
+      .from("variant_images")
+      .insert({
+        product_variant_id: variantId,
+        image_id: imageId,
+        display_order: nextOrder,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return getActionResponse({ data });
+  } catch (error) {
+    return getActionResponse({ error });
+  }
+};
+
 export const updateImageOrderAction = async (
   variantImageId: string,
   newOrder: number,
