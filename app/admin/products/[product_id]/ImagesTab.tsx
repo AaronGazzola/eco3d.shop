@@ -28,7 +28,7 @@ import {
 } from "@/hooks/imageHooks";
 import { useGetProductVariants } from "@/hooks/productVariantHooks";
 import { useToastQueue } from "@/hooks/useToastQueue";
-import { getStorageUrl } from "@/lib/util/storage.util";
+import { getStorageUrl } from "@/lib/storage.util";
 import { cn } from "@/lib/utils";
 import { ProductVariantWithImages } from "@/types/db.types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
