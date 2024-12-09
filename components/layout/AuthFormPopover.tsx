@@ -14,7 +14,7 @@ import {
   useSignInWithMagicLink,
   useSignOut,
 } from "@/hooks/userHooks";
-import { maskEmail } from "@/lib/util/string.util";
+import { maskEmail } from "@/lib/string.util";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Popover } from "@radix-ui/react-popover";

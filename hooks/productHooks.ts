@@ -3,6 +3,7 @@ import {
   CreateProductValues,
   createProductAction,
   deleteProductAction,
+  getProductByIdAction,
   getProductsAction,
   updateProductAction,
 } from "@/actions/productActions";
@@ -19,7 +20,7 @@ enum DefaultMessages {
   ErrorMessage = "Error updating product",
 }
 
-export const useGetProducts = () => {
+export const useGetProducts = (initialData?: ProductWithVariants[] | null) => {
   return useQuery<ProductWithVariants[] | null, Error>({
     queryKey: ["products"],
     queryFn: async () => {
@@ -31,6 +32,24 @@ export const useGetProducts = () => {
       return data;
     },
     staleTime: 1000 * 60 * 5,
+    initialData,
+  });
+};
+
+export const useGetProductById = (
+  productId: string,
+  initialData?: Product | null,
+) => {
+  return useQuery<ProductWithVariants | null, Error>({
+    queryKey: ["product", productId],
+    queryFn: async () => {
+      if (!productId) throw new Error("Product ID is required");
+      const { data, error } = await getProductByIdAction(productId);
+      if (error) throw new Error(error);
+      return data;
+    },
+    staleTime: 1000 * 60 * 5,
+    initialData,
   });
 };
 
@@ -89,6 +108,7 @@ export const useUpdateProduct = ({
     },
     onSuccess: data => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["product", data?.id] });
       toast({
         title: successMessage || DefaultMessages.SuccessMessage,
       });
@@ -121,8 +141,9 @@ export const useDeleteProduct = ({
     },
     onSuccess: data => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["product", data?.id] });
       toast({
-        title: "Product deleted",
+        title: data?.id,
       });
     },
     retryDelay: attempt => Math.min(attempt * 1000, 3000),

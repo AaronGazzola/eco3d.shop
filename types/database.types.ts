@@ -179,34 +179,20 @@ export type Database = {
       images: {
         Row: {
           created_at: string | null
-          display_order: number
           id: string
           image_path: string
-          product_variant_id: string | null
         }
         Insert: {
           created_at?: string | null
-          display_order: number
           id?: string
           image_path: string
-          product_variant_id?: string | null
         }
         Update: {
           created_at?: string | null
-          display_order?: number
           id?: string
           image_path?: string
-          product_variant_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "images_product_variant_id_fkey"
-            columns: ["product_variant_id"]
-            isOneToOne: false
-            referencedRelation: "product_variants"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -633,6 +619,8 @@ export type Database = {
           description: string | null
           id: string
           name: string
+          published: boolean | null
+          slug: string | null
           updated_at: string | null
         }
         Insert: {
@@ -640,6 +628,8 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
+          published?: boolean | null
+          slug?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -647,6 +637,8 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
+          published?: boolean | null
+          slug?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -863,6 +855,45 @@ export type Database = {
         }
         Relationships: []
       }
+      variant_images: {
+        Row: {
+          created_at: string | null
+          display_order: number
+          id: string
+          image_id: string | null
+          product_variant_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          display_order: number
+          id?: string
+          image_id?: string | null
+          product_variant_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          display_order?: number
+          id?: string
+          image_id?: string | null
+          product_variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "variant_images_image_id_fkey"
+            columns: ["image_id"]
+            isOneToOne: false
+            referencedRelation: "images"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "variant_images_product_variant_id_fkey"
+            columns: ["product_variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -883,6 +914,22 @@ export type Database = {
           event: Json
         }
         Returns: Json
+      }
+      reorder_images: {
+        Args: {
+          p_image_id: string
+          p_new_order: number
+          p_variant_id: string
+        }
+        Returns: undefined
+      }
+      reorder_variant_images: {
+        Args: {
+          p_variant_image_id: string
+          p_new_order: number
+          p_variant_id: string
+        }
+        Returns: undefined
       }
       schedule_cleanup: {
         Args: Record<PropertyKey, never>

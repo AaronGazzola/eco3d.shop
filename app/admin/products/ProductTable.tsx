@@ -109,7 +109,9 @@ export function ProductTable<TData>({
     data: data || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
+    getRowId: row => row.id,
   });
+
   const { dialog } = useDialogQueue();
 
   return (
@@ -138,9 +140,9 @@ export function ProductTable<TData>({
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
                 className="cursor-pointer"
-                onClick={() =>
-                  router.push(configuration.paths.admin.product(row.id))
-                }
+                onClick={() => {
+                  router.push(configuration.paths.admin.product(row.id));
+                }}
               >
                 {row.getVisibleCells().map(cell => (
                   <TableCell key={cell.id} className="max-w-[300px]">
