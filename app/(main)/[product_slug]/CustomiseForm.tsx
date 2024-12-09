@@ -51,7 +51,7 @@ export function CustomiseForm() {
   return (
     <div className="flex flex-col justify-center lg:flex-row h-full overflow-y-auto">
       <div className="w-1/2 h-full flex flex-col">
-        <Carousel className="aspect-square ">
+        <Carousel className="aspect-square">
           <CarouselContent className="flex items-center">
             {[...Array(3)].map((_, index) => (
               <CarouselItem

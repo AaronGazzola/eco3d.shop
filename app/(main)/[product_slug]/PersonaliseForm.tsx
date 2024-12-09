@@ -1,12 +1,13 @@
 "use client";
+
+import Tooltip from "@/components/products/Tooltip";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
-import { comfortaa } from "@/styles/fonts";
 import Image from "next/image";
+import Img from "@/public/images/products/Digger/Aaron Set 2-10.jpg";
 
 const PersonaliseForm = () => {
   return (
-    <div className="bg-gray-50 p-4 shadow-lg overflow-y-scroll">
+    <div className="bg-gray-50 p-4 overflow-y-auto">
       <div className="mx-auto bg-white p-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {/* Left: Inputs */}
@@ -46,65 +47,43 @@ const PersonaliseForm = () => {
 
           {/* Right: Examples */}
           <div className="space-y-4">
-            <div className="bg-[#fcf5f4] relative border-gray-300 text-center flex flex-col gap-[1.4rem]">
-              <p className="font-dancing_script xs:text-[50px] xs:leading-[4.25rem] text-3xl">
+            <div className="relative border-gray-300 text-center flex flex-col gap-[1.4rem] rounded-sm border">
+              <p className="font-dancing_script xs:text-[50px] xs:leading-[4.25rem] text-3xl text-black">
                 ShahidDev1
               </p>
-              <p className="font-dancing_script xs:text-[50px] xs:leading-[4.25rem] text-3xl">
+              <p className="font-dancing_script xs:text-[50px] xs:leading-[4.25rem] text-3xl text-black">
                 ShahidDev1
               </p>
-              <p className="font-dancing_script xs:text-[50px] xs:leading-[4.25rem] text-3xl">
+              <p className="font-dancing_script xs:text-[50px] xs:leading-[4.25rem] text-3xl text-black">
                 ShahidDev1
               </p>
 
               <Image
-                src="/images/promo/Aaron_Sept_20_19.jpg"
+                src={Img}
                 width={10}
                 height={10}
                 alt="Top-right"
-                className="absolute -top-[2.45rem] -right-9 h-12 w-12 object-cover rounded-md cursor-pointer peer"
+                unoptimized={true}
+                className="absolute -top-[2.45rem] -right-9 h-12 w-12 object-cover rounded-md cursor-pointer peer z-20"
               />
-              <div
-                  className="absolute bottom-0 transform -translate-x-1/2 mt-2 w-64 p-4 
-              bg-white border border-gray-300 shadow-lg rounded-lg opacity-0 pointer-events-none 
-              transition-opacity duration-300 peer-hover:opacity-100 peer-hover:pointer-events-auto"
-                >
-                  <Image
-                    src="/images/promo/Aaron_Sept_20_19.jpg"
-                    alt="Larger Version"
-                    width={64}
-                    height={64}
-                    className="w-full h-auto mb-2 rounded"
-                  />
-                  <p>This is tooltip</p>
-                </div>
-              
+
+              <Tooltip imageSrc={Img} text="This is tooltip" alt="Toop Tip" />
             </div>
 
             <div className="space relative">
-              <div className="bg-[#fcf5f4] flex items-center justify-center mt-[6.5rem] relative p-[0.7rem]">
-                <p className="font-futura xs:text-[50px] text-3xl font-bold">ShahidDev 1</p>
+              <div className="flex items-center justify-center mt-[6.1rem] relative p-[0.7rem] rounded-sm border">
+                <p className="font-futura xs:text-[50px] text-3xl font-bold text-black">
+                  ShahidDev 1
+                </p>
                 <Image
-                  src="/images/promo/Aaron_Sept_20_19.jpg"
+                  src="/images/products/Digger/Aaron Set 2-10.jpg"
                   alt="Bottom-right"
+                  unoptimized={true}
                   width={10}
                   height={10}
-                  className="absolute bottom-[3.9rem] -right-9 h-12 w-12 object-cover rounded-md cursor-pointer peer"
+                  className="absolute bottom-[2.9rem] -right-9 h-12 w-12 object-cover rounded-md cursor-pointer peer"
                 />
-                <div
-                  className="absolute bottom-24 transform -translate-x-1/2 mt-2 w-64 p-4 
-              bg-white border border-gray-300 shadow-lg rounded-lg opacity-0 pointer-events-none 
-              transition-opacity duration-300 peer-hover:opacity-100 peer-hover:pointer-events-auto"
-                >
-                  <Image
-                    src="/images/promo/Aaron_Sept_20_19.jpg"
-                    alt="Larger Version"
-                    width={64}
-                    height={64}
-                    className="w-full h-auto mb-2 rounded"
-                  />
-                  <p>This is tooltip</p>
-                </div>
+                <Tooltip imageSrc={Img} text="This is tooltip" alt="Toop Tip" />
               </div>
             </div>
           </div>

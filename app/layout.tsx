@@ -45,12 +45,12 @@ export default function RootLayout({
     <html lang="en">
       <body
         className={
-          (cn(poppins.className), "flex flex-col  antialiased min-h-screen")
+          (cn(poppins.className), "flex flex-col antialiased min-h-screen")
         }
       >
         <Providers>
           <Header />
-          <main className="flex-grow flex flex-col min-h-screen">
+          <main className="flex-grow flex flex-col">
             {children}
           </main>
           <Footer />
