@@ -1,5 +1,8 @@
 "use client";
 
+import TShape1 from "@/assets/svg/icons/hero-t-shape-1.svg";
+import TShape2 from "@/assets/svg/icons/hero-t-shape-2.svg";
+import SendArrow from "@/assets/svg/icons/send-arrow.svg";
 import SearchBar from "@/components/searchbar";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,43 +11,45 @@ import {
   ShoppingBasket,
   SquareMousePointer,
 } from "lucide-react";
+import Image from "next/image";
 
-import TShape1 from "@/assets/svg/icons/hero-t-shape-1.svg";
-import TShape2 from "@/assets/svg/icons/hero-t-shape-2.svg";
-import HeroImage from "@/assets/svg/icons/right-hero-img.svg";
-import SendArrow from "@/assets/svg/icons/send-arrow.svg";
-
-type AnnotationProps = {
+const Annotation = ({
+  className,
+  icon,
+  label,
+  description,
+}: {
   icon: React.ReactNode;
   label: string;
   description: string;
-};
-
-const Annotation = ({ icon, label, description }: AnnotationProps) => (
-  <div className="pt-2.5 pb-3 px-4 rounded-lg bg-white text-gray-900 shadow-lg text-sm space-y-1 flex flex-col gap-0.5">
-    <div className="flex items-center gap-2">
-      {icon}
-      <span className="font-semibold text-sm text-nowrap text-gray-900">
-        {label}
-      </span>
+  className?: string;
+}) => (
+  <div className={className}>
+    <div className="pt-2.5 pb-3 px-4 rounded-lg bg-white text-gray-900 shadow-lg text-sm space-y-1 flex flex-col gap-0.5">
+      <div className="flex items-center gap-2">
+        {icon}
+        <span className="font-semibold text-sm text-nowrap text-gray-900">
+          {label}
+        </span>
+      </div>
+      <span className="text-nowrap text-gray-700">{description}</span>
     </div>
-    <span className="text-nowrap text-gray-700">{description}</span>
   </div>
 );
 
 const Hero = () => {
   return (
-    <section className="relative flex items-center justify-center shadow-[inset_0_0_0_3000px_rgb(0,0,0,0.7)]">
+    <section className="relative flex items-center justify-center shadow-[inset_0_0_0_3000px_rgb(0,0,0,0.6)] pt-10 pb-20">
       <div className="absolute inset-0 -z-10">
-        {/* <Image
-          src={HeroBg}
+        <Image
+          src="/images/promo/Aaron_Sept_20_19.jpg"
           alt="Hero Background"
           className="object-cover"
           fill
-        /> */}
+        />
       </div>
 
-      <div className="flex flex-col md:flex-row items-center">
+      <div className="flex flex-col md:flex-row items-stretch">
         <div className="w-full md:w-1/2 text-left text-white space-y-6">
           <div className="max-w-[520px]">
             <h1 className="font-semibold text-4xl sm:text-4xl md:text-6xl sm:leading-[70px]">
@@ -60,52 +65,56 @@ const Hero = () => {
           </div>
         </div>
 
-        <div className="w-full rounded-full md:w-1/2 relative flex justify-center">
-          <TShape1 className="h-full md:w-full absolute md:-top-6 md:-right-14" />
-          <TShape2 className="h-full md:w-full absolute md:top-2 md:-left-10" />
-          <div className="relative md:w-[440px]">
-            <HeroImage className="rounded-full border-[4px] h-full md:w-full border-white" />
+        <div className="w-full md:w-1/2 relative flex">
+          <div className="aspect-square">
+            <TShape1 className="h-full md:w-full absolute md:-top-6 md:-right-14" />
+            <TShape2 className="h-full md:w-full absolute md:top-2 md:-left-10" />
+            <div className="relative md:w-[440px] h-full">
+              <div className="rounded-full border-[4px] border-white overflow-hidden relative h-full md:w-full">
+                <div className="absolute inset-0">
+                  <Image
+                    src="/images/products/V8/details/Aaron set 3-29.jpg"
+                    alt="Hero Background"
+                    className="object-cover"
+                    fill
+                  />
+                </div>
+                <div className="absolute inset-0 rounded-full shadow-[inset_0_0_60px_25px_rgba(0,0,0,0.6)]" />
+              </div>
 
-            <div className="absolute top-20 right-0 sm:-right-[36px] md:-right-[75px]">
-              <Annotation
-                icon={<ShoppingBasket width={20} height={20} />}
-                label="Add to cart"
-                description="Ready for checkout"
-              />
-            </div>
+              <div className="absolute top-20 right-0 sm:-right-[36px] md:-right-[75px]">
+                <Annotation
+                  icon={<ShoppingBasket width={20} height={20} />}
+                  label="Add to cart"
+                  description="Ready for checkout"
+                />
+              </div>
 
-            <div className="absolute top-6 left-0 md:-left-10">
               <Annotation
+                className="absolute top-6 left-0 md:-left-10"
                 icon={<SquareMousePointer width={20} height={20} />}
                 label="Select"
                 description="Pick your desire item"
               />
-            </div>
 
-            <div className="absolute bottom-5 -right-1 transform translate-y-6">
               <Annotation
+                className="absolute bottom-5 -right-1 transform translate-y-6"
                 icon={<Pencil width={20} height={20} />}
                 label="Personalise"
                 description="Make it uniquely yours"
               />
-            </div>
 
-            <div className="absolute top-40 sm:top-56 sm:-left-[45px] md:top-72 left-0 md:-left-[55px] transform translate-y-6">
               <Annotation
+                className="absolute top-40 sm:top-56 sm:-left-[45px] md:top-72 left-0 md:-left-[55px] transform translate-y-6"
                 icon={<Ruler width={20} height={20} />}
                 label="Customize"
                 description="Adjust to your preferences"
               />
-            </div>
-
-            <div className="absolute w-12 h-12 -rotate-[88.5deg] right-2/4 -bottom-[21px]">
-              <SendArrow className="w-full h-full" />
-            </div>
-            <div className="absolute w-12 h-12 -rotate-[185.5deg] -right-[18px] bottom-[35%]">
-              <SendArrow className="w-full h-full" />
-            </div>
-            <div className="absolute w-12 h-12 -left-[18px] top-[35%]">
-              <SendArrow className="w-full h-full" />
+              <div className="absolute inset-0">
+                <SendArrow className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 left-0 rotate-[-21deg]" />
+                <SendArrow className="absolute left-1/2 translate-y-1/2 -translate-x-1/2 bottom-0 rotate-[-111deg]" />
+                <SendArrow className="absolute top-1/2 -translate-y-1/2 translate-x-1/2 right-0 rotate-[-201deg]" />
+              </div>
             </div>
           </div>
         </div>
