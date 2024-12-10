@@ -1,10 +1,13 @@
 const nextConfig = {
   images: {
-    domains: [
+    remotePatterns: [
       process.env.NEXT_PUBLIC_SUPABASE_URL
-        ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
-        : "",
-    ],
+        ? {
+            protocol: "https",
+            hostname: new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname,
+          }
+        : null,
+    ].filter(Boolean), 
   },
 };
 
