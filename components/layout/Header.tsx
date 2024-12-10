@@ -17,33 +17,31 @@ const Header = () => {
   const toggleDrawer = useUIStore(state => state.toggleDrawer);
 
   return (
-    <>
-      <header
-        className={cn(
-          "sticky top-0 left-0 right-0 w-full min-h-12 flex items-stretch shadow-md justify-center bg-background py-0.5 z-50",
+    <header
+      className={cn(
+        "sticky top-0 left-0 right-0 w-full min-h-12 flex items-stretch shadow-md justify-center bg-background pb-1 pt-0.5 z-20",
+      )}
+    >
+      <div className="flex h-full justify-between flex-grow pr-0.5 items-stretch max-w-4xl">
+        <Logo />
+        {isAdmin && (
+          <div className="items-center flex flex-grow">
+            <Link href={configuration.paths.admin.products}>
+              <Button variant="ghost">
+                <PackageSearch />
+              </Button>
+            </Link>
+            <Link href={configuration.paths.admin.promo}>
+              <Button variant="ghost">
+                <TicketPercent />
+              </Button>
+            </Link>
+          </div>
         )}
-      >
-        <div className="flex h-full justify-between flex-grow pr-0.5 items-stretch max-w-4xl">
-          <Logo />
-          {isAdmin && (
-            <div className="items-center flex flex-grow">
-              <Link href={configuration.paths.admin.products}>
-                <Button variant="ghost">
-                  <PackageSearch />
-                </Button>
-              </Link>
-              <Link href={configuration.paths.admin.promo}>
-                <Button variant="ghost">
-                  <TicketPercent />
-                </Button>
-              </Link>
-            </div>
-          )}
-          <FreeShippingProgress onClick={() => toggleDrawer()} />
-          <Drawer side={Direction.Right} />
-        </div>
-      </header>
-    </>
+        <FreeShippingProgress onClick={() => toggleDrawer()} />
+        <Drawer side={Direction.Right} />
+      </div>
+    </header>
   );
 };
 

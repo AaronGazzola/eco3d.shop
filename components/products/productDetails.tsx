@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-import ProductImage from "@/public/images/products/V8/Aaron-Set-2-22.jpg";
 import { Calendar } from "lucide-react";
 import Image from "next/image";
 
@@ -13,9 +12,9 @@ export default function ProductList() {
             key={index}
           >
             <div className="overflow-hidden flex flex-col gap-4">
-              <div className="relative h-60">
+              <div className="relative pt-[100%] w-full">
                 <Image
-                  src={ProductImage}
+                  src="/images/products/V8/Large/Set 3 second shoot-4.jpg"
                   alt={`Product Image ${index + 1}`}
                   layout="fill"
                   objectFit="cover"
