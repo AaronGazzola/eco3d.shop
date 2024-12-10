@@ -1,20 +1,21 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+import {
+  Pencil,
+  Ruler,
+  ShoppingBasket,
+  SquareMousePointer,
+} from "lucide-react";
 import Image from "next/image";
 import bgImage from "../../public/images/hero/hero-bg-image.jpg";
 import SearchBar from "../searchbar";
-import {
-  SquareMousePointer,
-  ShoppingBasket,
-  Pencil,
-  Ruler,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { comfortaa } from "@/styles/fonts";
 import { Button } from "../ui/button";
 
 const Annotation = ({ icon, label, description, position }: any) => (
-  <div className={`bg-white text-gray-700 md:w-[136px] shadow-lg rounded-[7px] py-[8px] px-[10px] text-sm space-y-1`}>
+  <div
+    className={`bg-white text-gray-700 md:w-[136px] shadow-lg rounded-[7px] py-[8px] px-[10px] text-sm space-y-1`}
+  >
     <div className="flex items-center gap-2">
       {icon}
       <span className="font-semibold text-sm text-nowrap text-[#37363B]">
@@ -33,7 +34,7 @@ const Page = () => {
       className="relative h-[656px] flex items-center justify-center"
       style={{ boxShadow: "inset 0 0 0 3000px rgb(0, 0, 0,0.7)" }}
     >
-      <div className={cn("absolute inset-0 -z-10", comfortaa.className)}>
+      <div className={cn("absolute inset-0 -z-10")}>
         <Image
           src={bgImage}
           alt="Hero Background"
@@ -45,14 +46,26 @@ const Page = () => {
       <div className="container mx-auto px-14 relative z-10 flex flex-col md:flex-row items-center m-0">
         <div className="w-full md:w-1/2 text-left text-white space-y-6">
           <div className="max-w-[520px]">
-            <h1 className={cn("font-semibold text-4xl sm:text-4xl md:text-6xl sm:leading-[70px]", comfortaa.className)}>
+            <h1
+              className={cn(
+                "font-semibold text-4xl sm:text-4xl md:text-6xl sm:leading-[70px]",
+              )}
+            >
               Lorem Ipsum is simply dummy text of the
             </h1>
-            <p className={cn("font-medium text-lg sm:text-xl leading-[28px] mt-2", comfortaa.className)}>
+            <p
+              className={cn(
+                "font-medium text-lg sm:text-xl leading-[28px] mt-2",
+              )}
+            >
               Carefully crafted after analyzing the needs of different
               industries and the design.
             </p>
-            <Button className={cn("font-semibold bg-primary hover:bg-white text-white text-base leading-[19.2px] px-6 py-3 mt-8 rounded-full", comfortaa.className)}>
+            <Button
+              className={cn(
+                "font-semibold bg-primary hover:bg-white text-white text-base leading-[19.2px] px-6 py-3 mt-8 rounded-full",
+              )}
+            >
               Get Started
             </Button>
           </div>
@@ -122,7 +135,6 @@ const Page = () => {
                 width={30}
                 height={33}
                 alt="arrow-icon"
-  
                 style={{ width: "100%", height: "100%" }}
               />
             </div>
@@ -131,7 +143,6 @@ const Page = () => {
                 src="/images/hero/send-arrow.svg"
                 width={30}
                 height={33}
-  
                 alt="arrow-icon"
                 style={{ width: "100%", height: "100%" }}
               />
@@ -141,7 +152,6 @@ const Page = () => {
                 src="/images/hero/send-arrow.svg"
                 width={30}
                 height={33}
-  
                 alt="arrow-icon"
                 style={{ width: "100%", height: "100%" }}
               />
