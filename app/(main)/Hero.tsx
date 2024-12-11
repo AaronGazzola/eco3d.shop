@@ -115,7 +115,7 @@ const Hero = () => {
             <TShape1 className="h-full md:w-full absolute md:-top-6 md:-right-14" />
             <TShape2 className="h-full md:w-full absolute md:top-2 md:-left-10" />
             <div className="relative md:w-[440px] h-full">
-              <div className="rounded-full border-[4px] border-white overflow-hidden relative h-full md:w-full">
+              <div className="rounded-full border-[4px] border-t-transparent border-white overflow-hidden relative h-full md:w-full">
                 <div className="absolute inset-0">
                   <Image
                     src="/images/products/V8/details/Aaron set 3-29.jpg"
@@ -148,7 +148,7 @@ const Hero = () => {
                   isActive={circleSideAtTop === Bottom}
                 />
                 <Annotation
-                  className="absolute -right-10 top-20"
+                  className="absolute right-0 top-10"
                   icon={<ShoppingBasket width={20} height={20} />}
                   label="Add to cart"
                   isActive={circleSideAtTop === Left}
