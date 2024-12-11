@@ -1,6 +1,6 @@
 import type { Config } from "tailwindcss";
 
-const config = { 
+const config = {
   darkMode: ["class"],
   content: [
     "./pages/**/*.{ts,tsx}",
@@ -93,18 +93,24 @@ const config = {
           },
         },
       },
+      "rotate-arrows": {
+        "0%": { transform: "rotate(0deg)" },
+        "100%": { transform: "rotate(90deg)" },
+      },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "caret-blink": "caret-blink 1.25s ease-out infinite",
+        "rotate-arrows": "rotate-arrows 1s ease-in-out",
+        "fade-in-delayed": "fade-in-delayed 1s ease-in-out",
+        "fade-out-early": "fade-out-early 1s ease-in-out",
       },
       fontFamily: {
-        poppins: ['Poppins'],
-        comfortaa: ['Comfortaa'],
-        rubik: ['Rubik'],
-        dancing_script: ['Dancing Script'],
-        futura: ['Futura']
-
+        poppins: ["Poppins"],
+        comfortaa: ["Comfortaa"],
+        rubik: ["Rubik"],
+        dancing_script: ["Dancing Script"],
+        futura: ["Futura"],
       },
     },
   },

@@ -5,6 +5,7 @@ import TShape2 from "@/assets/svg/icons/hero-t-shape-2.svg";
 import SendArrow from "@/assets/svg/icons/send-arrow.svg";
 import SearchBar from "@/components/searchbar";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Pencil,
   Ruler,
@@ -12,6 +13,16 @@ import {
   SquareMousePointer,
 } from "lucide-react";
 import Image from "next/image";
+import { useState } from "react";
+
+enum CircleSide {
+  Top,
+  Right,
+  Bottom,
+  Left,
+}
+
+const { Top, Right, Bottom, Left } = CircleSide;
 
 const Annotation = ({
   className,
@@ -38,6 +49,21 @@ const Annotation = ({
 );
 
 const Hero = () => {
+  const [circleSideAtTop, setCircleSideAtTop] = useState<CircleSide>(Top);
+  const [rotation, setRotation] = useState(0);
+  const handleRotation = () => {
+    setRotation(prev => prev - 90);
+    setCircleSideAtTop(prev =>
+      prev === Top
+        ? Right
+        : prev === Right
+          ? Bottom
+          : prev === Bottom
+            ? Left
+            : Top,
+    );
+  };
+
   return (
     <section className="relative flex items-center justify-center shadow-[inset_0_0_0_3000px_rgb(0,0,0,0.6)] pt-10 pb-20">
       <div className="absolute inset-0 -z-10">
@@ -65,7 +91,10 @@ const Hero = () => {
           </div>
         </div>
 
-        <div className="w-full md:w-1/2 relative flex">
+        <div
+          className="w-full md:w-1/2 relative flex cursor-pointer"
+          onClick={handleRotation}
+        >
           <div className="aspect-square">
             <TShape1 className="h-full md:w-full absolute md:-top-6 md:-right-14" />
             <TShape2 className="h-full md:w-full absolute md:top-2 md:-left-10" />
@@ -110,10 +139,34 @@ const Hero = () => {
                 label="Customize"
                 description="Adjust to your preferences"
               />
-              <div className="absolute inset-0">
-                <SendArrow className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 left-0 rotate-[-21deg]" />
-                <SendArrow className="absolute left-1/2 translate-y-1/2 -translate-x-1/2 bottom-0 rotate-[-111deg]" />
-                <SendArrow className="absolute top-1/2 -translate-y-1/2 translate-x-1/2 right-0 rotate-[-201deg]" />
+              <div
+                className="absolute inset-0 transition-transform duration-1000 ease-in-out"
+                style={{ transform: `rotate(${rotation}deg)` }}
+              >
+                <SendArrow
+                  className={cn(
+                    "absolute left-1/2 -translate-y-1/2 -translate-x-1/2 top-0 rotate-[-291deg] transition-opacity ease-in",
+                    circleSideAtTop === Top ? "opacity-0" : "delay-300",
+                  )}
+                />
+                <SendArrow
+                  className={cn(
+                    "absolute top-1/2 -translate-y-1/2 translate-x-1/2 right-0 rotate-[-201deg] transition-opacity ease-in",
+                    circleSideAtTop === Right ? "opacity-0" : "delay-300",
+                  )}
+                />
+                <SendArrow
+                  className={cn(
+                    "absolute left-1/2 translate-y-1/2 -translate-x-1/2 bottom-0 rotate-[-111deg] transition-opacity ease-in",
+                    circleSideAtTop === Bottom ? "opacity-0" : "delay-300",
+                  )}
+                />
+                <SendArrow
+                  className={cn(
+                    "absolute top-1/2 -translate-y-1/2 -translate-x-1/2 left-0 rotate-[-21deg] transition-opacity ease-in",
+                    circleSideAtTop === Left ? "opacity-0" : "delay-300",
+                  )}
+                />
               </div>
             </div>
           </div>
