@@ -1,6 +1,5 @@
 "use client";
 
-import TShape1 from "@/assets/svg/icons/hero-t-shape-1.svg";
 import TShape2 from "@/assets/svg/icons/hero-t-shape-2.svg";
 import SendArrow from "@/assets/svg/icons/send-arrow.svg";
 import { cn } from "@/lib/utils";
@@ -49,9 +48,9 @@ const Annotation = ({
   >
     <div
       className={cn(
-        "pt-2 pb-3 pl-3.5 pr-4 rounded-lg bg-white shadow-xl text-sm space-y-1 flex items-center gap-2",
+        "sm:pt-2 pt-1.5 sm:pb-3 pb-2.5 sm:pl-3.5 pl-3 sm:pr-4 pr-3.5 rounded-lg bg-white shadow-xl text-sm space-y-1 flex items-center gap-2",
         isActive
-          ? "border-2 border-primary font-bold text-base"
+          ? "border-2 border-primary font-bold sm:text-base"
           : "bg-black text-white font-semibold",
       )}
     >
@@ -85,12 +84,20 @@ const Hero = () => {
   return (
     <section
       className={cn(
-        "relative flex items-center justify-center shadow-[inset_0_0_0_3000px_rgb(0,0,0,0.6)] py-16 overflow-visible",
+        "relative shadow-[inset_0_0_0_3000px_rgb(0,0,0,0.6)] py-8 pb-14 sm:py-16 flex items-center justify-center overflow-hidden",
       )}
     >
       <div className="absolute inset-0 shadow-lg"></div>
 
-      <div className="absolute inset-0 -z-10">
+      <div className="absolute inset-0 -z-10 lg:hidden">
+        <Image
+          src="/images/promo/Aaron Set 1 Sept 20-52.jpg"
+          alt="Hero Background"
+          className="object-cover"
+          fill
+        />
+      </div>
+      <div className="absolute inset-0 -z-10 hidden lg:block">
         <Image
           src="/images/promo/Aaron_Sept_20_19.jpg"
           alt="Hero Background"
@@ -99,16 +106,16 @@ const Hero = () => {
         />
       </div>
 
-      <div className="flex flex-col md:flex-row items-center">
-        <div className="w-full md:w-1/2 p-20">
+      <div className="flex flex-col lg:flex-row items-center max-w-6xl">
+        <div className="w-full max-w-2xl lg:w-1/2 px-6 sm:pl-16 sm:pr-20 pb-8 sm:pb-10 pt-2">
           <div className="text-white space-y-6 p-6 bg-black/60 rounded-xl">
             <div className="max-w-[520px]">
-              <h1 className="font-semibold text-4xl sm:text-4xl md:text-4xl sm:leading-[70px]">
+              <h1 className="font-semibold text-4xl">
                 <span className="">Made to last years,</span>
                 <br />
                 <span className="text-hero">not centuries.</span>
               </h1>
-              <p className="font-medium text-lg sm:text-xl leading-[28px] mt-2">
+              <p className="font-medium text-xl mt-2">
                 Our 3D printed gifts provide years of enjoyment - eventually
                 returning to the Earth to feed new life.
               </p>
@@ -116,15 +123,15 @@ const Hero = () => {
           </div>
         </div>
 
-        <div
-          className="w-full md:w-1/2 relative flex cursor-pointer justify-center items-center"
-          onClick={handleClick}
-        >
-          <div className="aspect-square">
-            <TShape1 className="h-full md:w-full absolute md:-top-6 md:-right-14" />
-            <TShape2 className="h-full md:w-full absolute md:top-2 md:-left-10" />
-            <div className="relative md:w-[440px] h-full">
-              <div className="rounded-full border-[4px] border-t-transparent border-white overflow-hidden relative h-full md:w-full">
+        <div className="w-full lg:pr-10 lg:w-1/2 flex items-center justify-center">
+          <div
+            className="w-72 h-72 xs:w-80 xs:h-80 sm:w-[450px] sm:h-[450px] relative flex cursor-pointer justify-center items-center"
+            onClick={handleClick}
+          >
+            <TShape2 className="h-full w-full absolute top-2 -left-10" />
+            <TShape2 className="h-full w-full absolute top-5 -right-10 rotate-180" />
+            <div className="absolute inset-0">
+              <div className="rounded-full border-[4px] border-t-transparent border-white overflow-hidden relative h-full w-full">
                 <div className="absolute inset-0">
                   {images.map((image, index) => (
                     <Image
@@ -153,7 +160,7 @@ const Hero = () => {
                 <Annotation
                   className="absolute bottom-16 -left-10"
                   icon={<Ruler width={20} height={20} />}
-                  label="Customize"
+                  label="Customise"
                   isActive={circleSideAtTop === Right}
                 />
                 <Annotation

@@ -1,16 +1,16 @@
 "use client";
-import Image from "next/image";
-import { comfortaa } from "@/styles/fonts";
-import { cn } from "@/lib/utils";
-import Link from "next/link";
 import LogoBackground from "@/components/svg/LogoBackground";
 import configuration from "@/configuration";
+import { cn } from "@/lib/utils";
+import { comfortaa } from "@/styles/fonts";
+import Image from "next/image";
+import Link from "next/link";
 
 const Logo = () => {
   return (
     <Link
       href={configuration.paths.appHome}
-      className="flex items-center gap-2 sm:gap-4 px-4 pl-28"
+      className="flex items-center gap-2 sm:gap-4 px-4"
     >
       <div className="relative">
         <div className="hidden dark:block absolute inset-0 -z-10 scale-y-[1.03]">
