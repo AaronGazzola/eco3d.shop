@@ -40,15 +40,6 @@ const ProductPageStep = ({
 
   const fontColorClass = isActive ? "text-green-800" : "text-gray-700";
 
-  // const fontColorClass = isActive
-  //   ? "text-green-800"
-  //   : isDisabled && isNext
-  //     ? "text-gray-100"
-  //     : isDisabled
-  //       ? "text-gray-500"
-  //       : isNext
-  //         ? "text-gray-50 hover:text-white"
-  //         : "text-gray-800";
   const icon =
     step === Customise ? (
       <Ruler className={cn("w-7 h-7 mt-px", fontColorClass)} />
@@ -96,7 +87,7 @@ const ProductPageStep = ({
         <div
           className={cn(
             // bg-gradient-to-b from-white via-white to-[hsl(141,71%,29%)] min-h-[115vh]
-            `max-w-4xl w-full flex-grow rounded-t-xl overflow-hidden ${isPersonaliseStep ? 'shadow-none' : 'shadow-xl'} transition-colors ease duration-250 px-4 ${isPersonaliseStep ? 'border-0' : 'border'} group bg-white`,
+            `max-w-4xl w-full flex-grow rounded-t-xl overflow-hidden ${isPersonaliseStep ? "shadow-none" : "shadow-xl"} transition-colors ease duration-250 px-4 ${isPersonaliseStep ? "border-0" : "border"} group bg-white`,
             isNext && "shadow-[0_-5px_15px_2px_rgba(22,101,52,0.2)]",
           )}
         >
