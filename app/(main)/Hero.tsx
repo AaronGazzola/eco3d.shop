@@ -11,7 +11,7 @@ import {
   SquareMousePointer,
 } from "lucide-react";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 enum CircleSide {
   Top,
@@ -26,22 +26,29 @@ const Annotation = ({
   className,
   icon,
   label,
-  description,
+  isActive,
 }: {
   icon: React.ReactNode;
   label: string;
-  description: string;
   className?: string;
+  isActive?: boolean;
 }) => (
-  <div className={className}>
-    <div className="pt-2.5 pb-3 px-4 rounded-lg bg-white text-gray-900 shadow-lg text-sm space-y-1 flex flex-col gap-0.5">
+  <div
+    className={cn(
+      className,
+      "transition-transform delay-150 duration-300",
+      isActive ? "text-primary scale-125" : "text-gray-900",
+    )}
+  >
+    <div
+      className={cn(
+        "pt-2.5 pb-3 px-4 rounded-lg bg-white shadow-xl text-sm space-y-1 flex flex-col gap-0.5",
+      )}
+    >
       <div className="flex items-center gap-2">
         {icon}
-        <span className="font-semibold text-sm text-nowrap text-gray-900">
-          {label}
-        </span>
+        <span className="font-semibold text-sm text-nowrap">{label}</span>
       </div>
-      <span className="text-nowrap text-gray-700">{description}</span>
     </div>
   </div>
 );
@@ -51,16 +58,14 @@ const Hero = () => {
   const [rotation, setRotation] = useState(0);
   const handleRotation = () => {
     setRotation(prev => prev - 90);
-    setCircleSideAtTop(prev =>
-      prev === Top
-        ? Right
-        : prev === Right
-          ? Bottom
-          : prev === Bottom
-            ? Left
-            : Top,
-    );
+    setCircleSideAtTop(prev => (prev === Left ? Top : prev + 1));
   };
+
+  useEffect(() => {
+    const interval = setInterval(handleRotation, 3000);
+    return () => clearInterval(interval);
+  }, [circleSideAtTop]);
+
   return (
     <section
       className={cn(
@@ -114,34 +119,33 @@ const Hero = () => {
                 <div className="absolute inset-0 rounded-full shadow-[inset_0_0_60px_25px_rgba(0,0,0,0.6)]" />
               </div>
 
-              <div className="absolute top-20 right-0 sm:-right-[36px] md:-right-[75px]">
+              <div className="absolute inset-0 z-10">
                 <Annotation
+                  className="absolute top-10 left-0"
+                  icon={<SquareMousePointer width={20} height={20} />}
+                  label="Select"
+                  isActive={circleSideAtTop === Top}
+                />
+
+                <Annotation
+                  className="absolute bottom-16 -left-10"
+                  icon={<Ruler width={20} height={20} />}
+                  label="Customize"
+                  isActive={circleSideAtTop === Right}
+                />
+                <Annotation
+                  className="absolute bottom-20 -right-10 transform translate-y-6"
+                  icon={<Pencil width={20} height={20} />}
+                  label="Personalise"
+                  isActive={circleSideAtTop === Bottom}
+                />
+                <Annotation
+                  className="absolute -right-10 top-20"
                   icon={<ShoppingBasket width={20} height={20} />}
                   label="Add to cart"
-                  description="Ready for checkout"
+                  isActive={circleSideAtTop === Left}
                 />
               </div>
-
-              <Annotation
-                className="absolute top-6 left-0 md:-left-10"
-                icon={<SquareMousePointer width={20} height={20} />}
-                label="Select"
-                description="Pick your desire item"
-              />
-
-              <Annotation
-                className="absolute bottom-5 -right-1 transform translate-y-6"
-                icon={<Pencil width={20} height={20} />}
-                label="Personalise"
-                description="Make it uniquely yours"
-              />
-
-              <Annotation
-                className="absolute top-40 sm:top-56 sm:-left-[45px] md:top-72 left-0 md:-left-[55px] transform translate-y-6"
-                icon={<Ruler width={20} height={20} />}
-                label="Customize"
-                description="Adjust to your preferences"
-              />
               <div
                 className="absolute inset-0 transition-transform duration-1000 ease-in-out"
                 style={{ transform: `rotate(${rotation}deg)` }}
@@ -166,7 +170,7 @@ const Hero = () => {
                 />
                 <SendArrow
                   className={cn(
-                    "absolute top-1/2 -translate-y-1/2 -translate-x-1/2 left-0 rotate-[-21deg] transition-opacity ease-in",
+                    "absolute top-1/2 -translate-y-1/2 -translate-x-1/2 left-0 rotate-[-21deg] transition-opacity ease-in fill-black",
                     circleSideAtTop === Left ? "opacity-0" : "delay-300",
                   )}
                 />
