@@ -1,6 +1,42 @@
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Calendar } from "lucide-react";
 import Image from "next/image";
+
+export const ProductListItem = () => (
+  <div className="p-3 rounded-xl border shadow-lg bg-white cursor-pointer">
+    <div className="overflow-hidden flex flex-col gap-4">
+      <div className="relative pt-[100%] w-full">
+        <Image
+          src="/images/products/V8/Large/Set 3 second shoot-4.jpg"
+          alt="Product Image"
+          layout="fill"
+          objectFit="cover"
+          className="w-full h-full rounded-[6px]"
+        />
+      </div>
+
+      <div className="px-2.5 pt-1 pb-3">
+        <h2 className="font-bold text-2xl text-gray-700 mb-2">
+          Scale Model V8 Engine
+        </h2>
+        <div className="flex flex-col items-center">
+          <div className="flex flex-col w-min items-center mb-4">
+            <span className=" italic">From</span>
+            <p className="">
+              <span className="text-black text-2xl">$19.99</span>AUD
+            </p>
+          </div>
+        </div>
+
+        <Button className="flex gap-3 font-bold text-base">
+          <Calendar height={24} width={24} />
+          <span>Est. Delivery: 25 Nov 2024</span>
+        </Button>
+      </div>
+    </div>
+  </div>
+);
 
 export default function ProductList() {
   return (

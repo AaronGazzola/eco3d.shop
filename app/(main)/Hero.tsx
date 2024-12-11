@@ -3,7 +3,6 @@
 import TShape1 from "@/assets/svg/icons/hero-t-shape-1.svg";
 import TShape2 from "@/assets/svg/icons/hero-t-shape-2.svg";
 import SendArrow from "@/assets/svg/icons/send-arrow.svg";
-import SearchBar from "@/components/searchbar";
 import { cn } from "@/lib/utils";
 import {
   Pencil,
@@ -65,9 +64,10 @@ const Hero = () => {
   return (
     <section
       className={cn(
-        "relative flex items-center justify-center shadow-[inset_0_0_0_3000px_rgb(0,0,0,0.6)] pt-12 pb-24 ",
+        "relative flex items-center justify-center shadow-[inset_0_0_0_3000px_rgb(0,0,0,0.6)] py-16 overflow-visible",
       )}
     >
+      <div className="absolute inset-0 shadow-lg"></div>
       <div className="absolute inset-0 -z-10">
         <Image
           src="/images/promo/Aaron_Sept_20_19.jpg"
@@ -175,7 +175,7 @@ const Hero = () => {
           </div>
         </div>
       </div>
-      <SearchBar />
+      {/* <SearchBar /> */}
     </section>
   );
 };
