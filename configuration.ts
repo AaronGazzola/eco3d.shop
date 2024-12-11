@@ -25,6 +25,7 @@ const configuration = {
       queueItem: (id: string) => `/admin/queue/${id}`,
       promo: "/admin/promo",
     },
+    product: (slug: string) => `/${slug}`,
     auth: "/auth",
     signIn: "/auth?form=sign-in",
     forgotPassword: "/auth?form=forgot-password",

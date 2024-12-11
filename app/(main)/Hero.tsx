@@ -56,15 +56,23 @@ const Annotation = ({
 const Hero = () => {
   const [circleSideAtTop, setCircleSideAtTop] = useState<CircleSide>(Top);
   const [rotation, setRotation] = useState(0);
-  const handleRotation = () => {
+  const [isTouched, setisTouched] = useState(false);
+
+  const rotate = () => {
     setRotation(prev => prev - 90);
     setCircleSideAtTop(prev => (prev === Left ? Top : prev + 1));
   };
 
+  const handleClick = () => {
+    setisTouched(true);
+    rotate();
+  };
+
   useEffect(() => {
-    const interval = setInterval(handleRotation, 3000);
+    if (isTouched) return;
+    const interval = setInterval(rotate, 3000);
     return () => clearInterval(interval);
-  }, [circleSideAtTop]);
+  }, [isTouched]);
 
   return (
     <section
@@ -101,7 +109,7 @@ const Hero = () => {
 
         <div
           className="w-full md:w-1/2 relative flex cursor-pointer justify-center items-center"
-          onClick={handleRotation}
+          onClick={handleClick}
         >
           <div className="aspect-square">
             <TShape1 className="h-full md:w-full absolute md:-top-6 md:-right-14" />
@@ -179,7 +187,6 @@ const Hero = () => {
           </div>
         </div>
       </div>
-      {/* <SearchBar /> */}
     </section>
   );
 };

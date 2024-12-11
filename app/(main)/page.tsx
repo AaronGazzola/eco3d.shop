@@ -1,6 +1,8 @@
 import Hero from "@/app/(main)/Hero";
 import { ProductListItem } from "@/app/(main)/ProductList";
+import configuration from "@/configuration";
 import { SquareMousePointer } from "lucide-react";
+import Link from "next/link";
 
 const Page = () => {
   return (
@@ -11,7 +13,9 @@ const Page = () => {
           <SquareMousePointer className="w-7 h-7" />
           Select
         </h2>
-        <ProductListItem />
+        <Link href={configuration.paths.product("V8")}>
+          <ProductListItem />
+        </Link>
         <h3 className="text-gray-800">More products coming soon...</h3>
       </div>
     </>
