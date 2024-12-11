@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -32,6 +32,7 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --text-white: 0, 0%, 100%;
+    --hero-text: 141 85% 85%;
   }
 
   .dark {
@@ -59,6 +60,7 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+    --hero-text: 141 85% 85%;
   }
 
   * {
@@ -72,17 +74,19 @@
   }
 
   @font-face {
-    font-family: 'Futura';
-    src: url('/fonts/Futura-Regular.woff2') format('woff2'),
-         url('/fonts/Futura-Regular.woff') format('woff');
+    font-family: "Futura";
+    src:
+      url("/fonts/Futura-Regular.woff2") format("woff2"),
+      url("/fonts/Futura-Regular.woff") format("woff");
     font-weight: 400;
     font-style: normal;
   }
-  
+
   @font-face {
-    font-family: 'Futura';
-    src: url('/fonts/Futura-Bold.woff2') format('woff2'),
-         url('/fonts/Futura-Bold.woff') format('woff');
+    font-family: "Futura";
+    src:
+      url("/fonts/Futura-Bold.woff2") format("woff2"),
+      url("/fonts/Futura-Bold.woff") format("woff");
     font-weight: 700;
     font-style: normal;
   }

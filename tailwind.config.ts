@@ -27,6 +27,9 @@ const config = {
     },
     extend: {
       colors: {
+        hero: {
+          DEFAULT: "hsl(var(--hero-text))",
+        },
         white: "hsl(var(--text-white))",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

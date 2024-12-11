@@ -4,7 +4,6 @@ import TShape1 from "@/assets/svg/icons/hero-t-shape-1.svg";
 import TShape2 from "@/assets/svg/icons/hero-t-shape-2.svg";
 import SendArrow from "@/assets/svg/icons/send-arrow.svg";
 import SearchBar from "@/components/searchbar";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   Pencil,
@@ -63,9 +62,12 @@ const Hero = () => {
             : Top,
     );
   };
-
   return (
-    <section className="relative flex items-center justify-center shadow-[inset_0_0_0_3000px_rgb(0,0,0,0.6)] pt-10 pb-20">
+    <section
+      className={cn(
+        "relative flex items-center justify-center shadow-[inset_0_0_0_3000px_rgb(0,0,0,0.6)] pt-12 pb-24 ",
+      )}
+    >
       <div className="absolute inset-0 -z-10">
         <Image
           src="/images/promo/Aaron_Sept_20_19.jpg"
@@ -75,24 +77,25 @@ const Hero = () => {
         />
       </div>
 
-      <div className="flex flex-col md:flex-row items-stretch">
-        <div className="w-full md:w-1/2 text-left text-white space-y-6">
-          <div className="max-w-[520px]">
-            <h1 className="font-semibold text-4xl sm:text-4xl md:text-6xl sm:leading-[70px]">
-              Lorem Ipsum is simply dummy text of the
-            </h1>
-            <p className="font-medium text-lg sm:text-xl leading-[28px] mt-2">
-              Carefully crafted after analyzing the needs of different
-              industries and the design.
-            </p>
-            <Button className="font-semibold bg-primary hover:bg-white text-white text-base leading-[19.2px] px-6 py-3 mt-8 rounded-full">
-              Get Started
-            </Button>
+      <div className="flex flex-col md:flex-row items-center">
+        <div className="w-full md:w-1/2 p-20">
+          <div className="text-white space-y-6 p-6 bg-black/60 rounded-xl">
+            <div className="max-w-[520px]">
+              <h1 className="font-semibold text-4xl sm:text-4xl md:text-4xl sm:leading-[70px]">
+                <span className="">Made to last years,</span>
+                <br />
+                <span className="text-hero">not centuries.</span>
+              </h1>
+              <p className="font-medium text-lg sm:text-xl leading-[28px] mt-2">
+                Our 3D printed gifts can provide years of enjoyment - eventually
+                returning to the Earth to feed new life.
+              </p>
+            </div>
           </div>
         </div>
 
         <div
-          className="w-full md:w-1/2 relative flex cursor-pointer"
+          className="w-full md:w-1/2 relative flex cursor-pointer justify-center items-center"
           onClick={handleRotation}
         >
           <div className="aspect-square">
