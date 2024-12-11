@@ -6,10 +6,10 @@ import { camelCaseToFormattedString } from "@/lib/string.util";
 import { cn } from "@/lib/utils";
 import { AddToCartStep } from "@/types/ui.types";
 import { ChevronDown, Pencil, Ruler, ShoppingBasket } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const { Customise, Personalise, AddToCart, Select } = AddToCartStep;
 
-// TODO: Move to enums
 export const COLLAPSED_PRODUCT_STEP_HEIGHT = 75;
 export const EXPANDED_HEADER_HEIGHT = 92;
 
@@ -24,6 +24,7 @@ const ProductPageStep = ({
   onChangeActiveStep: (step: AddToCartStep) => void;
   isDisabled?: boolean;
 }) => {
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const isCustomeiseStep = step === Customise;
   const isPersonaliseStep = step === Personalise;
   const isAddToCartStep = step === AddToCart;
@@ -66,6 +67,12 @@ const ProductPageStep = ({
       }px`
     : `calc(100% - ${bottomHeight}px)`;
 
+  useEffect(() => {
+    setIsTransitioning(true);
+    const timer = setTimeout(() => setIsTransitioning(false), 600);
+    return () => clearTimeout(timer);
+  }, [activeStep]);
+
   return (
     <div
       onClick={() =>
@@ -86,7 +93,6 @@ const ProductPageStep = ({
       ) : (
         <div
           className={cn(
-            // bg-gradient-to-b from-white via-white to-[hsl(141,71%,29%)] min-h-[115vh]
             `max-w-4xl w-full flex-grow rounded-t-xl overflow-hidden ${isPersonaliseStep ? "shadow-none" : "shadow-xl"} transition-colors ease duration-250 px-4 ${isPersonaliseStep ? "border-0" : "border"} group bg-white`,
             isNext && "shadow-[0_-5px_15px_2px_rgba(22,101,52,0.2)]",
           )}
@@ -120,20 +126,6 @@ const ProductPageStep = ({
                   </div>
                 </div>
                 <div className="flex gap-4 relative flex-grow min-w-[50%] px-4">
-                  {/* <h2
-                    className={cn(
-                      "transition-opacity text-xl font-semibold text-secondary whitespace-nowrap",
-
-                      !isActive && "opacity-0",
-                    )}
-                  >
-                    {isCustomeiseStep
-                      ? "Customise size and colour"
-                      : isPersonaliseStep
-                        ? "Personalise with an inscription"
-                        : null}
-                  </h2> */}
-                  {/* <div className="absolute inset-0"> */}
                   <Button
                     variant="default"
                     className={cn(
@@ -147,13 +139,12 @@ const ProductPageStep = ({
                       <ChevronDown className="w-5 h-5 stroke-[3px]" />
                     </>
                   </Button>
-                  {/* </div> */}
                 </div>
               </div>
               {isCustomeiseStep ? (
-                <CustomiseForm />
+                <CustomiseForm isAnimating={isTransitioning} />
               ) : isPersonaliseStep ? (
-                <PersonaliseForm />
+                <PersonaliseForm isAnimating={isTransitioning} />
               ) : null}
             </div>
           </div>

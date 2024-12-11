@@ -2,12 +2,18 @@
 
 import Tooltip from "@/components/products/Tooltip";
 import { Input } from "@/components/ui/input";
-import Image from "next/image";
+import { cn } from "@/lib/utils";
 import Img from "@/public/images/products/Digger/Aaron Set 2-10.jpg";
+import Image from "next/image";
 
-const PersonaliseForm = () => {
+const PersonaliseForm = ({ isAnimating }: { isAnimating: boolean }) => {
   return (
-    <div className="bg-gray-50 p-4 overflow-y-auto">
+    <div
+      className={cn(
+        "bg-gray-50 p-4",
+        isAnimating ? "overflow-hidden" : "overflow-y-auto",
+      )}
+    >
       <div className="mx-auto bg-white p-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {/* Left: Inputs */}

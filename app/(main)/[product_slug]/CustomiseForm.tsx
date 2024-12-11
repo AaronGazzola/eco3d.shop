@@ -37,7 +37,7 @@ const customiseSchema = z.object({
   colors: z.array(z.string()).nonempty("At least one color must be selected."),
 });
 
-export function CustomiseForm() {
+export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
   const form = useForm({
     resolver: zodResolver(customiseSchema),
     defaultValues: {
@@ -49,8 +49,13 @@ export function CustomiseForm() {
   const onSubmit = () => {};
 
   return (
-    <div className="flex flex-col justify-center lg:flex-row h-full overflow-y-auto">
-      <div className="w-1/2 h-full flex flex-col">
+    <div
+      className={cn(
+        "flex flex-col justify-center lg:flex-row h-full",
+        isAnimating ? "overflow-hidden" : "overflow-y-auto",
+      )}
+    >
+      <div className="w-full sm:w-1/2 h-full flex flex-col">
         <Carousel className="aspect-square">
           <CarouselContent className="flex items-center">
             {[...Array(3)].map((_, index) => (
