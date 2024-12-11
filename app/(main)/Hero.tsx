@@ -42,13 +42,14 @@ const Annotation = ({
   >
     <div
       className={cn(
-        "pt-2.5 pb-3 px-4 rounded-lg bg-white shadow-xl text-sm space-y-1 flex flex-col gap-0.5",
+        "pt-2 pb-3 pl-3.5 pr-4 rounded-lg bg-white shadow-xl text-sm space-y-1 flex items-center gap-2",
+        isActive
+          ? "border-2 border-primary font-bold text-base"
+          : "bg-black text-white font-semibold",
       )}
     >
-      <div className="flex items-center gap-2">
-        {icon}
-        <span className="font-semibold text-sm text-nowrap">{label}</span>
-      </div>
+      <span>{icon}</span>
+      <span className="pb-0.5 text-nowrap leading-none">{label}</span>
     </div>
   </div>
 );
@@ -81,6 +82,7 @@ const Hero = () => {
       )}
     >
       <div className="absolute inset-0 shadow-lg"></div>
+
       <div className="absolute inset-0 -z-10">
         <Image
           src="/images/promo/Aaron_Sept_20_19.jpg"
@@ -124,9 +126,9 @@ const Hero = () => {
                     fill
                   />
                 </div>
+                <div className="absolute inset-0 bg-gradient-to-b from-black/50 to-transparent h-24" />
                 <div className="absolute inset-0 rounded-full shadow-[inset_0_0_60px_25px_rgba(0,0,0,0.6)]" />
               </div>
-
               <div className="absolute inset-0 z-10">
                 <Annotation
                   className="absolute top-10 left-0"
