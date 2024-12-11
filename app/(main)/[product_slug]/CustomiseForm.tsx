@@ -51,11 +51,11 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
   return (
     <div
       className={cn(
-        "flex flex-col md:flex-row h-full",
+        "flex flex-col lg:flex-row h-full",
         isAnimating ? "overflow-hidden" : "overflow-y-auto",
       )}
     >
-      <div className="md:aspect-square w-full md:w-1/2 relative">
+      <div className="lg:aspect-square w-full lg:w-1/2 relative">
         <Carousel className="asbsolute inset-0">
           <CarouselContent className="flex items-center">
             {[...Array(3)].map((_, index) => (
@@ -82,13 +82,13 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
         </Carousel>
       </div>
 
-      <div className="w-full md:w-1/2 h-full flex flex-col">
+      <div className="w-full lg:w-1/2 h-full flex flex-col">
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="flex flex-col justify-center p-6"
+            className="flex flex-col justify-center p-2 lg:p-6"
           >
-            <div className="flex flex-col w-full">
+            <div className="flex flex-col w-full items-center">
               <div className="flex w-full items-center justify-center">
                 <div className="flex-grow justify-center items-center flex">
                   <hr className="w-7/12" />
@@ -98,20 +98,20 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
                   <hr className="w-7/12" />
                 </div>
               </div>
-              <div className="w-full border shadow flex items-center text-xs p-1 px-2.5 text-green-900 font-semibold gap-1 mt-3 mb-5">
+              <div className="border shadow flex items-center text-xs py-0.5 xs:py-1  px-1.5 xs:px-2.5 text-green-900 font-semibold gap-1 mt-3 mb-5 w-min">
                 <MoveHorizontal className="w-4 h-4" />
                 <span>Width</span>
-                <div className="h-3 border w-px" />
+                <div className="h-3 border w-px hidden xs:block" />
                 <span className="whitespace-nowrap text-gray-900">30 cm</span>
                 <Dot />
                 <MoveVertical className="w-4 h-4" />
                 <span>Height</span>
-                <div className="h-3 border w-px" />
+                <div className="h-3 border w-px hidden xs:block" />
                 <span className="whitespace-nowrap text-gray-900">30 cm</span>
                 <Dot />
                 <Axis3D className="w-4 h-4" />
                 <span>Depth</span>
-                <div className="h-3 border w-px" />
+                <div className="h-3 border w-px hidden xs:block" />
                 <span className="whitespace-nowrap text-gray-900">30cm</span>
               </div>
             </div>
