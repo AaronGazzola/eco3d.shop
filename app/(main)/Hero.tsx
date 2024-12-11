@@ -20,6 +20,13 @@ enum CircleSide {
   Left,
 }
 
+const images = [
+  "/images/products/Digger/Aaron Set 2-5.jpg",
+  "/images/products/V8/Set 3 second shoot-38.jpg",
+  "/images/products/V8/details/Aaron set 3-29.jpg",
+  "/images/promo/Aaron Set 1 Sept 20-35.jpg",
+];
+
 const { Top, Right, Bottom, Left } = CircleSide;
 
 const Annotation = ({
@@ -119,12 +126,18 @@ const Hero = () => {
             <div className="relative md:w-[440px] h-full">
               <div className="rounded-full border-[4px] border-t-transparent border-white overflow-hidden relative h-full md:w-full">
                 <div className="absolute inset-0">
-                  <Image
-                    src="/images/products/V8/details/Aaron set 3-29.jpg"
-                    alt="Hero Background"
-                    className="object-cover"
-                    fill
-                  />
+                  {images.map((image, index) => (
+                    <Image
+                      key={index}
+                      src={image}
+                      alt="Hero Background"
+                      className={cn(
+                        "object-cover transition-opacity duration-1000 ease-in-out",
+                        index === circleSideAtTop ? "opacity-100" : "opacity-0",
+                      )}
+                      fill
+                    />
+                  ))}
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-b from-black/50 to-transparent h-24" />
                 <div className="absolute inset-0 rounded-full shadow-[inset_0_0_60px_25px_rgba(0,0,0,0.6)]" />
