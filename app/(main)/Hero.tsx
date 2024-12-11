@@ -100,7 +100,7 @@ const Hero = () => {
                 <span className="text-hero">not centuries.</span>
               </h1>
               <p className="font-medium text-lg sm:text-xl leading-[28px] mt-2">
-                Our 3D printed gifts can provide years of enjoyment - eventually
+                Our 3D printed gifts provide years of enjoyment - eventually
                 returning to the Earth to feed new life.
               </p>
             </div>
