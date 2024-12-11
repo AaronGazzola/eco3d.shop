@@ -51,20 +51,24 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
   return (
     <div
       className={cn(
-        "flex flex-col justify-center lg:flex-row h-full",
+        "flex flex-col md:flex-row h-full",
         isAnimating ? "overflow-hidden" : "overflow-y-auto",
       )}
     >
-      <div className="w-full sm:w-1/2 h-full flex flex-col">
-        <Carousel className="aspect-square">
+      <div className="md:aspect-square w-full md:w-1/2 relative">
+        <Carousel className="asbsolute inset-0">
           <CarouselContent className="flex items-center">
             {[...Array(3)].map((_, index) => (
               <CarouselItem
                 key={index}
-                className="flex items-center justify-center relative h-full w-full"
+                className="flex items-center justify-center h-full w-full relative"
               >
-                <CarouselPrevious className="absolute left-6 top-1/2 transform -translate-y-1/2 z-10 bg-white shadow rounded-full p-2" />
-                <CarouselNext className="absolute right-2 top-1/2 transform -translate-y-1/2 z-10 bg-white shadow rounded-full p-2" />
+                <div className="flex items-center justify-center absolute inset-0">
+                  <div className="aspect-square h-full relative ml-4">
+                    <CarouselPrevious className="absolute left-6 top-1/2 transform -translate-y-1/2 z-10 bg-white shadow rounded-full p-2" />
+                    <CarouselNext className="absolute right-2 top-1/2 transform -translate-y-1/2 z-10 bg-white shadow rounded-full p-2" />
+                  </div>
+                </div>
                 <Image
                   className="rounded-lg shadow-lg"
                   src="/images/promo/Aaron_Sept_20_19.jpg"
@@ -77,11 +81,12 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
           </CarouselContent>
         </Carousel>
       </div>
-      <div className="w-1/2 h-full flex flex-col">
+
+      <div className="w-full md:w-1/2 h-full flex flex-col">
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="aspect-square flex flex-col justify-center p-6"
+            className="flex flex-col justify-center p-6"
           >
             <div className="flex flex-col w-full">
               <div className="flex w-full items-center justify-center">
