@@ -8,26 +8,10 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import {
-  Form,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Axis3D,
-  Circle,
-  CircleDot,
-  Dot,
-  Lock,
-  MoveHorizontal,
-  MoveVertical,
-  Square,
-  SquareCheckBig,
-} from "lucide-react";
+import { Axis3D, Dot, MoveHorizontal, MoveVertical } from "lucide-react";
 import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -88,8 +72,8 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
             onSubmit={form.handleSubmit(onSubmit)}
             className="flex flex-col justify-center p-2 lg:p-6"
           >
-            <div className="flex flex-col w-full items-center">
-              <div className="flex w-full items-center justify-center">
+            <div className="flex flex-col w-full items-center ">
+              <div className="flex w-full items-center justify-center pt-3.5 pb-1 xs:pt-0">
                 <div className="flex-grow justify-center items-center flex">
                   <hr className="w-7/12" />
                 </div>
@@ -98,62 +82,54 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
                   <hr className="w-7/12" />
                 </div>
               </div>
-              <div className="border shadow flex items-center text-xs py-0.5 xs:py-1  px-1.5 xs:px-2.5 text-green-900 font-semibold gap-1 mt-3 mb-5 w-min">
-                <MoveHorizontal className="w-4 h-4" />
-                <span>Width</span>
-                <div className="h-3 border w-px hidden xs:block" />
-                <span className="whitespace-nowrap text-gray-900">30 cm</span>
-                <Dot />
-                <MoveVertical className="w-4 h-4" />
-                <span>Height</span>
-                <div className="h-3 border w-px hidden xs:block" />
-                <span className="whitespace-nowrap text-gray-900">30 cm</span>
-                <Dot />
-                <Axis3D className="w-4 h-4" />
-                <span>Depth</span>
-                <div className="h-3 border w-px hidden xs:block" />
-                <span className="whitespace-nowrap text-gray-900">30cm</span>
+              <div className="w-full max-w-96 lg:max-w-xl border shadow flex items-center text-xs py-1 xs:py-1.5 justify-around text-green-900 font-semibold gap-0.5 xs:gap-1 mt-3 mb-6 xs:text-sm">
+                <div className="flex items-center gap-1">
+                  <MoveHorizontal className="w-4 h-4 hidden xs:block" />
+                  <span>Width</span>
+                  <span className="whitespace-nowrap text-gray-900">30cm</span>
+                  <Dot className="w-4 h-4 xs:hidden" />
+                </div>
+                <div className="flex items-center gap-1">
+                  <MoveVertical className="w-4 h-4 hidden xs:block" />
+                  <span>Height</span>
+                  <span className="whitespace-nowrap text-gray-900">30cm</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Dot className="w-4 h-4 xs:hidden" />
+                  <Axis3D className="w-4 h-4 hidden xs:block" />
+                  <span>Depth</span>
+                  <span className="whitespace-nowrap text-gray-900">30cm</span>
+                </div>
               </div>
             </div>
             <FormField
               control={form.control}
               name="size"
               render={({ field }) => (
-                <FormItem>
-                  <div className="flex gap-4">
-                    {["Small", "Medium", "Large"].map(size => {
+                <FormItem className="flex flex-col w-full items-center">
+                  <div className="flex w-full max-w-[480px]">
+                    {["Small", "Medium", "Large"].map((size, index) => {
                       const isActive = field.value === size;
+                      const isFirst = index === 0;
+                      const isLast = index === 2;
+
                       return (
-                        <div
+                        <Button
                           key={size}
-                          className="flex-1 flex flex-col gap-2 group"
-                        >
-                          <Button
-                            type="button"
-                            variant={isActive ? "secondary" : "outline"}
-                            onClick={() => field.onChange(size)}
-                            className="gap-3 font-bold group hover:opacity-100 z-10"
-                          >
-                            {isActive ? (
-                              <CircleDot className="w-[1.1rem] h-[1.1rem]" />
-                            ) : (
-                              <Circle className="w-[1.1rem] h-[1.1rem]" />
-                            )}
-                            {size}
-                          </Button>
-                          {isActive && (
-                            <FormDescription
-                              className={cn(
-                                "flex gap-2 items-center p-1 w-full justify-center font-bold text-secondary",
-                                size === "Small" && "opacity-0",
-                              )}
-                            >
-                              <span className="whitespace-nowrap w-min text-secondary bg-white px-3.5 pt-5 pb-2 rounded shadow border -mt-7">
-                                + $3.39
-                              </span>
-                            </FormDescription>
+                          type="button"
+                          variant={isActive ? "secondary" : "outline"}
+                          onClick={() => field.onChange(size)}
+                          className={cn(
+                            "flex-1 font-bold relative",
+                            "focus-visible:z-10 hover:z-10",
+                            isFirst && "rounded-r-none",
+                            !isFirst && !isLast && "rounded-none border-l-0",
+                            isLast && "rounded-l-none border-l-0",
+                            isActive && "z-10",
                           )}
-                        </div>
+                        >
+                          {size}
+                        </Button>
                       );
                     })}
                   </div>
@@ -178,60 +154,38 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
               name="colors"
               render={({ field }) => (
                 <FormItem>
-                  <div className="flex gap-4">
-                    {["Natural", "Black", "White"].map((color: string, i) => {
-                      const isLocked = i === 0 || i === 1;
+                  <div className="flex w-full">
+                    {["Natural", "Black", "White"].map((color, index) => {
+                      const isLocked = index === 0 || index === 1;
                       const isActive =
                         (field.value as string[]).includes(color) || isLocked;
+                      const isFirst = index === 0;
+                      const isLast = index === 2;
+
                       return (
-                        <div
-                          key={color}
-                          className="flex-grow flex h-min flex-col group gap-1"
-                        >
+                        <div key={color} className="flex-1">
                           <Button
-                            key={color}
                             type="button"
                             variant={isActive ? "secondary" : "outline"}
                             onClick={() => {
+                              if (isLocked) return;
                               const newValue = isActive
                                 ? field.value.filter(c => c !== color)
                                 : [...field.value, color];
                               field.onChange(newValue);
                             }}
                             className={cn(
-                              "flex-1 font-bold group gap-3 z-10",
+                              "w-full font-bold relative",
+                              "focus-visible:z-10 hover:z-10",
+                              isFirst && "rounded-r-none",
+                              !isFirst && !isLast && "rounded-none border-l-0",
+                              isLast && "rounded-l-none border-l-0",
+                              isActive && "z-10",
                               isLocked && "cursor-default opacity-80",
                             )}
                           >
-                            {isActive ? (
-                              <SquareCheckBig className="w-[1.2rem] h-[1.2rem]" />
-                            ) : (
-                              <Square className="w-[1.2rem] h-[1.2rem]" />
-                            )}
                             {color}
                           </Button>
-                          {/* TODO: animate drop down */}
-                          {isActive && (
-                            <FormDescription className="flex gap-2 items-center p-1 w-full justify-center font-bold text-secondary ">
-                              <span
-                                className={cn(
-                                  "whitespace-nowrap w-min text-secondary bg-white px-3.5 pt-5 pb-2 rounded shadow border -mt-6 flex items-center gap-1.5",
-                                  isLocked && "bg-gray-50 select-none",
-                                )}
-                              >
-                                {isLocked ? (
-                                  <>
-                                    <Lock className="w-4 h-4 stroke-[3px] text-gray-700" />
-                                    <span className="text-gray-700">
-                                      Required
-                                    </span>
-                                  </>
-                                ) : (
-                                  "+ $3.39"
-                                )}
-                              </span>
-                            </FormDescription>
-                          )}
                         </div>
                       );
                     })}

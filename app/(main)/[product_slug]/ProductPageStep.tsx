@@ -93,10 +93,8 @@ const ProductPageStep = ({
       ) : (
         <div
           className={cn(
-            `max-w-5xl w-full flex-grow rounded-t-xl overflow-hidden transition-colors ease duration-250 px-1 xs:px-4 group bg-white`,
+            "max-w-4xl w-full flex-grow rounded-t-xl overflow-hidden shadow-xl   transition-colors ease duration-250 px-1 xs:px-4 border xs:border-gray-100 border-gray-300 group bg-white",
             isNext && "shadow-[0_-5px_15px_2px_rgba(22,101,52,0.2)]",
-            isPersonaliseStep ? "shadow-none" : "shadow-xl",
-            isPersonaliseStep ? "border-0" : "border",
           )}
         >
           <div className={cn("flex-grow relative h-full")}>
