@@ -15,40 +15,201 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import useIsMounted from "@/hooks/useIsMounted";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Axis3D, Check, MoveHorizontal, MoveVertical } from "lucide-react";
 import Image from "next/image";
+import { useQueryState } from "nuqs";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 const customiseSchema = z.object({
-  size: z.enum(["small", "medium", "large"]),
+  size: z.enum(["Small", "Medium", "Large"]),
   colors: z.array(z.string()).nonempty("At least one color must be selected."),
 });
 
+const sizeBasedImages = {
+  Small: [
+    "/images/products/V8/small/Set 3 second shoot-27.jpg",
+    "/images/products/V8/small/Set 3 second shoot-28.jpg",
+    "/images/products/V8/small/Set 3 second shoot-29.jpg",
+    "/images/products/V8/small/Set 3 second shoot-30.jpg",
+    "/images/products/V8/small/Set 3 second shoot-31.jpg",
+    "/images/products/V8/small/Set 3 second shoot-32.jpg",
+    "/images/products/V8/small/Set 3 second shoot-33.jpg",
+    "/images/products/V8/small/Set 3 second shoot-45.jpg",
+    "/images/products/V8/small/Set 3 second shoot-46.jpg",
+    "/images/products/V8/small/Set 3 second shoot-47.jpg",
+    "/images/products/V8/small/Set 3 second shoot-48.jpg",
+  ],
+  Medium: [
+    "/images/products/V8/medium/Set 3 second shoot-19.jpg",
+    "/images/products/V8/medium/Set 3 second shoot-20.jpg",
+    "/images/products/V8/medium/Set 3 second shoot-21.jpg",
+    "/images/products/V8/medium/Set 3 second shoot-22.jpg",
+    "/images/products/V8/medium/Set 3 second shoot-23.jpg",
+    "/images/products/V8/medium/Set 3 second shoot-24.jpg",
+    "/images/products/V8/medium/Set 3 second shoot-25.jpg",
+    "/images/products/V8/medium/Set 3 second shoot-26.jpg",
+    "/images/products/V8/medium/Set 3 second shoot-42.jpg",
+    "/images/products/V8/medium/Set 3 second shoot-43.jpg",
+    "/images/products/V8/medium/Set 3 second shoot-44.jpg",
+  ],
+  Large: [
+    "/images/products/V8/large/Set 3 second shoot-3.jpg",
+    "/images/products/V8/large/Set 3 second shoot-4.jpg",
+    "/images/products/V8/large/Set 3 second shoot-5.jpg",
+    "/images/products/V8/large/Set 3 second shoot-6.jpg",
+    "/images/products/V8/large/Set 3 second shoot-7.jpg",
+    "/images/products/V8/large/Set 3 second shoot-39.jpg",
+    "/images/products/V8/large/Set 3 second shoot-40.jpg",
+    "/images/products/V8/large/Set 3 second shoot-41.jpg",
+  ],
+};
+
+const whiteImages = [
+  "/images/products/V8/details/Aaron set 3-31.jpg",
+  "/images/products/V8/details/Aaron set 3-32.jpg",
+  "/images/products/V8/details/Aaron set 3-40.jpg",
+  "/images/products/V8/details/Aaron set 3-41.jpg",
+];
+
+const nonWhiteImages = {
+  Large: [
+    "/images/products/V8/details/Aaron set 3-29.jpg",
+    "/images/products/V8/details/Aaron set 3-30.jpg",
+  ],
+  Medium: [
+    "/images/products/V8/details/Aaron set 3-37.jpg",
+    "/images/products/V8/details/Aaron set 3-30.jpg",
+  ],
+  Small: ["/images/products/V8/details/Aaron set 3-33.jpg"],
+};
+
+const commonImages = [
+  "/images/products/V8/details/Aaron set 3-39.jpg",
+  "/images/products/V8/details/Aaron set 3-42.jpg",
+  "/images/products/V8/Set 3 second shoot-34.jpg",
+  "/images/products/V8/Set 3 second shoot-37.jpg",
+  "/images/products/V8/Set 3 second shoot-38.jpg",
+];
+
+const allImages = [
+  ...Object.values(sizeBasedImages).flat(),
+  ...whiteImages,
+  ...Object.values(nonWhiteImages).flat(),
+  ...commonImages,
+];
+
 export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
-  const form = useForm({
-    resolver: zodResolver(customiseSchema),
-    defaultValues: {
-      size: "Small",
-      colors: [],
+  const isMounted = useIsMounted();
+  const [isInit, setIsInit] = useState(false);
+
+  const [sizeParam, setSizeParam] = useQueryState("size", {
+    defaultValue: "Small",
+    parse: (value: string | null): "Small" | "Medium" | "Large" =>
+      ["Small", "Medium", "Large"].includes(value || "")
+        ? (value as "Small" | "Medium" | "Large")
+        : "Small",
+  });
+
+  const [colorsParam, setColorsParam] = useQueryState("colors", {
+    defaultValue: '["Natural","Black"]',
+    parse: (value: string | null) => {
+      try {
+        const parsed = JSON.parse(value || '["Natural","Black"]');
+        return Array.isArray(parsed)
+          ? JSON.stringify(parsed)
+          : '["Natural","Black"]';
+      } catch {
+        return '["Natural","Black"]';
+      }
     },
   });
 
-  const onSubmit = () => {};
+  type FormValues = {
+    size: "Small" | "Medium" | "Large";
+    colors: string[];
+  };
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(customiseSchema),
+    defaultValues: {
+      size: sizeParam as "Small" | "Medium" | "Large" | undefined,
+      colors: JSON.parse(colorsParam),
+    },
+  });
+
+  const size = form.watch("size");
+  const colors = form.watch("colors");
+
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === "size" && value.size && value.size !== sizeParam) {
+        setSizeParam(value.size);
+      }
+      if (name === "colors" && value.colors) {
+        const parsedColorsParam = JSON.parse(colorsParam || "[]");
+        if (
+          JSON.stringify(value.colors.sort()) !==
+          JSON.stringify(parsedColorsParam.sort())
+        ) {
+          setColorsParam(JSON.stringify(value.colors));
+        }
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form, setSizeParam, setColorsParam, sizeParam, colorsParam]);
+
+  useEffect(() => {
+    if (isMounted && !isInit) {
+      setIsInit(true);
+      setSizeParam(sizeParam || "Small");
+      setColorsParam(colorsParam || '["Natural","Black"]');
+    }
+  }, [isMounted, setSizeParam, setColorsParam, sizeParam, colorsParam, isInit]);
+
+  useEffect(() => {
+    const newSize = (sizeParam || "Small") as "Small" | "Medium" | "Large";
+    const newColors = JSON.parse(
+      colorsParam || '["Natural","Black"]',
+    ) as string[];
+    form.reset({ size: newSize, colors: newColors });
+  }, [sizeParam, colorsParam, form]);
+
+  useEffect(() => {
+    if (size === "Small" && Array.isArray(colors) && colors.includes("White")) {
+      form.setValue(
+        "colors",
+        colors.filter((c: string) => c !== "White"),
+      );
+    }
+  }, [size, colors, form]);
+
+  const hasWhite = Array.isArray(colors) && colors.includes("White");
+
+  const getImages = () => {
+    const images = [
+      ...sizeBasedImages[size],
+      ...commonImages,
+      ...(hasWhite ? whiteImages : nonWhiteImages[size]),
+    ];
+    return images;
+  };
 
   return (
     <div
       className={cn(
-        "flex flex-col-reverse lg:flex-row  h-full",
+        "flex flex-col-reverse lg:flex-row h-full",
         isAnimating ? "overflow-hidden" : "overflow-y-auto",
       )}
     >
       <div className="lg:aspect-square w-full lg:w-1/2 relative lg:p-0 pt-12 pb-8">
-        <Carousel className="asbsolute inset-0">
+        <Carousel className="absolute inset-0">
           <CarouselContent className="flex items-center">
-            {[...Array(3)].map((_, index) => (
+            {getImages().map((src, index) => (
               <CarouselItem
                 key={index}
                 className="flex items-center justify-center h-full w-full relative"
@@ -61,23 +222,33 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
                 </div>
                 <Image
                   className="rounded-lg shadow-lg"
-                  src="/images/promo/Aaron_Sept_20_19.jpg"
-                  alt="promo"
+                  src={src}
+                  alt={`Product view ${index + 1}`}
                   width={500}
                   height={500}
+                  priority
                 />
               </CarouselItem>
             ))}
           </CarouselContent>
         </Carousel>
+        <div className="hidden">
+          {allImages.map((src, index) => (
+            <Image
+              key={index}
+              src={src}
+              alt="Preload"
+              width={500}
+              height={500}
+              priority
+            />
+          ))}
+        </div>
       </div>
 
       <div className="w-full lg:w-1/2 h-full flex flex-col mt-2 xs:mt-0">
         <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="flex flex-col justify-center lg:px-6 py-0 xs:py-4"
-          >
+          <form className="flex flex-col justify-center lg:px-6 py-0 xs:py-4">
             <div className="flex flex-col w-full items-center">
               <div className="flex w-full items-center justify-center pt-3.5 pb-1 xs:pt-0">
                 <div className="flex-grow justify-center items-center flex">
@@ -94,13 +265,11 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
                   <span>Width:</span>
                   <span className="whitespace-nowrap text-gray-900">30cm</span>
                 </div>
-
                 <div className="flex items-center xs:gap-1.5 gap-0.5">
                   <MoveVertical className="w-4 h-4" />
                   <span>Height:</span>
                   <span className="whitespace-nowrap text-gray-900">30cm</span>
                 </div>
-
                 <div className="flex items-center xs:gap-1.5 gap-0.5">
                   <Axis3D className="w-4 h-4" />
                   <span>Depth:</span>
@@ -170,8 +339,13 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
                     <TooltipProvider>
                       {["Natural", "Black", "White"].map((color, index) => {
                         const isLocked = index === 0 || index === 1;
+                        const isWhite = color === "White";
+                        const isSmallSize = size === "Small";
+                        const isDisabled = isWhite && isSmallSize;
                         const isActive =
-                          (field.value as string[]).includes(color) || isLocked;
+                          ((field.value as string[]).includes(color) ||
+                            isLocked) &&
+                          !isDisabled;
                         const isFirst = index === 0;
                         const isLast = index === 2;
 
@@ -181,7 +355,7 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
                             type="button"
                             variant={isActive ? "secondary" : "outline"}
                             onClick={() => {
-                              if (isLocked) return;
+                              if (isLocked || isDisabled) return;
                               const newValue = isActive
                                 ? field.value.filter(c => c !== color)
                                 : [...field.value, color];
@@ -196,6 +370,7 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
                               isActive && "z-10",
                               isLocked &&
                                 "text-white cursor-default bg-blue-950/75",
+                              isDisabled && "opacity-50 cursor-not-allowed",
                             )}
                           >
                             {color}
@@ -210,13 +385,15 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
 
                         return (
                           <div key={color} className="flex-1">
-                            {isLocked ? (
+                            {isDisabled || isLocked ? (
                               <Tooltip delayDuration={0}>
                                 <TooltipTrigger asChild>
                                   {button}
                                 </TooltipTrigger>
                                 <TooltipContent className="flex items-center gap-1.5 font-bold bg-gray-900 text-white border-none">
-                                  This option is required
+                                  {isLocked
+                                    ? "This option is required"
+                                    : "Color not available for selected size"}
                                 </TooltipContent>
                               </Tooltip>
                             ) : (
