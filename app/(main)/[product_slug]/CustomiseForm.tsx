@@ -206,9 +206,9 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
         isAnimating ? "overflow-hidden" : "overflow-y-auto",
       )}
     >
-      <div className="lg:aspect-square w-full lg:w-1/2 relative lg:p-0 pt-12 pb-8">
-        <Carousel className="absolute inset-0">
-          <CarouselContent className="flex items-center">
+      <div className="lg:aspect-square w-full lg:w-1/2 relative lg:p-0 ">
+        <Carousel className="lg:absolute lg:inset-0">
+          <CarouselContent className="flex items-center pt-10 lg:pt-6 pb-10">
             {getImages().map((src, index) => (
               <CarouselItem
                 key={index}
@@ -328,7 +328,43 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
                   <hr className="w-7/12" />
                 </div>
               </div>
-              <div className="w-full max-w-96 lg:max-w-xl mx-auto rounded-lg bg-gray-400 h-8 mt-3 mb-5"></div>
+              <div className="w-full max-w-96 lg:max-w-xl mx-auto rounded-t-lg h-12 mt-3 flex overflow-hidden">
+                {["Natural", "Black", "White"].map((color, index) => {
+                  const isSelected = colors.includes(color);
+                  const imageSrc = {
+                    Natural: "/images/products/V8/details/Aaron set 3-42.jpg",
+                    White: "/images/products/V8/details/Aaron set 3-40.jpg",
+                    Black: "/images/products/V8/details/Aaron set 3-39.jpg",
+                  }[color];
+
+                  return (
+                    <div
+                      key={color}
+                      className="flex-1 relative overflow-hidden"
+                    >
+                      {isSelected && (
+                        <div
+                          className={cn(
+                            "absolute w-full aspect-square bg-green-900/50 z-0",
+                            color === "Black" &&
+                              "-translate-y-[29%] -translate-x-3 scale-[150%]",
+                            color === "White" && "-translate-y-[38%]",
+                            color === "Natural" && "-translate-y-[50%]",
+                          )}
+                        >
+                          <Image
+                            src={imageSrc ?? ""}
+                            alt={`${color} material sample`}
+                            fill
+                            className={cn("object-cover")}
+                            priority
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
             <FormField
               control={form.control}
@@ -364,9 +400,10 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
                             className={cn(
                               "w-full font-bold relative",
                               "focus-visible:z-10 hover:z-10 pr-0",
-                              isFirst && "rounded-r-none",
+                              isFirst && "rounded-r-none rounded-t-none",
                               !isFirst && !isLast && "rounded-none border-l-0",
-                              isLast && "rounded-l-none border-l-0",
+                              isLast &&
+                                "rounded-l-none border-l-0 rounded-t-none",
                               isActive && "z-10",
                               isLocked &&
                                 "text-white cursor-default bg-blue-950/75",
