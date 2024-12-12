@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 
 const { Customise, Personalise, AddToCart, Select } = AddToCartStep;
 
-export const COLLAPSED_PRODUCT_STEP_HEIGHT = 75;
+export const COLLAPSED_PRODUCT_STEP_HEIGHT = 65;
 export const EXPANDED_HEADER_HEIGHT = 92;
 
 const ProductPageStep = ({
@@ -43,11 +43,13 @@ const ProductPageStep = ({
 
   const icon =
     step === Customise ? (
-      <Ruler className={cn("w-7 h-7 mt-px", fontColorClass)} />
+      <Ruler className={cn("xs:w-7 xs:h-7 w-5 h-5 mt-px", fontColorClass)} />
     ) : step === Personalise ? (
-      <Pencil className={cn("w-7 h-7 mt-px", fontColorClass)} />
+      <Pencil className={cn("xs:w-7 xs:h-7 w-5 h-5 mt-px", fontColorClass)} />
     ) : step === AddToCart ? (
-      <ShoppingBasket className={cn("w-9 h-9 -mt-px", fontColorClass)} />
+      <ShoppingBasket
+        className={cn("w-7 h-7 xs:w-9 xs:h-9 -mt-px", fontColorClass)}
+      />
     ) : null;
 
   const isAtTop = isComplete || isActive;
@@ -115,11 +117,11 @@ const ProductPageStep = ({
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4 w-full justify-between">
-                  <div className="flex gap-4 items-center">
+                  <div className="flex gap-3 xs:gap-4 items-center">
                     {icon}
                     <h1
                       className={cn(
-                        "text-[2rem] font-semibold",
+                        "text-2xl xs:text-[2rem] font-semibold",
                         fontColorClass,
                       )}
                     >
@@ -129,16 +131,30 @@ const ProductPageStep = ({
                 </div>
                 <div className="flex gap-4 relative flex-grow min-w-[50%] px-4">
                   <Button
+                    size="sm"
                     variant="default"
                     className={cn(
                       (isAtTop || !isPersonaliseStep) &&
                         "opacity-0 pointer-events-none cursor-default",
-                      "transition-opacity w-full font-bold text-xl flex items-center gap-4",
+                      "transition-opacity w-full font-bold text-xl flex items-center gap-1 xs:gap-4 xs:hidden relative justify-center",
                     )}
                   >
                     <>
                       <span className="mb-[3px]">Next</span>
-                      <ChevronDown className="w-5 h-5 stroke-[3px]" />
+                      <ChevronDown className="absolute right-5 w-5 h-5 stroke-[3px]" />
+                    </>
+                  </Button>
+                  <Button
+                    variant="default"
+                    className={cn(
+                      (isAtTop || !isPersonaliseStep) &&
+                        "opacity-0 pointer-events-none cursor-default",
+                      "transition-opacity w-full font-bold text-xl items-center gap-1 justify-center xs:gap-10 hidden xs:flex relative",
+                    )}
+                  >
+                    <>
+                      <span className="mb-[3px]">Next</span>
+                      <ChevronDown className="absolute right-5 w-5 h-5 stroke-[3px]" />
                     </>
                   </Button>
                 </div>

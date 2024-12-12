@@ -202,13 +202,13 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
   return (
     <div
       className={cn(
-        "flex flex-col-reverse lg:flex-row h-full",
+        "flex flex-col-reverse lg:flex-row h-full overflow-x-hidden",
         isAnimating ? "overflow-hidden" : "overflow-y-auto",
       )}
     >
       <div className="lg:aspect-square w-full lg:w-1/2 relative lg:p-0 ">
         <Carousel className="lg:absolute lg:inset-0">
-          <CarouselContent className="flex items-center pt-10 lg:pt-6 pb-10">
+          <CarouselContent className="flex items-center pt-10 lg:pt-0 pb-10">
             {getImages().map((src, index) => (
               <CarouselItem
                 key={index}
@@ -246,9 +246,9 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
         </div>
       </div>
 
-      <div className="w-full lg:w-1/2 h-full flex flex-col mt-2 xs:mt-0">
+      <div className="w-full lg:w-1/2 flex flex-col mt-2 xs:mt-0 flex-shrink-0">
         <Form {...form}>
-          <form className="flex flex-col justify-center lg:px-6 py-0 xs:py-4">
+          <form className="flex flex-col justify-center lg:px-6 py-0">
             <div className="flex flex-col w-full items-center">
               <div className="flex w-full items-center justify-center pt-3.5 pb-1 xs:pt-0">
                 <div className="flex-grow justify-center items-center flex">
