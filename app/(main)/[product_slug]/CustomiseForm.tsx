@@ -319,7 +319,7 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
               )}
             />
             <div className="flex flex-col mt-8">
-              <div className="flex w-full items-center justify-center">
+              <div className="flex w-full items-center justify-center mb-4">
                 <div className="flex-grow justify-center items-center flex">
                   <hr className="w-7/12" />
                 </div>
@@ -328,42 +328,47 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
                   <hr className="w-7/12" />
                 </div>
               </div>
-              <div className="w-full max-w-96 lg:max-w-xl mx-auto rounded-t-lg h-12 mt-3 flex overflow-hidden">
-                {["Natural", "Black", "White"].map((color, index) => {
-                  const isSelected = colors.includes(color);
-                  const imageSrc = {
-                    Natural: "/images/products/V8/details/Aaron set 3-42.jpg",
-                    White: "/images/products/V8/details/Aaron set 3-40.jpg",
-                    Black: "/images/products/V8/details/Aaron set 3-39.jpg",
-                  }[color];
+              <div className="flex w-full items-center justify-center">
+                <div className="flex w-full max-w-[480px]">
+                  <div className="w-full flex rounded-t-lg overflow-hidden">
+                    {["Natural", "Black", "White"].map((color, index) => {
+                      const isSelected = colors.includes(color);
+                      const imageSrc = {
+                        Natural:
+                          "/images/products/V8/details/Aaron set 3-42.jpg",
+                        White: "/images/products/V8/details/Aaron set 3-40.jpg",
+                        Black: "/images/products/V8/details/Aaron set 3-39.jpg",
+                      }[color];
 
-                  return (
-                    <div
-                      key={color}
-                      className="flex-1 relative overflow-hidden"
-                    >
-                      {isSelected && (
+                      return (
                         <div
-                          className={cn(
-                            "absolute w-full aspect-square bg-green-900/50 z-0",
-                            color === "Black" &&
-                              "-translate-y-[29%] -translate-x-3 scale-[150%]",
-                            color === "White" && "-translate-y-[38%]",
-                            color === "Natural" && "-translate-y-[50%]",
-                          )}
+                          key={color}
+                          className="flex-1 relative overflow-hidden h-12"
                         >
-                          <Image
-                            src={imageSrc ?? ""}
-                            alt={`${color} material sample`}
-                            fill
-                            className={cn("object-cover")}
-                            priority
-                          />
+                          {isSelected && (
+                            <div
+                              className={cn(
+                                "absolute w-full aspect-square bg-green-900/50 z-0",
+                                color === "Black" &&
+                                  "-translate-y-[29%] -translate-x-3 scale-[150%]",
+                                color === "White" && "-translate-y-[38%]",
+                                color === "Natural" && "-translate-y-[50%]",
+                              )}
+                            >
+                              <Image
+                                src={imageSrc ?? ""}
+                                alt={`${color} material sample`}
+                                fill
+                                className="object-cover"
+                                priority
+                              />
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
             <FormField
