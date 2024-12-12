@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Axis3D, Check, Dot, MoveHorizontal, MoveVertical } from "lucide-react";
+import { Axis3D, Check, MoveHorizontal, MoveVertical } from "lucide-react";
 import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -53,10 +53,10 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
                 key={index}
                 className="flex items-center justify-center h-full w-full relative"
               >
-                <div className="flex items-center justify-center absolute inset-0">
+                <div className="flex items-center justify-center absolute inset-0 left-4">
                   <div className="aspect-square h-full relative ml-4">
-                    <CarouselPrevious className="absolute left-6 top-1/2 transform -translate-y-1/2 z-10 bg-white shadow rounded-full p-2" />
-                    <CarouselNext className="absolute right-2 top-1/2 transform -translate-y-1/2 z-10 bg-white shadow rounded-full p-2" />
+                    <CarouselPrevious className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10 bg-white shadow rounded-full p-2" />
+                    <CarouselNext className="absolute right-6 top-1/2 transform -translate-y-1/2 z-10 bg-white shadow rounded-full p-2" />
                   </div>
                 </div>
                 <Image
@@ -88,21 +88,21 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
                   <hr className="w-7/12" />
                 </div>
               </div>
-              <div className="w-full max-w-96 lg:max-w-xl border shadow flex items-center text-xs py-1.5 justify-around text-green-900 font-semibold gap-0.5 xs:gap-1 mt-3 mb-6 xs:text-sm p-3 xs:px-1.5">
-                <div className="flex items-center gap-1">
-                  <MoveHorizontal className="w-4 h-4 hidden xs:block" />
+              <div className="w-full max-w-96 lg:max-w-xl border shadow flex items-center text-xs py-1.5 justify-around text-green-900 font-semibold gap-1 xs:gap-2 mt-3 mb-6 xs:text-sm p-3 xs:px-1.5">
+                <div className="flex items-center xs:gap-1.5 gap-0.5">
+                  <MoveHorizontal className="w-4 h-4" />
                   <span>Width:</span>
                   <span className="whitespace-nowrap text-gray-900">30cm</span>
                 </div>
-                <Dot className="w-4 h-4 xs:hidden" />
-                <div className="flex items-center gap-1">
-                  <MoveVertical className="w-4 h-4 hidden xs:block" />
+
+                <div className="flex items-center xs:gap-1.5 gap-0.5">
+                  <MoveVertical className="w-4 h-4" />
                   <span>Height:</span>
                   <span className="whitespace-nowrap text-gray-900">30cm</span>
                 </div>
-                <Dot className="w-4 h-4 xs:hidden" />
-                <div className="flex items-center gap-1">
-                  <Axis3D className="w-4 h-4 hidden xs:block" />
+
+                <div className="flex items-center xs:gap-1.5 gap-0.5">
+                  <Axis3D className="w-4 h-4" />
                   <span>Depth:</span>
                   <span className="whitespace-nowrap text-gray-900">30cm</span>
                 </div>
