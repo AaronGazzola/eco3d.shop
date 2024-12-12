@@ -41,7 +41,7 @@ const SideMenu = ({ text, heading, icons, isBorderRequired, isMessageSection, su
               }
               <div>
                 <h3 className="text-lg font-medium">{text}</h3>
-                <p className="text-[10px] font-normal text-wrap text-[#898CAF]">{subTitle}</p>
+                <p className="text-[12px] font-normal text-wrap text-[#898CAF]">{subTitle}</p>
               </div>
             </div>
             <div>

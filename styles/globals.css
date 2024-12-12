@@ -61,10 +61,30 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
-  #nprogress > * {
+
+  #nprogress>* {
     background: hsl(var(--muted-foreground)) !important;
   }
+
+  .gradient-border-wrapper {
+    position: relative;
+    border-radius: 31px;
+  }
+
+  .gradient-border-wrapper::before {
+    content: "";
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border-radius: 31px;
+    background: linear-gradient(90deg, #4277FF 0%, #C4F4FF 100%);
+    z-index: -1;
+  }
+
 }
