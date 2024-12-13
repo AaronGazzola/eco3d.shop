@@ -58,7 +58,7 @@ const ProductPageStep = ({
   const bottomHeight = isPersonaliseStep
     ? COLLAPSED_PRODUCT_STEP_HEIGHT * 2
     : isAddToCartStep
-      ? COLLAPSED_PRODUCT_STEP_HEIGHT
+      ? COLLAPSED_PRODUCT_STEP_HEIGHT + 5
       : 0;
   const top = isAtTop
     ? `${
@@ -130,7 +130,7 @@ const ProductPageStep = ({
                     </h1>
                   </div>
                 </div>
-                <div className="flex gap-4 relative flex-grow min-w-[50%] px-4">
+                <div className="flex gap-4 relative flex-grow min-w-[50%] pl-6">
                   <Button
                     size="sm"
                     variant="default"
