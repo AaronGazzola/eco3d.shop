@@ -21,7 +21,7 @@ const index = () => {
         <div className="max-w-[430px]">
           <Sidebar />
         </div>
-        <div className="border w-full">
+        <div className="w-full">
           <AsideMain />
         </div>
       </div>
