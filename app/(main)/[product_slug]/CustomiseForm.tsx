@@ -21,7 +21,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Axis3D, Check, MoveHorizontal, MoveVertical } from "lucide-react";
 import Image from "next/image";
 import { useQueryState } from "nuqs";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -32,9 +32,9 @@ const dimensionsBySize = {
     depth: "60mm",
   },
   Medium: {
-    width: "104mm",
-    height: "148mm",
-    depth: "61mm",
+    width: "97mm",
+    height: "138mm",
+    depth: "57mm",
   },
   Large: {
     width: "127mm",
@@ -122,6 +122,7 @@ const allImages = [
 ];
 
 export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
+  const ref = useRef<null | HTMLDivElement>(null);
   const isMounted = useIsMounted();
   const [isInit, setIsInit] = useState(false);
   const [sizeParam, setSizeParam] = useQueryState("size", {
@@ -205,6 +206,10 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
     }
   }, [size, colors, form]);
 
+  useEffect(() => {
+    if (ref.current) ref.current.scrollTo(0, 0);
+  }, []);
+
   const hasWhite = Array.isArray(colors) && colors.includes("White");
 
   const getImages = () => {
@@ -218,8 +223,9 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
 
   return (
     <div
+      ref={ref}
       className={cn(
-        "flex flex-col-reverse lg:flex-row h-full overflow-x-hidden scroll-top",
+        "flex flex-col-reverse lg:flex-row h-full overflow-x-hidden",
         isAnimating ? "overflow-hidden" : "overflow-y-auto",
       )}
     >
