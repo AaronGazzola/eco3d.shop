@@ -25,6 +25,24 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+const dimensionsBySize = {
+  Small: {
+    width: "71mm",
+    height: "94mm",
+    depth: "60mm",
+  },
+  Medium: {
+    width: "104mm",
+    height: "148mm",
+    depth: "61mm",
+  },
+  Large: {
+    width: "127mm",
+    height: "181mm",
+    depth: "74mm",
+  },
+};
+
 const customiseSchema = z.object({
   size: z.enum(["Small", "Medium", "Large"]),
   colors: z.array(z.string()).nonempty("At least one color must be selected."),
@@ -208,7 +226,7 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
     >
       <div className="lg:aspect-square w-full lg:w-1/2 relative lg:p-0 ">
         <Carousel className="lg:absolute lg:inset-0">
-          <CarouselContent className="flex items-center pt-10 lg:pt-0 pb-10">
+          <CarouselContent className="flex items-center pt-8 lg:pt-0 pb-4">
             {getImages().map((src, index) => (
               <CarouselItem
                 key={index}
@@ -248,7 +266,7 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
 
       <div className="w-full lg:w-1/2 flex flex-col mt-2 xs:mt-0 flex-shrink-0">
         <Form {...form}>
-          <form className="flex flex-col justify-center lg:px-6 py-0">
+          <form className="flex flex-col justify-center lg:px-3 py-0">
             <div className="flex flex-col w-full items-center">
               <div className="flex w-full items-center justify-center pt-3.5 pb-1 xs:pt-0">
                 <div className="flex-grow justify-center items-center flex">
@@ -259,21 +277,27 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
                   <hr className="w-7/12" />
                 </div>
               </div>
-              <div className="w-full max-w-96 lg:max-w-xl border shadow flex items-center text-xs py-1.5 justify-around text-green-900 font-semibold gap-1 xs:gap-2 mt-3 mb-6 xs:text-sm p-3 xs:px-1.5">
-                <div className="flex items-center xs:gap-1.5 gap-0.5">
-                  <MoveHorizontal className="w-4 h-4" />
+              <div className="w-full max-w-[450] lg:max-w-xl border shadow flex items-center text-xs py-1.5 justify-around text-green-900 font-semibold gap-1 xs:gap-2 mt-3 mb-6 xs:text-sm p-3 xs:px-1.5">
+                <div className="flex items-center xs:gap-1 gap-0.5">
+                  <MoveHorizontal className="hidden xs:block w-4 h-4" />
                   <span>Width:</span>
-                  <span className="whitespace-nowrap text-gray-900">30cm</span>
+                  <span className="whitespace-nowrap text-gray-900">
+                    {dimensionsBySize[size].width}
+                  </span>
                 </div>
-                <div className="flex items-center xs:gap-1.5 gap-0.5">
-                  <MoveVertical className="w-4 h-4" />
+                <div className="flex items-center xs:gap-1 gap-0.5">
+                  <MoveVertical className="hidden xs:block w-4 h-4" />
                   <span>Height:</span>
-                  <span className="whitespace-nowrap text-gray-900">30cm</span>
+                  <span className="whitespace-nowrap text-gray-900">
+                    {dimensionsBySize[size].height}
+                  </span>
                 </div>
-                <div className="flex items-center xs:gap-1.5 gap-0.5">
-                  <Axis3D className="w-4 h-4" />
+                <div className="flex items-center xs:gap-1 gap-0.5">
+                  <Axis3D className="hidden xs:block w-4 h-4" />
                   <span>Depth:</span>
-                  <span className="whitespace-nowrap text-gray-900">30cm</span>
+                  <span className="whitespace-nowrap text-gray-900">
+                    {dimensionsBySize[size].depth}
+                  </span>
                 </div>
               </div>
             </div>
