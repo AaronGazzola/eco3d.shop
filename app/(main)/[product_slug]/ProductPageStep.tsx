@@ -85,6 +85,7 @@ const ProductPageStep = ({
         "absolute inset-0 flex flex-col items-center",
         isPersonaliseStep && "z-10",
         isAddToCartStep && "z-20",
+        isCustomeiseStep && !isActive && "cursor-pointer",
       )}
       style={{
         top,
