@@ -47,16 +47,14 @@ export function AddToCartSummary({ isNext }: { isNext: boolean }) {
               </span>
             </div>
 
-            {(primary || secondary) && (
-              <div className="flex flex-col leading-[1.15] w-min">
-                {primary && (
-                  <span className="text-gray-800 font-medium">{primary}</span>
-                )}
-                {secondary && (
-                  <span className="text-gray-800 font-medium">{secondary}</span>
-                )}
-              </div>
-            )}
+            <div className="flex flex-col leading-[1.15] w-min">
+              {primary && (
+                <span className="text-gray-800 font-medium">{primary}</span>
+              )}
+              {secondary && (
+                <span className="text-gray-800 font-medium">{secondary}</span>
+              )}
+            </div>
           </div>
         </div>
 
