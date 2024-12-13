@@ -13,6 +13,20 @@ export function AddToCartSummary({ isNext }: { isNext: boolean }) {
   const [secondary] = useQueryState("secondary");
 
   const parsedColors = colors ? JSON.parse(colors) : ["Black", "Natural"];
+  const hasWhite = parsedColors.includes("White");
+
+  const getPrice = () => {
+    switch (sizeVal) {
+      case "Small":
+        return 19.99;
+      case "Medium":
+        return hasWhite ? 47.99 : 39.99;
+      case "Large":
+        return hasWhite ? 79.99 : 69.99;
+      default:
+        return 19.99;
+    }
+  };
 
   return (
     <div
@@ -47,12 +61,23 @@ export function AddToCartSummary({ isNext }: { isNext: boolean }) {
         </div>
 
         <Button
-          size="sm"
+          size="lg"
           variant="default"
-          className="transition-opacity font-bold text-xl flex items-center gap-3"
+          className="transition-opacity font-bold text-xl items-center gap-3 hidden lg:flex"
           disabled={!isNext}
         >
-          <span className="mb-[3px]">$46.68</span>
+          <span className="mb-[3px]">${getPrice().toFixed(2)}</span>
+
+          <span className="mb-[3px] hidden xs:block">Add to cart</span>
+          <ShoppingBasket className="w-5 h-5 mb-px" />
+        </Button>
+        <Button
+          size="sm"
+          variant="default"
+          className="transition-opacity font-bold text-xl flex items-center gap-3 lg:hidden"
+          disabled={!isNext}
+        >
+          <span className="mb-[3px]">${getPrice().toFixed(2)}</span>
 
           <span className="mb-[3px] hidden xs:block">Add to cart</span>
           <ShoppingBasket className="w-5 h-5 mb-px" />
