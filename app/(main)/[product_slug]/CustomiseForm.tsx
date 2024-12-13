@@ -124,7 +124,6 @@ const allImages = [
 export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
   const isMounted = useIsMounted();
   const [isInit, setIsInit] = useState(false);
-
   const [sizeParam, setSizeParam] = useQueryState("size", {
     defaultValue: "Small",
     parse: (value: string | null): "Small" | "Medium" | "Large" =>
@@ -220,7 +219,7 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
   return (
     <div
       className={cn(
-        "flex flex-col-reverse lg:flex-row h-full overflow-x-hidden",
+        "flex flex-col-reverse lg:flex-row h-full overflow-x-hidden scroll-top",
         isAnimating ? "overflow-hidden" : "overflow-y-auto",
       )}
     >

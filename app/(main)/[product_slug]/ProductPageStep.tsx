@@ -56,9 +56,9 @@ const ProductPageStep = ({
   const isAtTop = isComplete || isActive;
 
   const bottomHeight = isPersonaliseStep
-    ? COLLAPSED_PRODUCT_STEP_HEIGHT * 2
+    ? COLLAPSED_PRODUCT_STEP_HEIGHT * 2 + 8
     : isAddToCartStep
-      ? COLLAPSED_PRODUCT_STEP_HEIGHT + 5
+      ? COLLAPSED_PRODUCT_STEP_HEIGHT + 8
       : 0;
   const top = isAtTop
     ? `${
