@@ -1,132 +1,261 @@
-import React from "react";
+import { cn } from "@/lib/utils";
+import { CreditCard, TableProperties, Truck } from "lucide-react";
 import Image from "next/image";
-import { ShoppingBasket } from "lucide-react";
+import { useState } from "react";
 
-import Checkout from "./Checkout";
+type CartStep = "Review" | "Shipping" | "Payment";
 
-const dummyCartData = [
+const COLLAPSED_STEP_HEIGHT = 65;
+const EXPANDED_HEADER_HEIGHT = 92;
+
+type CartItem = {
+  id: number;
+  name: string;
+  imageUrl: string;
+  size: "Small" | "Medium" | "Large";
+  colors: string[];
+  primaryText?: string;
+  secondaryText?: string;
+  price: number;
+};
+
+const cartItems: CartItem[] = [
   {
     id: 1,
-    name: "Product 1",
-    imageUrl: "/images/products/Digger/Aaron Set 2-4.jpg",
-    price: 100,
-    quantity: 2,
+    name: "V8 Engine",
+    imageUrl: "/images/products/V8/small/Set 3 second shoot-27.jpg",
+    size: "Small",
+    colors: ["Natural", "Black"],
+    primaryText: "Happy\nBirthday",
+    price: 19.99,
   },
   {
     id: 2,
-    name: "Product 2",
-    imageUrl: "/images/products/Digger/Aaron Set 2-4.jpg",
-    price: 200,
-    quantity: 1,
+    name: "V8 Engine",
+    imageUrl: "/images/products/V8/medium/Set 3 second shoot-19.jpg",
+    size: "Medium",
+    colors: ["Natural", "Black"],
+    primaryText: "Merry\nChristmas\nDad",
+    secondaryText: "From John",
+    price: 39.99,
   },
   {
     id: 3,
-    name: "Product 3",
-    imageUrl: "/images/products/Digger/Aaron Set 2-4.jpg",
-    price: 300,
-    quantity: 3,
+    name: "V8 Engine",
+    imageUrl: "/images/products/V8/medium/Set 3 second shoot-19.jpg",
+    size: "Medium",
+    colors: ["Natural", "Black"],
+    primaryText: "Merry\nChristmas\nDad",
+    secondaryText: "From John",
+    price: 39.99,
   },
   {
     id: 4,
-    name: "Product 4",
-    imageUrl: "/images/products/Digger/Aaron Set 2-4.jpg",
-    price: 300,
-    quantity: 3,
+    name: "V8 Engine",
+    imageUrl: "/images/products/V8/medium/Set 3 second shoot-19.jpg",
+    size: "Medium",
+    colors: ["Natural", "Black"],
+    primaryText: "Merry\nChristmas\nDad",
+    secondaryText: "From John",
+    price: 39.99,
   },
   {
     id: 5,
-    name: "Product 5",
-    imageUrl: "/images/products/Digger/Aaron Set 2-4.jpg",
-    price: 300,
-    quantity: 3,
+    name: "V8 Engine",
+    imageUrl: "/images/products/V8/medium/Set 3 second shoot-19.jpg",
+    size: "Medium",
+    colors: ["Natural", "Black"],
+    primaryText: "Merry\nChristmas\nDad",
+    secondaryText: "From John",
+    price: 39.99,
   },
-  {
-    id: 6,
-    name: "Product 6",
-    imageUrl: "/images/products/Digger/Aaron Set 2-4.jpg",
-    price: 300,
-    quantity: 3,
-  },
-  {
-    id: 7,
-    name: "Product 7",
-    imageUrl: "/images/products/Digger/Aaron Set 2-4.jpg",
-    price: 300,
-    quantity: 3,
-  },
-  {
-    id: 8,
-    name: "Product 8",
-    imageUrl: "/images/products/Digger/Aaron Set 2-4.jpg",
-    price: 300,
-    quantity: 3,
-  },
-  {
-    id: 9,
-    name: "Product 9",
-    imageUrl: "/images/products/Digger/Aaron Set 2-4.jpg",
-    price: 300,
-    quantity: 3,
-  },
-  {
-    id: 10,
-    name: "Product 10",
-    imageUrl: "/images/products/Digger/Aaron Set 2-4.jpg",
-    price: 300,
-    quantity: 3,
-  },
-  {
-    id: 11,
-    name: "Product 11",
-    imageUrl: "/images/products/Digger/Aaron Set 2-4.jpg",
-    price: 300,
-    quantity: 3,
-  },
-  {
-    id: 12,
-    name: "Product 12",
-    imageUrl: "/images/products/Digger/Aaron Set 2-4.jpg",
-    price: 300,
-    quantity: 3,
-  },
-  
 ];
 
-export const Cart = () => {
-  return (
-    <div className="w-full h-full flex flex-col items-stretch min-h-screen p-4">
-      <div className="w-full max-w-md bg-white shadow-md rounded-lg p-4 flex flex-col">
-        <div className="flex flex-row gap-5 items-center mb-4">
-          <ShoppingBasket />
-          <h2 className="text-lg font-bold">Your cart</h2>
-        </div>
+export function Cart() {
+  const [activeStep, setActiveStep] = useState<CartStep>("Review");
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
-        <div className="flex-1 overflow-y-auto max-h-[27rem]">
-          {Array.isArray(dummyCartData) && dummyCartData.length > 0
-            ? dummyCartData.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center space-x-4 border-b border-gray-200 py-3"
-                >
-                  <Image
-                    src={item.imageUrl}
-                    alt="Item"
-                    height={96}
-                    width={96}
-                    className="w-16 h-16 rounded-md object-cover"
-                  />
-                  <div className="flex-1">
-                    <h3 className="font-bold text-lg">{item.name}</h3>
-                    <p className="text-gray-500 text-xs">
-                      Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    </p>
-                  </div>
+  const handleStepChange = (step: CartStep) => {
+    if (isNextStepEnabled(step)) {
+      setIsTransitioning(true);
+      setActiveStep(step);
+      setTimeout(() => setIsTransitioning(false), 600);
+    }
+  };
+
+  const isNextStepEnabled = (step: CartStep) => {
+    if (step === "Review") return true;
+    if (step === "Shipping")
+      return activeStep === "Review" || isStepComplete(step);
+    if (step === "Payment")
+      return activeStep === "Shipping" || isStepComplete(step);
+    return false;
+  };
+
+  const isStepComplete = (step: CartStep) => {
+    switch (step) {
+      case "Review":
+        return activeStep === "Shipping" || activeStep === "Payment";
+      case "Shipping":
+        return activeStep === "Payment";
+      default:
+        return false;
+    }
+  };
+
+  const CartStep = ({ step }: { step: CartStep }) => {
+    const isActive = step === activeStep;
+    const isComplete = isStepComplete(step);
+    const isNext =
+      (step === "Shipping" && activeStep === "Review") ||
+      (step === "Payment" && activeStep === "Shipping");
+    const isDisabled = !isNextStepEnabled(step);
+
+    const icon =
+      step === "Review" ? (
+        <TableProperties
+          className={cn("w-6 h-6", isActive && "text-primary")}
+        />
+      ) : step === "Shipping" ? (
+        <Truck className={cn("w-6 h-6", isActive && "text-primary")} />
+      ) : (
+        <CreditCard className={cn("w-6 h-6", isActive && "text-primary")} />
+      );
+
+    const isAtTop = isComplete || isActive;
+    const bottomHeight =
+      step === "Review"
+        ? COLLAPSED_STEP_HEIGHT * 3 + 8
+        : step === "Shipping"
+          ? COLLAPSED_STEP_HEIGHT * 2 + 8
+          : COLLAPSED_STEP_HEIGHT;
+
+    const top = isAtTop
+      ? step === "Review"
+        ? 0
+        : step === "Shipping"
+          ? COLLAPSED_STEP_HEIGHT
+          : COLLAPSED_STEP_HEIGHT * 2
+      : `calc(100% - ${bottomHeight}px)`;
+
+    return (
+      <div
+        onClick={() => !isDisabled && handleStepChange(step)}
+        className={cn(
+          "absolute inset-0 flex flex-col items-center transition-all duration-600",
+          step === "Shipping" && "z-10",
+          step === "Payment" && "z-20",
+          !isDisabled && "cursor-pointer",
+        )}
+        style={{
+          top,
+          transition: "top 0.6s ease-in-out",
+        }}
+      >
+        <div
+          className={cn(
+            "max-w-4xl w-full flex-grow rounded-t-xl overflow-hidden shadow-xl transition-colors duration-250 pl-4 border border-gray-200 bg-white",
+            isNext && "shadow-primary/20",
+          )}
+        >
+          <div className="flex-grow relative h-full">
+            <div
+              className={cn(
+                "absolute inset-0 flex flex-col gap-4 transition-all p-4 pr-0",
+                isActive && "text-primary",
+              )}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  {icon}
+                  <h2
+                    className={cn(
+                      "text-2xl font-semibold",
+                      isActive && "text-primary",
+                    )}
+                  >
+                    {step}
+                  </h2>
                 </div>
-              ))
-            : "No Data"}
+              </div>
+              <div className="overflow-y-auto">
+                {isActive && (
+                  <div className="mt-4">
+                    {step === "Review" && (
+                      <div className="space-y-4">
+                        {cartItems.map(item => (
+                          <div
+                            key={item.id}
+                            className="flex items-start space-x-4 border-b border-gray-200 pb-4"
+                          >
+                            <Image
+                              src={item.imageUrl}
+                              alt={item.name}
+                              width={80}
+                              height={80}
+                              className="rounded-md object-cover"
+                            />
+                            <div className="flex-1">
+                              <h3 className="font-bold">{item.name}</h3>
+                              <div className="text-sm space-y-1 text-gray-600">
+                                <p>Size: {item.size}</p>
+                                <p>Colors: {item.colors.join(", ")}</p>
+                                {item.primaryText && (
+                                  <p className="whitespace-pre-line">
+                                    Primary text: {item.primaryText}
+                                  </p>
+                                )}
+                                {item.secondaryText && (
+                                  <p>Secondary text: {item.secondaryText}</p>
+                                )}
+                              </div>
+                              <p className="font-semibold mt-2">
+                                ${item.price.toFixed(2)}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {step === "Shipping" && (
+                      <div className="space-y-4">
+                        <p>Shipping form will go here</p>
+                      </div>
+                    )}
+
+                    {step === "Payment" && (
+                      <div>
+                        <p>Stripe payment form will go here</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div
+                style={{
+                  height:
+                    step === "Review"
+                      ? COLLAPSED_STEP_HEIGHT * 3
+                      : step === "Shipping"
+                        ? COLLAPSED_STEP_HEIGHT + 2
+                        : COLLAPSED_STEP_HEIGHT,
+                }}
+              ></div>
+            </div>
+          </div>
         </div>
-        <Checkout />
       </div>
+    );
+  };
+
+  return (
+    <div className="relative w-full h-full">
+      <CartStep step="Review" />
+      <CartStep step="Shipping" />
+      <CartStep step="Payment" />
     </div>
   );
-};
+}
+
+export default Cart;

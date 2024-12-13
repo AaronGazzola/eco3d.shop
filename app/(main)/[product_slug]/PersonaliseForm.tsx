@@ -212,7 +212,11 @@ const PersonaliseForm = ({ isAnimating }: { isAnimating: boolean }) => {
                             ? "font-black"
                             : "font-['Snell_Roundhand']",
                         )}
-                        placeholder={`Merry\nChristmas\nGrandpa!`}
+                        placeholder={
+                          isSmallSize
+                            ? `To Grandpa,\nfrom Aaron`
+                            : `Merry\nChristmas\nGrandpa!`
+                        }
                       />
                       <FormMessage />
                     </FormItem>
@@ -319,7 +323,11 @@ const PersonaliseForm = ({ isAnimating }: { isAnimating: boolean }) => {
                         "h-full text-center text-5xl text-gray-900 font-bold",
                         isSmallSize ? "font-black" : "font-['Snell_Roundhand']",
                       )}
-                      placeholder={`Merry\nChristmas\nGrandpa!`}
+                      placeholder={
+                        isSmallSize
+                          ? `To Grandpa,\nfrom Aaron`
+                          : `Merry\nChristmas\nGrandpa!`
+                      }
                     />
                     <FormMessage />
                   </FormItem>
