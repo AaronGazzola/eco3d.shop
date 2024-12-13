@@ -43,12 +43,12 @@ const PersonaliseForm = ({ isAnimating }: { isAnimating: boolean }) => {
 
   const [primaryParam, setPrimaryParam] = useQueryState("primary", {
     defaultValue: "",
-    parse: (value: string | null) => value || "Merry\nChristmas\nGrandpa",
+    parse: (value: string | null) => value,
   });
 
   const [secondaryParam, setSecondaryParam] = useQueryState("secondary", {
     defaultValue: "",
-    parse: (value: string | null) => value || "From Aaron",
+    parse: (value: string | null) => value,
   });
 
   const form = useForm<FormValues>({
@@ -58,9 +58,6 @@ const PersonaliseForm = ({ isAnimating }: { isAnimating: boolean }) => {
       secondaryMessage: secondaryParam,
     },
   });
-
-  const primaryMessage = form.watch("primaryMessage");
-  const secondaryMessage = form.watch("secondaryMessage");
 
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
@@ -119,25 +116,27 @@ const PersonaliseForm = ({ isAnimating }: { isAnimating: boolean }) => {
         <form className="w-full h-full">
           {/* Large screens */}
           <div className="w-full hidden lg:flex justify-center flex-row">
-            <div className="aspect-square w-full max-w-[450px] md:max-w-[400px] flex-shrink-0 flex flex-col">
-              <FormField
-                control={form.control}
-                name="primaryMessage"
-                render={({ field }) => (
-                  <FormItem className="w-full h-[150px] p-2 mb-6">
-                    <FormLabel className="text-gray-800 mb-2 font-medium">
-                      Primary Message (3 lines, 10 characters each)
-                    </FormLabel>
-                    <Textarea
-                      {...field}
-                      onChange={handlePrimaryMessageChange}
-                      className="h-full text-center text-4xl font-['Snell_Roundhand']"
-                      placeholder="Merry&#13;&#10;Christmas&#13;&#10;Grandpa"
-                    />
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <div className="w-full max-w-[450px] md:max-w-[400px] flex-shrink-0 flex flex-col aspect-square">
+              <div className="w-full h-[66%]">
+                <FormField
+                  control={form.control}
+                  name="primaryMessage"
+                  render={({ field }) => (
+                    <FormItem className="w-full h-[190px] p-2 mb-6">
+                      <FormLabel className="text-gray-800 mb-2 font-medium">
+                        Primary Message (3 lines, 10 characters each)
+                      </FormLabel>
+                      <Textarea
+                        {...field}
+                        onChange={handlePrimaryMessageChange}
+                        className="h-full text-center text-5xl font-['Snell_Roundhand'] text-gray-900 font-bold"
+                        placeholder={`Merry\nChristmas\nGrandpa!`}
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               <FormField
                 control={form.control}
                 name="secondaryMessage"
@@ -148,7 +147,7 @@ const PersonaliseForm = ({ isAnimating }: { isAnimating: boolean }) => {
                     </FormLabel>
                     <Input
                       {...field}
-                      className="h-full text-center text-2xl font-['Futura']"
+                      className="h-full text-center text-4xl font-black text-gray-800 placeholder:text-gray-400 pb-2.5"
                       placeholder="From Aaron"
                       maxLength={10}
                     />
@@ -161,7 +160,7 @@ const PersonaliseForm = ({ isAnimating }: { isAnimating: boolean }) => {
               <div className="w-full h-[66%] p-2">
                 <Card className="h-full w-full relative">
                   <div className="absolute inset-0 rounded-xl overflow-hidden flex items-center justify-center">
-                    <div className="relative w-full aspect-square scale-125">
+                    <div className="relative w-full aspect-square scale-125 -translate-x-3">
                       <Image
                         src="/images/products/V8/details/Aaron set 3-29.jpg"
                         alt="Product preview with primary message"
@@ -198,15 +197,15 @@ const PersonaliseForm = ({ isAnimating }: { isAnimating: boolean }) => {
                 control={form.control}
                 name="primaryMessage"
                 render={({ field }) => (
-                  <FormItem className="w-full h-[150px] p-2 mb-6">
+                  <FormItem className="w-full h-[190px] p-2 mb-6">
                     <FormLabel className="text-gray-800 mb-2 font-medium">
                       Primary Message (3 lines, 10 characters each)
                     </FormLabel>
                     <Textarea
                       {...field}
                       onChange={handlePrimaryMessageChange}
-                      className="h-full text-center text-4xl font-['Snell_Roundhand']"
-                      placeholder="Merry&#13;&#10;Christmas&#13;&#10;Grandpa"
+                      className="h-full text-center text-5xl font-['Snell_Roundhand'] text-gray-900 font-bold"
+                      placeholder={`Merry\nChristmas\nGrandpa!`}
                     />
                     <FormMessage />
                   </FormItem>
@@ -237,7 +236,7 @@ const PersonaliseForm = ({ isAnimating }: { isAnimating: boolean }) => {
                     </FormLabel>
                     <Input
                       {...field}
-                      className="h-full text-center text-2xl font-['Futura']"
+                      className="h-full text-center text-4xl font-black text-gray-800 placeholder:text-gray-400 pb-2.5"
                       placeholder="From Aaron"
                       maxLength={10}
                     />
