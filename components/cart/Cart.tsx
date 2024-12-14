@@ -1,9 +1,20 @@
 import { cn } from "@/lib/utils";
-import { CreditCard, TableProperties, Truck } from "lucide-react";
+import { CreditCard, List, Truck } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 
 type CartStep = "Review" | "Shipping" | "Payment";
+
+// TODO(aaron):
+// - Coundown timer for reserving order
+// - breadcrumb navigation
+// - separate cart steps into components
+// - add payment form
+// - add shipping form
+// - fix transition animation
+// - add next buttons to each step
+// - Manage cart items in context and persist to local storage
+// - reflect order total and current product in header shipping component
 
 const COLLAPSED_STEP_HEIGHT = 65;
 const EXPANDED_HEADER_HEIGHT = 92;
@@ -113,9 +124,7 @@ export function Cart() {
 
     const icon =
       step === "Review" ? (
-        <TableProperties
-          className={cn("w-6 h-6", isActive && "text-primary")}
-        />
+        <List className={cn("w-6 h-6", isActive && "text-primary")} />
       ) : step === "Shipping" ? (
         <Truck className={cn("w-6 h-6", isActive && "text-primary")} />
       ) : (

@@ -43,15 +43,15 @@ const Annotation = ({
     className={cn(
       className,
       "transition-transform delay-150 duration-300",
-      isActive ? "text-primary scale-125" : "text-gray-900",
+      isActive ? "scale-125" : "",
     )}
   >
     <div
       className={cn(
-        "sm:pt-2 pt-1.5 sm:pb-3 pb-2.5 sm:pl-3.5 pl-3 sm:pr-4 pr-3.5 rounded-lg bg-white shadow-xl text-sm space-y-1 flex items-center gap-2",
+        "sm:pt-2 pt-1.5 sm:pb-3 pb-2.5 sm:pl-3.5 pl-3 sm:pr-4 pr-3.5 rounded-lg shadow-xl text-sm space-y-1 flex items-center gap-2 transition-all delay-300 duration-150 border-2 font-bold",
         isActive
-          ? "border-2 border-primary font-bold sm:text-base"
-          : "bg-black text-white font-semibold",
+          ? "sm:text-base bg-white text-primary border-primary"
+          : "bg-black text-white font-semibold border-transparent",
       )}
     >
       <span>{icon}</span>
