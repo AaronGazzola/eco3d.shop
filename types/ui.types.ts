@@ -11,3 +11,9 @@ export enum AddToCartStep {
   Personalise = "Personalise",
   AddToCart = "AddToCart",
 }
+
+export enum CartStep {
+  Review = "Review",
+  Shipping = "Shipping",
+  Payment = "Payment",
+}

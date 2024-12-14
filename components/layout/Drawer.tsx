@@ -1,6 +1,6 @@
 "use client";
 
-import { Cart } from "@/components/cart/Cart";
+import Cart from "@/components/cart/Cart";
 import AuthFormPopover from "@/components/layout/AuthFormPopover";
 import LogoBackground from "@/components/svg/LogoBackground";
 import { Badge } from "@/components/ui/badge";
