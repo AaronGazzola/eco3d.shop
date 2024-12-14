@@ -1,3 +1,4 @@
+// components/CustomiseForm.tsx
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -15,8 +16,22 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  ALL_IMAGES,
+  COMMON_IMAGES,
+  DIMENSIONS_BY_SIZE,
+  MATERIAL_IMAGE_MAP,
+  NON_WHITE_IMAGES,
+  SIZE_BASED_IMAGES,
+  WHITE_IMAGES,
+} from "@/constants/product.constants";
 import useIsMounted from "@/hooks/useIsMounted";
 import { cn } from "@/lib/utils";
+import {
+  CustomiseFormProps,
+  FormValues,
+  ImageSize,
+} from "@/types/product.types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Axis3D, Check, MoveHorizontal, MoveVertical } from "lucide-react";
 import Image from "next/image";
@@ -25,111 +40,21 @@ import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-const dimensionsBySize = {
-  Small: {
-    width: "71mm",
-    height: "94mm",
-    depth: "60mm",
-  },
-  Medium: {
-    width: "97mm",
-    height: "138mm",
-    depth: "57mm",
-  },
-  Large: {
-    width: "127mm",
-    height: "181mm",
-    depth: "74mm",
-  },
-};
-
 const customiseSchema = z.object({
   size: z.enum(["Small", "Medium", "Large"]),
   colors: z.array(z.string()).nonempty("At least one color must be selected."),
 });
 
-const sizeBasedImages = {
-  Small: [
-    "/images/products/V8/small/Set 3 second shoot-27.jpg",
-    "/images/products/V8/small/Set 3 second shoot-28.jpg",
-    "/images/products/V8/small/Set 3 second shoot-29.jpg",
-    "/images/products/V8/small/Set 3 second shoot-30.jpg",
-    "/images/products/V8/small/Set 3 second shoot-31.jpg",
-    "/images/products/V8/small/Set 3 second shoot-32.jpg",
-    "/images/products/V8/small/Set 3 second shoot-33.jpg",
-    "/images/products/V8/small/Set 3 second shoot-45.jpg",
-    "/images/products/V8/small/Set 3 second shoot-46.jpg",
-    "/images/products/V8/small/Set 3 second shoot-47.jpg",
-    "/images/products/V8/small/Set 3 second shoot-48.jpg",
-  ],
-  Medium: [
-    "/images/products/V8/medium/Set 3 second shoot-19.jpg",
-    "/images/products/V8/medium/Set 3 second shoot-20.jpg",
-    "/images/products/V8/medium/Set 3 second shoot-21.jpg",
-    "/images/products/V8/medium/Set 3 second shoot-22.jpg",
-    "/images/products/V8/medium/Set 3 second shoot-23.jpg",
-    "/images/products/V8/medium/Set 3 second shoot-24.jpg",
-    "/images/products/V8/medium/Set 3 second shoot-25.jpg",
-    "/images/products/V8/medium/Set 3 second shoot-26.jpg",
-    "/images/products/V8/medium/Set 3 second shoot-42.jpg",
-    "/images/products/V8/medium/Set 3 second shoot-43.jpg",
-    "/images/products/V8/medium/Set 3 second shoot-44.jpg",
-  ],
-  Large: [
-    "/images/products/V8/large/Set 3 second shoot-3.jpg",
-    "/images/products/V8/large/Set 3 second shoot-4.jpg",
-    "/images/products/V8/large/Set 3 second shoot-5.jpg",
-    "/images/products/V8/large/Set 3 second shoot-6.jpg",
-    "/images/products/V8/large/Set 3 second shoot-7.jpg",
-    "/images/products/V8/large/Set 3 second shoot-39.jpg",
-    "/images/products/V8/large/Set 3 second shoot-40.jpg",
-    "/images/products/V8/large/Set 3 second shoot-41.jpg",
-  ],
-};
-
-const whiteImages = [
-  "/images/products/V8/details/Aaron set 3-31.jpg",
-  "/images/products/V8/details/Aaron set 3-32.jpg",
-  "/images/products/V8/details/Aaron set 3-40.jpg",
-  "/images/products/V8/details/Aaron set 3-41.jpg",
-];
-
-const nonWhiteImages = {
-  Large: [
-    "/images/products/V8/details/Aaron set 3-29.jpg",
-    "/images/products/V8/details/Aaron set 3-30.jpg",
-  ],
-  Medium: [
-    "/images/products/V8/details/Aaron set 3-37.jpg",
-    "/images/products/V8/details/Aaron set 3-30.jpg",
-  ],
-  Small: ["/images/products/V8/details/Aaron set 3-33.jpg"],
-};
-
-const commonImages = [
-  "/images/products/V8/details/Aaron set 3-39.jpg",
-  "/images/products/V8/details/Aaron set 3-42.jpg",
-  "/images/products/V8/Set 3 second shoot-34.jpg",
-  "/images/products/V8/Set 3 second shoot-37.jpg",
-  "/images/products/V8/Set 3 second shoot-38.jpg",
-];
-
-const allImages = [
-  ...Object.values(sizeBasedImages).flat(),
-  ...whiteImages,
-  ...Object.values(nonWhiteImages).flat(),
-  ...commonImages,
-];
-
-export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
+export function CustomiseForm({ isAnimating }: CustomiseFormProps) {
   const ref = useRef<null | HTMLDivElement>(null);
   const isMounted = useIsMounted();
   const [isInit, setIsInit] = useState(false);
+
   const [sizeParam, setSizeParam] = useQueryState("size", {
     defaultValue: "Small",
-    parse: (value: string | null): "Small" | "Medium" | "Large" =>
+    parse: (value: string | null): ImageSize =>
       ["Small", "Medium", "Large"].includes(value || "")
-        ? (value as "Small" | "Medium" | "Large")
+        ? (value as ImageSize)
         : "Small",
   });
 
@@ -147,15 +72,10 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
     },
   });
 
-  type FormValues = {
-    size: "Small" | "Medium" | "Large";
-    colors: string[];
-  };
-
   const form = useForm<FormValues>({
     resolver: zodResolver(customiseSchema),
     defaultValues: {
-      size: sizeParam as "Small" | "Medium" | "Large" | undefined,
+      size: sizeParam as ImageSize,
       colors: JSON.parse(colorsParam),
     },
   });
@@ -190,7 +110,7 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
   }, [isMounted, setSizeParam, setColorsParam, sizeParam, colorsParam, isInit]);
 
   useEffect(() => {
-    const newSize = (sizeParam || "Small") as "Small" | "Medium" | "Large";
+    const newSize = (sizeParam || "Small") as ImageSize;
     const newColors = JSON.parse(
       colorsParam || '["Natural","Black"]',
     ) as string[];
@@ -211,25 +131,33 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
   }, []);
 
   const hasWhite = Array.isArray(colors) && colors.includes("White");
+  const getImages = () => [
+    ...SIZE_BASED_IMAGES[size],
+    ...COMMON_IMAGES,
+    ...(hasWhite ? WHITE_IMAGES : NON_WHITE_IMAGES[size]),
+  ];
 
-  const getImages = () => {
-    const images = [
-      ...sizeBasedImages[size],
-      ...commonImages,
-      ...(hasWhite ? whiteImages : nonWhiteImages[size]),
-    ];
-    return images;
-  };
+  const renderDimensionInfo = (
+    icon: React.ReactNode,
+    label: string,
+    value: string,
+  ) => (
+    <div className="flex items-center xs:gap-1 gap-0.5">
+      {icon}
+      <span>{label}:</span>
+      <span className="whitespace-nowrap text-gray-900">{value}</span>
+    </div>
+  );
 
   return (
     <div
       ref={ref}
       className={cn(
-        "flex flex-col-reverse lg:flex-row h-full overflow-x-hidden",
+        "flex flex-col-reverse lg:flex-row h-full overflow-x-hidden px-2 xs:px-3",
         isAnimating ? "overflow-hidden" : "overflow-y-auto",
       )}
     >
-      <div className="lg:aspect-square w-full lg:w-1/2 relative lg:p-0 ">
+      <div className="lg:aspect-square w-full lg:w-1/2 relative lg:p-0">
         <Carousel className="lg:absolute lg:inset-0">
           <CarouselContent className="flex items-center pt-8 lg:pt-0 pb-4">
             {getImages().map((src, index) => (
@@ -256,7 +184,7 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
           </CarouselContent>
         </Carousel>
         <div className="hidden">
-          {allImages.map((src, index) => (
+          {ALL_IMAGES.map((src: string, index: number) => (
             <Image
               key={index}
               src={src}
@@ -269,7 +197,7 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
         </div>
       </div>
 
-      <div className="w-full lg:w-1/2 flex flex-col mt-2 xs:mt-0 flex-shrink-0">
+      <div className="w-full lg:w-1/2 flex flex-col flex-shrink-0">
         <Form {...form}>
           <form className="flex flex-col justify-center lg:px-3 py-0">
             <div className="flex flex-col w-full items-center">
@@ -282,71 +210,69 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
                   <hr className="w-7/12" />
                 </div>
               </div>
+
               <div className="w-full max-w-[450] lg:max-w-xl border shadow flex items-center text-xs py-1.5 justify-around text-green-900 font-semibold gap-1 xs:gap-2 mt-3 mb-6 xs:text-sm p-3 xs:px-1.5">
-                <div className="flex items-center xs:gap-1 gap-0.5">
-                  <MoveHorizontal className="hidden xs:block w-4 h-4" />
-                  <span>Width:</span>
-                  <span className="whitespace-nowrap text-gray-900">
-                    {dimensionsBySize[size].width}
-                  </span>
-                </div>
-                <div className="flex items-center xs:gap-1 gap-0.5">
-                  <MoveVertical className="hidden xs:block w-4 h-4" />
-                  <span>Height:</span>
-                  <span className="whitespace-nowrap text-gray-900">
-                    {dimensionsBySize[size].height}
-                  </span>
-                </div>
-                <div className="flex items-center xs:gap-1 gap-0.5">
-                  <Axis3D className="hidden xs:block w-4 h-4" />
-                  <span>Depth:</span>
-                  <span className="whitespace-nowrap text-gray-900">
-                    {dimensionsBySize[size].depth}
-                  </span>
-                </div>
+                {renderDimensionInfo(
+                  <MoveHorizontal className="hidden xs:block w-4 h-4" />,
+                  "Width",
+                  DIMENSIONS_BY_SIZE[size].width,
+                )}
+                {renderDimensionInfo(
+                  <MoveVertical className="hidden xs:block w-4 h-4" />,
+                  "Height",
+                  DIMENSIONS_BY_SIZE[size].height,
+                )}
+                {renderDimensionInfo(
+                  <Axis3D className="hidden xs:block w-4 h-4" />,
+                  "Depth",
+                  DIMENSIONS_BY_SIZE[size].depth,
+                )}
               </div>
             </div>
+
             <FormField
               control={form.control}
               name="size"
               render={({ field }) => (
                 <FormItem className="flex flex-col w-full items-center">
                   <div className="flex w-full max-w-[480px]">
-                    {["Small", "Medium", "Large"].map((size, index) => {
-                      const isActive = field.value === size;
-                      const isFirst = index === 0;
-                      const isLast = index === 2;
-
-                      return (
-                        <Button
-                          key={size}
-                          type="button"
-                          variant={isActive ? "secondary" : "outline"}
-                          onClick={() => field.onChange(size)}
-                          className={cn(
-                            "flex-1 font-bold relative",
-                            "focus-visible:z-10 hover:z-10 pr-0",
-                            isFirst && "rounded-r-none",
-                            !isFirst && !isLast && "rounded-none border-l-0",
-                            isLast && "rounded-l-none border-l-0",
-                            isActive && "z-10",
-                          )}
-                        >
-                          {size}
-                          <Check
+                    {(["Small", "Medium", "Large"] as ImageSize[]).map(
+                      (size, index) => {
+                        const isActive = field.value === size;
+                        const isFirst = index === 0;
+                        const isLast = index === 2;
+                        return (
+                          <Button
+                            key={size}
+                            type="button"
+                            variant={isActive ? "secondary" : "outline"}
+                            onClick={() => field.onChange(size)}
                             className={cn(
-                              "w-4 h-4 ml-2",
-                              !isActive && "opacity-0",
+                              "flex-1 font-bold relative",
+                              "focus-visible:z-10 hover:z-10 pr-0",
+                              isFirst && "rounded-r-none",
+                              !isFirst && !isLast && "rounded-none border-l-0",
+                              isLast && "rounded-l-none border-l-0",
+                              isActive && "z-10",
                             )}
-                          />
-                        </Button>
-                      );
-                    })}
+                          >
+                            {size}
+                            <Check
+                              className={cn(
+                                "w-4 h-4 ml-2",
+                                !isActive && "opacity-0",
+                              )}
+                            />
+                          </Button>
+                        );
+                      },
+                    )}
                   </div>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
             <div className="flex flex-col mt-8">
               <div className="flex w-full items-center justify-center mb-4">
                 <div className="flex-grow justify-center items-center flex">
@@ -357,18 +283,13 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
                   <hr className="w-7/12" />
                 </div>
               </div>
+
               <div className="flex w-full items-center justify-center">
                 <div className="flex w-full max-w-[480px]">
                   <div className="w-full flex rounded-t-lg overflow-hidden">
                     {["Natural", "Black", "White"].map((color, index) => {
                       const isSelected = colors.includes(color);
-                      const imageSrc = {
-                        Natural:
-                          "/images/products/V8/details/Aaron set 3-42.jpg",
-                        White: "/images/products/V8/details/Aaron set 3-40.jpg",
-                        Black: "/images/products/V8/details/Aaron set 3-39.jpg",
-                      }[color];
-
+                      const imageSrc = MATERIAL_IMAGE_MAP[color];
                       return (
                         <div
                           key={color}
@@ -400,6 +321,7 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
                 </div>
               </div>
             </div>
+
             <FormField
               control={form.control}
               name="colors"
@@ -413,9 +335,8 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
                         const isSmallSize = size === "Small";
                         const isDisabled = isWhite && isSmallSize;
                         const isActive =
-                          ((field.value as string[]).includes(color) ||
-                            isLocked) &&
-                          !isDisabled;
+                          field.value.includes(color) ||
+                          (isLocked && !isDisabled);
                         const isFirst = index === 0;
                         const isLast = index === 2;
 
@@ -427,7 +348,7 @@ export function CustomiseForm({ isAnimating }: { isAnimating: boolean }) {
                             onClick={() => {
                               if (isLocked || isDisabled) return;
                               const newValue = isActive
-                                ? field.value.filter(c => c !== color)
+                                ? field.value.filter((c: string) => c !== color)
                                 : [...field.value, color];
                               field.onChange(newValue);
                             }}

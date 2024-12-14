@@ -25,14 +25,14 @@ const personaliseSchema = z.object({
     .max(30, "Maximum 30 characters allowed")
     .regex(/^[^]*(\n[^]*){0,2}$/, "Maximum 3 lines allowed")
     .refine(
-      value => value.split("\n").every(line => line.length <= 10),
+      (value) => value.split("\n").every((line) => line.length <= 10),
       "Each line must be 10 characters or less",
     ),
   secondaryMessage: z
     .string()
     .max(10, "Maximum 10 characters allowed")
     .refine(
-      value => !value.includes("\n"),
+      (value) => !value.includes("\n"),
       "Secondary message must be a single line",
     ),
 });
@@ -154,7 +154,7 @@ const PersonaliseForm = ({ isAnimating }: { isAnimating: boolean }) => {
     e: React.ChangeEvent<HTMLTextAreaElement>,
   ) => {
     const lines = e.target.value.split("\n");
-    const truncatedLines = lines.map(line => line.slice(0, 10));
+    const truncatedLines = lines.map((line) => line.slice(0, 10));
     const truncatedValue = truncatedLines.join("\n");
     form.setValue("primaryMessage", truncatedValue);
   };
@@ -197,10 +197,10 @@ const PersonaliseForm = ({ isAnimating }: { isAnimating: boolean }) => {
                         isSmallSize ? "h-[140px]" : "h-[190px]",
                       )}
                     >
-                      <FormLabel className="text-gray-800 mb-2 font-medium">
+                      <FormLabel className="text-gray-800 mb-2 font-medium whitespace-nowrap">
                         {isSmallSize
-                          ? "Primary Message (2 lines, 10 characters each)"
-                          : "Primary Message (3 lines, 10 characters each)"}
+                          ? "Primary Message: 2 lines of 10 characters"
+                          : "Primary Message: 3 lines of 10 characters"}
                       </FormLabel>
                       <Textarea
                         {...field}
@@ -229,8 +229,8 @@ const PersonaliseForm = ({ isAnimating }: { isAnimating: boolean }) => {
                   name="secondaryMessage"
                   render={({ field }) => (
                     <FormItem className="w-full h-[80px] p-2">
-                      <FormLabel className="text-gray-800 mb-2 font-medium">
-                        Secondary Message (single line, 10 characters)
+                      <FormLabel className="text-gray-800 mb-2 font-medium whitespace-nowrap">
+                        Secondary Message: single line of 10 characters
                       </FormLabel>
                       <Input
                         {...field}
@@ -310,10 +310,10 @@ const PersonaliseForm = ({ isAnimating }: { isAnimating: boolean }) => {
                       isSmallSize ? "h-[135px]" : "h-[190px]",
                     )}
                   >
-                    <FormLabel className="text-gray-800 mb-2 font-medium">
+                    <FormLabel className="text-gray-800 mb-2 font-medium whitespace-nowrap">
                       {isSmallSize
-                        ? "Primary Message (2 lines, 10 characters each)"
-                        : "Primary Message (3 lines, 10 characters each)"}
+                        ? "Primary Message: 2 lines of 10 characters"
+                        : "Primary Message: 3 lines of 10 characters"}
                     </FormLabel>
                     <Textarea
                       {...field}
@@ -366,8 +366,8 @@ const PersonaliseForm = ({ isAnimating }: { isAnimating: boolean }) => {
                     name="secondaryMessage"
                     render={({ field }) => (
                       <FormItem className="w-full h-[80px] mb-5 p-2 mt-6">
-                        <FormLabel className="text-gray-800 mb-2 font-medium">
-                          Secondary Message (single line, 10 characters)
+                        <FormLabel className="text-gray-800 mb-2 font-medium whitespace-nowrap">
+                          Secondary Message: single line of 10 characters
                         </FormLabel>
                         <Input
                           {...field}
@@ -387,6 +387,7 @@ const PersonaliseForm = ({ isAnimating }: { isAnimating: boolean }) => {
                             className={cn(
                               "relative w-full aspect-square ",
                               isWhiteColor && "scale-[140%] -translate-y-2",
+                              !isWhiteColor && "translate-y-11 scale-[140%]",
                             )}
                           >
                             <Image

@@ -1,12 +1,16 @@
+"use client";
+
 import { AddToCartSummary } from "@/app/(main)/[product_slug]/AddToCartSummary";
+import CompressedCustomiseForm from "@/app/(main)/[product_slug]/CompressedCustomiseForm";
 import { CustomiseForm } from "@/app/(main)/[product_slug]/CustomiseForm";
 import PersonaliseForm from "@/app/(main)/[product_slug]/PersonaliseForm";
-
 import { Button } from "@/components/ui/button";
 import { camelCaseToFormattedString } from "@/lib/string.util";
 import { cn } from "@/lib/utils";
+import { ImageSize, ProductStepProps } from "@/types/product.types";
 import { AddToCartStep } from "@/types/ui.types";
 import { ChevronDown, Pencil, Ruler, ShoppingBasket } from "lucide-react";
+import { useQueryState } from "nuqs";
 import { useEffect, useState } from "react";
 
 const { Customise, Personalise, AddToCart, Select } = AddToCartStep;
@@ -19,12 +23,7 @@ const ProductPageStep = ({
   activeStep,
   onChangeActiveStep,
   isDisabled: isDisabledProp = false,
-}: {
-  step: AddToCartStep;
-  activeStep: AddToCartStep;
-  onChangeActiveStep: (step: AddToCartStep) => void;
-  isDisabled?: boolean;
-}) => {
+}: ProductStepProps) => {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const isCustomeiseStep = step === Customise;
   const isPersonaliseStep = step === Personalise;
@@ -39,6 +38,30 @@ const ProductPageStep = ({
   const isComplete =
     (isPersonaliseStep && activeStep === AddToCart) ||
     (isCustomeiseStep && activeStep !== Customise);
+
+  const [size, setSize] = useQueryState("size", {
+    defaultValue: "Small",
+    parse: (value: string | null): ImageSize =>
+      ["Small", "Medium", "Large"].includes(value || "")
+        ? (value as ImageSize)
+        : "Small",
+  });
+
+  const [colors, setColors] = useQueryState("colors", {
+    defaultValue: '["Natural","Black"]',
+    parse: (value: string | null) => {
+      try {
+        const parsed = JSON.parse(value || '["Natural","Black"]');
+        return Array.isArray(parsed)
+          ? JSON.stringify(parsed)
+          : '["Natural","Black"]';
+      } catch {
+        return '["Natural","Black"]';
+      }
+    },
+  });
+
+  const parsedColors = JSON.parse(colors);
 
   const fontColorClass = isActive ? "text-green-800" : "text-gray-700";
 
@@ -76,13 +99,23 @@ const ProductPageStep = ({
     return () => clearTimeout(timer);
   }, [activeStep]);
 
+  const handleFormElementClick = (e: React.MouseEvent) => {
+    if (
+      e.target instanceof HTMLButtonElement ||
+      e.target instanceof HTMLInputElement ||
+      e.target instanceof HTMLTextAreaElement
+    ) {
+      e.stopPropagation();
+    }
+  };
+
   return (
     <div
       onClick={() =>
         !isDisabled && !isAddToCartStep && onChangeActiveStep(step)
       }
       className={cn(
-        "absolute inset-0 flex flex-col items-center",
+        "absolute inset-0 xs:right-2 sm:right-4 xs:left-2 sm:left-4 flex flex-col items-center",
         isPersonaliseStep && "z-10",
         isAddToCartStep && "z-20",
         isCustomeiseStep && !isActive && "cursor-pointer",
@@ -97,7 +130,7 @@ const ProductPageStep = ({
       ) : (
         <div
           className={cn(
-            "max-w-4xl w-full flex-grow rounded-t-xl overflow-hidden shadow-xl   transition-colors ease duration-250 px-1 xs:px-4 border border-gray-300 group bg-white",
+            "max-w-4xl w-full flex-grow rounded-t-xl overflow-hidden shadow-xl transition-colors ease duration-250  border border-gray-300 group bg-white",
             isNext
               ? "shadow-[0_-5px_15px_2px_rgba(22,101,52,0.2)]"
               : "xs:border-gray-300",
@@ -106,7 +139,7 @@ const ProductPageStep = ({
           <div className={cn("flex-grow relative h-full")}>
             <div
               className={cn(
-                "absolute inset-0 pr-10 flex flex-col gap-4 transition-all p-3 pb-0 pt-3",
+                "absolute inset-0 flex flex-col gap-4 transition-all  pb-0 pt-3",
                 isActive && "text-green-800",
               )}
               style={{
@@ -117,13 +150,13 @@ const ProductPageStep = ({
                     : 0,
               }}
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between px-3">
                 <div className="flex items-center gap-4 w-full justify-between">
-                  <div className="flex gap-3 xs:gap-4 items-center">
+                  <div className="flex gap-3 xs:gap-4 items-center xs:pl-4">
                     {icon}
                     <h1
                       className={cn(
-                        "text-2xl xs:text-[2rem] font-semibold",
+                        "text-xl xs:text-[2rem] font-semibold",
                         fontColorClass,
                       )}
                     >
@@ -132,6 +165,13 @@ const ProductPageStep = ({
                   </div>
                 </div>
                 <div className="flex gap-4 relative flex-grow min-w-[50%] pl-6">
+                  {isCustomeiseStep && activeStep === Personalise && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div onClick={handleFormElementClick} className="">
+                        <CompressedCustomiseForm />
+                      </div>
+                    </div>
+                  )}
                   <Button
                     size="sm"
                     variant="default"

@@ -2,12 +2,13 @@
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { AddToCartSummaryProps, ImageSize } from "@/types/product.types";
 import { ShoppingBasket } from "lucide-react";
 import { useQueryState } from "nuqs";
 
-export function AddToCartSummary({ isNext }: { isNext: boolean }) {
+export function AddToCartSummary({ isNext }: AddToCartSummaryProps) {
   const [size] = useQueryState("size");
-  const sizeVal = size || "Small";
+  const sizeVal = (size as ImageSize) || "Small";
   const [colors] = useQueryState("colors");
   const [primary] = useQueryState("primary");
   const [secondary] = useQueryState("secondary");
@@ -35,9 +36,9 @@ export function AddToCartSummary({ isNext }: { isNext: boolean }) {
         isNext && "shadow-[0_-5px_15px_2px_rgba(22,101,52,0.2)]",
       )}
     >
-      <div className="max-w-4xl pr-2 w-full flex items-center ">
+      <div className="max-w-4xl pr-3 xs:pr-0 w-full flex items-center ">
         <div className="flex justify-center sm:justify-end flex-grow items-center text-xs xs:text-sm sm:px-10 px-3">
-          <div className="flex justify-between max-w-[230] sm:max-w-[270] w-full items-center">
+          <div className="flex justify-around max-w-[230] sm:max-w-[270] w-full items-center">
             <div className="flex flex-col gap-1 w-min">
               <span className="text-gray-800 font-medium">{sizeVal}</span>
             </div>
@@ -46,7 +47,6 @@ export function AddToCartSummary({ isNext }: { isNext: boolean }) {
                 {parsedColors.join(", ")}
               </span>
             </div>
-
             <div className="flex flex-col leading-[1.15] w-min">
               {primary && (
                 <span className="text-gray-800 font-medium">{primary}</span>
@@ -65,7 +65,6 @@ export function AddToCartSummary({ isNext }: { isNext: boolean }) {
           disabled={!isNext}
         >
           <span className="mb-[3px]">${getPrice().toFixed(2)}</span>
-
           <span className="mb-[3px] hidden xs:block">Add to cart</span>
           <ShoppingBasket className="w-5 h-5 mb-px" />
         </Button>
@@ -76,7 +75,6 @@ export function AddToCartSummary({ isNext }: { isNext: boolean }) {
           disabled={!isNext}
         >
           <span className="mb-[3px]">${getPrice().toFixed(2)}</span>
-
           <span className="mb-[3px] hidden xs:block">Add to cart</span>
           <ShoppingBasket className="w-5 h-5 mb-px" />
         </Button>
