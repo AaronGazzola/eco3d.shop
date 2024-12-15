@@ -158,7 +158,7 @@ const SectionComponent: React.FC<SectionProps> = ({
               section.id === CartStepEnum.Review
                 ? COLLAPSED_STEP_HEIGHT * 3
                 : section.id === CartStepEnum.Shipping
-                  ? COLLAPSED_STEP_HEIGHT * 2
+                  ? COLLAPSED_STEP_HEIGHT * 1.5
                   : COLLAPSED_STEP_HEIGHT,
           }}
         />

@@ -115,7 +115,7 @@ const ProductPageStep = ({
         !isDisabled && !isAddToCartStep && onChangeActiveStep(step)
       }
       className={cn(
-        "absolute inset-0 xs:right-2 sm:right-4 xs:left-2 sm:left-4 flex flex-col items-center",
+        "absolute inset-0 flex flex-col items-center",
         isPersonaliseStep && "z-10",
         isAddToCartStep && "z-20",
         isCustomeiseStep && !isActive && "cursor-pointer",
@@ -130,7 +130,7 @@ const ProductPageStep = ({
       ) : (
         <div
           className={cn(
-            "max-w-4xl w-full flex-grow rounded-t-xl overflow-hidden shadow-xl transition-colors ease duration-250  border border-gray-300 group bg-white",
+            "max-w-4xl w-full xs:w-[calc(100%-16px)] flex-grow rounded-t-xl overflow-hidden shadow-xl transition-colors ease duration-250  border border-gray-300 group bg-white",
             isNext
               ? "shadow-[0_-5px_15px_2px_rgba(22,101,52,0.2)]"
               : "xs:border-gray-300",
