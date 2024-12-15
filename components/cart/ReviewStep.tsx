@@ -28,10 +28,8 @@ const cartItems: CartItem[] = [
 ];
 
 const ReviewStep = ({ activeStep }: { activeStep: CartStep }) => {
-  if (activeStep !== CartStep.Review) return null;
-
   return (
-    <div className="space-y-4 py-2 ">
+    <div className="space-y-4 py-2">
       {cartItems.map((item) => (
         <div
           key={item.id}
@@ -84,7 +82,7 @@ const ReviewStep = ({ activeStep }: { activeStep: CartStep }) => {
                 </>
               )}
             </div>
-            <div className="flex items-center justify-between gap-2 w-full p-2 pl-0">
+            <div className="flex items-center justify-between gap-2 w-full p-2 xs:pt-4 pl-0">
               <span className="font-bold text-sm xs:text-base">Price: </span>
               <span className="font-medium text-lg xs:text-xl flex items-center gap-px">
                 <span className="font-normal text-base xs:text-lg">$</span>

@@ -1,6 +1,7 @@
 "use client";
 
 import ReviewStep from "@/components/cart/ReviewStep";
+import ShippingStep from "@/components/cart/ShippingStep";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { CartStep as CartStepEnum } from "@/types/ui.types";
@@ -17,6 +18,7 @@ interface SectionProps {
   activeSection: CartStepEnum;
   onSectionClick: (id: CartStepEnum) => void;
   isTransitioning: boolean;
+  step: CartStepEnum;
 }
 
 type Section = {
@@ -49,6 +51,7 @@ const SectionComponent: React.FC<SectionProps> = ({
   activeSection,
   onSectionClick,
   isTransitioning,
+  step,
 }) => {
   const isActive = section.id === activeSection;
   const activeIndex = sections.findIndex((s) => s.id === activeSection);
@@ -88,7 +91,7 @@ const SectionComponent: React.FC<SectionProps> = ({
     <div
       onClick={() => !isDisabled && onSectionClick(section.id)}
       className={cn(
-        "absolute inset-0 transition-all duration-500 bg-white border border-gray-200 rounded-t-xl shadow-xl overflow-hidden",
+        "absolute inset-0 transition-all duration-500 bg-white border border-gray-200 rounded-t-xl shadow-xl",
         !isDisabled && !isActive && "cursor-pointer",
         showButton &&
           !isDisabled &&
@@ -132,12 +135,20 @@ const SectionComponent: React.FC<SectionProps> = ({
 
         <div
           className={cn(
-            "flex-grow overflow-y-auto pr-0",
+            "flex-grow relative overflow-y-auto pr-0",
             isTransitioning && "overflow-hidden",
           )}
         >
           <div className="px-2 xs:px-4">
-            {isActive && <ReviewStep activeStep={activeSection} />}
+            <div className="px-2 xs:px-4">
+              {section.id === CartStepEnum.Review && (
+                <ReviewStep activeStep={activeSection} />
+              )}
+              {section.id === CartStepEnum.Shipping && (
+                <ShippingStep activeStep={activeSection} />
+              )}
+              {section.id === CartStepEnum.Payment && null}
+            </div>
           </div>
         </div>
 
@@ -173,6 +184,7 @@ export default function Cart(): JSX.Element {
       {sections.map((section, index) => (
         <SectionComponent
           key={section.id}
+          step={section.id}
           section={section}
           index={index}
           isActive={section.id === activeSection}
