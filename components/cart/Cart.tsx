@@ -51,8 +51,8 @@ const SectionComponent: React.FC<SectionProps> = ({
   isTransitioning,
 }) => {
   const isActive = section.id === activeSection;
-  const activeIndex = sections.findIndex(s => s.id === activeSection);
-  const currentIndex = sections.findIndex(s => s.id === section.id);
+  const activeIndex = sections.findIndex((s) => s.id === activeSection);
+  const currentIndex = sections.findIndex((s) => s.id === section.id);
   const isComplete = activeIndex > currentIndex;
   const isAtTop = isComplete || isActive;
 
@@ -89,7 +89,7 @@ const SectionComponent: React.FC<SectionProps> = ({
       onClick={() => !isDisabled && onSectionClick(section.id)}
       className={cn(
         "absolute inset-0 transition-all duration-500 bg-white border border-gray-200 rounded-t-xl shadow-xl overflow-hidden",
-        !isDisabled && "cursor-pointer",
+        !isDisabled && !isActive && "cursor-pointer",
         showButton &&
           !isDisabled &&
           "shadow-[0_-5px_15px_2px_rgba(22,101,52,0.2)]",
@@ -97,7 +97,7 @@ const SectionComponent: React.FC<SectionProps> = ({
       style={{
         top,
         transition: "top 0.6s ease-in-out",
-        zIndex: sections.findIndex(s => s.id === section.id),
+        zIndex: sections.findIndex((s) => s.id === section.id),
       }}
     >
       <div className="max-w-4xl w-full h-full mx-auto flex flex-col">
@@ -136,7 +136,7 @@ const SectionComponent: React.FC<SectionProps> = ({
             isTransitioning && "overflow-hidden",
           )}
         >
-          <div className="px-4">
+          <div className="px-2 xs:px-4">
             {isActive && <ReviewStep activeStep={activeSection} />}
           </div>
         </div>

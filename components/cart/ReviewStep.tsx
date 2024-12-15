@@ -1,3 +1,5 @@
+"use client";
+
 import { CartStep } from "@/types/ui.types";
 import Image from "next/image";
 
@@ -7,7 +9,7 @@ type CartItem = {
   imageUrl: string;
   size: "Small" | "Medium" | "Large";
   colors: string[];
-  primaryText?: string;
+  primaryText?: string[];
   secondaryText?: string;
   price: number;
 };
@@ -18,83 +20,77 @@ const cartItems: CartItem[] = [
     name: "V8 Engine",
     imageUrl: "/images/products/V8/small/Set 3 second shoot-27.jpg",
     size: "Small",
-    colors: ["Natural", "Black"],
-    primaryText: "Happy\nBirthday",
+    colors: ["Natural", "Black", "White"],
+    primaryText: ["Merry", "Christmas", "Grandpa"],
+    secondaryText: "From Aaron",
     price: 19.99,
-  },
-  {
-    id: 2,
-    name: "V8 Engine",
-    imageUrl: "/images/products/V8/medium/Set 3 second shoot-19.jpg",
-    size: "Medium",
-    colors: ["Natural", "Black"],
-    primaryText: "Merry\nChristmas\nDad",
-    secondaryText: "From John",
-    price: 39.99,
-  },
-  {
-    id: 3,
-    name: "V8 Engine",
-    imageUrl: "/images/products/V8/medium/Set 3 second shoot-19.jpg",
-    size: "Medium",
-    colors: ["Natural", "Black"],
-    primaryText: "Merry\nChristmas\nDad",
-    secondaryText: "From John",
-    price: 39.99,
-  },
-  {
-    id: 4,
-    name: "V8 Engine",
-    imageUrl: "/images/products/V8/medium/Set 3 second shoot-19.jpg",
-    size: "Medium",
-    colors: ["Natural", "Black"],
-    primaryText: "Merry\nChristmas\nDad",
-    secondaryText: "From John",
-    price: 39.99,
-  },
-  {
-    id: 5,
-    name: "V8 Engine",
-    imageUrl: "/images/products/V8/medium/Set 3 second shoot-19.jpg",
-    size: "Medium",
-    colors: ["Natural", "Black"],
-    primaryText: "Merry\nChristmas\nDad",
-    secondaryText: "From John",
-    price: 39.99,
   },
 ];
 
 const ReviewStep = ({ activeStep }: { activeStep: CartStep }) => {
   if (activeStep !== CartStep.Review) return null;
+
   return (
-    <div className="space-y-4">
-      {cartItems.map(item => (
+    <div className="space-y-4 py-2 ">
+      {cartItems.map((item) => (
         <div
           key={item.id}
-          className="flex items-start space-x-4 border-b border-gray-200 pb-4"
+          className="first:border-t flex items-start space-x-4 border-b border-gray-200 py-4 text-gray-800"
         >
-          <Image
-            src={item.imageUrl}
-            alt={item.name}
-            width={80}
-            height={80}
-            className="rounded-md object-cover"
-          />
+          <div className="w-[100] h-[100] xs:w-[150] xs:h-[150] relative">
+            <Image
+              src={item.imageUrl}
+              alt={item.name}
+              fill
+              className="object-cover rounded-lg"
+              priority
+            />
+          </div>
           <div className="flex-1">
-            <h3 className="font-bold">{item.name}</h3>
-            <div className="text-sm space-y-1 text-gray-600">
-              <p>Size: {item.size}</p>
-              <p>Colors: {item.colors.join(", ")}</p>
+            <h3 className="font-bold text-lg xs:text-xl mb-2">{item.name}</h3>
+            <div className="text-sm xs:text-base space-y-1">
+              <p>
+                <span className="font-bold">Size: </span>
+                {item.size}
+              </p>
+              <p className="whitespace-nowrap">
+                <span className="font-bold">Colors: </span>{" "}
+                {item.colors.join(", ")}
+              </p>
               {item.primaryText && (
-                <p className="whitespace-pre-line">
-                  Primary text: {item.primaryText}
-                </p>
+                <>
+                  <p>
+                    <span className="font-bold">Primary text: </span>
+                  </p>
+                  <div className="flex items-center flex-col py-1">
+                    {item.primaryText.map((text, i) => (
+                      <span className="text-base xs:text-lg italic" key={i}>
+                        {text}
+                      </span>
+                    ))}
+                  </div>
+                </>
               )}
               {item.secondaryText && (
-                <p>Secondary text: {item.secondaryText}</p>
+                <>
+                  <p>
+                    <span className="font-bold">Secondary text: </span>
+                  </p>
+                  <div className="flex items-center flex-col py-1">
+                    <span className="text-base xs:text-lg italic">
+                      {item.secondaryText}
+                    </span>
+                  </div>
+                </>
               )}
             </div>
-            <p className="font-semibold mt-2">${item.price.toFixed(2)}</p>
+            <div className="flex items-center justify-between gap-2 w-full p-2 pl-0">
+              <span className="font-bold text-sm xs:text-base">Price: </span>
+              <span className="font-medium text-lg xs:text-xl flex items-center gap-px">
+                <span className="font-normal text-base xs:text-lg">$</span>
+                {item.price.toFixed(2)}
+              </span>
+            </div>
           </div>
         </div>
       ))}
