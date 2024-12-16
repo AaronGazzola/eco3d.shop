@@ -137,7 +137,7 @@ const SectionComponent: React.FC<SectionProps> = ({
         <div
           className={cn(
             "flex-grow relative overflow-y-auto pr-0 px-2 xs:px-4",
-            isTransitioning && "overflow-hidden",
+            isTransitioning && "overflow-y-scroll",
           )}
         >
           {section.id === CartStepEnum.Review && (
@@ -171,8 +171,10 @@ export default function Cart(): JSX.Element {
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   const handleSectionChange = (sectionId: CartStepEnum) => {
-    setIsTransitioning(true);
-    setActiveSection(sectionId);
+    setActiveSection((prev) => {
+      setIsTransitioning(prev !== sectionId);
+      return sectionId;
+    });
     setTimeout(() => setIsTransitioning(false), 600);
   };
 
