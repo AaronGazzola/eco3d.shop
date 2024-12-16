@@ -1,5 +1,6 @@
 "use client";
 
+import PaymentStep from "@/components/cart/PaymentStep";
 import ReviewStep from "@/components/cart/ReviewStep";
 import ShippingStep from "@/components/cart/ShippingStep";
 import { Button } from "@/components/ui/button";
@@ -145,7 +146,7 @@ const SectionComponent: React.FC<SectionProps> = ({
           {section.id === CartStepEnum.Shipping && (
             <ShippingStep activeStep={activeSection} />
           )}
-          {section.id === CartStepEnum.Payment && null}
+          {section.id === CartStepEnum.Payment && <PaymentStep amount={100} />}
         </div>
 
         <div

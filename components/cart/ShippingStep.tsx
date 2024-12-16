@@ -1,6 +1,5 @@
 "use client";
 
-import Australia from "@/components/svg/Australia";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CartStep } from "@/types/ui.types";
@@ -92,7 +91,7 @@ const ShippingStep = ({ activeStep }: { activeStep: CartStep }) => {
     >
       <form
         onSubmit={handleSubmit}
-        className="space-y-4 px-1 xs:px-2 h-full flex flex-col items-stretch"
+        className="space-y-4 px-1 xs:px-2 h-full flex flex-col items-stretch mt-2"
       >
         <div className="space-y-2">
           <Label htmlFor="street">Street Address</Label>
@@ -176,14 +175,14 @@ const ShippingStep = ({ activeStep }: { activeStep: CartStep }) => {
             />
           </div>
         </div>
-
-        <div className="space-y-2 text-center pt-4">
+        {/* 
+        <div className="space-y-2 text-center pt-4 border">
           <p className="text-lg font-medium">Est. Delivery: 25 Nov 2024</p>
           <div className="flex items-center justify-center gap-2">
             <span>Delivery within Australia only</span>
             <Australia className="h-6 w-6" />
           </div>
-        </div>
+        </div> */}
       </form>
     </LoadScript>
   );
