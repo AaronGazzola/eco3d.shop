@@ -3,6 +3,7 @@ import { createPaymentIntent } from "@/actions/paymentActions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import {
   Elements,
   PaymentElement,
@@ -24,6 +25,11 @@ const formSchema = z.object({
 interface StripeComponentProps {
   clientSecret: string;
   amount: number;
+}
+
+interface PaymentStepProps {
+  amount: number;
+  isTransitioning: boolean;
 }
 
 const StripeComponent = ({ clientSecret, amount }: StripeComponentProps) => {
@@ -64,7 +70,7 @@ const StripeComponent = ({ clientSecret, amount }: StripeComponentProps) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 px-1 xs:px-2">
+    <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input
@@ -98,11 +104,7 @@ const StripeComponent = ({ clientSecret, amount }: StripeComponentProps) => {
   );
 };
 
-interface PaymentStepProps {
-  amount: number;
-}
-
-const PaymentStep = ({ amount }: PaymentStepProps) => {
+const PaymentStep = ({ amount, isTransitioning }: PaymentStepProps) => {
   const [clientSecret, setClientSecret] = useState<string>();
 
   useEffect(() => {
@@ -123,15 +125,22 @@ const PaymentStep = ({ amount }: PaymentStepProps) => {
   if (!clientSecret) return null;
 
   return (
-    <Elements
-      stripe={stripePromise}
-      options={{
-        clientSecret,
-        appearance: { theme: "stripe" },
-      }}
+    <div
+      className={cn(
+        "space-y-4 py-2 pb-4 px-4 overflow-y-auto absolute inset-0",
+        isTransitioning && "overflow-y-hidden",
+      )}
     >
-      <StripeComponent amount={amount} clientSecret={clientSecret} />
-    </Elements>
+      <Elements
+        stripe={stripePromise}
+        options={{
+          clientSecret,
+          appearance: { theme: "stripe" },
+        }}
+      >
+        <StripeComponent amount={amount} clientSecret={clientSecret} />
+      </Elements>
+    </div>
   );
 };
 

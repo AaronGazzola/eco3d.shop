@@ -2,6 +2,7 @@
 
 import QuantityControl from "@/components/cart/QuantityControlComponent";
 import ConfirmDialog from "@/components/ux/ConfirmDialog";
+import { cn } from "@/lib/utils";
 import { CartStep } from "@/types/ui.types";
 import Image from "next/image";
 import { useState } from "react";
@@ -76,7 +77,13 @@ const initialCartItems: CartItem[] = [
   },
 ];
 
-const ReviewStep = ({ activeStep }: { activeStep: CartStep }) => {
+const ReviewStep = ({
+  activeStep,
+  isTransitioning,
+}: {
+  activeStep: CartStep;
+  isTransitioning: boolean;
+}) => {
   const [cartItems, setCartItems] = useState(initialCartItems);
   const [itemToDelete, setItemToDelete] = useState<number | null>(null);
 
@@ -94,7 +101,12 @@ const ReviewStep = ({ activeStep }: { activeStep: CartStep }) => {
   };
 
   return (
-    <div className="space-y-4 py-2">
+    <div
+      className={cn(
+        "space-y-4 py-2 px-4 overflow-y-auto absolute inset-0",
+        isTransitioning && "overflow-y-hidden",
+      )}
+    >
       {itemToDelete && (
         <ConfirmDialog
           title="Remove Item"

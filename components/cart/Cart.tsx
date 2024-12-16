@@ -10,7 +10,6 @@ import { ChevronDown, CreditCard, List, Truck } from "lucide-react";
 import React, { useState } from "react";
 
 const COLLAPSED_STEP_HEIGHT = 65;
-const EXPANDED_HEADER_HEIGHT = 92;
 
 interface SectionProps {
   section: Section;
@@ -87,7 +86,6 @@ const SectionComponent: React.FC<SectionProps> = ({
         ? COLLAPSED_STEP_HEIGHT
         : COLLAPSED_STEP_HEIGHT * 2
     : `calc(100% - ${bottomHeight}px)`;
-
   return (
     <div
       onClick={() => !isDisabled && onSectionClick(section.id)}
@@ -134,31 +132,30 @@ const SectionComponent: React.FC<SectionProps> = ({
           </div>
         </div>
 
-        <div
-          className={cn(
-            "flex-grow relative overflow-y-auto pr-0 px-2 xs:px-4",
-            isTransitioning && "overflow-y-scroll",
-          )}
-        >
-          {section.id === CartStepEnum.Review && (
-            <ReviewStep activeStep={activeSection} />
-          )}
-          {section.id === CartStepEnum.Shipping && (
-            <ShippingStep activeStep={activeSection} />
-          )}
-          {section.id === CartStepEnum.Payment && <PaymentStep amount={100} />}
+        <div className={cn("flex-grow relative")}>
+          <div
+            style={{
+              bottom: bottomHeight - COLLAPSED_STEP_HEIGHT,
+            }}
+            className={cn("absolute w-full top-0")}
+          >
+            {section.id === CartStepEnum.Review && (
+              <ReviewStep
+                activeStep={activeSection}
+                isTransitioning={isTransitioning}
+              />
+            )}
+            {section.id === CartStepEnum.Shipping && (
+              <ShippingStep
+                isTransitioning={isTransitioning}
+                activeStep={activeSection}
+              />
+            )}
+            {section.id === CartStepEnum.Payment && (
+              <PaymentStep isTransitioning={isTransitioning} amount={100} />
+            )}
+          </div>
         </div>
-
-        <div
-          style={{
-            height:
-              section.id === CartStepEnum.Review
-                ? COLLAPSED_STEP_HEIGHT * 3
-                : section.id === CartStepEnum.Shipping
-                  ? COLLAPSED_STEP_HEIGHT * 1.5
-                  : COLLAPSED_STEP_HEIGHT,
-          }}
-        />
       </div>
     </div>
   );

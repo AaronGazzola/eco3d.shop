@@ -3,6 +3,7 @@
 import Australia from "@/components/svg/Australia";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { CartStep } from "@/types/ui.types";
 import { Autocomplete, LoadScript } from "@react-google-maps/api";
 import { useRef, useState } from "react";
@@ -19,6 +20,11 @@ interface Address {
   country: string;
 }
 
+interface ShippingStepProps {
+  activeStep: CartStep;
+  isTransitioning: boolean;
+}
+
 const formSchema = z.object({
   street: z.string().min(1, "Street address is required"),
   unit: z.string().optional(),
@@ -28,7 +34,7 @@ const formSchema = z.object({
   country: z.string().min(1, "Country is required"),
 });
 
-const ShippingStep = ({ activeStep }: { activeStep: CartStep }) => {
+const ShippingStep = ({ activeStep, isTransitioning }: ShippingStepProps) => {
   const [address, setAddress] = useState<Address>({
     street: "",
     unit: "",
@@ -90,101 +96,108 @@ const ShippingStep = ({ activeStep }: { activeStep: CartStep }) => {
       googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}
       libraries={libraries as any}
     >
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-4 px-1 xs:px-2 h-full flex flex-col items-stretch mt-2"
+      <div
+        className={cn(
+          "space-y-4 py-2 pb-8 px-4 overflow-y-auto absolute inset-0",
+          isTransitioning && "overflow-y-hidden",
+        )}
       >
-        <div className="space-y-2">
-          <Label htmlFor="street">Street Address</Label>
-          <Autocomplete
-            onLoad={(auto) => {
-              autocompleteRef.current = auto;
-            }}
-            onPlaceChanged={handlePlaceSelect}
-            restrictions={{ country: ["au"] }}
-          >
-            <Input
-              id="street"
-              value={address.street}
-              onChange={(e) =>
-                setAddress((prev) => ({ ...prev, street: e.target.value }))
-              }
-              required
-            />
-          </Autocomplete>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="unit">Unit/Apt (Optional)</Label>
-          <Input
-            id="unit"
-            value={address.unit}
-            onChange={(e) =>
-              setAddress((prev) => ({ ...prev, unit: e.target.value }))
-            }
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="city">City</Label>
-            <Input
-              id="city"
-              value={address.city}
-              onChange={(e) =>
-                setAddress((prev) => ({ ...prev, city: e.target.value }))
-              }
-              required
-            />
+            <Label htmlFor="street">Street Address</Label>
+            <Autocomplete
+              onLoad={(auto) => {
+                autocompleteRef.current = auto;
+              }}
+              onPlaceChanged={handlePlaceSelect}
+              restrictions={{ country: ["au"] }}
+            >
+              <Input
+                id="street"
+                value={address.street}
+                onChange={(e) =>
+                  setAddress((prev) => ({ ...prev, street: e.target.value }))
+                }
+                required
+              />
+            </Autocomplete>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="state">State</Label>
+            <Label htmlFor="unit">Unit/Apt (Optional)</Label>
             <Input
-              id="state"
-              value={address.state}
+              id="unit"
+              value={address.unit}
               onChange={(e) =>
-                setAddress((prev) => ({ ...prev, state: e.target.value }))
+                setAddress((prev) => ({ ...prev, unit: e.target.value }))
               }
-              required
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="postalCode">Postal Code</Label>
-            <Input
-              id="postalCode"
-              value={address.postalCode}
-              onChange={(e) =>
-                setAddress((prev) => ({ ...prev, postalCode: e.target.value }))
-              }
-              required
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="country">Country</Label>
-            <Input
-              id="country"
-              value={address.country}
-              onChange={(e) =>
-                setAddress((prev) => ({ ...prev, country: e.target.value }))
-              }
-              required
-            />
-          </div>
-        </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="city">City</Label>
+              <Input
+                id="city"
+                value={address.city}
+                onChange={(e) =>
+                  setAddress((prev) => ({ ...prev, city: e.target.value }))
+                }
+                required
+              />
+            </div>
 
-        <div className="space-y-2 text-center pt-4">
-          <p className="text-lg font-medium">Est. Delivery: 25 Nov 2024</p>
-          <div className="flex items-center justify-center gap-2">
-            <span>Delivery within Australia only</span>
-            <Australia className="h-6 w-6" />
+            <div className="space-y-2">
+              <Label htmlFor="state">State</Label>
+              <Input
+                id="state"
+                value={address.state}
+                onChange={(e) =>
+                  setAddress((prev) => ({ ...prev, state: e.target.value }))
+                }
+                required
+              />
+            </div>
           </div>
-        </div>
-      </form>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="postalCode">Postal Code</Label>
+              <Input
+                id="postalCode"
+                value={address.postalCode}
+                onChange={(e) =>
+                  setAddress((prev) => ({
+                    ...prev,
+                    postalCode: e.target.value,
+                  }))
+                }
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="country">Country</Label>
+              <Input
+                id="country"
+                value={address.country}
+                onChange={(e) =>
+                  setAddress((prev) => ({ ...prev, country: e.target.value }))
+                }
+                required
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2 text-center pt-4">
+            <p className="text-lg font-medium">Est. Delivery: 25 Nov 2024</p>
+            <div className="flex items-center justify-center gap-2">
+              <span>Delivery within Australia only</span>
+              <Australia className="h-6 w-6" />
+            </div>
+          </div>
+        </form>
+      </div>
     </LoadScript>
   );
 };

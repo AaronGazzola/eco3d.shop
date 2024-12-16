@@ -44,7 +44,7 @@ const AuthFormPopover = () => {
 
   return (
     <Popover modal>
-      <PopoverTrigger>
+      <PopoverTrigger asChild>
         <ActionButton
           variant="ghost"
           size="icon"
