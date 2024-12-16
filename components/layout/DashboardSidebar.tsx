@@ -1,15 +1,25 @@
+'use client'
 import Image from 'next/image';
 import React from 'react'
+
+// Icons
+import { Search } from "lucide-react";
 import { VscSettings } from "react-icons/vsc";
 import { FaAngleDown } from "react-icons/fa";
 import { FaPlus } from "react-icons/fa6";
-import SideMenu from '../ui/DashboardSideMenu';
-import { Search } from "lucide-react";
 import { TiPlus } from "react-icons/ti";
+
+// Components
+import SideMenu from '../ui/DashboardSideMenu';
+
+// Props Type
+interface SideBarProps {
+  isToggle: boolean
+}
 
 const Sidebar = () => {
 
-  const subTitle = 'Lorem Ipsum has been the industrys standard dummy text ever since the 1500s'
+  const subTitle = 'Lorem Ipsum has been the industrys standard dummy text ever since the 1500s'
 
   return (
     <div className='flex flex-col gap-6 h-full'>

@@ -1,10 +1,20 @@
 "use client"
 import React, { useState } from 'react'
 import Image from 'next/image'
+
+// Icons
 import { Globe, Mic } from 'lucide-react'
 
-const ChatBox = () => {
-  const [activeIndex, setActiveIndex] = useState("All")
+// Props Type
+interface AsideMainProps {
+  isPromptSubmitted: boolean
+  setIsPromptSubmitted: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+const ChatBox = ({ isPromptSubmitted, setIsPromptSubmitted }: AsideMainProps) => {
+  const [activeIndex, setActiveIndex] = useState("All");
+  const [prompt, setPrompt] = useState('')
+
   return (
     <div className='flex justify-center items-center h-full'>
       <div className='bg-[#222241CC] border border-[#424269] text-center flex flex-col justify-center items-center rounded-[22px] px-16 py-11 max-w-[890px] gap-4'>
@@ -33,10 +43,11 @@ const ChatBox = () => {
               type="text"
               placeholder="Type your prompt here....."
               className="w-full px-4 py-2 rounded-md focus:outline-none"
+              onChange={(e) => setPrompt(e.target.value)}
             />
           </div>
 
-          <button className="p-2">
+          <button className="p-2" onClick={() => prompt && setIsPromptSubmitted(!isPromptSubmitted)}>
             <Image src="/svg/search-icon.svg" alt="Logo" width={40} height={46} />
           </button>
         </div>
