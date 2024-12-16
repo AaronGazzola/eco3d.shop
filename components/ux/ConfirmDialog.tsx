@@ -30,7 +30,7 @@ const ConfirmDialog = ({
   open,
 }: ConfirmDialogProps) => {
   return (
-    <AlertDialog defaultOpen open={open}>
+    <AlertDialog open={open}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
