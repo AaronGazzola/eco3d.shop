@@ -135,21 +135,17 @@ const SectionComponent: React.FC<SectionProps> = ({
 
         <div
           className={cn(
-            "flex-grow relative overflow-y-auto pr-0",
+            "flex-grow relative overflow-y-auto pr-0 px-2 xs:px-4",
             isTransitioning && "overflow-hidden",
           )}
         >
-          <div className="px-2 xs:px-4">
-            <div className="px-2 xs:px-4">
-              {section.id === CartStepEnum.Review && (
-                <ReviewStep activeStep={activeSection} />
-              )}
-              {section.id === CartStepEnum.Shipping && (
-                <ShippingStep activeStep={activeSection} />
-              )}
-              {section.id === CartStepEnum.Payment && null}
-            </div>
-          </div>
+          {section.id === CartStepEnum.Review && (
+            <ReviewStep activeStep={activeSection} />
+          )}
+          {section.id === CartStepEnum.Shipping && (
+            <ShippingStep activeStep={activeSection} />
+          )}
+          {section.id === CartStepEnum.Payment && null}
         </div>
 
         <div

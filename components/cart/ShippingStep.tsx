@@ -1,10 +1,12 @@
 "use client";
 
+import Australia from "@/components/svg/Australia";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CartStep } from "@/types/ui.types";
 import { Autocomplete, LoadScript } from "@react-google-maps/api";
 import { useRef, useState } from "react";
+import { z } from "zod";
 
 const libraries = ["places"];
 
@@ -15,10 +17,16 @@ interface Address {
   state: string;
   postalCode: string;
   country: string;
-  email: string;
 }
 
-const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+const formSchema = z.object({
+  street: z.string().min(1, "Street address is required"),
+  unit: z.string().optional(),
+  city: z.string().min(1, "City is required"),
+  state: z.string().min(1, "State is required"),
+  postalCode: z.string().min(1, "Postal code is required"),
+  country: z.string().min(1, "Country is required"),
+});
 
 const ShippingStep = ({ activeStep }: { activeStep: CartStep }) => {
   const [address, setAddress] = useState<Address>({
@@ -28,10 +36,7 @@ const ShippingStep = ({ activeStep }: { activeStep: CartStep }) => {
     state: "",
     postalCode: "",
     country: "",
-    email: "",
   });
-  const [emailError, setEmailError] = useState("");
-  const [saveAddress, setSaveAddress] = useState(false);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
 
   const handlePlaceSelect = () => {
@@ -43,7 +48,6 @@ const ShippingStep = ({ activeStep }: { activeStep: CartStep }) => {
 
       place.address_components.forEach((component) => {
         const type = component.types[0];
-
         if (type === "subpremise") {
           newAddress.unit = component.long_name;
         } else if (type === "street_number") {
@@ -72,28 +76,11 @@ const ShippingStep = ({ activeStep }: { activeStep: CartStep }) => {
     }
   };
 
-  const validateEmail = (email: string) => {
-    if (!email) {
-      setEmailError("Email is required");
-      return false;
-    }
-    if (!EMAIL_REGEX.test(email)) {
-      setEmailError("Please enter a valid email address");
-      return false;
-    }
-    setEmailError("");
-    return true;
-  };
-
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const email = e.target.value;
-    setAddress((prev) => ({ ...prev, email }));
-    if (email) validateEmail(email);
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateEmail(address.email)) {
+    try {
+      formSchema.parse(address);
+    } catch (error) {
       return;
     }
   };
@@ -103,7 +90,10 @@ const ShippingStep = ({ activeStep }: { activeStep: CartStep }) => {
       googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}
       libraries={libraries as any}
     >
-      <form onSubmit={handleSubmit} className="space-y-4 mt-4 mb-10">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4 px-1 xs:px-2 h-full flex flex-col items-stretch"
+      >
         <div className="space-y-2">
           <Label htmlFor="street">Street Address</Label>
           <Autocomplete
@@ -187,23 +177,12 @@ const ShippingStep = ({ activeStep }: { activeStep: CartStep }) => {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="email">Email Address</Label>
-          <Input
-            id="email"
-            type="email"
-            value={address.email}
-            onChange={handleEmailChange}
-            onBlur={() => validateEmail(address.email)}
-            required
-            aria-invalid={!!emailError}
-            aria-describedby={emailError ? "email-error" : undefined}
-          />
-          {emailError && (
-            <p id="email-error" className="text-sm text-destructive">
-              {emailError}
-            </p>
-          )}
+        <div className="space-y-2 text-center pt-4">
+          <p className="text-lg font-medium">Est. Delivery: 25 Nov 2024</p>
+          <div className="flex items-center justify-center gap-2">
+            <span>Delivery within Australia only</span>
+            <Australia className="h-6 w-6" />
+          </div>
         </div>
       </form>
     </LoadScript>
