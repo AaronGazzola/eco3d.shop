@@ -33,6 +33,7 @@ const formSchema = z.object({
 });
 
 const AuthFormPopover = () => {
+  const [open, setOpen] = useState(false);
   const { data: user, isPending: getUserIsPending } = useGetUser();
   const { mutate: signOut, isPending: signOutIsPending } = useSignOut();
   const { mutate: signIn, isPending: signInIsPending } =
@@ -59,7 +60,7 @@ const AuthFormPopover = () => {
   };
 
   return (
-    <Popover modal>
+    <Popover open={open} onOpenChange={(open) => setOpen(open)} modal>
       <PopoverTrigger asChild>
         <ActionButton
           variant="ghost"
@@ -84,7 +85,7 @@ const AuthFormPopover = () => {
                 variant="outline"
                 size="sm"
                 onClick={handleSignOut}
-                className="text-gray-500 whitespace-nowrap flex items-center gap-2 py-1 px-2.5 hover:text-red-500 hover:border-red-500 hover:bg-transparent border-transparent mt-2"
+                className="text-gray-500 whitespace-nowrap flex items-center gap-2 py-1 px-2.5 hover:text-red-500 hover:border-red-500 hover:bg-transparent border-transparent mt-2.5"
               >
                 Sign Out <LogOut className="w-4 h-4" />
               </Button>
@@ -96,7 +97,10 @@ const AuthFormPopover = () => {
               <Link
                 href={configuration.paths.me.path}
                 className="flex items-center justify-center"
-                onClick={() => toggleDrawer(false)}
+                onClick={() => {
+                  toggleDrawer(false);
+                  setOpen(false);
+                }}
               >
                 <PackageOpen className="w-5 h-5 mr-3" />
                 <span>My orders</span>

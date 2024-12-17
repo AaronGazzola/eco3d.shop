@@ -6,15 +6,16 @@ import Logo from "@/components/layout/Logo";
 import { Button } from "@/components/ui/button";
 import configuration from "@/configuration";
 import { useUIStore } from "@/hooks/useUIStore";
-import { useIsAdmin } from "@/hooks/userHooks";
+import { useGetUser, useIsAdmin } from "@/hooks/userHooks";
 import { cn } from "@/lib/utils";
 import { Direction } from "@/types/util.types";
-import { PackageSearch, TicketPercent } from "lucide-react";
+import { PackageOpen, PackageSearch, TicketPercent } from "lucide-react";
 import Link from "next/link";
 
 const Header = () => {
+  const { data: user } = useGetUser();
   const isAdmin = useIsAdmin();
-  const toggleDrawer = useUIStore(state => state.toggleDrawer);
+  const toggleDrawer = useUIStore((state) => state.toggleDrawer);
 
   return (
     <header
@@ -24,7 +25,7 @@ const Header = () => {
     >
       <div className="flex h-full justify-between flex-grow pr-0.5 items-stretch max-w-4xl">
         <Logo />
-        {isAdmin && (
+        {isAdmin ? (
           <div className="items-center flex flex-grow">
             <Link href={configuration.paths.admin.products}>
               <Button variant="ghost">
@@ -36,8 +37,25 @@ const Header = () => {
                 <TicketPercent />
               </Button>
             </Link>
+            <Link href={configuration.paths.me.path}>
+              <Button variant="ghost">
+                <PackageOpen />
+              </Button>
+            </Link>
           </div>
-        )}
+        ) : user ? (
+          <div className="items-center flex flex-grow pt-1">
+            <Button variant="ghost" className="text-secondary">
+              <Link
+                className="flex gap-2"
+                href={configuration.paths.admin.products}
+              >
+                <PackageOpen className="w-5 h-5" />
+                <span className="mt-px">My Orders</span>
+              </Link>
+            </Button>
+          </div>
+        ) : null}
         <FreeShippingProgress onClick={() => toggleDrawer()} />
         <Drawer side={Direction.Right} />
       </div>
