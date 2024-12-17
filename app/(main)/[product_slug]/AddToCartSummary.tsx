@@ -1,9 +1,15 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { TooltipContent } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { AddToCartSummaryProps, ImageSize } from "@/types/product.types";
-import { ShoppingBasket } from "lucide-react";
+import {
+  Tooltip,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@radix-ui/react-tooltip";
+import { Clock, Plus, ShoppingBasket, Truck } from "lucide-react";
 import { useQueryState } from "nuqs";
 
 export function AddToCartSummary({ isNext }: AddToCartSummaryProps) {
@@ -57,27 +63,48 @@ export function AddToCartSummary({ isNext }: AddToCartSummaryProps) {
             </div>
           </div>
         </div>
-
-        <Button
-          size="lg"
-          variant="default"
-          className="transition-opacity font-bold text-xl items-center gap-3 hidden lg:flex"
-          disabled={!isNext}
-        >
-          <span className="mb-[3px]">${getPrice().toFixed(2)}</span>
-          <span className="mb-[3px] hidden xs:block">Add to cart</span>
-          <ShoppingBasket className="w-5 h-5 mb-px" />
-        </Button>
-        <Button
-          size="sm"
-          variant="default"
-          className="transition-opacity font-bold text-xl flex items-center gap-3 lg:hidden"
-          disabled={!isNext}
-        >
-          <span className="mb-[3px]">${getPrice().toFixed(2)}</span>
-          <span className="mb-[3px] hidden xs:block">Add to cart</span>
-          <ShoppingBasket className="w-5 h-5 mb-px" />
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger>
+              <div className="flex flex-col items-center gap-1">
+                <div className="flex gap-1">
+                  <Truck className="w-5 h-5 xs:hidden text-green-900" />
+                  <span className="text-sm font-bold text-green-900">
+                    <span className="hidden xs:inline">Est. Delivery by:</span>{" "}
+                    25 Nov 2024
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="transition-opacity font-bold text-xl flex items-center gap-3"
+                  disabled={!isNext}
+                >
+                  <span className="mb-[3px]">${getPrice().toFixed(2)}</span>
+                  <span className="mb-[3px] hidden xs:block">Add to cart</span>
+                  <ShoppingBasket className="w-5 h-5 mb-px" />
+                </Button>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent className="flex pb-6 pt-3 px-5 gap-2">
+              <div className="flex flex-col items-center gap-2">
+                Print time:
+                <span className="bg-white rounded-full flex items-center gap-1.5 justify-center text-black px-2.5 py-1.5">
+                  <Clock className="w-5 h-5" />
+                  36d 37h 12m
+                </span>
+              </div>
+              <Plus className="w-6 h-6 text-gray-100" />
+              <div className="flex flex-col items-center gap-2">
+                Delivery time:
+                <span className="bg-white rounded-full flex items-center gap-1.5 justify-center text-black px-2.5 py-1.5">
+                  <Truck className="w-5 h-5" />
+                  36d
+                </span>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </div>
   );

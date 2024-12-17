@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Calendar } from "lucide-react";
+import { Calendar, Ruler } from "lucide-react";
 import Image from "next/image";
 
 export const ProductListItem = () => (
@@ -29,9 +29,9 @@ export const ProductListItem = () => (
           </div>
         </div>
 
-        <Button className="flex gap-3 font-bold text-base">
-          <Calendar height={24} width={24} />
-          <span>Est. Delivery: 25 Nov 2024</span>
+        <Button className="flex gap-3 font-bold text-base w-full">
+          <Ruler height={24} width={24} />
+          <span>Customise</span>
         </Button>
       </div>
     </div>

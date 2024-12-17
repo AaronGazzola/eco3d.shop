@@ -66,8 +66,12 @@ const Hero = () => {
   const [isTouched, setisTouched] = useState(false);
 
   const rotate = () => {
-    setRotation(prev => prev - 90);
-    setCircleSideAtTop(prev => (prev === Left ? Top : prev + 1));
+    setRotation((prev) => {
+      const isFullRotation = Math.abs(prev) >= 270;
+      if (isFullRotation) setisTouched(true);
+      return isFullRotation ? 0 : prev - 90;
+    });
+    setCircleSideAtTop((prev) => (prev === Left ? Top : prev + 1));
   };
 
   const handleClick = () => {
