@@ -3,6 +3,7 @@ import { createPaymentIntent } from "@/actions/paymentActions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import configuration from "@/configuration";
 import { cn } from "@/lib/utils";
 import {
   Elements,
@@ -50,7 +51,8 @@ const StripeComponent = ({ clientSecret, amount }: StripeComponentProps) => {
       const result = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/payment/confirm`,
+          return_url:
+            configuration.site.siteUrl + configuration.paths.me.success,
           receipt_email: email,
         },
       });
