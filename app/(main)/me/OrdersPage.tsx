@@ -1,13 +1,22 @@
 "use client";
-
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import ConfirmDialog from "@/components/ux/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeftRight,
   CheckCircle2,
   CircleDot,
   Clock,
+  Frown,
+  HelpCircle,
   Package,
+  Phone,
   Printer,
   SquareArrowOutUpRight,
   Truck,
@@ -47,6 +56,16 @@ interface Order {
   isRefund: boolean;
   startTime?: Date;
   trackingNumber?: string;
+  recipientName: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  totalPrice: number;
+  expectedFulfillmentDate?: Date;
+  currency: string;
 }
 
 const OrdersList = () => {
@@ -56,20 +75,81 @@ const OrdersList = () => {
       status: OrderStatus.Waiting,
       isRefund: false,
       startTime: new Date(),
+      recipientName: "John Doe",
+      addressLine1: "123 Main St",
+      city: "Springfield",
+      state: "IL",
+      postalCode: "62701",
+      country: "USA",
+      totalPrice: 99.99,
+      currency: "USD",
     },
-    { id: "2", status: RefundStatus.Pending, isRefund: true },
     {
-      id: "3",
-      status: OrderStatus.Printing,
+      id: "2",
+      status: OrderStatus.Shipped,
       isRefund: false,
-      startTime: new Date(Date.now() - 86400000),
+      startTime: new Date(),
+      recipientName: "John Doe",
+      addressLine1: "123 Main St",
+      city: "Springfield",
+      state: "IL",
+      postalCode: "62701",
+      country: "USA",
+      totalPrice: 99.99,
+      currency: "USD",
     },
   ]);
+
+  const [refundConfirmOpen, setRefundConfirmOpen] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+
+  const handleRequestRefund = (orderId: string) => {
+    setSelectedOrderId(orderId);
+    setRefundConfirmOpen(true);
+  };
+
+  const confirmRefund = () => {
+    if (selectedOrderId) {
+      setOrders(
+        orders.map((order) =>
+          order.id === selectedOrderId
+            ? { ...order, status: RefundStatus.Pending, isRefund: true }
+            : order,
+        ),
+      );
+    }
+    setRefundConfirmOpen(false);
+    setSelectedOrderId(null);
+  };
+
+  const OrderDetailsPopover = ({ order }: { order: Order }) => (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon" className="absolute top-4 right-4">
+          <HelpCircle className="h-5 w-5" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="text-gray-800 w-96 flex items-stretch  gap-4">
+        {!order.isRefund && (
+          <Button
+            onClick={() => handleRequestRefund(order.id)}
+            className="flex-grow flex gap-4"
+            variant="destructive"
+          >
+            Request Refund <Frown className="w-4 h-4" />
+          </Button>
+        )}
+        <Button variant="outline" className="flex-grow flex gap-4">
+          Contact support <Phone className="w-4 h-4" />
+        </Button>
+      </PopoverContent>
+    </Popover>
+  );
 
   const getNextStatus = (
     current: OrderStatus | RefundStatus,
     isRefund: boolean,
-  ): OrderStatus | RefundStatus => {
+  ) => {
     if (isRefund) {
       const currentIndex = REFUND_STAGES.indexOf(current as RefundStatus);
       return REFUND_STAGES[(currentIndex + 1) % REFUND_STAGES.length];
@@ -87,15 +167,6 @@ const OrdersList = () => {
           : order,
       ),
     );
-  };
-
-  const getTimeDiff = (startTime: Date) => {
-    const diff = Math.max(0, Date.now() - startTime.getTime());
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-    return `${days}d ${hours}h ${minutes}m ${seconds}s`;
   };
 
   const getProgressWidth = (
@@ -133,9 +204,6 @@ const OrdersList = () => {
         <div className="flex">
           {icons.map(({ icon: Icon, status }) => {
             const isActive = order.status === status;
-            const isPast =
-              getProgressWidth(order.status, false) >=
-              getProgressWidth(status, false);
             return (
               <div
                 style={{ width: getProgressWidth(order.status, false) }}
@@ -166,17 +234,15 @@ const OrdersList = () => {
 
         <div className="flex">
           {icons.map(({ icon: Icon, status }) => {
-            const isActive = order.status === status;
             const isPast =
               getProgressWidth(order.status, false) >=
               getProgressWidth(status, false);
+            const isActive = order.status === status;
             const trackingContent = (
-              <>
-                <div className="flex items-center justify-center gap-2">
-                  <span>Track package</span>
-                  <SquareArrowOutUpRight className="mt-0.5 w-4 h-4 stroke-2" />
-                </div>
-              </>
+              <div className="flex items-center justify-center gap-2">
+                <span>Track package</span>
+                <SquareArrowOutUpRight className="mt-0.5 w-4 h-4 stroke-2" />
+              </div>
             );
             const trackingLink = !isActive ? (
               trackingContent
@@ -197,7 +263,7 @@ const OrdersList = () => {
               >
                 <div
                   className={cn(
-                    "text-sm whitespace-nowrap px-2.5 py-1.5 flex flex-col items-center  text-primary font-semibold relative w-full gap-3 pt-5 justify-end h-full",
+                    "text-sm whitespace-nowrap px-2.5 py-1.5 flex flex-col items-center text-primary font-semibold relative w-full gap-3 pt-5 justify-end h-full",
                   )}
                 >
                   {order.status !== OrderStatus.Delivered && (
@@ -218,7 +284,6 @@ const OrdersList = () => {
                           : ""}
                     </div>
                   )}
-
                   <Icon
                     className={cn(
                       "w-6 h-6 bg-white flex-shrink-0",
@@ -294,13 +359,23 @@ const OrdersList = () => {
   };
 
   return (
-    <div className="flex flex-col items-center w-full gap-4 p-4">
+    <div className="flex flex-col items-center w-full gap-4 p-4 cursor-default">
+      <ConfirmDialog
+        title="Request Refund"
+        description="Are you sure you want to request a refund for this order?"
+        onConfirm={confirmRefund}
+        onCancel={() => {
+          setRefundConfirmOpen(false);
+          setSelectedOrderId(null);
+        }}
+        confirmText="Request Refund"
+        cancelText="Cancel"
+        open={refundConfirmOpen}
+      />
+
       {orders.map((order) => (
-        <Card
-          key={order.id}
-          className="w-full max-w-3xl p-6 cursor-pointer hover:shadow-lg transition-shadow"
-          onClick={() => handleClick(order.id)}
-        >
+        <Card key={order.id} className="w-full max-w-3xl p-6  relative">
+          <OrderDetailsPopover order={order} />
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">Order #{order.id}</h3>
           </div>
