@@ -43,7 +43,7 @@ const initialCartItems: CartItem[] = [
     quantity: 1,
   },
   {
-    id: 1,
+    id: 3,
     name: "V8 Engine",
     imageUrl: "/images/products/V8/small/Set 3 second shoot-27.jpg",
     size: "Small",
@@ -54,7 +54,7 @@ const initialCartItems: CartItem[] = [
     quantity: 1,
   },
   {
-    id: 1,
+    id: 4,
     name: "V8 Engine",
     imageUrl: "/images/products/V8/small/Set 3 second shoot-27.jpg",
     size: "Small",
@@ -65,7 +65,7 @@ const initialCartItems: CartItem[] = [
     quantity: 1,
   },
   {
-    id: 1,
+    id: 5,
     name: "V8 Engine",
     imageUrl: "/images/products/V8/small/Set 3 second shoot-27.jpg",
     size: "Small",
