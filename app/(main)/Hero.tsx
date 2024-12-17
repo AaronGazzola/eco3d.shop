@@ -63,30 +63,54 @@ const Annotation = ({
 const Hero = () => {
   const [circleSideAtTop, setCircleSideAtTop] = useState<CircleSide>(Top);
   const [rotation, setRotation] = useState(0);
-  const [isTouched, setisTouched] = useState(false);
+  const [isTouched, setIsTouched] = useState(false);
+  const [hasCompletedInitialAnimation, setHasCompletedInitialAnimation] =
+    useState(false);
+  const [isInitialDelay, setIsInitialDelay] = useState(true);
 
   const rotate = () => {
     setRotation((prev) => {
-      const isFullRotation = Math.abs(prev) >= 270;
-      if (isFullRotation) setisTouched(true);
-      return isFullRotation ? 0 : prev - 90;
+      const newRotation = prev - 90;
+      const isFullRotation = Math.abs(newRotation) >= 360;
+      if (isFullRotation) {
+        if (!hasCompletedInitialAnimation) {
+          setHasCompletedInitialAnimation(true);
+        }
+        return 0;
+      }
+      return newRotation;
     });
     setCircleSideAtTop((prev) => (prev === Left ? Top : prev + 1));
   };
 
   const handleClick = () => {
-    setisTouched(true);
+    if (!hasCompletedInitialAnimation) return;
+    setIsTouched(true);
     rotate();
   };
 
   useEffect(() => {
-    if (isTouched) return;
-    const interval = setInterval(rotate, 3000);
-    return () => clearInterval(interval);
-  }, [isTouched]);
+    const startDelay = setTimeout(() => {
+      setIsInitialDelay(false);
+    }, 1000);
+
+    return () => clearTimeout(startDelay);
+  }, []);
+
+  useEffect(() => {
+    if (isInitialDelay || hasCompletedInitialAnimation) return;
+
+    const rotationInterval = setInterval(rotate, 1000);
+    return () => clearInterval(rotationInterval);
+  }, [isInitialDelay, hasCompletedInitialAnimation]);
+
+  const arrowClassName = hasCompletedInitialAnimation
+    ? "fill-white"
+    : "fill-black";
 
   return (
     <section
+      onClick={handleClick}
       className={cn(
         "relative shadow-[inset_0_0_0_3000px_rgb(0,0,0,0.6)] py-8 pb-14 sm:py-16 flex items-center justify-center overflow-hidden",
       )}
@@ -128,10 +152,7 @@ const Hero = () => {
         </div>
 
         <div className="w-full lg:pr-10 lg:w-1/2 flex items-center justify-center">
-          <div
-            className="w-72 h-72 xs:w-80 xs:h-80 sm:w-[450px] sm:h-[450px] relative flex cursor-pointer justify-center items-center"
-            onClick={handleClick}
-          >
+          <div className="w-72 h-72 xs:w-80 xs:h-80 sm:w-[450px] sm:h-[450px] relative flex cursor-pointer justify-center items-center">
             <TShape2 className="h-full w-full absolute top-2 -left-10" />
             <TShape2 className="h-full w-full absolute top-5 -right-10 rotate-180" />
             <div className="absolute inset-0">
@@ -160,7 +181,6 @@ const Hero = () => {
                   label="Select"
                   isActive={circleSideAtTop === Top}
                 />
-
                 <Annotation
                   className="absolute bottom-16 -left-10"
                   icon={<Ruler width={20} height={20} />}
@@ -186,26 +206,30 @@ const Hero = () => {
               >
                 <SendArrow
                   className={cn(
-                    "absolute left-1/2 -translate-y-1/2 -translate-x-1/2 top-0 rotate-[-291deg] transition-opacity ease-in",
+                    "absolute left-1/2 -translate-y-1/2 -translate-x-1/2 top-0 rotate-[-291deg] transition-opacity ease-in fill-white",
                     circleSideAtTop === Top ? "opacity-0" : "delay-300",
+                    arrowClassName,
                   )}
                 />
                 <SendArrow
                   className={cn(
-                    "absolute top-1/2 -translate-y-1/2 translate-x-1/2 right-0 rotate-[-201deg] transition-opacity ease-in",
+                    "absolute top-1/2 -translate-y-1/2 translate-x-1/2 right-0 rotate-[-201deg] transition-opacity ease-in fill-white",
                     circleSideAtTop === Right ? "opacity-0" : "delay-300",
+                    arrowClassName,
                   )}
                 />
                 <SendArrow
                   className={cn(
-                    "absolute left-1/2 translate-y-1/2 -translate-x-1/2 bottom-0 rotate-[-111deg] transition-opacity ease-in",
+                    "absolute left-1/2 translate-y-1/2 -translate-x-1/2 bottom-0 rotate-[-111deg] transition-opacity ease-in fill-white",
                     circleSideAtTop === Bottom ? "opacity-0" : "delay-300",
+                    arrowClassName,
                   )}
                 />
                 <SendArrow
                   className={cn(
-                    "absolute top-1/2 -translate-y-1/2 -translate-x-1/2 left-0 rotate-[-21deg] transition-opacity ease-in fill-black",
+                    "absolute top-1/2 -translate-y-1/2 -translate-x-1/2 left-0 rotate-[-21deg] transition-opacity ease-in",
                     circleSideAtTop === Left ? "opacity-0" : "delay-300",
+                    arrowClassName,
                   )}
                 />
               </div>

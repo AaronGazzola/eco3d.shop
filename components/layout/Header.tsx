@@ -25,8 +25,8 @@ const Header = () => {
     >
       <div className="flex h-full justify-between flex-grow pr-0.5 items-stretch max-w-4xl">
         <Logo />
-        {isAdmin ? (
-          <div className="items-center flex flex-grow">
+        {!isAdmin ? (
+          <div className="items-center flex">
             <Link href={configuration.paths.admin.products}>
               <Button variant="ghost">
                 <PackageSearch />
@@ -44,14 +44,14 @@ const Header = () => {
             </Link>
           </div>
         ) : user ? (
-          <div className="items-center flex flex-grow pt-1">
+          <div className="items-center flex pt-1">
             <Button variant="ghost" className="text-secondary">
               <Link
                 className="flex gap-2"
                 href={configuration.paths.admin.products}
               >
                 <PackageOpen className="w-5 h-5" />
-                <span className="mt-px">My Orders</span>
+                <span className="hidden sm:block mt-px">My Orders</span>
               </Link>
             </Button>
           </div>
