@@ -9,6 +9,7 @@ interface CartStore {
   shippingEmail: string;
   isEmailValid: boolean;
   isAddressValid: boolean;
+  currentProductPrice: number;
   addItem: (item: CartItem) => void;
   removeItem: (id: number) => void;
   updateQuantity: (id: number, quantity: number) => void;
@@ -16,6 +17,7 @@ interface CartStore {
   setShippingEmail: (email: string) => void;
   setEmailValid: (valid: boolean) => void;
   setAddressValid: (valid: boolean) => void;
+  setCurrentProductPrice: (price: number) => void;
 }
 
 export const useCartStore = create<CartStore>()(
@@ -25,6 +27,7 @@ export const useCartStore = create<CartStore>()(
       shippingEmail: "",
       isEmailValid: false,
       isAddressValid: false,
+      currentProductPrice: 0,
       addItem: (item) =>
         set((state) => {
           const existingItem = state.items.find((i) => i.id === item.id);
@@ -47,10 +50,11 @@ export const useCartStore = create<CartStore>()(
         set((state) => ({
           items: state.items.map((i) => (i.id === id ? { ...i, quantity } : i)),
         })),
-      clearCart: () => set({ items: [] }),
+      clearCart: () => set({ items: [], currentProductPrice: 0 }),
       setShippingEmail: (email) => set({ shippingEmail: email }),
       setEmailValid: (valid) => set({ isEmailValid: valid }),
       setAddressValid: (valid) => set({ isAddressValid: valid }),
+      setCurrentProductPrice: (price) => set({ currentProductPrice: price }),
     }),
     {
       name: "cart-storage",
