@@ -9,6 +9,8 @@ import { Autocomplete, LoadScript } from "@react-google-maps/api";
 import { useRef, useState } from "react";
 import { z } from "zod";
 
+// TODO: Add estimates delivery and tooltip explaining which item will take the longest to print and deliver.
+
 const libraries = ["places"];
 
 interface Address {

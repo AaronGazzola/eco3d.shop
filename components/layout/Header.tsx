@@ -9,7 +9,12 @@ import { useUIStore } from "@/hooks/useUIStore";
 import { useGetUser, useIsAdmin } from "@/hooks/userHooks";
 import { cn } from "@/lib/utils";
 import { Direction } from "@/types/util.types";
-import { PackageOpen, PackageSearch, TicketPercent } from "lucide-react";
+import {
+  ListOrdered,
+  PackageOpen,
+  PackageSearch,
+  TicketPercent,
+} from "lucide-react";
 import Link from "next/link";
 
 const Header = () => {
@@ -25,7 +30,7 @@ const Header = () => {
     >
       <div className="flex h-full justify-between flex-grow pr-0.5 items-stretch max-w-4xl">
         <Logo />
-        {!isAdmin ? (
+        {isAdmin ? (
           <div className="items-center flex">
             <Link href={configuration.paths.admin.products}>
               <Button variant="ghost">
@@ -37,9 +42,14 @@ const Header = () => {
                 <TicketPercent />
               </Button>
             </Link>
-            <Link href={configuration.paths.me.path}>
+            <Link href={configuration.paths.admin.orders}>
               <Button variant="ghost">
                 <PackageOpen />
+              </Button>
+            </Link>
+            <Link href={configuration.paths.admin.q}>
+              <Button variant="ghost">
+                <ListOrdered />
               </Button>
             </Link>
           </div>

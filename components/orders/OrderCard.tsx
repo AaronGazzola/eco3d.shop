@@ -1,7 +1,7 @@
 // OrderCard.tsx
 "use client";
-import OrderDetails from "@/app/(main)/me/OrderDetails";
-import OrderProgress from "@/app/(main)/me/OrderProgress";
+import OrderDetails from "@/components/orders/OrderDetails";
+import OrderProgress from "@/components/orders/OrderProgress";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {

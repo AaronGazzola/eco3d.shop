@@ -1,6 +1,6 @@
 // OrdersPage.tsx
 "use client";
-import OrderCard from "@/app/(main)/me/OrderCard";
+import OrderCard from "@/components/orders/OrderCard";
 import {
   ORDER_STAGES,
   Order,
