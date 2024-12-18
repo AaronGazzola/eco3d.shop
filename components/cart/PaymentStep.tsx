@@ -2,7 +2,8 @@
 import { createPaymentIntent } from "@/actions/paymentActions";
 import { Button } from "@/components/ui/button";
 import configuration from "@/configuration";
-import { calculateTotal } from "@/lib/cart.util";
+import { useCartStore } from "@/hooks/useCartStore";
+import { calculateSubtotal, calculateTotal } from "@/lib/cart.util";
 import { cn } from "@/lib/utils";
 import {
   Elements,
@@ -17,24 +18,21 @@ const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
 );
 
-interface StripeComponentProps {
-  clientSecret: string;
-  amount: number;
-}
-
 interface PaymentStepProps {
   amount: number;
   isTransitioning: boolean;
   isActive: boolean;
 }
 
-const StripeComponent = ({ clientSecret, amount }: StripeComponentProps) => {
+const StripeComponent = () => {
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isFormValid, setIsFormValid] = useState(false);
-  const total = calculateTotal(amount);
+  const { items } = useCartStore();
+  const subtotal = calculateSubtotal(items);
+  const total = calculateTotal(subtotal);
 
   const handleChange = (event: any) => {
     setIsFormValid(event.complete);
@@ -121,7 +119,7 @@ const PaymentStep = ({
           appearance: { theme: "stripe" },
         }}
       >
-        <StripeComponent amount={amount} clientSecret={clientSecret} />
+        <StripeComponent />
       </Elements>
     </div>
   );

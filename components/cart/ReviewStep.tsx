@@ -1,8 +1,16 @@
 "use client";
+
 import QuantityControl from "@/components/cart/QuantityControlComponent";
 import ConfirmDialog from "@/components/ux/ConfirmDialog";
+import { SHIPPING_COST } from "@/constants/order.constants";
 import { useCartStore } from "@/hooks/useCartStore";
-import { SHIPPING_COST, calculateTotal } from "@/lib/cart.util";
+import {
+  calculateShippingCost,
+  calculateSubtotal,
+  calculateTotal,
+  formatPrice,
+  isEligibleForFreeShipping,
+} from "@/lib/cart.util";
 import { cn } from "@/lib/utils";
 import { CartStep } from "@/types/ui.types";
 import Image from "next/image";
@@ -27,10 +35,8 @@ const ReviewStep = ({
     setItemToDelete(null);
   };
 
-  const subtotal = items.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0,
-  );
+  const subtotal = calculateSubtotal(items);
+  const shipping = calculateShippingCost(subtotal);
   const total = calculateTotal(subtotal);
 
   return (
@@ -127,7 +133,7 @@ const ReviewStep = ({
                 <div className="flex items-center justify-end gap-2 w-full p-2 xs:pt-4 pl-0">
                   <span className="font-medium text-lg xs:text-xl flex items-center gap-px">
                     <span className="font-normal text-base xs:text-lg">$</span>
-                    {(item.price * item.quantity).toFixed(2)}
+                    {formatPrice(item.price * item.quantity)}
                   </span>
                 </div>
               </div>
@@ -138,15 +144,20 @@ const ReviewStep = ({
           <div className="border-t border-gray-200 py-4 space-y-2">
             <div className="flex justify-between text-base">
               <span>Subtotal</span>
-              <span>${subtotal.toFixed(2)}</span>
+              <span>${formatPrice(subtotal)}</span>
             </div>
-            <div className="flex justify-between text-base">
+            <div
+              className={cn(
+                "flex justify-between text-base",
+                isEligibleForFreeShipping(subtotal) && "line-through",
+              )}
+            >
               <span>Shipping</span>
-              <span>${SHIPPING_COST.toFixed(2)}</span>
+              <span>${formatPrice(SHIPPING_COST)}</span>
             </div>
             <div className="flex justify-between text-lg font-bold pt-2 border-t">
               <span>Total AUD</span>
-              <span>${total.toFixed(2)}</span>
+              <span>${formatPrice(total)}</span>
             </div>
           </div>
         )}
