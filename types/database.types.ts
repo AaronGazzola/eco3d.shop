@@ -444,7 +444,6 @@ export type Database = {
           print_queue_id: string | null
           product_variant_id: string | null
           quantity: number
-          reserved_until: string | null
           updated_at: string | null
         }
         Insert: {
@@ -455,7 +454,6 @@ export type Database = {
           print_queue_id?: string | null
           product_variant_id?: string | null
           quantity: number
-          reserved_until?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -466,7 +464,6 @@ export type Database = {
           print_queue_id?: string | null
           product_variant_id?: string | null
           quantity?: number
-          reserved_until?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -554,7 +551,6 @@ export type Database = {
           estimated_print_seconds: number | null
           group_size: number | null
           id: string
-          primary_image_id: string | null
           print_queue_id: string | null
           product_id: string | null
           stock_quantity: number
@@ -568,7 +564,6 @@ export type Database = {
           estimated_print_seconds?: number | null
           group_size?: number | null
           id?: string
-          primary_image_id?: string | null
           print_queue_id?: string | null
           product_id?: string | null
           stock_quantity?: number
@@ -582,7 +577,6 @@ export type Database = {
           estimated_print_seconds?: number | null
           group_size?: number | null
           id?: string
-          primary_image_id?: string | null
           print_queue_id?: string | null
           product_id?: string | null
           stock_quantity?: number
@@ -590,13 +584,6 @@ export type Database = {
           variant_name?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "product_variants_primary_image_id_fkey"
-            columns: ["primary_image_id"]
-            isOneToOne: false
-            referencedRelation: "images"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "product_variants_print_queue_id_fkey"
             columns: ["print_queue_id"]
@@ -905,10 +892,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      cleanup_expired_print_queue_items: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
       custom_access_token_hook: {
         Args: {
           event: Json
@@ -931,10 +914,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      schedule_cleanup: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
     }
     Enums: {
       app_permission:
@@ -950,7 +929,6 @@ export type Database = {
         | "payment_received"
         | "in_production"
         | "refunded"
-        | "at_checkout"
       payment_status: "pending" | "completed" | "failed"
       refund_status: "pending" | "approved" | "rejected" | "processed"
     }
