@@ -3,7 +3,8 @@ import type { Metadata, Viewport } from "next";
 import { cn } from "@/lib/utils";
 import Providers from "@/providers/Providers";
 import { poppins } from "@/styles/fonts";
-import ChatLayout from "@/components/layout/ChatLayout";
+import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
 
 export const metadata: Metadata = {
   title: "Eco3D",
@@ -47,8 +48,9 @@ export default function RootLayout({
         }
       >
         <Providers>
-          <ChatLayout />
-          {children}
+          <Header />
+          <main className="flex-grow flex flex-col">{children}</main>
+          <Footer />
         </Providers>
       </body>
     </html>
