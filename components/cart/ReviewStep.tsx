@@ -45,6 +45,11 @@ const ReviewStep = ({
           open={true}
         />
       )}
+      {!items.length && (
+        <div className="flex justify-center h-full pt-5">
+          <p className="text-lg text-gray-800">No items in your cart</p>
+        </div>
+      )}
       {items.map((item) => (
         <div
           key={item.id}

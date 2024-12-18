@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { TooltipContent } from "@/components/ui/tooltip";
+import configuration from "@/configuration";
 import { useCartStore } from "@/hooks/useCartStore";
 import { useToastQueue } from "@/hooks/useToastQueue";
 import { useUIStore } from "@/hooks/useUIStore";
@@ -13,9 +14,11 @@ import {
   TooltipTrigger,
 } from "@radix-ui/react-tooltip";
 import { Clock, Plus, ShoppingBasket, Truck } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useQueryState } from "nuqs";
 
 export function AddToCartSummary({ isNext }: AddToCartSummaryProps) {
+  const router = useRouter();
   const [size] = useQueryState("size");
   const sizeVal = (size as ImageSize) || "Small";
   const [colors] = useQueryState("colors");
@@ -66,6 +69,8 @@ export function AddToCartSummary({ isNext }: AddToCartSummaryProps) {
       primaryText: primary?.split("\n"),
       secondaryText: secondary || undefined,
     };
+
+    router.push(configuration.paths.appHome);
 
     addItem(item);
     toggleDrawer(true);

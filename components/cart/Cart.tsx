@@ -4,10 +4,11 @@ import PaymentStep from "@/components/cart/PaymentStep";
 import ReviewStep from "@/components/cart/ReviewStep";
 import ShippingStep from "@/components/cart/ShippingStep";
 import { Button } from "@/components/ui/button";
+import { useUIStore } from "@/hooks/useUIStore";
 import { cn } from "@/lib/utils";
 import { CartStep as CartStepEnum } from "@/types/ui.types";
 import { ChevronDown, CreditCard, List, Truck } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 const COLLAPSED_STEP_HEIGHT = 65;
 
@@ -86,6 +87,7 @@ const SectionComponent: React.FC<SectionProps> = ({
         ? COLLAPSED_STEP_HEIGHT
         : COLLAPSED_STEP_HEIGHT * 2
     : `calc(100% - ${bottomHeight}px)`;
+
   return (
     <div
       onClick={() => !isDisabled && onSectionClick(section.id)}
@@ -166,6 +168,7 @@ export default function Cart(): JSX.Element {
     CartStepEnum.Review,
   );
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const { isDrawerOpen } = useUIStore();
 
   const handleSectionChange = (sectionId: CartStepEnum) => {
     setActiveSection((prev) => {
@@ -174,6 +177,10 @@ export default function Cart(): JSX.Element {
     });
     setTimeout(() => setIsTransitioning(false), 600);
   };
+
+  useEffect(() => {
+    if (!isDrawerOpen) setActiveSection(CartStepEnum.Review);
+  }, [isDrawerOpen]);
 
   return (
     <div className="relative w-full h-screen">
