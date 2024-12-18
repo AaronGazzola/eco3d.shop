@@ -68,15 +68,19 @@ const OrderProgress = ({
     return (
       <div className="w-full mt-4">
         <div className="flex">
-          {icons.map(({ icon: Icon, status: currentStatus, label }) => {
-            const isActive = status === currentStatus;
+          {icons.map(({ icon: Icon, status: iconStatus, label }) => {
+            const isActive = status === iconStatus;
+            let isPast =
+              isActive ||
+              (status === RefundStatus.Processing &&
+                iconStatus === RefundStatus.Pending);
+
             return (
               <div
-                style={{ width: getProgressWidth(currentStatus, true) }}
-                key={currentStatus}
-                className="flex flex-col items-center gap-2 font-bold text-primary pb-2"
+                key={iconStatus}
+                className="flex flex-col items-center gap-2 font-bold text-primary pb-4 w-[33%]"
               >
-                {isActive && <h3>{label}</h3>}
+                {isActive && <h3 className="text-center">{label}</h3>}
               </div>
             );
           })}
@@ -120,16 +124,15 @@ const OrderProgress = ({
 
   return (
     <div className="w-full mt-4">
-      <div className="flex">
-        {icons.map(({ status: currentStatus, label }) => {
-          const isActive = status === currentStatus;
+      <div className="flex w-full">
+        {icons.map(({ status: iconStatus, label }, i) => {
+          const isActive = status === iconStatus;
           return (
             <div
-              style={{ width: getProgressWidth(currentStatus, false) }}
-              key={currentStatus}
-              className="flex flex-col items-center gap-2 font-bold text-primary pb-2"
+              key={iconStatus}
+              className="flex flex-col items-center gap-2 font-bold text-primary pb-4 w-[33%]"
             >
-              {isActive && <h3>{label}</h3>}
+              {isActive && <h3 className="text-center">{label}</h3>}
             </div>
           );
         })}
@@ -142,20 +145,24 @@ const OrderProgress = ({
           />
         </div>
         <div className="flex">
-          {icons.map(({ icon: Icon, status: currentStatus }) => {
-            const isPast =
-              getProgressWidth(status, false) >=
-              getProgressWidth(currentStatus, false);
-            const isActive = status === currentStatus;
-            const isShipped = currentStatus === OrderStatus.Shipped;
+          {icons.map(({ icon: Icon, status: iconStatus }) => {
+            const isActive = status === iconStatus;
+            const isShipped = iconStatus === OrderStatus.Shipped;
+            let isPast =
+              isActive ||
+              (status === OrderStatus.Printing &&
+                iconStatus === OrderStatus.Waiting) ||
+              (status === OrderStatus.Shipped &&
+                (iconStatus === OrderStatus.Printing ||
+                  iconStatus === OrderStatus.Waiting));
 
             return (
               <div
                 style={{ width: "25%" }}
-                key={currentStatus}
+                key={iconStatus}
                 className="flex flex-col items-center gap-2"
               >
-                <div className="text-sm whitespace-nowrap px-2.5 py-1.5 flex flex-col items-center text-primary font-semibold relative w-full gap-3 pt-5 justify-end h-full">
+                <div className="text-sm whitespace-nowrap px-2.5 py-1.5 flex flex-col items-center text-primary font-semibold relative w-full gap-5 pt-6 justify-end h-full">
                   {status !== OrderStatus.Delivered && (
                     <div
                       className={cn(
@@ -166,10 +173,10 @@ const OrderProgress = ({
                           : "border-green-700 px-3.5",
                       )}
                     >
-                      {(currentStatus === OrderStatus.Waiting ||
-                        currentStatus === OrderStatus.Printing) &&
+                      {(iconStatus === OrderStatus.Waiting ||
+                        iconStatus === OrderStatus.Printing) &&
                         "00:28:28:29"}
-                      {isShipped && trackingNumber && (
+                      {isShipped && (
                         <Link
                           href={`/tracking/${trackingNumber}`}
                           className="flex items-center gap-2"

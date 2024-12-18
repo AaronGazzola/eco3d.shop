@@ -19,9 +19,9 @@ const OrderDetails = ({ items, shippingCost }: OrderDetailsProps) => {
       {items.map((item) => (
         <div
           key={item.id}
-          className="flex flex-col sm:flex-row gap-4 text-gray-800"
+          className="flex flex-col sm:flex-row gap-4 text-gray-800 first:border-t border-b py-8 px-2 pr-4"
         >
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 pb-4 sm:pb-0">
             <div className="w-[100px] h-[100px] relative">
               <Image
                 src={item.imageUrl}
@@ -33,21 +33,23 @@ const OrderDetails = ({ items, shippingCost }: OrderDetailsProps) => {
             </div>
           </div>
 
-          <div className="flex-1">
-            <h3 className="font-bold text-lg xs:text-xl mb-2">{item.name}</h3>
-            <div className="text-sm xs:text-base space-y-1 sm:flex sm:gap-4 sm:space-y-0">
-              <div className="space-y-1">
+          <div className="flex-1 pl-4">
+            <h3 className="font-bold text-lg xs:text-xl mb-4">{item.name}</h3>
+            <div className="text-sm xs:text-base space-y-1 flex sm:gap-4 sm:space-y-0 pl-4">
+              <div className="space-y-1 w-[50%]">
                 <p>
                   <span className="font-bold">Size: </span>
-                  {item.size}
                 </p>
-                <p className="whitespace-nowrap">
+                <p>{item.size}</p>
+                <p className="pt-3">
                   <span className="font-bold">Colors: </span>
-                  {item.colors.join(", ")}
                 </p>
+                {item.colors.map((color, i) => (
+                  <p key={i}>{color}</p>
+                ))}
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1 w-[50%]">
                 {item.primaryText && (
                   <div>
                     <p className="font-bold">Primary text:</p>
@@ -62,7 +64,7 @@ const OrderDetails = ({ items, shippingCost }: OrderDetailsProps) => {
                 )}
 
                 {item.secondaryText && (
-                  <div>
+                  <div className="pt-3">
                     <p className="font-bold">Secondary text:</p>
                     <div className="flex flex-col py-1">
                       <span className="text-base xs:text-lg italic">
@@ -75,9 +77,9 @@ const OrderDetails = ({ items, shippingCost }: OrderDetailsProps) => {
             </div>
           </div>
 
-          <div className="flex items-center sm:items-start justify-end gap-2 sm:min-w-[100px]">
+          <div className="flex items-center sm:items-end justify-end gap-2 sm:min-w-[100px] pt-5">
             <div className="text-right">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground font-semibold">
                 Qty: {item.quantity}
               </p>
               <span className="font-medium text-lg xs:text-xl flex items-center gap-px justify-end">
@@ -88,7 +90,7 @@ const OrderDetails = ({ items, shippingCost }: OrderDetailsProps) => {
           </div>
         </div>
       ))}
-      <div className="flex justify-end pt-4 border-t">
+      <div className="flex justify-end pt-4">
         <div className="text-right space-y-2">
           <div>
             <p className="text-sm text-muted-foreground">Subtotal</p>

@@ -65,7 +65,9 @@ const OrderCard = ({
       </Popover>
 
       <div className="flex flex-col space-y-1">
-        <h3 className="text-lg font-semibold">Order #{order.id}</h3>
+        <h3 className="text-lg font-semibold w-[calc(100%-8px)]">
+          Order #{order.id}
+        </h3>
         <span className="text-sm text-muted-foreground">
           {formatDate(order.createdAt, "dd-MMM-yyyy")}
         </span>

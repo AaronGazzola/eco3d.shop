@@ -49,7 +49,7 @@ const OrdersList = () => {
   };
 
   return (
-    <div className="flex flex-col items-center w-full gap-4 p-4 cursor-default">
+    <div className="flex flex-col items-center w-full gap-4 p-2 xs:p-4 cursor-default">
       {orders.map((order) => (
         <OrderCard
           key={order.id}
