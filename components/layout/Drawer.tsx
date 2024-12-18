@@ -119,9 +119,8 @@ export function Drawer({
               <div className="flex items-center gap-3">
                 <AuthFormPopover />
                 <Button
-                  value="icon"
                   size="sm"
-                  variant="outline"
+                  variant="ghost"
                   className="border-none dark:text-gray-400 dark:hover:text-white border border-white outline-none text-gray-600 hover:text-black p-4 h-12 rounded-tr-none px-2 sm:px-4"
                   onClick={() => toggleDrawer(false)}
                 >
