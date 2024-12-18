@@ -2,6 +2,9 @@
 
 import { Button } from "@/components/ui/button";
 import { TooltipContent } from "@/components/ui/tooltip";
+import { useCartStore } from "@/hooks/useCartStore";
+import { useToastQueue } from "@/hooks/useToastQueue";
+import { useUIStore } from "@/hooks/useUIStore";
 import { cn } from "@/lib/utils";
 import { AddToCartSummaryProps, ImageSize } from "@/types/product.types";
 import {
@@ -18,6 +21,9 @@ export function AddToCartSummary({ isNext }: AddToCartSummaryProps) {
   const [colors] = useQueryState("colors");
   const [primary] = useQueryState("primary");
   const [secondary] = useQueryState("secondary");
+  const { toast } = useToastQueue();
+  const addItem = useCartStore((state) => state.addItem);
+  const { toggleDrawer } = useUIStore();
 
   const parsedColors = colors ? JSON.parse(colors) : ["Black", "Natural"];
   const hasWhite = parsedColors.includes("White");
@@ -33,6 +39,40 @@ export function AddToCartSummary({ isNext }: AddToCartSummaryProps) {
       default:
         return 19.99;
     }
+  };
+
+  const handleAddToCart = () => {
+    const getImageUrl = () => {
+      switch (sizeVal) {
+        case "Small":
+          return "/images/products/V8/small/Set 3 second shoot-28.jpg";
+        case "Medium":
+          return "/images/products/V8/medium/Set 3 second shoot-24.jpg";
+        case "Large":
+          return "/images/products/V8/Large/Set 3 second shoot-4.jpg";
+        default:
+          return "/images/products/V8/small/Set 3 second shoot-28.jpg";
+      }
+    };
+
+    const item = {
+      id: Date.now(),
+      name: `Model V8`,
+      price: getPrice(),
+      quantity: 1,
+      size: sizeVal,
+      colors: parsedColors,
+      imageUrl: getImageUrl(),
+      primaryText: primary?.split("\n"),
+      secondaryText: secondary || undefined,
+    };
+
+    addItem(item);
+    toggleDrawer(true);
+    toast({
+      title: "Added to cart",
+      description: `${item.name} - ${parsedColors.join(", ")}`,
+    });
   };
 
   return (
@@ -79,6 +119,7 @@ export function AddToCartSummary({ isNext }: AddToCartSummaryProps) {
                   variant="default"
                   className="transition-opacity font-bold text-xl flex items-center gap-3"
                   disabled={!isNext}
+                  onClick={handleAddToCart}
                 >
                   <span className="mb-[3px]">${getPrice().toFixed(2)}</span>
                   <span className="mb-[3px] hidden xs:block">Add to cart</span>

@@ -2,80 +2,11 @@
 
 import QuantityControl from "@/components/cart/QuantityControlComponent";
 import ConfirmDialog from "@/components/ux/ConfirmDialog";
+import { useCartStore } from "@/hooks/useCartStore";
 import { cn } from "@/lib/utils";
 import { CartStep } from "@/types/ui.types";
 import Image from "next/image";
 import { useState } from "react";
-
-type CartItem = {
-  id: number;
-  name: string;
-  imageUrl: string;
-  size: "Small" | "Medium" | "Large";
-  colors: string[];
-  primaryText?: string[];
-  secondaryText?: string;
-  price: number;
-  quantity: number;
-};
-
-const initialCartItems: CartItem[] = [
-  {
-    id: 1,
-    name: "V8 Engine",
-    imageUrl: "/images/products/V8/small/Set 3 second shoot-27.jpg",
-    size: "Small",
-    colors: ["Natural", "Black", "White"],
-    primaryText: ["Merry", "Christmas", "Grandpa"],
-    secondaryText: "From Aaron",
-    price: 19.99,
-    quantity: 1,
-  },
-  {
-    id: 2,
-    name: "V8 Engine",
-    imageUrl: "/images/products/V8/small/Set 3 second shoot-27.jpg",
-    size: "Small",
-    colors: ["Natural", "Black", "White"],
-    primaryText: ["Merry", "Christmas", "Grandpa"],
-    secondaryText: "From Aaron",
-    price: 19.99,
-    quantity: 1,
-  },
-  {
-    id: 3,
-    name: "V8 Engine",
-    imageUrl: "/images/products/V8/small/Set 3 second shoot-27.jpg",
-    size: "Small",
-    colors: ["Natural", "Black", "White"],
-    primaryText: ["Merry", "Christmas", "Grandpa"],
-    secondaryText: "From Aaron",
-    price: 19.99,
-    quantity: 1,
-  },
-  {
-    id: 4,
-    name: "V8 Engine",
-    imageUrl: "/images/products/V8/small/Set 3 second shoot-27.jpg",
-    size: "Small",
-    colors: ["Natural", "Black", "White"],
-    primaryText: ["Merry", "Christmas", "Grandpa"],
-    secondaryText: "From Aaron",
-    price: 19.99,
-    quantity: 1,
-  },
-  {
-    id: 5,
-    name: "V8 Engine",
-    imageUrl: "/images/products/V8/small/Set 3 second shoot-27.jpg",
-    size: "Small",
-    colors: ["Natural", "Black", "White"],
-    primaryText: ["Merry", "Christmas", "Grandpa"],
-    secondaryText: "From Aaron",
-    price: 19.99,
-    quantity: 1,
-  },
-];
 
 const ReviewStep = ({
   activeStep,
@@ -84,19 +15,15 @@ const ReviewStep = ({
   activeStep: CartStep;
   isTransitioning: boolean;
 }) => {
-  const [cartItems, setCartItems] = useState(initialCartItems);
+  const { items, updateQuantity, removeItem } = useCartStore();
   const [itemToDelete, setItemToDelete] = useState<number | null>(null);
 
   const handleQuantityChange = (itemId: number, newQuantity: number) => {
-    setCartItems((items) =>
-      items.map((item) =>
-        item.id === itemId ? { ...item, quantity: newQuantity } : item,
-      ),
-    );
+    updateQuantity(itemId, newQuantity);
   };
 
   const handleDeleteItem = (itemId: number) => {
-    setCartItems((items) => items.filter((item) => item.id !== itemId));
+    removeItem(itemId);
     setItemToDelete(null);
   };
 
@@ -118,7 +45,7 @@ const ReviewStep = ({
           open={true}
         />
       )}
-      {cartItems.map((item) => (
+      {items.map((item) => (
         <div
           key={item.id}
           className="first:border-t flex items-stretch space-x-4 border-b border-gray-200 py-4 text-gray-800"
@@ -126,7 +53,7 @@ const ReviewStep = ({
           <div className="flex flex-col items-center justify-between pb-1.5">
             <div className="w-[100] h-[100] xs:w-[150] xs:h-[150] relative ">
               <Image
-                src={item.imageUrl}
+                src={item.imageUrl || "/api/placeholder/150/150"}
                 alt={item.name}
                 fill
                 className="object-cover rounded-lg"
@@ -150,7 +77,7 @@ const ReviewStep = ({
               </p>
               <p className="whitespace-nowrap">
                 <span className="font-bold">Colors: </span>
-                {item.colors.join(", ")}
+                {item.colors?.join(", ")}
               </p>
               {item.primaryText && (
                 <>
@@ -158,10 +85,13 @@ const ReviewStep = ({
                     <span className="font-bold">Primary text: </span>
                   </p>
                   <div className="flex items-center flex-col py-1">
-                    {item.primaryText.map((text, i) => (
-                      <span className="text-base xs:text-lg italic" key={i}>
+                    {(Array.isArray(item.primaryText)
+                      ? item.primaryText
+                      : [item.primaryText]
+                    ).map((text, i) => (
+                      <p className="text-base xs:text-lg italic" key={i}>
                         {text}
-                      </span>
+                      </p>
                     ))}
                   </div>
                 </>

@@ -1,13 +1,6 @@
 // db.types.ts
 import { Tables } from "@/types/database.types";
 
-export interface CartItem {
-  id: number;
-  name: string;
-  price: number;
-  quantity: number;
-}
-
 export interface HookOptions<T, K = { id: string }> {
   updateData?: Partial<T> & K;
   errorMessage?: string;
