@@ -10,7 +10,8 @@ import {
   SquareMousePointer,
 } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 enum CircleSide {
   Top,
@@ -61,14 +62,27 @@ const Annotation = ({
 );
 
 const Hero = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const shouldDisableAnimation = useRef(!!searchParams.get("disableAnimation"));
   const [circleSideAtTop, setCircleSideAtTop] = useState<CircleSide>(Top);
   const [rotation, setRotation] = useState(0);
   const [isTouched, setIsTouched] = useState(false);
   const [hasCompletedInitialAnimation, setHasCompletedInitialAnimation] =
-    useState(false);
-  const [isInitialDelay, setIsInitialDelay] = useState(true);
+    useState(shouldDisableAnimation.current);
+  const [isInitialDelay, setIsInitialDelay] = useState(
+    !shouldDisableAnimation.current,
+  );
 
-  const rotate = () => {
+  useEffect(() => {
+    if (searchParams.get("disableAnimation")) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete("disableAnimation");
+      router.replace(`?${newParams.toString()}`, { scroll: false });
+    }
+  }, [router, searchParams]);
+
+  const rotate = useCallback(() => {
     setRotation((prev) => {
       const newRotation = prev - 90;
       const isFullRotation = Math.abs(newRotation) >= 360;
@@ -81,7 +95,7 @@ const Hero = () => {
       return newRotation;
     });
     setCircleSideAtTop((prev) => (prev === Left ? Top : prev + 1));
-  };
+  }, [hasCompletedInitialAnimation]);
 
   const handleClick = () => {
     if (!hasCompletedInitialAnimation) return;
@@ -90,6 +104,8 @@ const Hero = () => {
   };
 
   useEffect(() => {
+    if (shouldDisableAnimation.current) return;
+
     const startDelay = setTimeout(() => {
       setIsInitialDelay(false);
     }, 1000);
@@ -102,7 +118,7 @@ const Hero = () => {
 
     const rotationInterval = setInterval(rotate, 1000);
     return () => clearInterval(rotationInterval);
-  }, [isInitialDelay, hasCompletedInitialAnimation]);
+  }, [isInitialDelay, hasCompletedInitialAnimation, rotate]);
 
   const arrowClassName = hasCompletedInitialAnimation
     ? "fill-white"

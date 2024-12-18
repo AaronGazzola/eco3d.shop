@@ -4,6 +4,7 @@ import PaymentStep from "@/components/cart/PaymentStep";
 import ReviewStep from "@/components/cart/ReviewStep";
 import ShippingStep from "@/components/cart/ShippingStep";
 import { Button } from "@/components/ui/button";
+import { useCartStore } from "@/hooks/useCartStore";
 import { useUIStore } from "@/hooks/useUIStore";
 import { cn } from "@/lib/utils";
 import { CartStep as CartStepEnum } from "@/types/ui.types";
@@ -54,6 +55,7 @@ const SectionComponent: React.FC<SectionProps> = ({
   isTransitioning,
   step,
 }) => {
+  const { items } = useCartStore();
   const isActive = section.id === activeSection;
   const activeIndex = sections.findIndex((s) => s.id === activeSection);
   const currentIndex = sections.findIndex((s) => s.id === section.id);
@@ -70,8 +72,9 @@ const SectionComponent: React.FC<SectionProps> = ({
       section.id === CartStepEnum.Payment);
   const showButton = showShippingButton || showPaymentButton;
   const isDisabled =
-    section.id === CartStepEnum.Payment &&
-    activeSection !== CartStepEnum.Shipping;
+    !items.length ||
+    (section.id === CartStepEnum.Payment &&
+      activeSection !== CartStepEnum.Shipping);
 
   const bottomHeight =
     section.id === CartStepEnum.Review

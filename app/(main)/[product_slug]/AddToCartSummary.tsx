@@ -70,7 +70,7 @@ export function AddToCartSummary({ isNext }: AddToCartSummaryProps) {
       secondaryText: secondary || undefined,
     };
 
-    router.push(configuration.paths.appHome);
+    router.push(configuration.paths.appHome + "?disableAnimation=true");
 
     addItem(item);
     toggleDrawer(true);
