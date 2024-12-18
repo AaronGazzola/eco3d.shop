@@ -3,13 +3,12 @@
 import Australia from "@/components/svg/Australia";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useCartStore } from "@/hooks/useCartStore";
 import { cn } from "@/lib/utils";
 import { CartStep } from "@/types/ui.types";
 import { Autocomplete, LoadScript } from "@react-google-maps/api";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
-
-// TODO: Add estimates delivery and tooltip explaining which item will take the longest to print and deliver.
 
 const libraries = ["places"];
 
@@ -33,10 +32,21 @@ const formSchema = z.object({
   city: z.string().min(1, "City is required"),
   state: z.string().min(1, "State is required"),
   postalCode: z.string().min(1, "Postal code is required"),
-  country: z.string().min(1, "Country is required"),
+  country: z
+    .string()
+    .refine(
+      (val) => val === "Australia",
+      "Shipping is only available within Australia",
+    ),
 });
 
+const emailSchema = z.string().email("Please enter a valid email address");
+
 const ShippingStep = ({ activeStep, isTransitioning }: ShippingStepProps) => {
+  const { setShippingEmail, setEmailValid, setAddressValid } = useCartStore();
+  const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailTouched, setEmailTouched] = useState(false);
   const [address, setAddress] = useState<Address>({
     street: "",
     unit: "",
@@ -47,10 +57,50 @@ const ShippingStep = ({ activeStep, isTransitioning }: ShippingStepProps) => {
   });
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
 
+  useEffect(() => {
+    try {
+      formSchema.parse(address);
+      setAddressValid(true);
+    } catch {
+      setAddressValid(false);
+    }
+  }, [address, setAddressValid]);
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newEmail = e.target.value;
+    setEmail(newEmail);
+    try {
+      emailSchema.parse(newEmail);
+      setEmailValid(true);
+      setShippingEmail(newEmail);
+      if (emailTouched) {
+        setEmailError(null);
+      }
+    } catch (error) {
+      setEmailValid(false);
+      if (emailTouched && error instanceof z.ZodError) {
+        setEmailError(error.errors[0].message);
+      }
+    }
+  };
+
+  const handleEmailBlur = () => {
+    setEmailTouched(true);
+    try {
+      emailSchema.parse(email);
+      setEmailError(null);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        setEmailError(error.errors[0].message);
+      }
+    }
+  };
+
   const handlePlaceSelect = () => {
     const place = autocompleteRef.current?.getPlace();
     if (place?.address_components) {
       let newAddress = { ...address };
+      newAddress.country = "Australia";
       let streetNumber = "";
       let route = "";
 
@@ -88,6 +138,7 @@ const ShippingStep = ({ activeStep, isTransitioning }: ShippingStepProps) => {
     e.preventDefault();
     try {
       formSchema.parse(address);
+      emailSchema.parse(email);
     } catch (error) {
       return;
     }
@@ -105,6 +156,22 @@ const ShippingStep = ({ activeStep, isTransitioning }: ShippingStepProps) => {
         )}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={handleEmailChange}
+              onBlur={handleEmailBlur}
+              className={cn(emailError && "border-red-500")}
+              required
+            />
+            {emailTouched && emailError && (
+              <p className="text-sm text-red-500 mt-1">{emailError}</p>
+            )}
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="street">Street Address</Label>
             <Autocomplete

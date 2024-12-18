@@ -55,7 +55,7 @@ const SectionComponent: React.FC<SectionProps> = ({
   isTransitioning,
   step,
 }) => {
-  const { items } = useCartStore();
+  const { items, isEmailValid, isAddressValid } = useCartStore();
   const isActive = section.id === activeSection;
   const activeIndex = sections.findIndex((s) => s.id === activeSection);
   const currentIndex = sections.findIndex((s) => s.id === section.id);
@@ -71,10 +71,13 @@ const SectionComponent: React.FC<SectionProps> = ({
     (activeSection === CartStepEnum.Review &&
       section.id === CartStepEnum.Payment);
   const showButton = showShippingButton || showPaymentButton;
+
   const isDisabled =
     !items.length ||
     (section.id === CartStepEnum.Payment &&
-      activeSection !== CartStepEnum.Shipping);
+      activeSection !== CartStepEnum.Shipping) ||
+    (activeSection === CartStepEnum.Shipping &&
+      (!isEmailValid || !isAddressValid));
 
   const bottomHeight =
     section.id === CartStepEnum.Review
