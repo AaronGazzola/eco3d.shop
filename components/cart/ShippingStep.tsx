@@ -5,21 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCartStore } from "@/hooks/useCartStore";
 import { cn } from "@/lib/utils";
+import { Address } from "@/types/order.types";
 import { CartStep } from "@/types/ui.types";
 import { Autocomplete, LoadScript } from "@react-google-maps/api";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 
 const libraries = ["places"];
-
-interface Address {
-  street: string;
-  unit?: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;
-}
 
 interface ShippingStepProps {
   activeStep: CartStep;
@@ -285,7 +277,7 @@ const ShippingStep = ({ activeStep, isTransitioning }: ShippingStepProps) => {
               />
             </div>
           </div>
-          <ShippingCalculation />
+          <ShippingCalculation address={address} />
         </form>
       </div>
     </LoadScript>

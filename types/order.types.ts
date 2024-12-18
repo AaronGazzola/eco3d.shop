@@ -56,3 +56,12 @@ export const REFUND_STAGES = [
   RefundStatus.Processing,
   RefundStatus.Processed,
 ];
+
+export interface Address {
+  street: string;
+  unit?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+}

@@ -4,10 +4,11 @@ import { MS_PER_DAY, ShippingDays } from "@/constants/order.constants";
 import { useFindVariantsByAttributes } from "@/hooks/productVariantHooks";
 import { useQueueTime } from "@/hooks/qHooks";
 import { useCartStore } from "@/hooks/useCartStore";
+import { Address } from "@/types/order.types";
 import { addMilliseconds, format } from "date-fns";
 import { Clock, Printer, Truck } from "lucide-react";
 
-const ShippingCalculation = () => {
+const ShippingCalculation = ({ address }: { address: Address }) => {
   const { items, shippingState } = useCartStore();
   const { data: variantIds } = useFindVariantsByAttributes(items);
   const { data } = useQueueTime(variantIds || []);
@@ -18,11 +19,8 @@ const ShippingCalculation = () => {
     const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
     return `${days}d ${hours}h ${minutes}m`;
   };
-
   const shippingDays =
-    shippingState?.toUpperCase() === "Victoria"
-      ? ShippingDays.Victoria
-      : ShippingDays.Default;
+    address.state === "VIC" ? ShippingDays.Victoria : ShippingDays.Default;
 
   const totalTime =
     (data?.queueTimeMs || 0) +
