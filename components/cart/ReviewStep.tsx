@@ -1,8 +1,8 @@
 "use client";
-
 import QuantityControl from "@/components/cart/QuantityControlComponent";
 import ConfirmDialog from "@/components/ux/ConfirmDialog";
 import { useCartStore } from "@/hooks/useCartStore";
+import { SHIPPING_COST, calculateTotal } from "@/lib/cart.util";
 import { cn } from "@/lib/utils";
 import { CartStep } from "@/types/ui.types";
 import Image from "next/image";
@@ -27,6 +27,12 @@ const ReviewStep = ({
     setItemToDelete(null);
   };
 
+  const subtotal = items.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0,
+  );
+  const total = calculateTotal(subtotal);
+
   return (
     <div
       className={cn(
@@ -50,79 +56,101 @@ const ReviewStep = ({
           <p className="text-lg text-gray-800">No items in your cart</p>
         </div>
       )}
-      {items.map((item) => (
-        <div
-          key={item.id}
-          className="first:border-t flex items-stretch space-x-4 border-b border-gray-200 py-4 text-gray-800"
-        >
-          <div className="flex flex-col items-center justify-between pb-1.5">
-            <div className="w-[100] h-[100] xs:w-[150] xs:h-[150] relative ">
-              <Image
-                src={item.imageUrl || "/api/placeholder/150/150"}
-                alt={item.name}
-                fill
-                className="object-cover rounded-lg"
-                priority
-              />
-            </div>
-            <QuantityControl
-              quantity={item.quantity}
-              onQuantityChange={(newQuantity: number) =>
-                handleQuantityChange(item.id, newQuantity)
-              }
-              onDelete={() => setItemToDelete(item.id)}
-            />
-          </div>
-          <div className="flex-1">
-            <h3 className="font-bold text-lg xs:text-xl mb-2">{item.name}</h3>
-            <div className="text-sm xs:text-base space-y-1">
-              <p>
-                <span className="font-bold">Size: </span>
-                {item.size}
-              </p>
-              <p className="whitespace-nowrap">
-                <span className="font-bold">Colors: </span>
-                {item.colors?.join(", ")}
-              </p>
-              {item.primaryText && (
-                <>
+      <div className="flex flex-col h-full">
+        <div className="flex-1">
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="first:border-t flex items-stretch space-x-4 border-b border-gray-200 py-4 text-gray-800"
+            >
+              <div className="flex flex-col items-center justify-between pb-1.5">
+                <div className="w-[100] h-[100] xs:w-[150] xs:h-[150] relative ">
+                  <Image
+                    src={item.imageUrl || "/api/placeholder/150/150"}
+                    alt={item.name}
+                    fill
+                    className="object-cover rounded-lg"
+                    priority
+                  />
+                </div>
+                <QuantityControl
+                  quantity={item.quantity}
+                  onQuantityChange={(newQuantity: number) =>
+                    handleQuantityChange(item.id, newQuantity)
+                  }
+                  onDelete={() => setItemToDelete(item.id)}
+                />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-lg xs:text-xl mb-2">
+                  {item.name}
+                </h3>
+                <div className="text-sm xs:text-base space-y-1">
                   <p>
-                    <span className="font-bold">Primary text: </span>
+                    <span className="font-bold">Size: </span>
+                    {item.size}
                   </p>
-                  <div className="flex items-center flex-col py-1">
-                    {(Array.isArray(item.primaryText)
-                      ? item.primaryText
-                      : [item.primaryText]
-                    ).map((text, i) => (
-                      <p className="text-base xs:text-lg italic" key={i}>
-                        {text}
+                  <p className="whitespace-nowrap">
+                    <span className="font-bold">Colors: </span>
+                    {item.colors?.join(", ")}
+                  </p>
+                  {item.primaryText && (
+                    <>
+                      <p>
+                        <span className="font-bold">Primary text: </span>
                       </p>
-                    ))}
-                  </div>
-                </>
-              )}
-              {item.secondaryText && (
-                <>
-                  <p>
-                    <span className="font-bold">Secondary text: </span>
-                  </p>
-                  <div className="flex items-center flex-col py-1">
-                    <span className="text-base xs:text-lg italic">
-                      {item.secondaryText}
-                    </span>
-                  </div>
-                </>
-              )}
+                      <div className="flex items-center flex-col py-1">
+                        {(Array.isArray(item.primaryText)
+                          ? item.primaryText
+                          : [item.primaryText]
+                        ).map((text, i) => (
+                          <p className="text-base xs:text-lg italic" key={i}>
+                            {text}
+                          </p>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  {item.secondaryText && (
+                    <>
+                      <p>
+                        <span className="font-bold">Secondary text: </span>
+                      </p>
+                      <div className="flex items-center flex-col py-1">
+                        <span className="text-base xs:text-lg italic">
+                          {item.secondaryText}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="flex items-center justify-end gap-2 w-full p-2 xs:pt-4 pl-0">
+                  <span className="font-medium text-lg xs:text-xl flex items-center gap-px">
+                    <span className="font-normal text-base xs:text-lg">$</span>
+                    {(item.price * item.quantity).toFixed(2)}
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center justify-end gap-2 w-full p-2 xs:pt-4 pl-0">
-              <span className="font-medium text-lg xs:text-xl flex items-center gap-px">
-                <span className="font-normal text-base xs:text-lg">$</span>
-                {(item.price * item.quantity).toFixed(2)}
-              </span>
+          ))}
+        </div>
+        {items.length > 0 && (
+          <div className="border-t border-gray-200 py-4 space-y-2">
+            <div className="flex justify-between text-base">
+              <span>Subtotal</span>
+              <span>${subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-base">
+              <span>Shipping</span>
+              <span>${SHIPPING_COST.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-lg font-bold pt-2 border-t">
+              <span>Total AUD</span>
+              <span>${total.toFixed(2)}</span>
             </div>
           </div>
-        </div>
-      ))}
+        )}
+      </div>
     </div>
   );
 };

@@ -110,7 +110,7 @@ export function AddToCartSummary({ isNext }: AddToCartSummaryProps) {
         </div>
         <TooltipProvider>
           <Tooltip>
-            <TooltipTrigger>
+            <TooltipTrigger asChild>
               <div className="flex flex-col items-center gap-1">
                 <div className="flex gap-1">
                   <Truck className="w-5 h-5 xs:hidden text-green-900" />

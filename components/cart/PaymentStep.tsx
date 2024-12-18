@@ -2,6 +2,7 @@
 import { createPaymentIntent } from "@/actions/paymentActions";
 import { Button } from "@/components/ui/button";
 import configuration from "@/configuration";
+import { calculateTotal } from "@/lib/cart.util";
 import { cn } from "@/lib/utils";
 import {
   Elements,
@@ -24,6 +25,7 @@ interface StripeComponentProps {
 interface PaymentStepProps {
   amount: number;
   isTransitioning: boolean;
+  isActive: boolean;
 }
 
 const StripeComponent = ({ clientSecret, amount }: StripeComponentProps) => {
@@ -31,6 +33,12 @@ const StripeComponent = ({ clientSecret, amount }: StripeComponentProps) => {
   const elements = useElements();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isFormValid, setIsFormValid] = useState(false);
+  const total = calculateTotal(amount);
+
+  const handleChange = (event: any) => {
+    setIsFormValid(event.complete);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,28 +68,33 @@ const StripeComponent = ({ clientSecret, amount }: StripeComponentProps) => {
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
         <div className="rounded-md border p-4">
-          <PaymentElement />
+          <PaymentElement onChange={handleChange} />
         </div>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Button
         type="submit"
         className="w-full text-base"
-        disabled={!stripe || !elements || loading}
+        disabled={!stripe || !elements || loading || !isFormValid}
       >
-        {loading ? "Processing..." : `Pay $${amount.toFixed(2)}`}
+        {loading ? "Processing..." : `Pay $${total.toFixed(2)} AUD`}
       </Button>
     </form>
   );
 };
 
-const PaymentStep = ({ amount, isTransitioning }: PaymentStepProps) => {
+const PaymentStep = ({
+  amount,
+  isActive,
+  isTransitioning,
+}: PaymentStepProps) => {
   const [clientSecret, setClientSecret] = useState<string>();
 
   useEffect(() => {
     const initializePayment = async () => {
       try {
-        const { clientSecret } = await createPaymentIntent(amount);
+        const total = calculateTotal(amount);
+        const { clientSecret } = await createPaymentIntent(total);
         if (clientSecret) {
           setClientSecret(clientSecret);
         }
@@ -89,8 +102,8 @@ const PaymentStep = ({ amount, isTransitioning }: PaymentStepProps) => {
         console.error("Failed to initialize payment:", error);
       }
     };
-    initializePayment();
-  }, [amount]);
+    if (isActive) initializePayment();
+  }, [amount, isActive]);
 
   if (!clientSecret) return null;
 

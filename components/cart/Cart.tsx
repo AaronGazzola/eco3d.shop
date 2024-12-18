@@ -163,7 +163,11 @@ const SectionComponent: React.FC<SectionProps> = ({
               />
             )}
             {section.id === CartStepEnum.Payment && (
-              <PaymentStep isTransitioning={isTransitioning} amount={100} />
+              <PaymentStep
+                isActive={isActive}
+                isTransitioning={isTransitioning}
+                amount={100}
+              />
             )}
           </div>
         </div>
