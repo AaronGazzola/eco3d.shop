@@ -1,8 +1,6 @@
 "use client";
 import { createPaymentIntent } from "@/actions/paymentActions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import configuration from "@/configuration";
 import { cn } from "@/lib/utils";
 import {
@@ -13,15 +11,10 @@ import {
 } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import { useEffect, useState } from "react";
-import { z } from "zod";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
 );
-
-const formSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-});
 
 interface StripeComponentProps {
   clientSecret: string;
@@ -36,7 +29,6 @@ interface PaymentStepProps {
 const StripeComponent = ({ clientSecret, amount }: StripeComponentProps) => {
   const stripe = useStripe();
   const elements = useElements();
-  const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -46,14 +38,11 @@ const StripeComponent = ({ clientSecret, amount }: StripeComponentProps) => {
 
     try {
       setLoading(true);
-      formSchema.parse({ email });
-
       const result = await stripe.confirmPayment({
         elements,
         confirmParams: {
           return_url:
             configuration.site.siteUrl + configuration.paths.me.success,
-          receipt_email: email,
         },
       });
 
@@ -61,11 +50,7 @@ const StripeComponent = ({ clientSecret, amount }: StripeComponentProps) => {
         setError(result.error.message ?? "Payment failed");
       }
     } catch (err) {
-      if (err instanceof z.ZodError) {
-        setError(err.errors[0].message);
-      } else {
-        setError("An error occurred during payment");
-      }
+      setError("An error occurred during payment");
     } finally {
       setLoading(false);
     }
@@ -74,27 +59,11 @@ const StripeComponent = ({ clientSecret, amount }: StripeComponentProps) => {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => {
-            setEmail(e.target.value);
-            setError(null);
-          }}
-          placeholder="your@email.com"
-          required
-        />
-        {error && <p className="text-sm text-destructive">{error}</p>}
-      </div>
-
-      <div className="space-y-2">
         <div className="rounded-md border p-4">
           <PaymentElement />
         </div>
       </div>
-
+      {error && <p className="text-sm text-destructive">{error}</p>}
       <Button
         type="submit"
         className="w-full text-base"
@@ -120,7 +89,6 @@ const PaymentStep = ({ amount, isTransitioning }: PaymentStepProps) => {
         console.error("Failed to initialize payment:", error);
       }
     };
-
     initializePayment();
   }, [amount]);
 

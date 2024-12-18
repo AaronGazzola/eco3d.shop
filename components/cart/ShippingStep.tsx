@@ -57,6 +57,7 @@ const ShippingStep = ({ activeStep, isTransitioning }: ShippingStepProps) => {
     country: "",
   });
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+
   useEffect(() => {
     try {
       emailSchema.parse(shippingEmail);
@@ -65,6 +66,15 @@ const ShippingStep = ({ activeStep, isTransitioning }: ShippingStepProps) => {
       setEmailValid(false);
     }
   }, [shippingEmail, setEmailValid]);
+
+  useEffect(() => {
+    try {
+      formSchema.parse(address);
+      setAddressValid(true);
+    } catch {
+      setAddressValid(false);
+    }
+  }, [address, setAddressValid]);
 
   useEffect(() => {
     setEmail(shippingEmail);
