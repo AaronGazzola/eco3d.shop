@@ -41,6 +41,7 @@ export interface Order {
   currency: string;
   items: OrderItem[];
   createdAt: Date;
+  shippingCost: number;
 }
 
 export const ORDER_STAGES = [

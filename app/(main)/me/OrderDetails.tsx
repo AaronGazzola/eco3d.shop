@@ -1,13 +1,19 @@
-// OrderDetails.tsx
 "use client";
 import { OrderItem } from "@/types/order.types";
 import Image from "next/image";
 
 interface OrderDetailsProps {
   items: OrderItem[];
+  shippingCost: number;
 }
 
-const OrderDetails = ({ items }: OrderDetailsProps) => {
+const OrderDetails = ({ items, shippingCost }: OrderDetailsProps) => {
+  const subtotal = items.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0,
+  );
+  const total = subtotal + shippingCost;
+
   return (
     <div className="py-4 space-y-4">
       {items.map((item) => (
@@ -83,14 +89,21 @@ const OrderDetails = ({ items }: OrderDetailsProps) => {
         </div>
       ))}
       <div className="flex justify-end pt-4 border-t">
-        <div className="text-right">
-          <p className="text-sm text-muted-foreground">Total</p>
-          <span className="font-bold text-xl">
-            $
-            {items
-              .reduce((sum, item) => sum + item.price * item.quantity, 0)
-              .toFixed(2)}
-          </span>
+        <div className="text-right space-y-2">
+          <div>
+            <p className="text-sm text-muted-foreground">Subtotal</p>
+            <span className="font-medium text-lg">${subtotal.toFixed(2)}</span>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Shipping</p>
+            <span className="font-medium text-lg">
+              ${shippingCost.toFixed(2)}
+            </span>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Total</p>
+            <span className="font-bold text-xl">${total.toFixed(2)}</span>
+          </div>
         </div>
       </div>
     </div>

@@ -83,7 +83,7 @@ const OrderCard = ({
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <OrderDetails items={order.items} />
+          <OrderDetails shippingCost={order.shippingCost} items={order.items} />
         </CollapsibleContent>
       </Collapsible>
 
