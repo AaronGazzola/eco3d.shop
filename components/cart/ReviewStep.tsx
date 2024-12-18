@@ -70,7 +70,7 @@ const ReviewStep = ({
               className="first:border-t flex items-stretch space-x-4 border-b border-gray-200 py-4 text-gray-800"
             >
               <div className="flex flex-col items-center justify-between pb-1.5">
-                <div className="w-[100] h-[100] xs:w-[150] xs:h-[150] relative ">
+                <div className="w-[100] h-[100] xs:w-[150] xs:h-[150] relative mb-4">
                   <Image
                     src={item.imageUrl || "/api/placeholder/150/150"}
                     alt={item.name}
@@ -87,7 +87,7 @@ const ReviewStep = ({
                   onDelete={() => setItemToDelete(item.id)}
                 />
               </div>
-              <div className="flex-1">
+              <div className="flex-1 flex flex-col">
                 <h3 className="font-bold text-lg xs:text-xl mb-2">
                   {item.name}
                 </h3>
@@ -130,7 +130,7 @@ const ReviewStep = ({
                     </>
                   )}
                 </div>
-                <div className="flex items-center justify-end gap-2 w-full p-2 xs:pt-4 pl-0">
+                <div className="flex items-end justify-end gap-2 w-full p-2 xs:pt-4 pl-0 flex-grow">
                   <span className="font-medium text-lg xs:text-xl flex items-center gap-px">
                     <span className="font-normal text-base xs:text-lg">$</span>
                     {formatPrice(item.price * item.quantity)}

@@ -3,11 +3,13 @@ import {
   addProductVariantAttributeAction,
   deleteManyProductVariantsAction,
   deleteProductVariantAction,
+  findProductVariantsByAttributesAction,
   getProductVariantsAction,
   updateManyProductVariantsAction,
   updateProductVariantAction,
 } from "@/actions/productVariantActions";
 import { useToastQueue } from "@/hooks/useToastQueue";
+import { CartItem } from "@/types/cart.types";
 import {
   HookOptions,
   ProductVariant,
@@ -94,12 +96,12 @@ export const useUpdateProductVariant = ({
       if (error) throw new Error(error);
       return data;
     },
-    onError: error => {
+    onError: (error) => {
       toast({
         title: error.message || errorMessage || DefaultMessages.ErrorMessage,
       });
     },
-    onSuccess: data => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({
         queryKey: ["product_variants", data?.product_id],
       });
@@ -108,7 +110,7 @@ export const useUpdateProductVariant = ({
         title: successMessage || DefaultMessages.SuccessMessage,
       });
     },
-    retryDelay: attempt => Math.min(attempt * 1000, 3000),
+    retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
   });
 };
 
@@ -134,12 +136,12 @@ export const useUpdateManyProductVariants = ({
       if (error) throw new Error(error);
       return response;
     },
-    onError: error => {
+    onError: (error) => {
       toast({
         title: error.message || errorMessage || DefaultMessages.ErrorMessage,
       });
     },
-    onSuccess: data => {
+    onSuccess: (data) => {
       if (data?.[0]?.product_id) {
         queryClient.invalidateQueries({
           queryKey: ["product_variants", data[0].product_id],
@@ -150,7 +152,7 @@ export const useUpdateManyProductVariants = ({
         title: successMessage || "Variants updated successfully",
       });
     },
-    retryDelay: attempt => Math.min(attempt * 1000, 3000),
+    retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
   });
 };
 
@@ -168,13 +170,13 @@ export const useDeleteManyProductVariants = ({
       if (error) throw new Error(error);
       return data;
     },
-    onError: error => {
+    onError: (error) => {
       toast({
         title: error.message || errorMessage || DefaultMessages.ErrorMessage,
         open: true,
       });
     },
-    onSuccess: data => {
+    onSuccess: (data) => {
       if (data?.[0]?.product_id) {
         queryClient.invalidateQueries({
           queryKey: ["product_variants", data[0].product_id],
@@ -185,7 +187,7 @@ export const useDeleteManyProductVariants = ({
         title: successMessage || "Variants deleted successfully",
       });
     },
-    retryDelay: attempt => Math.min(attempt * 1000, 3000),
+    retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
   });
 };
 
@@ -203,13 +205,13 @@ export const useDeleteProductVariant = ({
       if (error) throw new Error(error);
       return data;
     },
-    onError: error => {
+    onError: (error) => {
       toast({
         title: error.message || errorMessage || DefaultMessages.ErrorMessage,
         open: true,
       });
     },
-    onSuccess: data => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({
         queryKey: ["product_variants", data?.product_id],
       });
@@ -218,6 +220,19 @@ export const useDeleteProductVariant = ({
         title: successMessage || DefaultMessages.SuccessMessage,
       });
     },
-    retryDelay: attempt => Math.min(attempt * 1000, 3000),
+    retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
+  });
+};
+
+export const useFindVariantsByAttributes = (items: CartItem[]) => {
+  return useQuery({
+    queryKey: ["variant_ids_by_attributes", items],
+    queryFn: async () => {
+      const { data, error } =
+        await findProductVariantsByAttributesAction(items);
+      if (error) throw new Error(error);
+      return data;
+    },
+    enabled: items.length > 0,
   });
 };

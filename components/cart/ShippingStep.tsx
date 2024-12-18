@@ -1,12 +1,12 @@
 "use client";
 
+import ShippingCalculation from "@/components/cart/ShippingCalculation";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCartStore } from "@/hooks/useCartStore";
 import { cn } from "@/lib/utils";
 import { CartStep } from "@/types/ui.types";
 import { Autocomplete, LoadScript } from "@react-google-maps/api";
-import { Clock, Printer, Truck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 
@@ -43,8 +43,14 @@ const formSchema = z.object({
 const emailSchema = z.string().email("Please enter a valid email address");
 
 const ShippingStep = ({ activeStep, isTransitioning }: ShippingStepProps) => {
-  const { setShippingEmail, setEmailValid, setAddressValid, shippingEmail } =
-    useCartStore();
+  const {
+    setShippingEmail,
+    setEmailValid,
+    setAddressValid,
+    shippingEmail,
+    shippingState,
+    setShippingState,
+  } = useCartStore();
   const [email, setEmail] = useState(shippingEmail);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [emailTouched, setEmailTouched] = useState(false);
@@ -97,6 +103,12 @@ const ShippingStep = ({ activeStep, isTransitioning }: ShippingStepProps) => {
         setEmailError(error.errors[0].message);
       }
     }
+  };
+
+  const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setAddress((prev) => ({ ...prev, state: value }));
+    setShippingState(value);
   };
 
   const handleEmailBlur = () => {
@@ -236,9 +248,10 @@ const ShippingStep = ({ activeStep, isTransitioning }: ShippingStepProps) => {
               <Input
                 id="state"
                 value={address.state}
-                onChange={(e) =>
-                  setAddress((prev) => ({ ...prev, state: e.target.value }))
-                }
+                onChange={(e) => {
+                  setAddress((prev) => ({ ...prev, state: e.target.value }));
+                  handleAddressChange(e);
+                }}
                 required
               />
             </div>
@@ -272,39 +285,7 @@ const ShippingStep = ({ activeStep, isTransitioning }: ShippingStepProps) => {
               />
             </div>
           </div>
-          <div className="flex flex-col items-center justify-center gap-8 pt-4">
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-muted-foreground font-medium">
-                Queue time:
-              </span>
-              <span className="bg-gray-100 rounded-full flex items-center gap-1.5 justify-center text-gray-900 px-3 py-2">
-                <Clock className="w-5 h-5" />
-                36d 37h 12m
-              </span>
-            </div>
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-muted-foreground font-medium">
-                Print time:
-              </span>
-              <span className="bg-gray-100 rounded-full flex items-center gap-1.5 justify-center text-gray-900 px-3 py-2">
-                <Printer className="w-5 h-5" />
-                36d 37h 12m
-              </span>
-            </div>
-
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-muted-foreground font-medium">
-                Delivery time:
-              </span>
-              <span className="bg-gray-100 rounded-full flex items-center gap-1.5 justify-center text-gray-900 px-3 py-2">
-                <Truck className="w-5 h-5" />
-                36d
-              </span>
-            </div>
-          </div>
-          <div className="space-y-2 text-center pt-4">
-            <p className="text-lg font-medium">Est. Delivery: 25 Nov 2024</p>
-          </div>
+          <ShippingCalculation />
         </form>
       </div>
     </LoadScript>

@@ -7,6 +7,7 @@ import { persist } from "zustand/middleware";
 interface CartStore {
   items: CartItem[];
   shippingEmail: string;
+  shippingState: string;
   isEmailValid: boolean;
   isAddressValid: boolean;
   currentProductPrice: number;
@@ -15,6 +16,7 @@ interface CartStore {
   updateQuantity: (id: number, quantity: number) => void;
   clearCart: () => void;
   setShippingEmail: (email: string) => void;
+  setShippingState: (state: string) => void;
   setEmailValid: (valid: boolean) => void;
   setAddressValid: (valid: boolean) => void;
   setCurrentProductPrice: (price: number) => void;
@@ -25,6 +27,7 @@ export const useCartStore = create<CartStore>()(
     (set) => ({
       items: [],
       shippingEmail: "",
+      shippingState: "",
       isEmailValid: false,
       isAddressValid: false,
       currentProductPrice: 0,
@@ -52,6 +55,7 @@ export const useCartStore = create<CartStore>()(
         })),
       clearCart: () => set({ items: [], currentProductPrice: 0 }),
       setShippingEmail: (email) => set({ shippingEmail: email }),
+      setShippingState: (state) => set({ shippingState: state }),
       setEmailValid: (valid) => set({ isEmailValid: valid }),
       setAddressValid: (valid) => set({ isAddressValid: valid }),
       setCurrentProductPrice: (price) => set({ currentProductPrice: price }),

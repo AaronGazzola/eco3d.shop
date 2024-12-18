@@ -3,6 +3,7 @@ import getActionResponse from "@/actions/getActionResponse";
 import { getUserIsAdminAction } from "@/actions/userActions";
 import getSupabaseServerActionClient from "@/clients/action-client";
 import { ActionResponse } from "@/types/action.types";
+import { CartItem } from "@/types/cart.types";
 import { Json } from "@/types/database.types";
 import { ProductVariant, ProductVariantWithImages } from "@/types/db.types";
 
@@ -34,7 +35,7 @@ export const addProductVariantAttributeAction = async (
       { values: Set<string>; isMulti: boolean }
     > = {};
 
-    existingVariants.forEach(variant => {
+    existingVariants.forEach((variant) => {
       if (
         variant.custom_attributes &&
         typeof variant.custom_attributes === "object"
@@ -49,7 +50,7 @@ export const addProductVariantAttributeAction = async (
             };
           }
           if (Array.isArray(value)) {
-            value.forEach(v => allAttributes[key].values.add(v.toString()));
+            value.forEach((v) => allAttributes[key].values.add(v.toString()));
           } else if (value) {
             allAttributes[key].values.add(value.toString());
           }
@@ -69,12 +70,12 @@ export const addProductVariantAttributeAction = async (
         (acc, [key, { values, isMulti }]) => {
           const valueArray = Array.from(values);
           if (acc.length === 0) {
-            return valueArray.map(value => ({
+            return valueArray.map((value) => ({
               [key]: isMulti ? [value] : value,
             }));
           }
-          return acc.flatMap(combo =>
-            valueArray.map(value => ({
+          return acc.flatMap((combo) =>
+            valueArray.map((value) => ({
               ...combo,
               [key]: isMulti ? [value] : value,
             })),
@@ -93,7 +94,7 @@ export const addProductVariantAttributeAction = async (
     const { error: insertError } = await supabase
       .from("product_variants")
       .insert(
-        variantCombinations.map(combo => ({
+        variantCombinations.map((combo) => ({
           product_id: productId,
           variant_name: Object.entries(combo)
             .map(([k, v]) => `${k}:${Array.isArray(v) ? v.join(",") : v}`)
@@ -273,6 +274,31 @@ export const deleteProductVariantAction = async (id: string) => {
     if (deleteError) throw new Error(deleteError.message);
 
     return getActionResponse({ data: deletedVariant });
+  } catch (error) {
+    return getActionResponse({ error });
+  }
+};
+
+export const findProductVariantsByAttributesAction = async (
+  items: CartItem[],
+) => {
+  try {
+    const supabase = await getSupabaseServerActionClient();
+
+    const variantPromises = items.map(async (item) => {
+      const { data, error } = await supabase
+        .from("product_variants")
+        .select("id")
+        .eq("custom_attributes->size", item.size)
+        .contains("custom_attributes->colors", item.colors ?? "")
+        .single();
+
+      if (error) throw error;
+      return data?.id;
+    });
+
+    const variantIds = await Promise.all(variantPromises);
+    return getActionResponse({ data: variantIds.filter(Boolean) });
   } catch (error) {
     return getActionResponse({ error });
   }

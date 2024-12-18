@@ -1,5 +1,6 @@
 "use client";
 import { createPaymentIntent } from "@/actions/paymentActions";
+import StripeLogo from "@/assets/svg/logos/stripe_logo.svg";
 import { Button } from "@/components/ui/button";
 import configuration from "@/configuration";
 import { useCartStore } from "@/hooks/useCartStore";
@@ -65,8 +66,9 @@ const StripeComponent = () => {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
-        <div className="rounded-md border p-4">
+        <div className="rounded-md border p-4 py-6 flex flex-col relative">
           <PaymentElement onChange={handleChange} />
+          <StripeLogo className="absolute opacity-70 top-[8px] right-[19px] w-10" />
         </div>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
