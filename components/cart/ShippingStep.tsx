@@ -1,12 +1,12 @@
 "use client";
 
-import Australia from "@/components/svg/Australia";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCartStore } from "@/hooks/useCartStore";
 import { cn } from "@/lib/utils";
 import { CartStep } from "@/types/ui.types";
 import { Autocomplete, LoadScript } from "@react-google-maps/api";
+import { Clock, Printer, Truck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 
@@ -43,8 +43,9 @@ const formSchema = z.object({
 const emailSchema = z.string().email("Please enter a valid email address");
 
 const ShippingStep = ({ activeStep, isTransitioning }: ShippingStepProps) => {
-  const { setShippingEmail, setEmailValid, setAddressValid } = useCartStore();
-  const [email, setEmail] = useState("");
+  const { setShippingEmail, setEmailValid, setAddressValid, shippingEmail } =
+    useCartStore();
+  const [email, setEmail] = useState(shippingEmail);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [emailTouched, setEmailTouched] = useState(false);
   const [address, setAddress] = useState<Address>({
@@ -56,23 +57,27 @@ const ShippingStep = ({ activeStep, isTransitioning }: ShippingStepProps) => {
     country: "",
   });
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
-
   useEffect(() => {
     try {
-      formSchema.parse(address);
-      setAddressValid(true);
+      emailSchema.parse(shippingEmail);
+      setEmailValid(true);
     } catch {
-      setAddressValid(false);
+      setEmailValid(false);
     }
-  }, [address, setAddressValid]);
+  }, [shippingEmail, setEmailValid]);
+
+  useEffect(() => {
+    setEmail(shippingEmail);
+  }, [shippingEmail]);
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newEmail = e.target.value;
     setEmail(newEmail);
+    setShippingEmail(newEmail);
+
     try {
       emailSchema.parse(newEmail);
       setEmailValid(true);
-      setShippingEmail(newEmail);
       if (emailTouched) {
         setEmailError(null);
       }
@@ -151,7 +156,7 @@ const ShippingStep = ({ activeStep, isTransitioning }: ShippingStepProps) => {
     >
       <div
         className={cn(
-          "space-y-4 py-2 pb-8 px-4 overflow-y-auto absolute inset-0",
+          "space-y-4 py-2 pb-8 px-6 overflow-y-auto absolute inset-0",
           isTransitioning && "overflow-y-hidden",
         )}
       >
@@ -257,13 +262,38 @@ const ShippingStep = ({ activeStep, isTransitioning }: ShippingStepProps) => {
               />
             </div>
           </div>
+          <div className="flex flex-col items-center justify-center gap-8 pt-4">
+            <div className="flex flex-col items-center gap-2">
+              <span className="text-muted-foreground font-medium">
+                Queue time:
+              </span>
+              <span className="bg-gray-100 rounded-full flex items-center gap-1.5 justify-center text-gray-900 px-3 py-2">
+                <Clock className="w-5 h-5" />
+                36d 37h 12m
+              </span>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <span className="text-muted-foreground font-medium">
+                Print time:
+              </span>
+              <span className="bg-gray-100 rounded-full flex items-center gap-1.5 justify-center text-gray-900 px-3 py-2">
+                <Printer className="w-5 h-5" />
+                36d 37h 12m
+              </span>
+            </div>
 
+            <div className="flex flex-col items-center gap-2">
+              <span className="text-muted-foreground font-medium">
+                Delivery time:
+              </span>
+              <span className="bg-gray-100 rounded-full flex items-center gap-1.5 justify-center text-gray-900 px-3 py-2">
+                <Truck className="w-5 h-5" />
+                36d
+              </span>
+            </div>
+          </div>
           <div className="space-y-2 text-center pt-4">
             <p className="text-lg font-medium">Est. Delivery: 25 Nov 2024</p>
-            <div className="flex items-center justify-center gap-2">
-              <span>Delivery within Australia only</span>
-              <Australia className="h-6 w-6" />
-            </div>
           </div>
         </form>
       </div>

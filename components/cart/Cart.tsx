@@ -71,13 +71,13 @@ const SectionComponent: React.FC<SectionProps> = ({
     (activeSection === CartStepEnum.Review &&
       section.id === CartStepEnum.Payment);
   const showButton = showShippingButton || showPaymentButton;
-
   const isDisabled =
-    !items.length ||
-    (section.id === CartStepEnum.Payment &&
-      activeSection !== CartStepEnum.Shipping) ||
+    (activeSection === CartStepEnum.Review && !items.length) ||
     (activeSection === CartStepEnum.Shipping &&
-      (!isEmailValid || !isAddressValid));
+      section.id === CartStepEnum.Payment &&
+      (!isEmailValid || !isAddressValid)) ||
+    (activeSection === CartStepEnum.Review &&
+      section.id === CartStepEnum.Payment);
 
   const bottomHeight =
     section.id === CartStepEnum.Review
@@ -125,18 +125,21 @@ const SectionComponent: React.FC<SectionProps> = ({
               <div className={cn("font-bold")}>{section.label}</div>
             </div>
 
-            <Button
-              size="sm"
-              variant="default"
-              disabled={isDisabled}
-              className={cn(
-                "font-bold text-xl flex items-center gap-1 xs:gap-4 relative justify-around",
-                !showButton && "opacity-0 pointer-events-none",
-              )}
-            >
-              <span className="mb-[3px]">Next</span>
-              <ChevronDown className="w-5 h-5 stroke-[3px]" />
-            </Button>
+            <div className="relative">
+              <div className="absolute inset-0"></div>
+              <Button
+                size="sm"
+                variant="default"
+                disabled={isDisabled}
+                className={cn(
+                  "font-bold text-xl flex items-center gap-1 xs:gap-4 relative justify-around",
+                  !showButton && "opacity-0 pointer-events-none",
+                )}
+              >
+                <span className="mb-[3px]">Next</span>
+                <ChevronDown className="w-5 h-5 stroke-[3px]" />
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -175,6 +178,7 @@ export default function Cart(): JSX.Element {
   );
   const [isTransitioning, setIsTransitioning] = useState(false);
   const { isDrawerOpen } = useUIStore();
+  const { items } = useCartStore();
 
   const handleSectionChange = (sectionId: CartStepEnum) => {
     setActiveSection((prev) => {
@@ -185,8 +189,8 @@ export default function Cart(): JSX.Element {
   };
 
   useEffect(() => {
-    if (!isDrawerOpen) setActiveSection(CartStepEnum.Review);
-  }, [isDrawerOpen]);
+    if (!isDrawerOpen || !items.length) setActiveSection(CartStepEnum.Review);
+  }, [isDrawerOpen, items]);
 
   return (
     <div className="relative w-full h-screen">
