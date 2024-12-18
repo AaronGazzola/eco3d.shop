@@ -9,66 +9,10 @@ import {
   RefundStatus,
 } from "@/types/order.types";
 import { useState } from "react";
+import { mockOrders } from "./mockOrderData";
 
 const OrdersList = () => {
-  const [orders, setOrders] = useState<Order[]>([
-    {
-      id: "1",
-      status: OrderStatus.Waiting,
-      isRefund: false,
-      startTime: new Date(),
-      recipientName: "John Doe",
-      addressLine1: "123 Main St",
-      city: "Springfield",
-      state: "IL",
-      postalCode: "62701",
-      country: "USA",
-      totalPrice: 99.99,
-      currency: "USD",
-      createdAt: new Date(),
-      items: [
-        {
-          id: 1,
-          name: "V8 Engine",
-          imageUrl: "/images/products/V8/small/Set 3 second shoot-27.jpg",
-          size: "Small",
-          colors: ["Natural", "Black", "White"],
-          primaryText: ["Merry", "Christmas", "Grandpa"],
-          secondaryText: "From Aaron",
-          price: 19.99,
-          quantity: 1,
-        },
-      ],
-    },
-    {
-      id: "2",
-      status: OrderStatus.Shipped,
-      isRefund: false,
-      startTime: new Date(),
-      recipientName: "John Doe",
-      addressLine1: "123 Main St",
-      city: "Springfield",
-      state: "IL",
-      postalCode: "62701",
-      country: "USA",
-      totalPrice: 99.99,
-      currency: "USD",
-      createdAt: new Date(),
-      items: [
-        {
-          id: 1,
-          name: "V8 Engine",
-          imageUrl: "/images/products/V8/small/Set 3 second shoot-27.jpg",
-          size: "Small",
-          colors: ["Natural", "Black", "White"],
-          primaryText: ["Merry", "Christmas", "Grandpa"],
-          secondaryText: "From Aaron",
-          price: 19.99,
-          quantity: 1,
-        },
-      ],
-    },
-  ]);
+  const [orders, setOrders] = useState<Order[]>(mockOrders);
 
   const handleUpdateStatus = (orderId: string) => {
     setOrders((prevOrders) =>

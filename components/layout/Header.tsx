@@ -46,10 +46,7 @@ const Header = () => {
         ) : user ? (
           <div className="items-center flex pt-1">
             <Button variant="ghost" className="text-secondary">
-              <Link
-                className="flex gap-2"
-                href={configuration.paths.admin.products}
-              >
+              <Link className="flex gap-2" href={configuration.paths.me.path}>
                 <PackageOpen className="w-5 h-5" />
                 <span className="hidden sm:block mt-px">My Orders</span>
               </Link>
