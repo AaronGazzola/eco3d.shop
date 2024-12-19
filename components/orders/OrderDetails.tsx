@@ -7,6 +7,19 @@ interface OrderDetailsProps {
   shippingCost: number;
 }
 
+const getImageBySize = (size: "Small" | "Medium" | "Large") => {
+  switch (size) {
+    case "Small":
+      return "/images/products/V8/small/Set 3 second shoot-28.jpg";
+    case "Medium":
+      return "/images/products/V8/medium/Set 3 second shoot-22.jpg";
+    case "Large":
+      return "/images/products/V8/Large/Set 3 second shoot-4.jpg";
+    default:
+      return "/images/products/V8/small/Set 3 second shoot-28.jpg";
+  }
+};
+
 const OrderDetails = ({ items, shippingCost }: OrderDetailsProps) => {
   const subtotal = items.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -24,7 +37,7 @@ const OrderDetails = ({ items, shippingCost }: OrderDetailsProps) => {
           <div className="flex-shrink-0 pb-4 sm:pb-0">
             <div className="w-[100px] h-[100px] relative">
               <Image
-                src={item.imageUrl}
+                src={getImageBySize(item.size)}
                 alt={item.name}
                 fill
                 className="object-cover rounded-lg"
