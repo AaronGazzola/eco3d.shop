@@ -1,9 +1,11 @@
 "use client";
 
+import Australia from "@/components/svg/Australia";
 import { MS_PER_DAY, ShippingDays } from "@/constants/order.constants";
 import { useCartQTime } from "@/hooks/productVariantHooks";
 
 import { useCartStore } from "@/hooks/useCartStore";
+import { cn } from "@/lib/utils";
 import { Address } from "@/types/order.types";
 import { addMilliseconds, format } from "date-fns";
 import { Calendar, Clock, LoaderCircle, Printer, Truck } from "lucide-react";
@@ -71,17 +73,29 @@ const ShippingCalculation = ({
         </div>
       </div>
       <div className="space-y-2 text-center pt-4 pb-1">
-        <div className="font-semibold text-muted-foreground">
-          <span>Est. Delivery:</span>
+        <div className="font-semibold text-gray-700">
+          <span>Estimated Delivery Date:</span>
         </div>
         <p className="text-xl font-medium flex items-center justify-center w-full gap-3">
-          <Calendar className="w-5 h-5 mb-0.5" />
+          <Calendar
+            className={cn(
+              "w-5 h-5 mb-0.5",
+              !isPending && data && "text-primary",
+            )}
+          />
           {isPending ? (
             <LoaderCircle className="animate-spin w-5 h-5" />
           ) : (
             format(estimatedDelivery, "d MMM yyyy")
           )}
         </p>
+        <div className="text-xs font-semibold text-gray-800">
+          <span>May be subject to change</span>
+        </div>
+        <div className="text-xs font-semibold flex gap-1 items-center text-gray-800 justify-center">
+          <span>Delivery to Australia only</span>
+          <Australia className="w-4 h-4" />
+        </div>
       </div>
     </>
   );

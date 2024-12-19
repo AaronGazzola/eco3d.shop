@@ -5,6 +5,7 @@ import LogoBackground from "@/components/svg/LogoBackground";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import configuration from "@/configuration";
+import { useCartStore } from "@/hooks/useCartStore";
 import { useUIStore } from "@/hooks/useUIStore";
 import { cn } from "@/lib/utils";
 import { comfortaa } from "@/styles/fonts";
@@ -22,6 +23,7 @@ export function Drawer({
   side?: Direction.Left | Direction.Right;
 }) {
   const { isDrawerOpen, toggleDrawer } = useUIStore();
+  const { items } = useCartStore();
   const { setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -60,7 +62,7 @@ export function Drawer({
       >
         <ShoppingBasket className="w-8 h-8 mb-0.5" />
         <Badge className="absolute right-1 bottom-0 px-1.5 py-px bg-green-700 hover:bg-green-700 text-white">
-          <span className="font-bold text-sm">0</span>
+          <span className="font-bold text-sm">{items?.length || 0}</span>
         </Badge>
       </Button>
 
