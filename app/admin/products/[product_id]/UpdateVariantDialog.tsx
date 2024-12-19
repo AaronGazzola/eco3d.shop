@@ -56,9 +56,9 @@ export function UpdateVariantDialog({ productVariant, selectedIds }: Props) {
     product_id: productVariant.product_id!,
     stock_quantity: productVariant.stock_quantity || 0,
     estimated_print_seconds: productVariant.estimated_print_seconds || 0,
-    custom_attributes:
-      typeof productVariant.custom_attributes === "object"
-        ? (productVariant.custom_attributes as Record<string, any>)
+    attributes:
+      typeof productVariant.attributes === "object"
+        ? (productVariant.attributes as Record<string, any>)
         : {},
   });
 
@@ -109,8 +109,8 @@ export function UpdateVariantDialog({ productVariant, selectedIds }: Props) {
           <Input
             id="name"
             value={formData.variant_name}
-            onChange={e =>
-              setFormData(prev => ({
+            onChange={(e) =>
+              setFormData((prev) => ({
                 ...prev,
                 variant_name: e.target.value,
               }))
@@ -124,8 +124,8 @@ export function UpdateVariantDialog({ productVariant, selectedIds }: Props) {
             id="stock"
             type="number"
             value={formData.stock_quantity}
-            onChange={e =>
-              setFormData(prev => ({
+            onChange={(e) =>
+              setFormData((prev) => ({
                 ...prev,
                 stock_quantity: parseInt(e.target.value),
               }))
@@ -139,8 +139,8 @@ export function UpdateVariantDialog({ productVariant, selectedIds }: Props) {
             <div className="flex-1">
               <Select
                 value={printTime.days.toString()}
-                onValueChange={value =>
-                  setPrintTime(prev => ({ ...prev, days: parseInt(value) }))
+                onValueChange={(value) =>
+                  setPrintTime((prev) => ({ ...prev, days: parseInt(value) }))
                 }
               >
                 <SelectTrigger>
@@ -158,8 +158,8 @@ export function UpdateVariantDialog({ productVariant, selectedIds }: Props) {
             <div className="flex-1">
               <Select
                 value={printTime.hours.toString()}
-                onValueChange={value =>
-                  setPrintTime(prev => ({ ...prev, hours: parseInt(value) }))
+                onValueChange={(value) =>
+                  setPrintTime((prev) => ({ ...prev, hours: parseInt(value) }))
                 }
               >
                 <SelectTrigger>
@@ -177,8 +177,11 @@ export function UpdateVariantDialog({ productVariant, selectedIds }: Props) {
             <div className="flex-1">
               <Select
                 value={printTime.minutes.toString()}
-                onValueChange={value =>
-                  setPrintTime(prev => ({ ...prev, minutes: parseInt(value) }))
+                onValueChange={(value) =>
+                  setPrintTime((prev) => ({
+                    ...prev,
+                    minutes: parseInt(value),
+                  }))
                 }
               >
                 <SelectTrigger>

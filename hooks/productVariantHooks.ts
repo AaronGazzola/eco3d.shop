@@ -3,7 +3,7 @@ import {
   addProductVariantAttributeAction,
   deleteManyProductVariantsAction,
   deleteProductVariantAction,
-  getCartQTimeAction,
+  getCartTimeAction,
   getProductVariantsAction,
   updateManyProductVariantsAction,
   updateProductVariantAction,
@@ -228,7 +228,7 @@ export const useCartQTime = (items: CartItem[], isEnabled = false) => {
   return useQuery({
     queryKey: ["variant_ids_by_attributes", items],
     queryFn: async () => {
-      const { data, error } = await getCartQTimeAction(items);
+      const { data, error } = await getCartTimeAction(items);
       if (error) throw new Error(error);
       return data;
     },

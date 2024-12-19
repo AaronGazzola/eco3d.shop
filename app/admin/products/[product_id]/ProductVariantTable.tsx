@@ -31,7 +31,7 @@ const EditCell = ({ row }: { row: Row<ProductVariantWithImages> }) => {
       <Button
         variant="ghost"
         size="sm"
-        onClick={e => {
+        onClick={(e) => {
           e.stopPropagation();
           dialog(<UpdateVariantDialog productVariant={row.original} />);
         }}
@@ -41,7 +41,7 @@ const EditCell = ({ row }: { row: Row<ProductVariantWithImages> }) => {
       <Button
         variant="ghost"
         size="sm"
-        onClick={e => {
+        onClick={(e) => {
           e.stopPropagation();
           dialog(
             <ConfirmDeleteDialog
@@ -59,7 +59,7 @@ const EditCell = ({ row }: { row: Row<ProductVariantWithImages> }) => {
 };
 
 const AttributesCell = ({ row }: { row: Row<ProductVariantWithImages> }) => {
-  const attributes = row.original.custom_attributes;
+  const attributes = row.original.attributes;
   if (!attributes) return null;
   return (
     <pre className="text-xs">
@@ -76,15 +76,15 @@ export const variantColumns: ColumnDef<ProductVariantWithImages>[] = [
     header: ({ table }) => (
       <Checkbox
         checked={table.getIsAllPageRowsSelected()}
-        onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)}
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         aria-label="Select all"
       />
     ),
     cell: ({ row }) => (
       <Checkbox
         checked={row.getIsSelected()}
-        onCheckedChange={value => row.toggleSelected(!!value)}
-        onClick={e => e.stopPropagation()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        onClick={(e) => e.stopPropagation()}
         aria-label="Select row"
       />
     ),
@@ -139,13 +139,13 @@ export function ProductVariantTable({
     data: variants || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getRowId: row => row.id,
+    getRowId: (row) => row.id,
     enableRowSelection: true,
   });
 
   const handleBulkDelete = () => {
     const selectedRows = table.getSelectedRowModel().rows;
-    const ids = selectedRows.map(row => row.original.id);
+    const ids = selectedRows.map((row) => row.original.id);
     dialog(
       <ConfirmDeleteDialog
         name={`${selectedRows.length} variants`}
@@ -157,7 +157,7 @@ export function ProductVariantTable({
 
   const handleBulkEdit = () => {
     const selectedRows = table.getSelectedRowModel().rows;
-    const selectedIds = selectedRows.map(row => row.original.id);
+    const selectedIds = selectedRows.map((row) => row.original.id);
     dialog(
       <UpdateVariantDialog
         productVariant={selectedRows[0].original}
@@ -187,9 +187,9 @@ export function ProductVariantTable({
       <div className="rounded-md border">
         <Table>
           <TableHeader>
-            {table.getHeaderGroups().map(headerGroup => (
+            {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map(header => (
+                {headerGroup.headers.map((header) => (
                   <TableHead key={header.id}>
                     {header.isPlaceholder
                       ? null
@@ -204,13 +204,13 @@ export function ProductVariantTable({
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map(row => (
+              table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
                   className="cursor-pointer"
                 >
-                  {row.getVisibleCells().map(cell => (
+                  {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} className="max-w-[300px]">
                       {flexRender(
                         cell.column.columnDef.cell,

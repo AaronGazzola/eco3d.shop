@@ -17,10 +17,12 @@ import { useEffect, useState } from "react";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
+  {
+    betas: ["elements_enable_deferred_intent_beta_1"],
+  },
 );
 
 interface PaymentStepProps {
-  amount: number;
   isTransitioning: boolean;
   isActive: boolean;
 }
@@ -49,7 +51,7 @@ const StripeComponent = () => {
         elements,
         confirmParams: {
           return_url:
-            configuration.site.siteUrl + configuration.paths.me.success,
+            configuration.site.siteUrl + configuration.paths.paymentSuccess,
         },
       });
 
@@ -68,7 +70,7 @@ const StripeComponent = () => {
       <div className="space-y-2">
         <div className="rounded-md border p-4 py-6 flex flex-col relative">
           <PaymentElement onChange={handleChange} />
-          <StripeLogo className="absolute opacity-70 top-[8px] right-[19px] w-10" />
+          <StripeLogo className="absolute opacity-70 top-[8px] right-[20px] w-10" />
         </div>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -83,17 +85,15 @@ const StripeComponent = () => {
   );
 };
 
-const PaymentStep = ({
-  amount,
-  isActive,
-  isTransitioning,
-}: PaymentStepProps) => {
+const PaymentStep = ({ isActive, isTransitioning }: PaymentStepProps) => {
   const [clientSecret, setClientSecret] = useState<string>();
+  const { items } = useCartStore();
+  const subtotal = calculateSubtotal(items);
+  const total = calculateTotal(subtotal);
 
   useEffect(() => {
     const initializePayment = async () => {
       try {
-        const total = calculateTotal(amount);
         const { clientSecret } = await createPaymentIntent(total);
         if (clientSecret) {
           setClientSecret(clientSecret);
@@ -103,7 +103,7 @@ const PaymentStep = ({
       }
     };
     if (isActive) initializePayment();
-  }, [amount, isActive]);
+  }, [total, isActive]);
 
   if (!clientSecret) return null;
 

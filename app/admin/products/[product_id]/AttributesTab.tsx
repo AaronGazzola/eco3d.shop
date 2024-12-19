@@ -41,9 +41,9 @@ export function AttributesTab({ productId }: { productId: string }) {
   useEffect(() => {
     if (!variants) return;
     const map: AttributeMap = {};
-    variants.forEach(variant => {
-      if (isJsonObject(variant.custom_attributes)) {
-        Object.entries(variant.custom_attributes).forEach(([key, value]) => {
+    variants.forEach((variant) => {
+      if (isJsonObject(variant.attributes)) {
+        Object.entries(variant.attributes).forEach(([key, value]) => {
           if (!map[key]) {
             map[key] = {
               type: Array.isArray(value) ? "multi" : "single",
@@ -51,7 +51,7 @@ export function AttributesTab({ productId }: { productId: string }) {
             };
           }
           if (Array.isArray(value)) {
-            value.forEach(v => map[key].values.add(String(v)));
+            value.forEach((v) => map[key].values.add(String(v)));
           } else {
             map[key].values.add(String(value));
           }
@@ -63,7 +63,7 @@ export function AttributesTab({ productId }: { productId: string }) {
 
   const handleAddAttribute = () => {
     if (!newAttribute) return;
-    setAttributeMap(prev => ({
+    setAttributeMap((prev) => ({
       ...prev,
       [newAttribute]: {
         type: newAttributeType,
@@ -87,16 +87,16 @@ export function AttributesTab({ productId }: { productId: string }) {
         return arr
           .reduce(
             (subsets, value) =>
-              subsets.concat(subsets.map(set => [...set, value])),
+              subsets.concat(subsets.map((set) => [...set, value])),
             [[]] as string[][],
           )
-          .filter(set => set.length > 0);
+          .filter((set) => set.length > 0);
       };
-      combinations = powerSet(values).map(combo => ({
+      combinations = powerSet(values).map((combo) => ({
         [attributeName]: combo,
       }));
     } else {
-      combinations = values.map(value => ({ [attributeName]: value }));
+      combinations = values.map((value) => ({ [attributeName]: value }));
     }
 
     // Combine with other attributes
@@ -104,22 +104,22 @@ export function AttributesTab({ productId }: { productId: string }) {
       const currentValues = Array.from(values);
       const newCombinations: Record<string, unknown>[] = [];
 
-      combinations.forEach(combo => {
+      combinations.forEach((combo) => {
         if (type === "multi") {
           const powerSet = (arr: string[]): string[][] => {
             return arr
               .reduce(
                 (subsets, value) =>
-                  subsets.concat(subsets.map(set => [...set, value])),
+                  subsets.concat(subsets.map((set) => [...set, value])),
                 [[]] as string[][],
               )
-              .filter(set => set.length > 0);
+              .filter((set) => set.length > 0);
           };
-          powerSet(currentValues).forEach(valueCombo => {
+          powerSet(currentValues).forEach((valueCombo) => {
             newCombinations.push({ ...combo, [name]: valueCombo });
           });
         } else {
-          currentValues.forEach(value => {
+          currentValues.forEach((value) => {
             newCombinations.push({ ...combo, [name]: value });
           });
         }
@@ -178,7 +178,7 @@ export function AttributesTab({ productId }: { productId: string }) {
         <Input
           placeholder="New attribute name"
           value={newAttribute}
-          onChange={e => setNewAttribute(e.target.value)}
+          onChange={(e) => setNewAttribute(e.target.value)}
         />
         <Select
           value={newAttributeType}
@@ -220,7 +220,7 @@ export function AttributesTab({ productId }: { productId: string }) {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {Array.from(values).map(value => (
+            {Array.from(values).map((value) => (
               <Badge key={value} variant="secondary">
                 {value}
                 <button
@@ -238,7 +238,7 @@ export function AttributesTab({ productId }: { productId: string }) {
               <Input
                 placeholder="New value"
                 value={newValue}
-                onChange={e => setNewValue(e.target.value)}
+                onChange={(e) => setNewValue(e.target.value)}
               />
               <Button onClick={handleAddValue}>Add Value</Button>
             </div>

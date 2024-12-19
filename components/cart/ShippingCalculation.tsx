@@ -20,10 +20,10 @@ const ShippingCalculation = ({
   const { items } = useCartStore();
   const { data, isPending } = useCartQTime(items, isActive);
 
-  const formatDuration = (ms: number) => {
-    const days = Math.floor(ms / MS_PER_DAY);
-    const hours = Math.floor((ms % MS_PER_DAY) / (1000 * 60 * 60));
-    const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+  const formatDuration = (seconds: number) => {
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
     return `${days}d ${hours}h ${minutes}m`;
   };
   const shippingDays =

@@ -400,41 +400,6 @@ export type Database = {
           },
         ]
       }
-      pricing_tiers: {
-        Row: {
-          created_at: string | null
-          id: string
-          min_quantity: number
-          price_per_item: number
-          product_variant_id: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          min_quantity: number
-          price_per_item: number
-          product_variant_id?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          min_quantity?: number
-          price_per_item?: number
-          product_variant_id?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "pricing_tiers_product_variant_id_fkey"
-            columns: ["product_variant_id"]
-            isOneToOne: false
-            referencedRelation: "product_variants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       print_queue_items: {
         Row: {
           created_at: string | null
@@ -508,46 +473,10 @@ export type Database = {
         }
         Relationships: []
       }
-      print_time_tiers: {
-        Row: {
-          created_at: string | null
-          id: string
-          min_quantity: number
-          print_time_per_item: unknown
-          product_variant_id: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          min_quantity: number
-          print_time_per_item: unknown
-          product_variant_id?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          min_quantity?: number
-          print_time_per_item?: unknown
-          product_variant_id?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "print_time_tiers_product_variant_id_fkey"
-            columns: ["product_variant_id"]
-            isOneToOne: false
-            referencedRelation: "product_variants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       product_variants: {
         Row: {
           attributes: Json
           created_at: string | null
-          custom_attributes: Json | null
           estimated_print_seconds: number | null
           group_size: number | null
           id: string
@@ -560,7 +489,6 @@ export type Database = {
         Insert: {
           attributes?: Json
           created_at?: string | null
-          custom_attributes?: Json | null
           estimated_print_seconds?: number | null
           group_size?: number | null
           id?: string
@@ -573,7 +501,6 @@ export type Database = {
         Update: {
           attributes?: Json
           created_at?: string | null
-          custom_attributes?: Json | null
           estimated_print_seconds?: number | null
           group_size?: number | null
           id?: string

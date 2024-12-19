@@ -32,7 +32,7 @@ const variantFormSchema = z.object({
     .number()
     .min(0, { message: "Stock quantity must be at least 0" }),
   estimated_print_seconds: z.number().optional(),
-  custom_attributes: z.string().optional(),
+  attributes: z.string().optional(),
   print_queue_id: z.string().optional(),
 });
 
@@ -70,7 +70,7 @@ const ProductVariantDialog = ({
       stock_quantity: variantData?.stock_quantity || 0,
       estimated_print_seconds:
         variantData?.estimated_print_seconds || undefined,
-      custom_attributes: JSON.stringify(variantData?.custom_attributes || ""),
+      attributes: JSON.stringify(variantData?.attributes || ""),
       print_queue_id: variantData?.print_queue_id || "",
     },
   });
@@ -78,8 +78,8 @@ const ProductVariantDialog = ({
   function onSubmit(values: z.infer<typeof variantFormSchema>) {
     // const formattedValues = {
     //   ...values,
-    //   custom_attributes: values.custom_attributes
-    //     ? JSON.parse(values.custom_attributes)
+    //   attributes: values.attributes
+    //     ? JSON.parse(values.attributes)
     //     : null,
     //   product_id: variantData?.product_id || "",
     // };
@@ -169,7 +169,7 @@ const ProductVariantDialog = ({
           {/* Custom Attributes Field */}
           <FormField
             control={form.control}
-            name="custom_attributes"
+            name="attributes"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Custom Attributes (JSON)</FormLabel>

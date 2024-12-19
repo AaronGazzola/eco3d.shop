@@ -89,7 +89,7 @@ export function ImagesTab({ productId }: { productId: string }) {
       });
     },
 
-    onError: error => {
+    onError: (error) => {
       toast({
         title: error.message,
         open: true,
@@ -142,8 +142,8 @@ export function ImagesTab({ productId }: { productId: string }) {
 
   const getAllImages = (variants: ProductVariantWithImages[]) => {
     const images = new Set<string>();
-    variants.forEach(variant => {
-      variant.variant_images?.forEach(vi => {
+    variants.forEach((variant) => {
+      variant.variant_images?.forEach((vi) => {
         if (vi.images?.id && vi.images.image_path) {
           images.add(
             JSON.stringify({
@@ -154,12 +154,12 @@ export function ImagesTab({ productId }: { productId: string }) {
         }
       });
     });
-    return Array.from(images).map(img => JSON.parse(img));
+    return Array.from(images).map((img) => JSON.parse(img));
   };
 
   return (
     <div className="space-y-4 p-4 h-full overflow-y-auto">
-      {variants?.map(variant => (
+      {variants?.map((variant) => (
         <Card key={variant.id} className="p-4 space-y-4">
           <div className="flex justify-between items-start">
             <div>
@@ -167,7 +167,7 @@ export function ImagesTab({ productId }: { productId: string }) {
                 {variant.variant_name}
               </h3>
               <div className="space-y-1">
-                {Object.entries(variant.custom_attributes || {}).map(
+                {Object.entries(variant.attributes || {}).map(
                   ([key, value]) => (
                     <div key={key} className="text-sm">
                       <span className="font-medium">{key}:</span>{" "}
@@ -203,7 +203,7 @@ export function ImagesTab({ productId }: { productId: string }) {
                 className="hidden"
                 multiple
                 accept="image/*"
-                onChange={e => {
+                onChange={(e) => {
                   if (e.target.files) {
                     handleFileUpload(variant.id, e.target.files);
                     e.target.value = "";
@@ -228,7 +228,7 @@ export function ImagesTab({ productId }: { productId: string }) {
             {variant.variant_images?.length ? (
               variant.variant_images
                 .sort((a, b) => a.display_order - b.display_order)
-                .map(variantImage => (
+                .map((variantImage) => (
                   <div key={variantImage.id} className="relative group">
                     <div className="w-32 h-32 relative rounded-lg overflow-hidden">
                       <Image
@@ -325,7 +325,7 @@ export function ImagesTab({ productId }: { productId: string }) {
           <ScrollArea className="h-[400px] pr-4">
             <div className="grid grid-cols-3 gap-4">
               {variants &&
-                getAllImages(variants).map(img => (
+                getAllImages(variants).map((img) => (
                   <div
                     key={img.id}
                     className={cn(

@@ -166,7 +166,6 @@ const SectionComponent: React.FC<SectionProps> = ({
               <PaymentStep
                 isActive={isActive}
                 isTransitioning={isTransitioning}
-                amount={100}
               />
             )}
           </div>

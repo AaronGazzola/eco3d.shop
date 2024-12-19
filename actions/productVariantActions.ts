@@ -36,25 +36,22 @@ export const addProductVariantAttributeAction = async (
     > = {};
 
     existingVariants.forEach((variant) => {
-      if (
-        variant.custom_attributes &&
-        typeof variant.custom_attributes === "object"
-      ) {
-        Object.entries(
-          variant.custom_attributes as Record<string, unknown>,
-        ).forEach(([key, value]) => {
-          if (!allAttributes[key]) {
-            allAttributes[key] = {
-              values: new Set(),
-              isMulti: Array.isArray(value),
-            };
-          }
-          if (Array.isArray(value)) {
-            value.forEach((v) => allAttributes[key].values.add(v.toString()));
-          } else if (value) {
-            allAttributes[key].values.add(value.toString());
-          }
-        });
+      if (variant.attributes && typeof variant.attributes === "object") {
+        Object.entries(variant.attributes as Record<string, unknown>).forEach(
+          ([key, value]) => {
+            if (!allAttributes[key]) {
+              allAttributes[key] = {
+                values: new Set(),
+                isMulti: Array.isArray(value),
+              };
+            }
+            if (Array.isArray(value)) {
+              value.forEach((v) => allAttributes[key].values.add(v.toString()));
+            } else if (value) {
+              allAttributes[key].values.add(value.toString());
+            }
+          },
+        );
       }
     });
 
@@ -99,9 +96,8 @@ export const addProductVariantAttributeAction = async (
           variant_name: Object.entries(combo)
             .map(([k, v]) => `${k}:${Array.isArray(v) ? v.join(",") : v}`)
             .join("-"),
-          custom_attributes: combo as Json,
+          attributes: combo as Json,
           stock_quantity: 0,
-          attributes: {},
         })),
       );
 
@@ -149,7 +145,7 @@ export type CreateProductVariantValues = {
   variant_name: string;
   product_id: string;
   stock_quantity?: number;
-  custom_attributes?: Record<string, any>;
+  attributes?: Record<string, any>;
   estimated_print_seconds?: number;
 };
 
@@ -169,7 +165,7 @@ export const createProductVariantAction = async (
         variant_name: input.variant_name,
         product_id: input.product_id,
         stock_quantity: input.stock_quantity ?? 0,
-        custom_attributes: input.custom_attributes ?? {},
+        attributes: input.attributes ?? {},
         estimated_print_seconds: input.estimated_print_seconds ?? null,
       })
       .select("*")
@@ -279,127 +275,55 @@ export const deleteProductVariantAction = async (id: string) => {
   }
 };
 
-interface QueueTimes {
-  printTime: number;
-  qTime: number;
-}
-
-interface PrintTimeTier {
-  id: string;
-  product_variant_id: string;
-  min_quantity: number;
-  print_time_per_item: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface QueueItem {
-  quantity: number;
-  product_variant_id: string;
-  product_variants: {
-    print_time_tiers: PrintTimeTier[];
+const transformSize = (size: string): "sm" | "md" | "lg" => {
+  const sizeMap: Record<string, "sm" | "md" | "lg"> = {
+    Small: "sm",
+    Medium: "md",
+    Large: "lg",
   };
-}
-
-const parseTimeInterval = (interval: string): number => {
-  const [hours, minutes, seconds] = interval.split(":").map(Number);
-  return (hours * 3600 + minutes * 60 + seconds) * 1000;
+  return sizeMap[size] || "md";
 };
 
-interface QueueTimes {
-  printTime: number;
-  qTime: number;
-}
-
-export const getCartQTimeAction = async (
+export const getCartTimeAction = async (
   items: CartItem[],
-): Promise<ActionResponse<QueueTimes>> => {
+): Promise<ActionResponse<{ printTime: number; qTime: number }>> => {
   try {
     const supabase = await getSupabaseServerActionClient();
-    const uniqueItems = [...new Set(items.map((i) => JSON.stringify(i)))].map(
-      (i) => JSON.parse(i),
-    );
+    const { data: variants, error } = await supabase
+      .from("product_variants")
+      .select("*");
 
-    const variantPromises = uniqueItems.map(async (item) => {
-      const size = item.size.toLowerCase().substring(0, 2);
-      const color = item.colors?.map((c: string) => c.toLowerCase());
-      const attributesQuery = { size, color };
-      const { data, error } = await supabase
-        .from("product_variants")
-        .select("id, attributes")
-        .contains("attributes", attributesQuery)
-        .maybeSingle();
-      if (error) throw error;
-      return data?.id || null;
-    });
+    if (error) throw error;
+    if (!variants)
+      return getActionResponse({ data: { printTime: 0, qTime: 0 } });
 
-    const variantIds = [
-      ...new Set(
-        (await Promise.all(variantPromises)).filter((id): id is string => !!id),
-      ),
-    ];
+    const totalPrintTime = items.reduce((acc, item) => {
+      const variantAttributes = {
+        size: transformSize(item.size),
+        color: item.colors?.map((c) => c.toLowerCase()),
+      };
 
-    const { data: printTiers, error: tiersError } = await supabase
-      .from("print_time_tiers")
-      .select("*")
-      .in("product_variant_id", variantIds)
-      .order("min_quantity", { ascending: false });
-    if (tiersError) throw tiersError;
-
-    const { data: queueItems, error: queueError } = await supabase
-      .from("print_queue_items")
-      .select(
-        `
-        quantity,
-        product_variant_id,
-        product_variants!inner (
-          print_time_tiers (*)
-        )
-      `,
-      )
-      .in("product_variant_id", variantIds)
-      .eq("is_processed", false);
-    if (queueError) throw queueError;
-
-    let printTime = 0;
-    let qTime = 0;
-
-    items.forEach((item) => {
-      const variant = variantIds.find((id) => {
-        const variantTiers = (printTiers as PrintTimeTier[]).filter(
-          (t) => t.product_variant_id === id,
+      const matchingVariant = variants.find((variant: ProductVariant) => {
+        const attrs = variant.attributes as { size: string; color: string[] };
+        return (
+          attrs.size === variantAttributes.size &&
+          JSON.stringify(attrs.color?.sort()) ===
+            JSON.stringify(variantAttributes.color?.sort())
         );
-        return variantTiers.length > 0;
       });
 
-      if (variant) {
-        const tiers = (printTiers as PrintTimeTier[]).filter(
-          (t) => t.product_variant_id === variant,
-        );
-        const applicableTier =
-          tiers.find((t) => item.quantity >= t.min_quantity) ||
-          tiers[tiers.length - 1];
-        if (applicableTier) {
-          printTime +=
-            parseTimeInterval(applicableTier.print_time_per_item) *
-            item.quantity;
-        }
+      if (matchingVariant?.estimated_print_seconds) {
+        return acc + matchingVariant.estimated_print_seconds * item.quantity;
       }
-    });
+      return acc;
+    }, 0);
 
-    (queueItems as QueueItem[]).forEach((qItem) => {
-      const tiers = qItem.product_variants.print_time_tiers;
-      const applicableTier =
-        tiers.find((t) => qItem.quantity >= t.min_quantity) ||
-        tiers[tiers.length - 1];
-      if (applicableTier) {
-        qTime +=
-          parseTimeInterval(applicableTier.print_time_per_item) *
-          qItem.quantity;
-      }
+    return getActionResponse({
+      data: {
+        printTime: totalPrintTime,
+        qTime: totalPrintTime,
+      },
     });
-
-    return getActionResponse({ data: { printTime, qTime } });
   } catch (error) {
     return getActionResponse({ error });
   }

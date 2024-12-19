@@ -29,6 +29,7 @@ const configuration = {
       success: "/me?success=true",
       path: "/me",
     },
+    paymentSuccess: "/payment/success",
     product: (slug: string) => `/${slug}`,
     auth: "/auth",
     signIn: "/auth?form=sign-in",
