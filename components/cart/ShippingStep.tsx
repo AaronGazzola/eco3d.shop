@@ -277,7 +277,10 @@ const ShippingStep = ({ activeStep, isTransitioning }: ShippingStepProps) => {
               />
             </div>
           </div>
-          <ShippingCalculation address={address} />
+          <ShippingCalculation
+            isActive={activeStep === CartStep.Shipping}
+            address={address}
+          />
         </form>
       </div>
     </LoadScript>

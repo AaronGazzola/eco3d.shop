@@ -153,7 +153,7 @@ export function CustomiseForm({ isAnimating }: CustomiseFormProps) {
     <div
       ref={ref}
       className={cn(
-        "flex flex-col-reverse lg:flex-row h-full overflow-x-hidden px-2 xs:px-3",
+        "flex flex-col-reverse lg:flex-row h-full overflow-x-hidden px-2 xs:px-3 xs:pl-4 pt-1.5",
         isAnimating ? "overflow-hidden" : "overflow-y-auto",
       )}
     >

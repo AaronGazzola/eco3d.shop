@@ -3,7 +3,7 @@ import {
   addProductVariantAttributeAction,
   deleteManyProductVariantsAction,
   deleteProductVariantAction,
-  findProductVariantsByAttributesAction,
+  getCartQTimeAction,
   getProductVariantsAction,
   updateManyProductVariantsAction,
   updateProductVariantAction,
@@ -224,15 +224,14 @@ export const useDeleteProductVariant = ({
   });
 };
 
-export const useFindVariantsByAttributes = (items: CartItem[]) => {
+export const useCartQTime = (items: CartItem[], isEnabled = false) => {
   return useQuery({
     queryKey: ["variant_ids_by_attributes", items],
     queryFn: async () => {
-      const { data, error } =
-        await findProductVariantsByAttributesAction(items);
+      const { data, error } = await getCartQTimeAction(items);
       if (error) throw new Error(error);
       return data;
     },
-    enabled: items.length > 0,
+    enabled: items.length > 0 && isEnabled,
   });
 };

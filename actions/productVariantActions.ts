@@ -279,26 +279,127 @@ export const deleteProductVariantAction = async (id: string) => {
   }
 };
 
-export const findProductVariantsByAttributesAction = async (
+interface QueueTimes {
+  printTime: number;
+  qTime: number;
+}
+
+interface PrintTimeTier {
+  id: string;
+  product_variant_id: string;
+  min_quantity: number;
+  print_time_per_item: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface QueueItem {
+  quantity: number;
+  product_variant_id: string;
+  product_variants: {
+    print_time_tiers: PrintTimeTier[];
+  };
+}
+
+const parseTimeInterval = (interval: string): number => {
+  const [hours, minutes, seconds] = interval.split(":").map(Number);
+  return (hours * 3600 + minutes * 60 + seconds) * 1000;
+};
+
+interface QueueTimes {
+  printTime: number;
+  qTime: number;
+}
+
+export const getCartQTimeAction = async (
   items: CartItem[],
-) => {
+): Promise<ActionResponse<QueueTimes>> => {
   try {
     const supabase = await getSupabaseServerActionClient();
+    const uniqueItems = [...new Set(items.map((i) => JSON.stringify(i)))].map(
+      (i) => JSON.parse(i),
+    );
 
-    const variantPromises = items.map(async (item) => {
+    const variantPromises = uniqueItems.map(async (item) => {
+      const size = item.size.toLowerCase().substring(0, 2);
+      const color = item.colors?.map((c: string) => c.toLowerCase());
+      const attributesQuery = { size, color };
       const { data, error } = await supabase
         .from("product_variants")
-        .select("id")
-        .eq("custom_attributes->size", item.size)
-        .contains("custom_attributes->colors", item.colors ?? "")
-        .single();
-
+        .select("id, attributes")
+        .contains("attributes", attributesQuery)
+        .maybeSingle();
       if (error) throw error;
-      return data?.id;
+      return data?.id || null;
     });
 
-    const variantIds = await Promise.all(variantPromises);
-    return getActionResponse({ data: variantIds.filter(Boolean) });
+    const variantIds = [
+      ...new Set(
+        (await Promise.all(variantPromises)).filter((id): id is string => !!id),
+      ),
+    ];
+
+    const { data: printTiers, error: tiersError } = await supabase
+      .from("print_time_tiers")
+      .select("*")
+      .in("product_variant_id", variantIds)
+      .order("min_quantity", { ascending: false });
+    if (tiersError) throw tiersError;
+
+    const { data: queueItems, error: queueError } = await supabase
+      .from("print_queue_items")
+      .select(
+        `
+        quantity,
+        product_variant_id,
+        product_variants!inner (
+          print_time_tiers (*)
+        )
+      `,
+      )
+      .in("product_variant_id", variantIds)
+      .eq("is_processed", false);
+    if (queueError) throw queueError;
+
+    let printTime = 0;
+    let qTime = 0;
+
+    items.forEach((item) => {
+      const variant = variantIds.find((id) => {
+        const variantTiers = (printTiers as PrintTimeTier[]).filter(
+          (t) => t.product_variant_id === id,
+        );
+        return variantTiers.length > 0;
+      });
+
+      if (variant) {
+        const tiers = (printTiers as PrintTimeTier[]).filter(
+          (t) => t.product_variant_id === variant,
+        );
+        const applicableTier =
+          tiers.find((t) => item.quantity >= t.min_quantity) ||
+          tiers[tiers.length - 1];
+        if (applicableTier) {
+          printTime +=
+            parseTimeInterval(applicableTier.print_time_per_item) *
+            item.quantity;
+        }
+      }
+    });
+
+    (queueItems as QueueItem[]).forEach((qItem) => {
+      const tiers = qItem.product_variants.print_time_tiers;
+      const applicableTier =
+        tiers.find((t) => qItem.quantity >= t.min_quantity) ||
+        tiers[tiers.length - 1];
+      if (applicableTier) {
+        qTime +=
+          parseTimeInterval(applicableTier.print_time_per_item) *
+          qItem.quantity;
+      }
+    });
+
+    return getActionResponse({ data: { printTime, qTime } });
   } catch (error) {
     return getActionResponse({ error });
   }

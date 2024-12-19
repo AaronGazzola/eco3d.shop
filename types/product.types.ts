@@ -66,3 +66,8 @@ export interface PersonaliseFormProps {
 export interface AddToCartSummaryProps {
   isNext: boolean;
 }
+
+export interface VariantAttributes {
+  size: "sm" | "md" | "lg";
+  color: string[];
+}
