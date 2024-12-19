@@ -6,7 +6,7 @@ import { useCartQTime } from "@/hooks/productVariantHooks";
 import { useCartStore } from "@/hooks/useCartStore";
 import { Address } from "@/types/order.types";
 import { addMilliseconds, format } from "date-fns";
-import { Calendar, Clock, Printer, Truck } from "lucide-react";
+import { Calendar, Clock, LoaderCircle, Printer, Truck } from "lucide-react";
 
 const ShippingCalculation = ({
   address,
@@ -16,7 +16,7 @@ const ShippingCalculation = ({
   isActive?: boolean;
 }) => {
   const { items } = useCartStore();
-  const { data } = useCartQTime(items, isActive);
+  const { data, isPending } = useCartQTime(items, isActive);
 
   const formatDuration = (ms: number) => {
     const days = Math.floor(ms / MS_PER_DAY);
@@ -40,7 +40,11 @@ const ShippingCalculation = ({
           </span>
           <span className="bg-gray-100 rounded-full flex items-center gap-3 justify-center text-gray-900 font-medium px-5 py-2">
             <Clock className="w-5 h-5" />
-            {formatDuration(data?.qTime || 0)}
+            {isPending ? (
+              <LoaderCircle className="animate-spin w-5 h-5" />
+            ) : (
+              formatDuration(data?.qTime || 0)
+            )}
           </span>
         </div>
         <div className="flex flex-col items-center gap-2">
@@ -49,7 +53,11 @@ const ShippingCalculation = ({
           </span>
           <span className="bg-gray-100 rounded-full flex items-center gap-3 justify-center text-gray-900 font-medium px-5 py-2">
             <Printer className="w-5 h-5" />
-            {formatDuration(data?.printTime || 0)}
+            {isPending ? (
+              <LoaderCircle className="animate-spin w-5 h-5" />
+            ) : (
+              formatDuration(data?.printTime || 0)
+            )}
           </span>
         </div>
         <div className="flex flex-col items-center gap-2">
@@ -68,7 +76,11 @@ const ShippingCalculation = ({
         </div>
         <p className="text-xl font-medium flex items-center justify-center w-full gap-3">
           <Calendar className="w-5 h-5 mb-0.5" />
-          {format(estimatedDelivery, "d MMM yyyy")}
+          {isPending ? (
+            <LoaderCircle className="animate-spin w-5 h-5" />
+          ) : (
+            format(estimatedDelivery, "d MMM yyyy")
+          )}
         </p>
       </div>
     </>
