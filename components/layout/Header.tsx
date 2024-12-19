@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { Direction } from "@/types/util.types";
 import {
   ListOrdered,
-  PackageOpen,
+  Package,
   PackageSearch,
   TicketPercent,
 } from "lucide-react";
@@ -44,7 +44,7 @@ const Header = () => {
             </Link>
             <Link href={configuration.paths.admin.orders}>
               <Button variant="ghost">
-                <PackageOpen />
+                <Package />
               </Button>
             </Link>
             <Link href={configuration.paths.admin.q}>
@@ -57,7 +57,7 @@ const Header = () => {
           <div className="items-center flex pt-1">
             <Button variant="ghost" className="text-secondary">
               <Link className="flex gap-2" href={configuration.paths.me.path}>
-                <PackageOpen className="w-5 h-5" />
+                <Package className="w-5 h-5" />
                 <span className="hidden sm:block mt-px">My Orders</span>
               </Link>
             </Button>

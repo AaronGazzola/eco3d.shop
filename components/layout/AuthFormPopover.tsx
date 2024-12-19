@@ -22,7 +22,7 @@ import { maskEmail } from "@/lib/string.util";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Popover } from "@radix-ui/react-popover";
-import { CircleUser, LogOut, PackageOpen } from "lucide-react";
+import { CircleUser, LogOut, Package } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -102,7 +102,7 @@ const AuthFormPopover = () => {
                   setOpen(false);
                 }}
               >
-                <PackageOpen className="w-5 h-5 mr-3" />
+                <Package className="w-5 h-5 mr-3" />
                 <span>My orders</span>
               </Link>
             </Button>

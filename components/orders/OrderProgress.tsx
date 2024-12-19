@@ -8,6 +8,7 @@ import {
   CircleDot,
   Clock,
   Package,
+  PackageOpen,
   Printer,
   SquareArrowOutUpRight,
   Truck,
@@ -187,12 +188,17 @@ const OrderProgress = ({
                       )}
                     </div>
                   )}
-                  <Icon
-                    className={cn(
-                      "w-6 h-6 bg-white flex-shrink-0",
-                      isPast ? "text-primary" : "text-gray-300",
-                    )}
-                  />
+                  {iconStatus === OrderStatus.Delivered &&
+                  status === OrderStatus.Delivered ? (
+                    <PackageOpen className="w-6 h-6 bg-white flex-shrink-0 text-primary" />
+                  ) : (
+                    <Icon
+                      className={cn(
+                        "w-6 h-6 bg-white flex-shrink-0",
+                        isPast ? "text-primary" : "text-gray-300",
+                      )}
+                    />
+                  )}
                 </div>
               </div>
             );
