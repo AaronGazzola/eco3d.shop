@@ -502,11 +502,9 @@ export type Database = {
           attributes: Json
           created_at: string | null
           estimated_print_seconds: number | null
-          group_size: number | null
           id: string
           print_queue_id: string | null
           product_id: string | null
-          stock_quantity: number
           updated_at: string | null
           variant_name: string
         }
@@ -514,11 +512,9 @@ export type Database = {
           attributes?: Json
           created_at?: string | null
           estimated_print_seconds?: number | null
-          group_size?: number | null
           id?: string
           print_queue_id?: string | null
           product_id?: string | null
-          stock_quantity?: number
           updated_at?: string | null
           variant_name: string
         }
@@ -526,11 +522,9 @@ export type Database = {
           attributes?: Json
           created_at?: string | null
           estimated_print_seconds?: number | null
-          group_size?: number | null
           id?: string
           print_queue_id?: string | null
           product_id?: string | null
-          stock_quantity?: number
           updated_at?: string | null
           variant_name?: string
         }

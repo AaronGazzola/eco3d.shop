@@ -96,7 +96,8 @@ export async function handlePaymentSuccess(
       product_variants (
         id,
         variant_name,
-        attributes
+        attributes,
+        print_queue_id
       )
     `,
     )
@@ -139,10 +140,29 @@ export async function handlePaymentSuccess(
     }),
   );
 
-  const { error: itemsError } = await supabase
+  const { data: insertedOrderItems, error: itemsError } = await supabase
     .from("order_items")
-    .insert(orderItems);
+    .insert(orderItems)
+    .select();
   if (itemsError) throw itemsError;
+
+  const printQueueItems = insertedOrderItems.map((orderItem) => {
+    const variant = products.product_variants.find(
+      (v) => v.id === orderItem.product_variant_id,
+    );
+    return {
+      print_queue_id: variant?.print_queue_id,
+      order_item_id: orderItem.id,
+      product_variant_id: orderItem.product_variant_id,
+      quantity: orderItem.quantity,
+      is_processed: false,
+    };
+  });
+
+  const { error: queueError } = await supabase
+    .from("print_queue_items")
+    .insert(printQueueItems);
+  if (queueError) throw queueError;
 
   return { orderId: orderResult.data.id };
 }

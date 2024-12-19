@@ -3,6 +3,7 @@
 import TShape2 from "@/assets/svg/icons/hero-t-shape-2.svg";
 import SendArrow from "@/assets/svg/icons/send-arrow.svg";
 import { cn } from "@/lib/utils";
+import { useSearchParamsContext } from "@/providers/SearchParamsProvider";
 import {
   Pencil,
   Ruler,
@@ -10,7 +11,7 @@ import {
   SquareMousePointer,
 } from "lucide-react";
 import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 enum CircleSide {
@@ -63,8 +64,10 @@ const Annotation = ({
 
 const Hero = () => {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const shouldDisableAnimation = useRef(!!searchParams.get("disableAnimation"));
+  const { searchParams } = useSearchParamsContext();
+  const shouldDisableAnimation = useRef(
+    !!searchParams?.get("disableAnimation"),
+  );
   const [circleSideAtTop, setCircleSideAtTop] = useState<CircleSide>(Top);
   const [rotation, setRotation] = useState(0);
   const [isTouched, setIsTouched] = useState(false);
@@ -75,7 +78,7 @@ const Hero = () => {
   );
 
   useEffect(() => {
-    if (searchParams.get("disableAnimation")) {
+    if (searchParams?.get("disableAnimation")) {
       const newParams = new URLSearchParams(searchParams);
       newParams.delete("disableAnimation");
       router.replace(`?${newParams.toString()}`, { scroll: false });

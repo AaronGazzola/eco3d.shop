@@ -1,7 +1,8 @@
 "use client";
 import { handlePaymentSuccess } from "@/actions/paymentActions";
 import { useCartStore } from "@/hooks/useCartStore";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParamsContext } from "@/providers/SearchParamsProvider";
+import { useRouter } from "next/navigation";
 import { Suspense, useEffect } from "react";
 
 export default function SuccessPage() {
@@ -16,12 +17,12 @@ export default function SuccessPage() {
 
 function PaymentProcessor() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const { searchParams } = useSearchParamsContext();
   const { items, clearCart, shippingEmail: email } = useCartStore();
 
   useEffect(() => {
     const processPayment = async () => {
-      const paymentIntent = searchParams.get("payment_intent");
+      const paymentIntent = searchParams?.get("payment_intent");
       if (paymentIntent && items.length) {
         await handlePaymentSuccess(paymentIntent, items, email);
         clearCart();
