@@ -67,7 +67,6 @@ const ProductVariantDialog = ({
     resolver: zodResolver(variantFormSchema),
     defaultValues: {
       variant_name: variantData?.variant_name || "",
-      stock_quantity: variantData?.stock_quantity || 0,
       estimated_print_seconds:
         variantData?.estimated_print_seconds || undefined,
       attributes: JSON.stringify(variantData?.attributes || ""),

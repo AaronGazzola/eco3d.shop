@@ -54,7 +54,6 @@ export function UpdateVariantDialog({ productVariant, selectedIds }: Props) {
   const [formData, setFormData] = useState<CreateProductVariantValues>({
     variant_name: productVariant.variant_name || "",
     product_id: productVariant.product_id!,
-    stock_quantity: productVariant.stock_quantity || 0,
     estimated_print_seconds: productVariant.estimated_print_seconds || 0,
     attributes:
       typeof productVariant.attributes === "object"
@@ -78,7 +77,6 @@ export function UpdateVariantDialog({ productVariant, selectedIds }: Props) {
         ids: selectedIds,
         data: {
           variant_name: submitData.variant_name,
-          stock_quantity: submitData.stock_quantity,
           estimated_print_seconds: submitData.estimated_print_seconds,
         },
       });

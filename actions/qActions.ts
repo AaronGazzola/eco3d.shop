@@ -1,6 +1,4 @@
-// actions/qActions.ts
 "use server";
-
 import getActionResponse from "@/actions/getActionResponse";
 import getSupabaseServerActionClient from "@/clients/action-client";
 import { ActionResponse } from "@/types/action.types";
@@ -15,7 +13,6 @@ export const getQueueTimeAction = async (
 ): Promise<ActionResponse<QueueTimeResponse>> => {
   try {
     const supabase = await getSupabaseServerActionClient();
-
     const { data: queueItems, error: queueError } = await supabase
       .from("print_queue_items")
       .select(
@@ -23,10 +20,9 @@ export const getQueueTimeAction = async (
         quantity,
         product_variant_id,
         product_variants (
-          estimated_print_seconds,
-          group_size
+          estimated_print_seconds
         )
-      `,
+        `,
       )
       .in("product_variant_id", variantIds)
       .eq("is_processed", false)
@@ -35,11 +31,9 @@ export const getQueueTimeAction = async (
     if (queueError) throw queueError;
 
     let maxWaitTime = 0;
-
     queueItems?.forEach((item) => {
       const printTime = item.product_variants?.estimated_print_seconds || 0;
-      const groupSize = item.product_variants?.group_size || 1;
-      const batchTime = (printTime * item.quantity) / groupSize;
+      const batchTime = printTime * item.quantity;
       maxWaitTime = Math.max(maxWaitTime, batchTime);
     });
 

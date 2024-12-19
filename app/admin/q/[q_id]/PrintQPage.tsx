@@ -1,4 +1,5 @@
 "use client";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChevronDown, ChevronUp, Printer } from "lucide-react";
@@ -18,57 +19,6 @@ type PrintQueueItem = {
     created_at: string;
   };
   related_items: PrintQueueItem[];
-};
-
-const mockQueue1: PrintQueueItem[] = [
-  {
-    id: "1",
-    order_item_id: "oi1",
-    quantity: 2,
-    is_processed: false,
-    created_at: "2024-03-18T10:00:00Z",
-    order: {
-      id: "order1",
-      user: { email: "user1@example.com" },
-      created_at: "2024-03-18T09:00:00Z",
-    },
-    related_items: [
-      {
-        id: "2",
-        order_item_id: "oi2",
-        quantity: 1,
-        is_processed: false,
-        created_at: "2024-03-18T10:00:00Z",
-        order: {
-          id: "order1",
-          user: { email: "user1@example.com" },
-          created_at: "2024-03-18T09:00:00Z",
-        },
-        related_items: [],
-      },
-    ],
-  },
-];
-
-const mockQueue2: PrintQueueItem[] = [
-  {
-    id: "3",
-    order_item_id: "oi3",
-    quantity: 3,
-    is_processed: false,
-    created_at: "2024-03-18T11:00:00Z",
-    order: {
-      id: "order2",
-      user: { email: "user2@example.com" },
-      created_at: "2024-03-18T10:30:00Z",
-    },
-    related_items: [],
-  },
-];
-
-const queueData = {
-  "1": mockQueue1,
-  "2": mockQueue2,
 };
 
 const PrintQueueItem = ({ item }: { item: PrintQueueItem }) => {
@@ -144,9 +94,13 @@ const PrintQueueItem = ({ item }: { item: PrintQueueItem }) => {
   );
 };
 
-const PrintQ = ({ queueId }: { queueId: string }) => {
-  const items = queueData[queueId as keyof typeof queueData] || [];
-
+export default function PrintQPage({
+  items,
+  queueId,
+}: {
+  items: PrintQueueItem[];
+  queueId: string;
+}) {
   return (
     <div className="container max-w-4xl mx-auto py-8">
       <h1 className="text-2xl font-bold mb-6">Print Queue {queueId}</h1>
@@ -155,6 +109,4 @@ const PrintQ = ({ queueId }: { queueId: string }) => {
       ))}
     </div>
   );
-};
-
-export default PrintQ;
+}

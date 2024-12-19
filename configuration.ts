@@ -21,8 +21,8 @@ const configuration = {
       user: (id: string) => `/admin/users/${id}`,
       orders: "/admin/orders",
       order: (id: string) => `/admin/orders/${id}`,
-      q: "/admin/q",
-      queueItem: (id: string) => `/admin/q/${id}`,
+      qs: "/admin/q",
+      q: (id: string) => `/admin/q/${id}`,
       promo: "/admin/promo",
     },
     me: {

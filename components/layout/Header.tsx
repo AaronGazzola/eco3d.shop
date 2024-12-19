@@ -47,7 +47,7 @@ const Header = () => {
                 <Package />
               </Button>
             </Link>
-            <Link href={configuration.paths.admin.q}>
+            <Link href={configuration.paths.admin.qs}>
               <Button variant="ghost">
                 <ListOrdered />
               </Button>
