@@ -1,4 +1,3 @@
-// actions/paymentActions.ts
 "use server";
 
 import getSupabaseServerActionClient from "@/clients/action-client";
@@ -29,93 +28,121 @@ export async function createPaymentIntent(amount: number) {
   }
 }
 
+function normalizeSize(size: string): string {
+  const sizeMap: Record<string, string> = {
+    Small: "sm",
+    Medium: "md",
+    Large: "lg",
+  };
+  return sizeMap[size] || size.toLowerCase();
+}
+
 export async function handlePaymentSuccess(
   paymentIntentId: string,
   items: CartItem[],
+  email: string,
 ) {
-  console.log("Starting payment success handler:", { paymentIntentId, items });
-  try {
-    const supabase = await getSupabaseServerActionClient();
-    const { data: user, error: userError } = await getUserAction();
-    console.log("User data:", { user, userError });
+  const supabase = await getSupabaseServerActionClient();
+  const { data: userData } = await getUserAction();
 
-    if (!user) throw new Error("User not found");
+  let profileId: string;
+  if (userData?.user) {
+    const { data: existingProfile, error: existingProfileError } =
+      await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", userData.user.id)
+        .single();
 
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-    console.log("Payment intent retrieved:", paymentIntent);
+    if (existingProfile) {
+      profileId = existingProfile.id;
+    } else {
+      const { data: newProfile, error: profileError } = await supabase
+        .from("profiles")
+        .insert({ user_id: userData.user.id, email })
+        .select()
+        .single();
 
-    if (paymentIntent.status !== "succeeded") {
-      console.error("Payment intent not succeeded:", paymentIntent.status);
-      throw new Error("Payment not successful");
+      if (profileError) throw profileError;
+      profileId = newProfile.id;
     }
-
-    const { data: products, error: productsError } = await supabase
-      .from("products")
-      .select(
-        `
-        id, 
-        name,
-        product_variants (
-          id,
-          variant_name,
-          attributes
-        )
-      `,
-      )
-      .eq("name", "Model V8")
-      .single();
-
-    console.log("Products lookup:", { products, productsError });
-    if (productsError) throw productsError;
-
-    console.log("Product variants:", products.product_variants);
-
-    const variantId = products.product_variants.find(
-      (v) =>
-        JSON.stringify(v.attributes) ===
-        JSON.stringify({ size: items[0].size, colors: items[0].colors }),
-    )?.id;
-
-    if (!variantId) throw new Error("Product variant not found");
-
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .insert({
-        user_id: user.user.id,
-        status: "payment_received",
-        total_price: Math.round(paymentIntent.amount),
-        currency: paymentIntent.currency.toUpperCase(),
-        address_line_1: "Pending",
-        city: "Pending",
-        state: "Pending",
-        postal_code: "0000",
-        country: "Pending",
-      })
+  } else {
+    const { data: guestProfile, error: profileError } = await supabase
+      .from("profiles")
+      .insert({ email })
       .select()
       .single();
 
-    console.log("Order creation result:", { order, orderError });
-    if (orderError) throw orderError;
+    if (profileError) throw profileError;
+    profileId = guestProfile.id;
+    const { error: signInError } = await supabase.auth.signInWithOtp({
+      email,
+    });
 
-    const orderItems = items.map((item) => ({
-      order_id: order.id,
-      product_variant_id: variantId,
-      quantity: item.quantity,
-      price_at_order: Math.round(item.price * 100),
-      status: "payment_received" as Database["public"]["Enums"]["order_status"],
-    }));
-    console.log("Order items prepared:", orderItems);
-
-    const { error: itemsError } = await supabase
-      .from("order_items")
-      .insert(orderItems);
-
-    console.log("Order items insertion result:", { itemsError });
-    if (itemsError) throw itemsError;
-
-    return { orderId: order.id };
-  } catch (error) {
-    console.error("Payment processing failed:", error);
-    throw new Error("Failed to process order");
+    if (signInError) throw signInError;
   }
+
+  const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+  if (paymentIntent.status !== "succeeded") {
+    throw new Error("Payment not successful");
+  }
+
+  const { data: products, error: productsError } = await supabase
+    .from("products")
+    .select(
+      `
+      id,
+      name,
+      product_variants (
+        id,
+        variant_name,
+        attributes
+      )
+    `,
+    )
+    .eq("name", "Model V8")
+    .single();
+  if (productsError) throw productsError;
+
+  const orderResult = await supabase
+    .from("orders")
+    .insert({
+      profile_id: profileId,
+      status: "payment_received",
+      total_price: paymentIntent.amount,
+      currency: paymentIntent.currency.toUpperCase(),
+      address_line_1: "Pending",
+      city: "Pending",
+      state: "Pending",
+      postal_code: "0000",
+      country: "Pending",
+    })
+    .select()
+    .single();
+  if (orderResult.error) throw orderResult.error;
+
+  const orderItems = await Promise.all(
+    items.map(async (item) => {
+      const variant = products.product_variants.find((v) => {
+        const attrs = v.attributes as { size: string; color: string[] };
+        return attrs.size === normalizeSize(item.size);
+      });
+      if (!variant) throw new Error(`Variant not found for size ${item.size}`);
+      return {
+        order_id: orderResult.data.id,
+        product_variant_id: variant.id,
+        quantity: item.quantity,
+        price_at_order: Math.round(item.price * 100),
+        status:
+          "payment_received" as Database["public"]["Enums"]["order_status"],
+      };
+    }),
+  );
+
+  const { error: itemsError } = await supabase
+    .from("order_items")
+    .insert(orderItems);
+  if (itemsError) throw itemsError;
+
+  return { orderId: orderResult.data.id };
 }

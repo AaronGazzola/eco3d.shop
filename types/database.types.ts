@@ -19,10 +19,10 @@ export type Database = {
           id: string
           is_default: boolean | null
           postal_code: string
+          profile_id: string | null
           recipient_name: string
           state: string
           updated_at: string | null
-          user_id: string | null
         }
         Insert: {
           address_line_1: string
@@ -33,10 +33,10 @@ export type Database = {
           id?: string
           is_default?: boolean | null
           postal_code: string
+          profile_id?: string | null
           recipient_name: string
           state: string
           updated_at?: string | null
-          user_id?: string | null
         }
         Update: {
           address_line_1?: string
@@ -47,12 +47,20 @@ export type Database = {
           id?: string
           is_default?: boolean | null
           postal_code?: string
+          profile_id?: string | null
           recipient_name?: string
           state?: string
           updated_at?: string | null
-          user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "addresses_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       attribute_options: {
         Row: {
@@ -115,24 +123,32 @@ export type Database = {
           created_at: string | null
           deleted_at: string | null
           id: string
+          profile_id: string | null
           updated_at: string | null
-          user_id: string | null
         }
         Insert: {
           created_at?: string | null
           deleted_at?: string | null
           id?: string
+          profile_id?: string | null
           updated_at?: string | null
-          user_id?: string | null
         }
         Update: {
           created_at?: string | null
           deleted_at?: string | null
           id?: string
+          profile_id?: string | null
           updated_at?: string | null
-          user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cart_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cart_items: {
         Row: {
@@ -320,12 +336,12 @@ export type Database = {
           id: string
           is_custom: boolean | null
           postal_code: string
+          profile_id: string | null
           recipient_name: string | null
           state: string
           status: Database["public"]["Enums"]["order_status"]
           total_price: number
           updated_at: string | null
-          user_id: string | null
         }
         Insert: {
           address_line_1: string
@@ -338,12 +354,12 @@ export type Database = {
           id?: string
           is_custom?: boolean | null
           postal_code: string
+          profile_id?: string | null
           recipient_name?: string | null
           state: string
           status?: Database["public"]["Enums"]["order_status"]
           total_price: number
           updated_at?: string | null
-          user_id?: string | null
         }
         Update: {
           address_line_1?: string
@@ -356,14 +372,22 @@ export type Database = {
           id?: string
           is_custom?: boolean | null
           postal_code?: string
+          profile_id?: string | null
           recipient_name?: string | null
           state?: string
           status?: Database["public"]["Enums"]["order_status"]
           total_price?: number
           updated_at?: string | null
-          user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "orders_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payments: {
         Row: {
@@ -554,6 +578,27 @@ export type Database = {
           published?: boolean | null
           slug?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
