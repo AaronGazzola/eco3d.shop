@@ -1,11 +1,7 @@
 "use client";
+import { calculateShippingCost } from "@/lib/cart.util";
 import { OrderItem } from "@/types/order.types";
 import Image from "next/image";
-
-interface OrderDetailsProps {
-  items: OrderItem[];
-  shippingCost: number;
-}
 
 const getImageBySize = (size: "Small" | "Medium" | "Large") => {
   switch (size) {
@@ -20,11 +16,10 @@ const getImageBySize = (size: "Small" | "Medium" | "Large") => {
   }
 };
 
-const OrderDetails = ({ items, shippingCost }: OrderDetailsProps) => {
-  const subtotal = items.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0,
-  );
+const OrderDetails = ({ items }: { items: OrderItem[] }) => {
+  const subtotal =
+    items.reduce((sum, item) => sum + item.price * item.quantity, 0) / 100;
+  const shippingCost = calculateShippingCost(subtotal);
   const total = subtotal + shippingCost;
 
   return (
@@ -97,7 +92,7 @@ const OrderDetails = ({ items, shippingCost }: OrderDetailsProps) => {
               </p>
               <span className="font-medium text-lg xs:text-xl flex items-center gap-px justify-end">
                 <span className="font-normal text-base xs:text-lg">$</span>
-                {(item.price * item.quantity).toFixed(2)}
+                {((item.price / 100) * item.quantity).toFixed(2)}
               </span>
             </div>
           </div>
