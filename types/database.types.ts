@@ -426,31 +426,31 @@ export type Database = {
       }
       print_queue_items: {
         Row: {
-          created_at: string | null
           id: string
           is_processed: boolean | null
           order_item_id: string | null
           print_queue_id: string | null
+          print_started_seconds: number | null
           product_variant_id: string | null
           quantity: number
           updated_at: string | null
         }
         Insert: {
-          created_at?: string | null
           id?: string
           is_processed?: boolean | null
           order_item_id?: string | null
           print_queue_id?: string | null
+          print_started_seconds?: number | null
           product_variant_id?: string | null
           quantity: number
           updated_at?: string | null
         }
         Update: {
-          created_at?: string | null
           id?: string
           is_processed?: boolean | null
           order_item_id?: string | null
           print_queue_id?: string | null
+          print_started_seconds?: number | null
           product_variant_id?: string | null
           quantity?: number
           updated_at?: string | null

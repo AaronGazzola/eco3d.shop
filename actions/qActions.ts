@@ -1,16 +1,52 @@
 "use server";
+
 import getActionResponse from "@/actions/getActionResponse";
 import getSupabaseServerActionClient from "@/clients/action-client";
-import { ActionResponse } from "@/types/action.types";
 
-interface QueueTimeResponse {
-  queueTimeMs: number;
-  printTimeMs: number;
+export interface UpdateStatusParams {
+  itemId: string;
+  status: "waiting" | "printing" | "complete";
 }
 
-export const getQueueTimeAction = async (
-  variantIds: string[],
-): Promise<ActionResponse<QueueTimeResponse>> => {
+export const updatePrintQueueItemStatusAction = async ({
+  itemId,
+  status,
+}: UpdateStatusParams) => {
+  try {
+    const supabase = await getSupabaseServerActionClient();
+    const updates = {
+      is_processed: status === "complete",
+      print_started_seconds:
+        status === "printing"
+          ? Math.floor(Date.now() / 1000)
+          : status === "waiting"
+            ? null
+            : undefined,
+    };
+
+    const { data, error } = await supabase
+      .from("print_queue_items")
+      .update(updates)
+      .eq("id", itemId)
+      .select(
+        `
+        *,
+        product_variants!inner (
+          estimated_print_seconds,
+          variant_name
+        )
+      `,
+      )
+      .single();
+
+    if (error) throw error;
+    return getActionResponse({ data });
+  } catch (error) {
+    return getActionResponse({ error });
+  }
+};
+
+export const getQueueTimeAction = async (variantIds: string[]) => {
   try {
     const supabase = await getSupabaseServerActionClient();
     const { data: queueItems, error: queueError } = await supabase
@@ -37,13 +73,13 @@ export const getQueueTimeAction = async (
       maxWaitTime = Math.max(maxWaitTime, batchTime);
     });
 
-    return getActionResponse<QueueTimeResponse>({
+    return getActionResponse({
       data: {
         queueTimeMs: maxWaitTime * 1000,
         printTimeMs: maxWaitTime * 1000,
       },
     });
   } catch (error) {
-    return getActionResponse<QueueTimeResponse>({ error });
+    return getActionResponse({ error });
   }
 };
