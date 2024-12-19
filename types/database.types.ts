@@ -880,6 +880,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      update_print_queue_items: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       app_permission:

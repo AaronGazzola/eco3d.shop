@@ -1,112 +1,171 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { ChevronDown, ChevronUp, Printer } from "lucide-react";
-import { useState } from "react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { formatPrintSeconds } from "@/lib/number.util";
+import {
+  ColumnDef,
+  Row,
+  flexRender,
+  getCoreRowModel,
+  getPaginationRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import { CheckCircle, PlayCircle, Printer } from "lucide-react";
 
-type PrintQueueItem = {
+type PrintQItem = {
   id: string;
-  order_item_id: string;
+  order_item_id: string | null;
   quantity: number;
-  is_processed: boolean;
-  created_at: string;
-  order: {
-    id: string;
-    user: {
-      email: string;
-    };
-    created_at: string;
-  };
-  related_items: PrintQueueItem[];
+  is_processed: boolean | null;
+  created_at: string | null;
+  order_items: {
+    order: {
+      id: string;
+      profile: {
+        email: string;
+      };
+    } | null;
+  } | null;
+  product_variant: {
+    estimated_print_seconds: number | null;
+    variant_name: string;
+  } | null;
 };
 
-const PrintQueueItem = ({ item }: { item: PrintQueueItem }) => {
-  const [expanded, setExpanded] = useState(false);
-  const [isPrinting, setIsPrinting] = useState(false);
+const StatusCell = ({ row }: { row: Row<PrintQItem> }) => {
+  const isPrinting = false; // TODO: Add printing state
+  const isComplete = row.original.is_processed;
 
-  const handlePrint = () => {
-    setIsPrinting(true);
-    setTimeout(() => setIsPrinting(false), 2000);
-  };
-
-  return (
-    <Card className="mb-4">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="font-bold">Status</p>
-                <p>{item.is_processed ? "Completed" : "Pending"}</p>
-              </div>
-              <div>
-                <p className="font-bold">Time Remaining</p>
-                <p>2 hours</p>
-              </div>
-              <div>
-                <p className="font-bold">Order Email</p>
-                <p>{item.order.user.email}</p>
-              </div>
-              <div>
-                <p className="font-bold">Order Date</p>
-                <p>{new Date(item.order.created_at).toLocaleDateString()}</p>
-              </div>
-              <div>
-                <p className="font-bold">Order Number</p>
-                <p>{item.order.id}</p>
-              </div>
-              <div>
-                <p className="font-bold">Quantity</p>
-                <p>{item.quantity}</p>
-              </div>
-            </div>
-          </div>
-          <div className="flex gap-2 ml-4">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setExpanded(!expanded)}
-            >
-              {expanded ? <ChevronUp /> : <ChevronDown />}
-            </Button>
-            <Button
-              variant="default"
-              size="icon"
-              onClick={handlePrint}
-              disabled={isPrinting}
-            >
-              <Printer className={isPrinting ? "animate-pulse" : ""} />
-            </Button>
-          </div>
-        </div>
-
-        {expanded && item.related_items.length > 0 && (
-          <div className="mt-4 pl-4 border-l-2">
-            <p className="font-bold mb-2">Related Items in Order</p>
-            {item.related_items.map((relatedItem) => (
-              <PrintQueueItem key={relatedItem.id} item={relatedItem} />
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+  if (isComplete) return <CheckCircle className="text-green-500" />;
+  if (isPrinting) return <Printer className="animate-pulse text-blue-500" />;
+  return <PlayCircle className="text-gray-500" />;
 };
+
+const TimeRemainingCell = ({ row }: { row: Row<PrintQItem> }) => {
+  const printSeconds =
+    row.original.product_variant?.estimated_print_seconds || 0;
+  const startTime =
+    (row.original.created_at && new Date(row.original.created_at).getTime()) ||
+    0;
+  const elapsedSeconds = (Date.now() - startTime) / 1000;
+  const remainingSeconds = Math.max(0, printSeconds - elapsedSeconds);
+
+  return formatPrintSeconds(remainingSeconds);
+};
+
+const qColumns: ColumnDef<PrintQItem>[] = [
+  {
+    id: "status",
+    header: "Status",
+    cell: StatusCell,
+    size: 50,
+  },
+  {
+    accessorKey: "product_variant.variant_name",
+    header: "Variant",
+    size: 200,
+  },
+  {
+    accessorKey: "quantity",
+    header: "Qty",
+    size: 50,
+  },
+  {
+    id: "timeRemaining",
+    header: "Time Remaining",
+    cell: TimeRemainingCell,
+    size: 100,
+  },
+  {
+    accessorKey: "order_items.order.id",
+    header: "Order ID",
+    size: 200,
+  },
+  {
+    accessorKey: "order_items.order.profile.email",
+    header: "Customer",
+    size: 200,
+  },
+];
 
 export default function PrintQPage({
   items,
   queueId,
 }: {
-  items: PrintQueueItem[];
+  items: PrintQItem[];
   queueId: string;
 }) {
+  const table = useReactTable({
+    data: items,
+    columns: qColumns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: {
+      pagination: {
+        pageSize: 10,
+      },
+    },
+  });
+
   return (
-    <div className="container max-w-4xl mx-auto py-8">
-      <h1 className="text-2xl font-bold mb-6">Print Queue {queueId}</h1>
-      {items.map((item) => (
-        <PrintQueueItem key={item.id} item={item} />
-      ))}
+    <div className="container max-w-7xl mx-auto py-8 space-y-4">
+      <h1 className="text-2xl font-bold">Print Queue {queueId}</h1>
+
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead
+                    key={header.id}
+                    style={{ width: header.getSize() }}
+                  >
+                    {flexRender(
+                      header.column.columnDef.header,
+                      header.getContext(),
+                    )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={qColumns.length}
+                  className="h-24 text-center"
+                >
+                  No print jobs in queue.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* <DataTablePagination table={table} /> */}
     </div>
   );
 }
