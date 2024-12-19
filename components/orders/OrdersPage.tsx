@@ -1,4 +1,3 @@
-// OrdersPage.tsx
 "use client";
 import OrderCard from "@/components/orders/OrderCard";
 import {
@@ -9,10 +8,13 @@ import {
   RefundStatus,
 } from "@/types/order.types";
 import { useState } from "react";
-import { mockOrders } from "./mockOrderData";
 
-const OrdersList = () => {
-  const [orders, setOrders] = useState<Order[]>(mockOrders);
+interface OrdersPageProps {
+  initialOrders: Order[];
+}
+
+const OrdersPage = ({ initialOrders }: OrdersPageProps) => {
+  const [orders, setOrders] = useState<Order[]>(initialOrders ?? []);
 
   const handleUpdateStatus = (orderId: string) => {
     setOrders((prevOrders) =>
@@ -62,4 +64,4 @@ const OrdersList = () => {
   );
 };
 
-export default OrdersList;
+export default OrdersPage;
