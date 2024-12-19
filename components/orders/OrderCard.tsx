@@ -19,22 +19,10 @@ import { formatDate } from "date-fns";
 import { ChevronDown, ChevronUp, Frown, HelpCircle, Phone } from "lucide-react";
 import { useState } from "react";
 
-interface OrderCardProps {
-  order: Order;
-  onRequestRefund: (orderId: string) => void;
-  onUpdateStatus: (orderId: string) => void;
-}
-
-const OrderCard = ({
-  order,
-  onRequestRefund,
-  onUpdateStatus,
-}: OrderCardProps) => {
+const OrderCard = ({ order }: { order: Order }) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleRequestRefund = () => {
-    onRequestRefund(order.id);
-  };
+  const handleRequestRefund = () => {};
 
   return (
     <Card className="w-full max-w-3xl p-6 relative">
@@ -85,7 +73,7 @@ const OrderCard = ({
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <OrderDetails shippingCost={order.shippingCost} items={order.items} />
+          <OrderDetails items={order.items} />
         </CollapsibleContent>
       </Collapsible>
 

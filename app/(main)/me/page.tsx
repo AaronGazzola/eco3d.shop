@@ -1,9 +1,9 @@
-"use server";
-import { getUserOrdersAction } from "@/actions/orderActions";
+"use client";
 import OrdersPage from "@/components/orders/OrdersPage";
+import { useUserOrdersQuery } from "@/hooks/orderHooks";
 
-const Page = async () => {
-  const { data: orders } = await getUserOrdersAction();
-  return <OrdersPage initialOrders={orders || []} />;
+const Page = () => {
+  const { data } = useUserOrdersQuery();
+  return <OrdersPage orders={data} />;
 };
 export default Page;
