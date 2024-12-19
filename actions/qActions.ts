@@ -83,3 +83,38 @@ export const getQueueTimeAction = async (variantIds: string[]) => {
     return getActionResponse({ error });
   }
 };
+
+export const getQueueItemsAction = async (queueId: string) => {
+  try {
+    const supabase = await getSupabaseServerActionClient();
+    const { data, error } = await supabase
+      .from("print_queue_items")
+      .select(
+        `
+        *,
+        product_variant:product_variants!inner ( 
+          id,
+          estimated_print_seconds,
+          variant_name,
+          attributes
+        ),
+        order_items (
+          order:orders (
+            id,
+            created_at,
+            profile:profiles (
+              email
+            )
+          )
+        )
+      `,
+      )
+      .eq("print_queue_id", queueId)
+      .order("updated_at", { ascending: false });
+
+    if (error) throw error;
+    return getActionResponse({ data });
+  } catch (error) {
+    return getActionResponse({ error });
+  }
+};
