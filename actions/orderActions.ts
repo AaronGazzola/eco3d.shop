@@ -277,6 +277,7 @@ export const updateOrderTrackingAction = async (
   try {
     const supabase = await getSupabaseServerActionClient();
     const { data: userData, error: userError } = await getUserAction();
+
     if (userError) throw new Error(userError);
     if (!userData?.user) throw new Error("User not found");
 
@@ -289,24 +290,37 @@ export const updateOrderTrackingAction = async (
 
     if (!userRole) throw new Error("Unauthorized: Admin access required");
 
-    const { data: existingShipping } = await supabase
+    const { data: existingShipping, error: fetchError } = await supabase
       .from("shipping_details")
       .select("*")
       .eq("order_id", orderId)
-      .order("updated_at", { ascending: false });
+      .single();
 
-    const latestShippingDetail = existingShipping?.[0];
-    if (!latestShippingDetail) throw new Error("No shipping details found");
+    if (fetchError && fetchError.code !== "PGRST116") throw fetchError;
 
-    const { error: updateError } = await supabase
-      .from("shipping_details")
-      .update({
-        tracking_number: trackingNumber,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", latestShippingDetail.id);
+    if (existingShipping) {
+      const { error: updateError } = await supabase
+        .from("shipping_details")
+        .update({
+          tracking_number: trackingNumber,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingShipping.id);
 
-    if (updateError) throw updateError;
+      if (updateError) throw updateError;
+    } else {
+      const { error: insertError } = await supabase
+        .from("shipping_details")
+        .insert({
+          order_id: orderId,
+          tracking_number: trackingNumber,
+          shipping_provider: "default",
+          shipping_status: "pending",
+        });
+
+      if (insertError) throw insertError;
+    }
+
     return getActionResponse({ data: true });
   } catch (error) {
     return getActionResponse({ error });
