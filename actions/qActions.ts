@@ -118,7 +118,6 @@ export const getQueueItemsAction = async (queueId: string) => {
       .order("updated_at", { ascending: true });
 
     if (error) throw error;
-    console.log(data);
     return getActionResponse({ data });
   } catch (error) {
     return getActionResponse({ error });

@@ -37,6 +37,23 @@ function normalizeSize(size: string): string {
   return sizeMap[size] || size.toLowerCase();
 }
 
+async function getQueueIdsByColor() {
+  const supabase = await getSupabaseServerActionClient();
+  const { data: queues, error } = await supabase
+    .from("print_queues")
+    .select("id")
+    .limit(2);
+
+  if (error || !queues || queues.length < 2) {
+    throw new Error("Failed to fetch print queues");
+  }
+
+  return {
+    whiteQueueId: queues[0].id,
+    colorQueueId: queues[1].id,
+  };
+}
+
 export async function handlePaymentSuccess(
   paymentIntentId: string,
   items: CartItem[],
@@ -44,6 +61,7 @@ export async function handlePaymentSuccess(
 ) {
   const supabase = await getSupabaseServerActionClient();
   const { data: userData } = await getUserAction();
+  const { whiteQueueId, colorQueueId } = await getQueueIdsByColor();
 
   let profileId: string;
   if (userData?.user) {
@@ -96,8 +114,7 @@ export async function handlePaymentSuccess(
       product_variants (
         id,
         variant_name,
-        attributes,
-        print_queue_id
+        attributes
       )
     `,
     )
@@ -124,11 +141,20 @@ export async function handlePaymentSuccess(
 
   const orderItems = await Promise.all(
     items.map(async (item) => {
+      const normalizedSize = normalizeSize(item.size);
       const variant = products.product_variants.find((v) => {
         const attrs = v.attributes as { size: string; color: string[] };
-        return attrs.size === normalizeSize(item.size);
+        const hasMatchingSize = attrs.size === normalizedSize;
+        const hasMatchingColors = item.colors?.every((color) =>
+          attrs.color.includes(color.toLowerCase()),
+        );
+        return hasMatchingSize && hasMatchingColors;
       });
-      if (!variant) throw new Error(`Variant not found for size ${item.size}`);
+
+      if (!variant) {
+        throw new Error(`Variant not found for size ${item.size}`);
+      }
+
       return {
         order_id: orderResult.data.id,
         product_variant_id: variant.id,
@@ -150,8 +176,16 @@ export async function handlePaymentSuccess(
     const variant = products.product_variants.find(
       (v) => v.id === orderItem.product_variant_id,
     );
+    const variantAttrs = variant?.attributes as { color: string[] } | undefined;
+
+    const hasWhite = variantAttrs?.color.some(
+      (color) => color.toLowerCase() === "white",
+    );
+
+    const queueId = hasWhite ? whiteQueueId : colorQueueId;
+
     return {
-      print_queue_id: variant?.print_queue_id,
+      print_queue_id: queueId,
       order_item_id: orderItem.id,
       product_variant_id: orderItem.product_variant_id,
       quantity: orderItem.quantity,
