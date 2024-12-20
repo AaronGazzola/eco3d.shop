@@ -25,9 +25,9 @@ const OrderDetails = ({ items }: { items: OrderItem[] }) => {
 
   return (
     <div className="py-4 space-y-4">
-      {items.map((item) => (
+      {items.map((item, i) => (
         <div
-          key={item.id}
+          key={i}
           className="flex flex-col sm:flex-row gap-4 text-gray-800 first:border-t border-b py-8 px-2 pr-4"
         >
           <div className="flex-shrink-0 pb-4 sm:pb-0">
