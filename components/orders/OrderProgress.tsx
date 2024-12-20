@@ -55,6 +55,28 @@ const OrderProgress = ({
     return positions[orderStatus];
   };
 
+  const isStatusCompleted = (iconStatus: OrderStatus | RefundStatus) => {
+    if (isRefund) {
+      return (
+        REFUND_STAGES.indexOf(status as RefundStatus) >
+        REFUND_STAGES.indexOf(iconStatus as RefundStatus)
+      );
+    }
+
+    const orderStatuses = [
+      OrderStatus.Waiting,
+      OrderStatus.Printing,
+      OrderStatus.Packing,
+      OrderStatus.Shipped,
+      OrderStatus.Delivered,
+    ];
+
+    return (
+      orderStatuses.indexOf(status as OrderStatus) >
+      orderStatuses.indexOf(iconStatus as OrderStatus)
+    );
+  };
+
   if (isRefund) {
     const icons = [
       { icon: ArrowLeftRight, label: "Requested" },
@@ -105,10 +127,10 @@ const OrderProgress = ({
   }
 
   const icons = [
-    { icon: Clock, status: OrderStatus.Waiting, label: "Processing" },
+    { icon: Clock, status: OrderStatus.Waiting, label: "Queued" },
     { icon: Printer, status: OrderStatus.Printing, label: "Printing" },
-    { icon: Package, status: OrderStatus.Packing, label: "Packing" },
-    { icon: Truck, status: OrderStatus.Shipped, label: "Shipping" },
+    { icon: Package, status: OrderStatus.Packing, label: "Processing" },
+    { icon: Truck, status: OrderStatus.Shipped, label: "Dispatched" },
   ];
 
   return (
@@ -134,8 +156,11 @@ const OrderProgress = ({
           {icons.map(({ icon: Icon, status: iconStatus }) => {
             const isActive = status === iconStatus;
             const isShipped = iconStatus === OrderStatus.Shipped;
-            const currentWidth = getProgressWidth(status as OrderStatus, false);
-            const statusWidth = getProgressWidth(iconStatus, false);
+            const isCompleted = isStatusCompleted(iconStatus);
+            const shouldBeGreen =
+              status === OrderStatus.Delivered
+                ? iconStatus === OrderStatus.Shipped
+                : isCompleted;
 
             return (
               <div
@@ -160,14 +185,21 @@ const OrderProgress = ({
                   )}
                   {status === OrderStatus.Delivered &&
                   iconStatus === OrderStatus.Shipped ? (
-                    <PackageOpen className="w-6 h-6 bg-white flex-shrink-0 text-primary" />
+                    <PackageOpen
+                      className={cn(
+                        "w-6 h-6 bg-white flex-shrink-0",
+                        "text-primmary",
+                      )}
+                    />
                   ) : (
                     <Icon
                       className={cn(
                         "w-6 h-6 bg-white flex-shrink-0",
-                        parseFloat(currentWidth) >= parseFloat(statusWidth)
-                          ? "text-primary"
-                          : "text-gray-300",
+                        shouldBeGreen
+                          ? "text-primmary"
+                          : isActive
+                            ? "text-primary"
+                            : "text-gray-300",
                       )}
                     />
                   )}

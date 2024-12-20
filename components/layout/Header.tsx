@@ -12,6 +12,7 @@ import { Direction } from "@/types/util.types";
 import {
   ListOrdered,
   Package,
+  PackageOpen,
   PackageSearch,
   TicketPercent,
 } from "lucide-react";
@@ -32,6 +33,21 @@ const Header = () => {
         <Logo />
         {isAdmin ? (
           <div className="items-center flex">
+            <Link href={configuration.paths.admin.qs}>
+              <Button variant="ghost">
+                <ListOrdered />
+              </Button>
+            </Link>
+            <Link href={configuration.paths.admin.orders}>
+              <Button variant="ghost">
+                <Package />
+              </Button>
+            </Link>
+            <Link href={configuration.paths.me.path}>
+              <Button variant="ghost">
+                <PackageOpen />
+              </Button>
+            </Link>
             <Link href={configuration.paths.admin.products}>
               <Button variant="ghost">
                 <PackageSearch />
@@ -40,16 +56,6 @@ const Header = () => {
             <Link href={configuration.paths.admin.promo}>
               <Button variant="ghost">
                 <TicketPercent />
-              </Button>
-            </Link>
-            <Link href={configuration.paths.admin.orders}>
-              <Button variant="ghost">
-                <Package />
-              </Button>
-            </Link>
-            <Link href={configuration.paths.admin.qs}>
-              <Button variant="ghost">
-                <ListOrdered />
               </Button>
             </Link>
           </div>

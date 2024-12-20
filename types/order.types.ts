@@ -42,7 +42,7 @@ export interface Order {
   currency: string;
   items: OrderItem[];
   createdAt: Date;
-  shippingCost: number;
+  shippingCost?: number;
   printTime: number;
   queueTime: number;
 }

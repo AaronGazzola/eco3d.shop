@@ -26,6 +26,7 @@ export const useAdminOrdersQuery = () => {
     queryFn: async () => {
       const response = await getAdminOrdersAction();
       if (response.error) throw new Error(response.error.toString());
+
       if (!response.data) return [];
       return response.data;
     },
@@ -50,6 +51,7 @@ export const useUpdateTrackingMutation = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["orders", "admin"] });
     },
   });
 };

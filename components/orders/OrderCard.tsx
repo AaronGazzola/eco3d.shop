@@ -31,8 +31,7 @@ const OrderCard = ({ order }: { order: Order }) => {
   const { mutate: updateTracking, isPending } = useUpdateTrackingMutation();
 
   const handleUpdateTracking = () => {
-    if (!trackingNumber.trim()) return;
-    updateTracking({ orderId: order.id, trackingNumber });
+    updateTracking({ orderId: order.id, trackingNumber: trackingNumber || "" });
   };
 
   const handleRequestRefund = () => {};
@@ -99,10 +98,7 @@ const OrderCard = ({ order }: { order: Order }) => {
               value={trackingNumber}
               onChange={(e) => setTrackingNumber(e.target.value)}
             />
-            <Button
-              onClick={handleUpdateTracking}
-              disabled={isPending || !trackingNumber.trim()}
-            >
+            <Button onClick={handleUpdateTracking} disabled={isPending}>
               Save
             </Button>
           </div>

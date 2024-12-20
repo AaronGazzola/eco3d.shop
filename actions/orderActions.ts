@@ -1,4 +1,3 @@
-// orderActions.ts
 "use server";
 
 import getActionResponse from "@/actions/getActionResponse";
@@ -8,45 +7,43 @@ import { ActionResponse } from "@/types/action.types";
 import { ProductVariant } from "@/types/db.types";
 import { ItemTime, Order, OrderStatus } from "@/types/order.types";
 
+const getMostRecent = (items: { updated_at: string }[]) => {
+  if (!items.length) return null;
+
+  return items.reduce((latest, current) => {
+    if (!latest.updated_at) return current;
+    if (!current.updated_at) return latest;
+    return new Date(current.updated_at) > new Date(latest.updated_at)
+      ? current
+      : latest;
+  });
+};
+
 const determineOrderStatus = (
   order: any,
   queueItems: any[],
-  shippingDetails: any,
+  shippingDetail: any,
 ): OrderStatus => {
-  if (order.status === "delivered") {
-    return OrderStatus.Delivered;
-  }
+  if (order.status === "delivered") return OrderStatus.Delivered;
 
   const orderQueueItems = queueItems.filter((qi) =>
     order.order_items.some((oi: any) => oi.id === qi.order_item_id),
   );
 
-  if (!orderQueueItems.length) {
-    return OrderStatus.Waiting;
-  }
+  if (!orderQueueItems.length) return OrderStatus.Waiting;
 
-  const hasTracking = shippingDetails?.tracking_number;
+  const hasTracking = shippingDetail?.tracking_number;
   const allProcessed = orderQueueItems.every((item) => item.is_processed);
 
-  if (hasTracking && allProcessed) {
-    return OrderStatus.Shipped;
-  }
-
-  if (allProcessed) {
-    return OrderStatus.Packing;
-  }
+  if (hasTracking && allProcessed) return OrderStatus.Shipped;
+  if (allProcessed) return OrderStatus.Packing;
 
   const isAnyPrinting = orderQueueItems.some(
     (qi) => qi.print_started_seconds && !qi.is_processed,
   );
 
-  if (isAnyPrinting) {
-    return OrderStatus.Printing;
-  }
-
-  return OrderStatus.Waiting;
+  return isAnyPrinting ? OrderStatus.Printing : OrderStatus.Waiting;
 };
-
 const calculateOrderTimes = (
   order: any,
   queueItems: any[],
@@ -90,11 +87,10 @@ const transformOrderData = (
   queueItems: any[],
   variants: ProductVariant[],
 ): Order => {
-  const status = determineOrderStatus(
-    order,
-    queueItems,
-    order.shipping_details?.[0],
-  );
+  const latestShippingDetail = getMostRecent(order.shipping_details) as any as {
+    tracking_number: string;
+  };
+  const status = determineOrderStatus(order, queueItems, latestShippingDetail);
 
   const times = calculateOrderTimes(order, queueItems, variants);
 
@@ -103,7 +99,7 @@ const transformOrderData = (
     status,
     isRefund: order.status === "refunded",
     startTime: order.created_at ? new Date(order.created_at) : undefined,
-    trackingNumber: order.shipping_details?.[0]?.tracking_number,
+    trackingNumber: latestShippingDetail?.tracking_number,
     recipientName: order.recipient_name || "",
     addressLine1: order.address_line_1,
     addressLine2: order.address_line_2,
@@ -116,7 +112,6 @@ const transformOrderData = (
       ? new Date(order.expected_fulfillment_date)
       : undefined,
     currency: order.currency,
-    shippingCost: order.shipping_details?.[0]?.shipping_cost || 0,
     createdAt: new Date(order.created_at || Date.now()),
     printTime: times.printTime,
     queueTime: times.queueTime,
@@ -163,20 +158,26 @@ export const getUserOrdersAction = async (): Promise<
           .from("orders")
           .select(
             `
-          *,
-          shipping_details(*),
-          order_items(
-            *,
-            product_variants(
-              *,
-              variant_images(
-                *,
-                images(*)
-              )
-            )
-          ),
-          refunds(*)
-        `,
+           *,
+           shipping_details!left(
+             id,
+             shipping_provider,
+             tracking_number,
+             shipping_status,
+             estimated_delivery
+           ),
+           order_items(
+             *,
+             product_variants(
+               *,
+               variant_images(
+                 *,
+                 images(*)
+               )
+             )
+           ),
+           refunds(*)
+         `,
           )
           .eq("profile_id", profileData.id),
         supabase.from("print_queue_items").select("*"),
@@ -218,21 +219,27 @@ export const getAdminOrdersAction = async (): Promise<
     const [ordersResponse, queueItemsResponse, variantsResponse] =
       await Promise.all([
         supabase.from("orders").select(`
-          *,
-          shipping_details(*),
-          order_items(
-            *,
-            product_variants(
-              *,
-              variant_images(
-                *,
-                images(*)
-              )
-            )
-          ),
-          refunds(*),
-          profiles(*)
-        `),
+         *,
+         shipping_details!left(
+           id,
+           shipping_provider,
+           tracking_number,
+           shipping_status,
+           estimated_delivery
+         ),
+         order_items(
+           *,
+           product_variants(
+             *,
+             variant_images(
+               *,
+               images(*)
+             )
+           )
+         ),
+         refunds(*),
+         profiles(*)
+       `),
         supabase.from("print_queue_items").select("*"),
         supabase.from("product_variants").select("*"),
       ]);
@@ -275,17 +282,24 @@ export const updateOrderTrackingAction = async (
 
     if (!userRole) throw new Error("Unauthorized: Admin access required");
 
+    const { data: existingShipping } = await supabase
+      .from("shipping_details")
+      .select("*")
+      .eq("order_id", orderId)
+      .order("updated_at", { ascending: false });
+
+    const latestShippingDetail = existingShipping?.[0];
+    if (!latestShippingDetail) throw new Error("No shipping details found");
+
     const { error: updateError } = await supabase
       .from("shipping_details")
-      .upsert({
-        order_id: orderId,
+      .update({
         tracking_number: trackingNumber,
-        shipping_provider: "default",
-        shipping_status: "pending",
-      });
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", latestShippingDetail.id);
 
     if (updateError) throw updateError;
-
     return getActionResponse({ data: true });
   } catch (error) {
     return getActionResponse({ error });
