@@ -1,7 +1,11 @@
-// OrderProgress.tsx
-"use client";
+import OrderCountdown from "@/components/orders/OrderCountdown";
 import { cn } from "@/lib/utils";
-import { OrderStatus, RefundStatus } from "@/types/order.types";
+import {
+  Order,
+  OrderStatus,
+  REFUND_STAGES,
+  RefundStatus,
+} from "@/types/order.types";
 import {
   ArrowLeftRight,
   CheckCircle2,
@@ -19,92 +23,75 @@ interface OrderProgressProps {
   status: OrderStatus | RefundStatus;
   isRefund: boolean;
   trackingNumber?: string;
+  order: Order;
 }
 
 const OrderProgress = ({
   status,
   isRefund,
   trackingNumber,
+  order,
 }: OrderProgressProps) => {
   const getProgressWidth = (
     currentStatus: OrderStatus | RefundStatus,
-    isRefund: boolean,
+    isRefundProgress: boolean,
   ) => {
-    if (isRefund) {
-      const positions = {
-        [RefundStatus.Pending]: "33%",
-        [RefundStatus.Processing]: "66%",
-        [RefundStatus.Processed]: "100%",
-      };
-      return positions[currentStatus as RefundStatus];
+    if (isRefundProgress) {
+      if (!(currentStatus in RefundStatus)) return "0%";
+      const refundStatus = currentStatus as RefundStatus;
+      const index = REFUND_STAGES.indexOf(refundStatus);
+      return `${((index + 1) / REFUND_STAGES.length) * 100}%`;
     }
-    const positions = {
+
+    if (!(currentStatus in OrderStatus)) return "0%";
+    const orderStatus = currentStatus as OrderStatus;
+    const positions: Record<OrderStatus, string> = {
       [OrderStatus.Waiting]: "25%",
       [OrderStatus.Printing]: "50%",
-      [OrderStatus.Shipped]: "75%",
       [OrderStatus.Packing]: "75%",
+      [OrderStatus.Shipped]: "75%",
       [OrderStatus.Delivered]: "100%",
     };
-    return positions[currentStatus as OrderStatus];
+    return positions[orderStatus];
   };
 
   if (isRefund) {
     const icons = [
-      {
-        icon: ArrowLeftRight,
-        status: RefundStatus.Pending,
-        label: "Refund Requested",
-      },
-      {
-        icon: CircleDot,
-        status: RefundStatus.Processing,
-        label: "Processing Refund",
-      },
-      {
-        icon: CheckCircle2,
-        status: RefundStatus.Processed,
-        label: "Refund Complete",
-      },
+      { icon: ArrowLeftRight, label: "Requested" },
+      { icon: CircleDot, label: "Processing" },
+      { icon: CheckCircle2, label: "Complete" },
     ];
 
     return (
-      <div className="w-full mt-4">
+      <div className="w-full">
         <div className="flex">
-          {icons.map(({ icon: Icon, status: iconStatus, label }) => {
-            const isActive = status === iconStatus;
-            let isPast =
-              isActive ||
-              (status === RefundStatus.Processing &&
-                iconStatus === RefundStatus.Pending);
-
-            return (
-              <div
-                key={iconStatus}
-                className="flex flex-col items-center gap-2 font-bold text-primary pb-4 w-[33%]"
-              >
-                {isActive && <h3 className="text-center">{label}</h3>}
-              </div>
-            );
-          })}
+          {REFUND_STAGES.map((stage, index) => (
+            <div
+              key={stage}
+              className="flex flex-col items-center gap-2 font-bold text-primary pb-4 w-[33%]"
+            >
+              {stage === status && (
+                <h3 className="text-center capitalize">
+                  {stage.toLowerCase()}
+                </h3>
+              )}
+            </div>
+          ))}
         </div>
         <div className="relative">
           <div className="absolute w-full h-1 bg-gray-200 rounded">
             <div
               className="absolute h-full bg-primary rounded transition-all duration-500"
-              style={{ width: getProgressWidth(status, true) }}
+              style={{ width: getProgressWidth(status as RefundStatus, true) }}
             />
           </div>
           <div className="flex w-full pt-5">
-            {icons.map(({ icon: Icon, status: currentStatus }) => (
-              <div
-                key={currentStatus}
-                className="flex flex-col items-center flex-grow"
-              >
+            {icons.map(({ icon: Icon }, index) => (
+              <div key={index} className="flex flex-col items-center flex-grow">
                 <Icon
                   className={cn(
                     "w-6 h-6 bg-white",
-                    getProgressWidth(status, true) >=
-                      getProgressWidth(currentStatus, true)
+                    index <= REFUND_STAGES.indexOf(status as RefundStatus)
                       ? "text-primary"
                       : "text-gray-300",
                   )}
@@ -118,85 +105,69 @@ const OrderProgress = ({
   }
 
   const icons = [
-    { icon: Clock, status: OrderStatus.Waiting, label: "Waiting in queue" },
+    { icon: Clock, status: OrderStatus.Waiting, label: "Processing" },
     { icon: Printer, status: OrderStatus.Printing, label: "Printing" },
-    { icon: Truck, status: OrderStatus.Shipped, label: "Shipped" },
-    { icon: Package, status: OrderStatus.Delivered, label: "Delivered" },
+    { icon: Package, status: OrderStatus.Packing, label: "Packing" },
+    { icon: Truck, status: OrderStatus.Shipped, label: "Shipping" },
   ];
 
   return (
-    <div className="w-full mt-4">
+    <div className="w-full mt-6">
       <div className="flex w-full">
-        {icons.map(({ status: iconStatus, label }, i) => {
-          const isActive = status === iconStatus;
-          return (
-            <div
-              key={iconStatus}
-              className="flex flex-col items-center gap-2 font-bold text-primary pb-4 w-[33%]"
-            >
-              {isActive && <h3 className="text-center">{label}</h3>}
-            </div>
-          );
-        })}
+        {icons.map(({ status: iconStatus, label }) => (
+          <div
+            key={iconStatus}
+            className="flex flex-col items-center gap-2 font-bold text-primary pb-4 w-[25%]"
+          >
+            {status === iconStatus && <h3 className="text-center">{label}</h3>}
+          </div>
+        ))}
       </div>
       <div className="relative">
         <div className="absolute w-full h-1 bg-gray-200 rounded">
           <div
             className="absolute h-full bg-primary rounded transition-all duration-500"
-            style={{ width: getProgressWidth(status, false) }}
+            style={{ width: getProgressWidth(status as OrderStatus, false) }}
           />
         </div>
         <div className="flex">
           {icons.map(({ icon: Icon, status: iconStatus }) => {
             const isActive = status === iconStatus;
             const isShipped = iconStatus === OrderStatus.Shipped;
-            let isPast =
-              isActive ||
-              (status === OrderStatus.Printing &&
-                iconStatus === OrderStatus.Waiting) ||
-              (status === OrderStatus.Shipped &&
-                (iconStatus === OrderStatus.Printing ||
-                  iconStatus === OrderStatus.Waiting));
+            const currentWidth = getProgressWidth(status as OrderStatus, false);
+            const statusWidth = getProgressWidth(iconStatus, false);
 
             return (
               <div
-                style={{ width: "25%" }}
                 key={iconStatus}
+                style={{ width: "25%" }}
                 className="flex flex-col items-center gap-2"
               >
                 <div className="text-sm whitespace-nowrap px-2.5 py-1.5 flex flex-col items-center text-primary font-semibold relative w-full gap-5 pt-6 justify-end h-full">
-                  {status !== OrderStatus.Delivered && (
-                    <div
-                      className={cn(
-                        "border-2 rounded-full items-center justify-center py-1.5 flex",
-                        !isActive && "opacity-0",
-                        isShipped
-                          ? "rounded-none border-transparent border-b-secondary text-secondary px-1"
-                          : "border-green-700 px-3.5",
-                      )}
+                  {(iconStatus === OrderStatus.Waiting ||
+                    iconStatus === OrderStatus.Printing) &&
+                    isActive && <OrderCountdown order={order} />}
+                  {isShipped && trackingNumber && (
+                    <Link
+                      href={`https://track.auspost.com.au/track/search/${trackingNumber}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 underline"
                     >
-                      {(iconStatus === OrderStatus.Waiting ||
-                        iconStatus === OrderStatus.Printing) &&
-                        "00:28:28:29"}
-                      {isShipped && (
-                        <Link
-                          href={`/tracking/${trackingNumber}`}
-                          className="flex items-center gap-2"
-                        >
-                          <span>Track package</span>
-                          <SquareArrowOutUpRight className="mt-0.5 w-4 h-4 stroke-2" />
-                        </Link>
-                      )}
-                    </div>
+                      <span>Track Order</span>
+                      <SquareArrowOutUpRight className="mt-0.5 w-4 h-4 stroke-2" />
+                    </Link>
                   )}
-                  {iconStatus === OrderStatus.Delivered &&
-                  status === OrderStatus.Delivered ? (
+                  {status === OrderStatus.Delivered &&
+                  iconStatus === OrderStatus.Shipped ? (
                     <PackageOpen className="w-6 h-6 bg-white flex-shrink-0 text-primary" />
                   ) : (
                     <Icon
                       className={cn(
                         "w-6 h-6 bg-white flex-shrink-0",
-                        isPast ? "text-primary" : "text-gray-300",
+                        parseFloat(currentWidth) >= parseFloat(statusWidth)
+                          ? "text-primary"
+                          : "text-gray-300",
                       )}
                     />
                   )}

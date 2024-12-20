@@ -1,7 +1,10 @@
+// orderActions.ts
 "use server";
+
 import getActionResponse from "@/actions/getActionResponse";
 import { getUserAction } from "@/actions/userActions";
 import getSupabaseServerActionClient from "@/clients/action-client";
+import { ActionResponse } from "@/types/action.types";
 import { ProductVariant } from "@/types/db.types";
 import { ItemTime, Order, OrderStatus } from "@/types/order.types";
 
@@ -138,7 +141,9 @@ const transformOrderData = (
   };
 };
 
-export const getUserOrdersAction = async () => {
+export const getUserOrdersAction = async (): Promise<
+  ActionResponse<Order[]>
+> => {
   try {
     const supabase = await getSupabaseServerActionClient();
     const { data: userData, error: userError } = await getUserAction();
@@ -192,7 +197,9 @@ export const getUserOrdersAction = async () => {
   }
 };
 
-export const getAdminOrdersAction = async () => {
+export const getAdminOrdersAction = async (): Promise<
+  ActionResponse<(Order & { userEmail?: string })[]>
+> => {
   try {
     const supabase = await getSupabaseServerActionClient();
     const { data: userData, error: userError } = await getUserAction();
@@ -244,6 +251,42 @@ export const getAdminOrdersAction = async () => {
     }));
 
     return getActionResponse({ data: transformedOrders });
+  } catch (error) {
+    return getActionResponse({ error });
+  }
+};
+
+export const updateOrderTrackingAction = async (
+  orderId: string,
+  trackingNumber: string,
+): Promise<ActionResponse<boolean>> => {
+  try {
+    const supabase = await getSupabaseServerActionClient();
+    const { data: userData, error: userError } = await getUserAction();
+    if (userError) throw new Error(userError);
+    if (!userData?.user) throw new Error("User not found");
+
+    const { data: userRole } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userData.user.id)
+      .eq("role", "admin")
+      .single();
+
+    if (!userRole) throw new Error("Unauthorized: Admin access required");
+
+    const { error: updateError } = await supabase
+      .from("shipping_details")
+      .upsert({
+        order_id: orderId,
+        tracking_number: trackingNumber,
+        shipping_provider: "default",
+        shipping_status: "pending",
+      });
+
+    if (updateError) throw updateError;
+
+    return getActionResponse({ data: true });
   } catch (error) {
     return getActionResponse({ error });
   }

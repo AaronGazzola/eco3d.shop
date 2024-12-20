@@ -3,39 +3,53 @@
 import {
   getAdminOrdersAction,
   getUserOrdersAction,
+  updateOrderTrackingAction,
 } from "@/actions/orderActions";
-import { useDbQuery } from "@/hooks/dbHooks";
-import { ActionResponse } from "@/types/action.types";
-import { Order } from "@/types/order.types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export const useUserOrdersQuery = () => {
-  return useDbQuery<Order[]>(
-    ["orders", "user"],
-    async () => {
+  return useQuery({
+    queryKey: ["orders", "user"],
+    queryFn: async () => {
       const response = await getUserOrdersAction();
-      return {
-        data: response.data ?? [],
-        error: response.error,
-      } as ActionResponse<Order[]>;
+      if (response.error) throw new Error(response.error.toString());
+      if (!response.data) return [];
+      return response.data;
     },
-    {
-      refetchInterval: 30000,
-    },
-  );
+    refetchInterval: 30000,
+  });
 };
 
 export const useAdminOrdersQuery = () => {
-  return useDbQuery<(Order & { userEmail?: string })[]>(
-    ["orders", "admin"],
-    async () => {
+  return useQuery({
+    queryKey: ["orders", "admin"],
+    queryFn: async () => {
       const response = await getAdminOrdersAction();
-      return {
-        data: response.data ?? [],
-        error: response.error,
-      } as ActionResponse<(Order & { userEmail?: string })[]>;
+      if (response.error) throw new Error(response.error.toString());
+      if (!response.data) return [];
+      return response.data;
     },
-    {
-      refetchInterval: 30000,
+    refetchInterval: 30000,
+  });
+};
+
+export const useUpdateTrackingMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      orderId,
+      trackingNumber,
+    }: {
+      orderId: string;
+      trackingNumber: string;
+    }) => {
+      const response = await updateOrderTrackingAction(orderId, trackingNumber);
+      if (response.error) throw new Error(response.error.toString());
+      return response.data;
     },
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+  });
 };
