@@ -10,12 +10,12 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import useIsMounted from "@/hooks/useIsMounted";
+import { useProductStore } from "@/hooks/useProductStore";
 import { cn } from "@/lib/utils";
+import { ImageSize } from "@/types/product.types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Image from "next/image";
-import { useQueryState } from "nuqs";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -39,8 +39,6 @@ const personaliseSchema = z.object({
 
 type FormValues = z.infer<typeof personaliseSchema>;
 
-type ImageSize = "Small" | "Medium" | "Large";
-
 const getImagesBySize = (size: ImageSize, hasWhite: boolean) => {
   if (size === "Small") {
     return {
@@ -63,92 +61,49 @@ const getImagesBySize = (size: ImageSize, hasWhite: boolean) => {
 };
 
 const PersonaliseForm = ({ isAnimating }: { isAnimating: boolean }) => {
-  const isMounted = useIsMounted();
-  const [isInit, setIsInit] = useState(false);
+  const {
+    size,
+    colors,
+    primaryMessage,
+    secondaryMessage,
+    setPrimaryMessage,
+    setSecondaryMessage,
+  } = useProductStore();
 
-  const [size] = useQueryState("size", {
-    defaultValue: "Small",
-    parse: (value: string | null): "Small" | "Medium" | "Large" =>
-      ["Small", "Medium", "Large"].includes(value || "")
-        ? (value as "Small" | "Medium" | "Large")
-        : "Small",
-  });
-
-  const [colors] = useQueryState("colors", {
-    defaultValue: '["Natural","Black"]',
-    parse: (value: string | null) => {
-      try {
-        const parsed = JSON.parse(value || '["Natural","Black"]');
-        return Array.isArray(parsed)
-          ? JSON.stringify(parsed)
-          : '["Natural","Black"]';
-      } catch {
-        return '["Natural","Black"]';
-      }
-    },
-  });
-
-  const hasWhite = JSON.parse(colors).includes("White");
-  const images = getImagesBySize(size as ImageSize, hasWhite);
+  const hasWhite = colors.includes("White");
+  const images = getImagesBySize(size, hasWhite);
   const isSmallSize = size === "Small";
-  const isMediumSize = size === "Medium";
-  const isLargeSize = size === "Large";
   const isWhiteColor = colors.includes("White");
-
-  const [primaryParam, setPrimaryParam] = useQueryState("primary", {
-    defaultValue: "",
-    parse: (value: string | null) => value,
-  });
-
-  const [secondaryParam, setSecondaryParam] = useQueryState("secondary", {
-    defaultValue: "",
-    parse: (value: string | null) => value,
-  });
 
   const form = useForm<FormValues>({
     resolver: zodResolver(personaliseSchema),
     defaultValues: {
-      primaryMessage: primaryParam,
-      secondaryMessage: secondaryParam,
+      primaryMessage,
+      secondaryMessage,
     },
   });
 
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
-      if (name === "primaryMessage" && value.primaryMessage !== primaryParam) {
-        setPrimaryParam(value.primaryMessage ?? "");
+      if (name === "primaryMessage" && value.primaryMessage !== undefined) {
+        setPrimaryMessage(value.primaryMessage);
       }
-      if (
-        name === "secondaryMessage" &&
-        value.secondaryMessage !== secondaryParam
-      ) {
-        setSecondaryParam(value.secondaryMessage ?? "");
+      if (name === "secondaryMessage" && value.secondaryMessage !== undefined) {
+        setSecondaryMessage(value.secondaryMessage);
       }
     });
     return () => subscription.unsubscribe();
-  }, [form, setPrimaryParam, setSecondaryParam, primaryParam, secondaryParam]);
+  }, [form, setPrimaryMessage, setSecondaryMessage]);
 
   useEffect(() => {
-    if (isMounted && !isInit) {
-      setIsInit(true);
-      setPrimaryParam(primaryParam);
-      setSecondaryParam(secondaryParam);
+    if (size === "Small") {
+      const lines = form.getValues("primaryMessage").split("\n").slice(0, 2);
+      const truncatedValue = lines.join("\n");
+      form.setValue("primaryMessage", truncatedValue);
+      form.setValue("secondaryMessage", "");
+      setSecondaryMessage("");
     }
-  }, [
-    isMounted,
-    setPrimaryParam,
-    setSecondaryParam,
-    primaryParam,
-    secondaryParam,
-    isInit,
-  ]);
-
-  useEffect(() => {
-    form.reset({
-      primaryMessage: primaryParam,
-      secondaryMessage: secondaryParam,
-    });
-  }, [primaryParam, secondaryParam, form]);
+  }, [size, form, setSecondaryMessage]);
 
   const handlePrimaryMessageChange = (
     e: React.ChangeEvent<HTMLTextAreaElement>,
@@ -165,15 +120,6 @@ const PersonaliseForm = ({ isAnimating }: { isAnimating: boolean }) => {
       e.preventDefault();
     }
   };
-
-  useEffect(() => {
-    if (size === "Small" && form.getValues("primaryMessage")) {
-      const lines = form.getValues("primaryMessage").split("\n").slice(0, 2);
-      const truncatedValue = lines.join("\n");
-      form.setValue("primaryMessage", truncatedValue);
-      form.setValue("secondaryMessage", "");
-    }
-  }, [size, form]);
 
   return (
     <div

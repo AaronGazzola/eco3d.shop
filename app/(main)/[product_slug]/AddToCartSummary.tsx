@@ -3,31 +3,26 @@
 import { Button } from "@/components/ui/button";
 import configuration from "@/configuration";
 import { useCartStore } from "@/hooks/useCartStore";
+import { useProductStore } from "@/hooks/useProductStore";
 import { useToastQueue } from "@/hooks/useToastQueue";
 import { useUIStore } from "@/hooks/useUIStore";
 import { cn } from "@/lib/utils";
-import { AddToCartSummaryProps, ImageSize } from "@/types/product.types";
+import { AddToCartSummaryProps } from "@/types/product.types";
 import { ShoppingBasket } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useQueryState } from "nuqs";
 import { useCallback, useEffect } from "react";
 
 export function AddToCartSummary({ isNext }: AddToCartSummaryProps) {
   const router = useRouter();
-  const [size] = useQueryState("size");
-  const sizeVal = (size as ImageSize) || "Small";
-  const [colors] = useQueryState("colors");
-  const [primary] = useQueryState("primary");
-  const [secondary] = useQueryState("secondary");
   const { toast } = useToastQueue();
   const { addItem, setCurrentProductPrice } = useCartStore();
   const { toggleDrawer } = useUIStore();
+  const { size, colors, primaryMessage, secondaryMessage } = useProductStore();
 
-  const parsedColors = colors ? JSON.parse(colors) : ["Black", "Natural"];
-  const hasWhite = parsedColors.includes("White");
+  const hasWhite = colors.includes("White");
 
   const getPrice = useCallback(() => {
-    switch (sizeVal) {
+    switch (size) {
       case "Small":
         return 19.99;
       case "Medium":
@@ -37,18 +32,18 @@ export function AddToCartSummary({ isNext }: AddToCartSummaryProps) {
       default:
         return 19.99;
     }
-  }, [sizeVal, hasWhite]);
+  }, [size, hasWhite]);
 
   useEffect(() => {
     if (!isNext) return setCurrentProductPrice(0);
     const price = getPrice();
     setCurrentProductPrice(price);
     return () => setCurrentProductPrice(0);
-  }, [sizeVal, colors, setCurrentProductPrice, getPrice, isNext]);
+  }, [size, colors, setCurrentProductPrice, getPrice, isNext]);
 
   const handleAddToCart = () => {
     const getImageUrl = () => {
-      switch (sizeVal) {
+      switch (size) {
         case "Small":
           return "/images/products/V8/small/Set 3 second shoot-28.jpg";
         case "Medium":
@@ -65,11 +60,11 @@ export function AddToCartSummary({ isNext }: AddToCartSummaryProps) {
       name: `Model V8`,
       price: getPrice(),
       quantity: 1,
-      size: sizeVal,
-      colors: parsedColors,
+      size,
+      colors,
       imageUrl: getImageUrl(),
-      primaryText: primary?.split("\n"),
-      secondaryText: secondary || undefined,
+      primaryText: primaryMessage?.split("\n"),
+      secondaryText: secondaryMessage || undefined,
     };
 
     router.push(configuration.paths.appHome + "?disableAnimation=true");
@@ -78,7 +73,7 @@ export function AddToCartSummary({ isNext }: AddToCartSummaryProps) {
     toggleDrawer(true);
     toast({
       title: "Added to cart",
-      description: `${item.name} - ${parsedColors.join(", ")}`,
+      description: `${item.name} - ${colors.join(", ")}`,
     });
   };
 
@@ -89,23 +84,27 @@ export function AddToCartSummary({ isNext }: AddToCartSummaryProps) {
         isNext && "shadow-[0_-5px_15px_2px_rgba(22,101,52,0.2)]",
       )}
     >
-      <div className="max-w-4xl pr-3 xs:pr-0 w-full flex items-center ">
+      <div className="max-w-4xl pr-3 xs:pr-0 w-full flex items-center">
         <div className="flex justify-center sm:justify-end flex-grow items-center text-xs xs:text-sm sm:px-10 px-3">
           <div className="flex justify-around max-w-[230] sm:max-w-[270] w-full items-center">
             <div className="flex flex-col gap-1 w-min">
-              <span className="text-gray-800 font-medium">{sizeVal}</span>
+              <span className="text-gray-800 font-medium">{size}</span>
             </div>
             <div className="flex flex-col gap-1 w-min">
               <span className="text-gray-800 font-medium leading-[1.15]">
-                {parsedColors.join(", ")}
+                {colors.join(", ")}
               </span>
             </div>
             <div className="flex flex-col leading-[1.15] w-min">
-              {primary && (
-                <span className="text-gray-800 font-medium">{primary}</span>
+              {primaryMessage && (
+                <span className="text-gray-800 font-medium">
+                  {primaryMessage}
+                </span>
               )}
-              {secondary && (
-                <span className="text-gray-800 font-medium">{secondary}</span>
+              {secondaryMessage && (
+                <span className="text-gray-800 font-medium">
+                  {secondaryMessage}
+                </span>
               )}
             </div>
           </div>

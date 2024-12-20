@@ -25,7 +25,7 @@ import {
   SIZE_BASED_IMAGES,
   WHITE_IMAGES,
 } from "@/constants/product.constants";
-import useIsMounted from "@/hooks/useIsMounted";
+import { useProductStore } from "@/hooks/useProductStore";
 import { cn } from "@/lib/utils";
 import {
   CustomiseFormProps,
@@ -35,8 +35,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Axis3D, Check, MoveHorizontal, MoveVertical } from "lucide-react";
 import Image from "next/image";
-import { useQueryState } from "nuqs";
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -46,91 +45,35 @@ const customiseSchema = z.object({
 });
 
 export function CustomiseForm({ isAnimating }: CustomiseFormProps) {
-  const ref = useRef<null | HTMLDivElement>(null);
-  const isMounted = useIsMounted();
-  const [isInit, setIsInit] = useState(false);
-
-  const [sizeParam, setSizeParam] = useQueryState("size", {
-    defaultValue: "Small",
-    parse: (value: string | null): ImageSize =>
-      ["Small", "Medium", "Large"].includes(value || "")
-        ? (value as ImageSize)
-        : "Small",
-  });
-
-  const [colorsParam, setColorsParam] = useQueryState("colors", {
-    defaultValue: '["Natural","Black"]',
-    parse: (value: string | null) => {
-      try {
-        const parsed = JSON.parse(value || '["Natural","Black"]');
-        return Array.isArray(parsed)
-          ? JSON.stringify(parsed)
-          : '["Natural","Black"]';
-      } catch {
-        return '["Natural","Black"]';
-      }
-    },
-  });
+  const { size, colors, setSize, setColors } = useProductStore();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(customiseSchema),
     defaultValues: {
-      size: sizeParam as ImageSize,
-      colors: JSON.parse(colorsParam),
+      size,
+      colors,
     },
   });
 
-  const size = form.watch("size");
-  const colors = form.watch("colors");
-
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
-      if (name === "size" && value.size && value.size !== sizeParam) {
-        setSizeParam(value.size);
+      if (name === "size" && value.size) {
+        setSize(value.size);
       }
       if (name === "colors" && value.colors) {
-        const parsedColorsParam = JSON.parse(colorsParam || "[]");
-        if (
-          JSON.stringify(value.colors.sort()) !==
-          JSON.stringify(parsedColorsParam.sort())
-        ) {
-          setColorsParam(JSON.stringify(value.colors));
-        }
+        setColors(value.colors as string[]);
       }
     });
     return () => subscription.unsubscribe();
-  }, [form, setSizeParam, setColorsParam, sizeParam, colorsParam]);
+  }, [form, setSize, setColors]);
 
   useEffect(() => {
-    if (isMounted && !isInit) {
-      setIsInit(true);
-      setSizeParam(sizeParam || "Small");
-      setColorsParam(colorsParam || '["Natural","Black"]');
+    if (size === "Small" && colors.includes("White")) {
+      setColors(colors.filter((c) => c !== "White"));
     }
-  }, [isMounted, setSizeParam, setColorsParam, sizeParam, colorsParam, isInit]);
+  }, [size, colors, setColors]);
 
-  useEffect(() => {
-    const newSize = (sizeParam || "Small") as ImageSize;
-    const newColors = JSON.parse(
-      colorsParam || '["Natural","Black"]',
-    ) as string[];
-    form.reset({ size: newSize, colors: newColors });
-  }, [sizeParam, colorsParam, form]);
-
-  useEffect(() => {
-    if (size === "Small" && Array.isArray(colors) && colors.includes("White")) {
-      form.setValue(
-        "colors",
-        colors.filter((c: string) => c !== "White"),
-      );
-    }
-  }, [size, colors, form]);
-
-  useEffect(() => {
-    if (ref.current) ref.current.scrollTo(0, 0);
-  }, []);
-
-  const hasWhite = Array.isArray(colors) && colors.includes("White");
+  const hasWhite = colors.includes("White");
   const getImages = () => [
     ...SIZE_BASED_IMAGES[size],
     ...COMMON_IMAGES,
@@ -151,7 +94,6 @@ export function CustomiseForm({ isAnimating }: CustomiseFormProps) {
 
   return (
     <div
-      ref={ref}
       className={cn(
         "flex flex-col-reverse lg:flex-row h-full overflow-x-hidden px-2 xs:px-3 xs:pl-4 pt-1.5",
         isAnimating ? "overflow-hidden" : "overflow-y-auto",

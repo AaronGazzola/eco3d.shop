@@ -21,6 +21,7 @@ const OrderDetails = ({ items }: { items: OrderItem[] }) => {
     items.reduce((sum, item) => sum + item.price * item.quantity, 0) / 100;
   const shippingCost = calculateShippingCost(subtotal);
   const total = subtotal + shippingCost;
+  1;
 
   return (
     <div className="py-4 space-y-4">
