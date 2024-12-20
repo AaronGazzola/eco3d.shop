@@ -158,7 +158,7 @@ const OrderProgress = ({
             const isShipped = iconStatus === OrderStatus.Shipped;
             const isCompleted = isStatusCompleted(iconStatus);
             const shouldBeGreen =
-              status === OrderStatus.Delivered
+              status === OrderStatus.Shipped
                 ? iconStatus === OrderStatus.Shipped
                 : isCompleted;
 
@@ -168,7 +168,7 @@ const OrderProgress = ({
                 style={{ width: "25%" }}
                 className="flex flex-col items-center gap-2"
               >
-                <div className="text-sm whitespace-nowrap px-2.5 py-1.5 flex flex-col items-center text-primary font-semibold relative w-full gap-5 pt-6 justify-end h-full">
+                <div className="whitespace-nowrap px-2.5 py-1.5 flex flex-col items-center text-primary font-semibold relative w-full gap-5 pt-6 justify-end h-full">
                   {(iconStatus === OrderStatus.Waiting ||
                     iconStatus === OrderStatus.Printing) &&
                     isActive && <OrderCountdown order={order} />}

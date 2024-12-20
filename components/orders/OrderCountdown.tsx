@@ -39,7 +39,7 @@ const OrderCountdown = ({
     setTimeLeft(status === OrderStatus.Printing ? printTime : queueTime);
   }, [status, printTime, queueTime]);
 
-  return <span>{formatTime(timeLeft)}</span>;
+  return <span className="">{formatTime(timeLeft)}</span>;
 };
 
 export default OrderCountdown;
