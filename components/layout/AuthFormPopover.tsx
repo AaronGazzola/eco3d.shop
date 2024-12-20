@@ -24,6 +24,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Popover } from "@radix-ui/react-popover";
 import { CircleUser, LogOut, Package } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -33,6 +34,7 @@ const formSchema = z.object({
 });
 
 const AuthFormPopover = () => {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const { data: user, isPending: getUserIsPending } = useGetUser();
   const { mutate: signOut, isPending: signOutIsPending } = useSignOut();
@@ -139,7 +141,11 @@ const AuthFormPopover = () => {
         description="Are you sure you want to sign out?"
         onConfirm={() => {
           setShowSignOutConfirm(false);
+          setOpen(false);
+          toggleDrawer(false);
           signOut();
+          // TODO: Find a better fix (removing causes page to hang)
+          window.location.reload();
         }}
         onCancel={() => setShowSignOutConfirm(false)}
         confirmText="Sign Out"

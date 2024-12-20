@@ -1,9 +1,9 @@
 "use client";
+import getActionResponse from "@/actions/getActionResponse";
 import {
   deleteUserAction,
   getUserAction,
   getUserRoleAction,
-  signOutAction,
   updateUserAction,
 } from "@/actions/userActions";
 import useSupabase from "@/hooks/useSupabase";
@@ -152,6 +152,7 @@ export const useSignOut = ({
 }: HookOptions<User> = {}) => {
   const queryClient = useQueryClient();
   const { toast } = useToastQueue();
+  const supabase = useSupabase();
 
   const hook = useMutation<
     ActionResponse<null>,
@@ -159,8 +160,8 @@ export const useSignOut = ({
     HookOptions<User> | undefined
   >({
     mutationFn: async (hookOptions?: HookOptions<User>) => {
-      const data = await signOutAction();
-      return data;
+      await supabase.auth.signOut();
+      return getActionResponse();
     },
     onSuccess: (data, variables, context) => {
       const options = variables ?? {};

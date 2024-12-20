@@ -17,7 +17,7 @@ const AuthClientProvider = ({
   useEffect(() => {
     supabase.auth.onAuthStateChange((event, session) => {
       queryClient.setQueryData(["user"], session?.user ?? null);
-      if (event === "SIGNED_OUT" || event === "SIGNED_IN")
+      if (event === "SIGNED_IN")
         queryClient.invalidateQueries({ queryKey: ["userRole"] });
     });
   }, [queryClient, supabase]);
