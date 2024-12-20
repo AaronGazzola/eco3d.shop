@@ -3,13 +3,11 @@ import {
   addProductVariantAttributeAction,
   deleteManyProductVariantsAction,
   deleteProductVariantAction,
-  getCartTimeAction,
   getProductVariantsAction,
   updateManyProductVariantsAction,
   updateProductVariantAction,
 } from "@/actions/productVariantActions";
 import { useToastQueue } from "@/hooks/useToastQueue";
-import { CartItem } from "@/types/cart.types";
 import {
   HookOptions,
   ProductVariant,
@@ -221,17 +219,5 @@ export const useDeleteProductVariant = ({
       });
     },
     retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
-  });
-};
-
-export const useCartQTime = (items: CartItem[], isEnabled = false) => {
-  return useQuery({
-    queryKey: ["variant_ids_by_attributes", items],
-    queryFn: async () => {
-      const { data, error } = await getCartTimeAction(items);
-      if (error) throw new Error(error);
-      return data;
-    },
-    enabled: items.length > 0 && isEnabled,
   });
 };

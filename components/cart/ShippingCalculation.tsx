@@ -2,7 +2,7 @@
 
 import Australia from "@/components/svg/Australia";
 import { MS_PER_DAY, ShippingDays } from "@/constants/order.constants";
-import { useCartQTime } from "@/hooks/productVariantHooks";
+import { useCartQTime } from "@/hooks/qHooks";
 
 import { useCartStore } from "@/hooks/useCartStore";
 import { cn } from "@/lib/utils";

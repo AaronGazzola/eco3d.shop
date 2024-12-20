@@ -2,6 +2,13 @@
 
 import getActionResponse from "@/actions/getActionResponse";
 import getSupabaseServerActionClient from "@/clients/action-client";
+import {
+  calculatePrintTimes,
+  calculateQueueTimes,
+  findVariantsForCart,
+} from "@/lib/q.util";
+import { ActionResponse } from "@/types/action.types";
+import { CartItem } from "@/types/cart.types";
 
 export interface UpdateStatusParams {
   itemId: string;
@@ -49,34 +56,37 @@ export const updatePrintQueueItemStatusAction = async ({
 export const getQueueTimeAction = async (variantIds: string[]) => {
   try {
     const supabase = await getSupabaseServerActionClient();
-    const { data: queueItems, error: queueError } = await supabase
-      .from("print_queue_items")
-      .select(
-        `
-        quantity,
-        product_variant_id,
-        product_variants (
-          estimated_print_seconds
-        )
+    const [queueResponse, variantsResponse] = await Promise.all([
+      supabase
+        .from("print_queue_items")
+        .select(
+          `
+          id,
+          quantity,
+          product_variant_id,
+          created_seconds,
+          print_started_seconds,
+          is_processed,
+          print_queue_id
         `,
-      )
-      .in("product_variant_id", variantIds)
-      .eq("is_processed", false)
-      .order("created_at", { ascending: true });
+        )
+        .eq("is_processed", false)
+        .order("created_at", { ascending: true }),
+      supabase.from("product_variants").select("*").in("id", variantIds),
+    ]);
 
-    if (queueError) throw queueError;
+    if (queueResponse.error) throw queueResponse.error;
+    if (variantsResponse.error) throw variantsResponse.error;
 
-    let maxWaitTime = 0;
-    queueItems?.forEach((item) => {
-      const printTime = item.product_variants?.estimated_print_seconds || 0;
-      const batchTime = printTime * item.quantity;
-      maxWaitTime = Math.max(maxWaitTime, batchTime);
-    });
+    const times = calculateQueueTimes(
+      variantsResponse.data,
+      queueResponse.data,
+    );
 
     return getActionResponse({
       data: {
-        queueTimeMs: maxWaitTime * 1000,
-        printTimeMs: maxWaitTime * 1000,
+        qTimeMs: times.qTime * 1000,
+        printTimeMs: times.printTime * 1000,
       },
     });
   } catch (error) {
@@ -120,6 +130,47 @@ export const getQueueItemsAction = async (queueId: string) => {
     if (error) throw error;
     return getActionResponse({ data });
   } catch (error) {
+    return getActionResponse({ error });
+  }
+};
+
+const transformSize = (size: string): "sm" | "md" | "lg" => {
+  const sizeMap: Record<string, "sm" | "md" | "lg"> = {
+    Small: "sm",
+    Medium: "md",
+    Large: "lg",
+  };
+  return sizeMap[size] || "md";
+};
+
+export const getCartTimeAction = async (
+  items: CartItem[],
+): Promise<ActionResponse<{ printTime: number; qTime: number }>> => {
+  try {
+    const supabase = await getSupabaseServerActionClient();
+
+    console.log("Finding variants for cart items:", items);
+    const variants = await findVariantsForCart(supabase, items);
+
+    if (!variants.length) {
+      console.log("No variants found for cart items");
+      return getActionResponse({ data: { printTime: 0, qTime: 0 } });
+    }
+
+    console.log(
+      "Found variants:",
+      variants.map((v) => v.id),
+    );
+    const times = await calculatePrintTimes(supabase, variants);
+
+    return getActionResponse({
+      data: {
+        printTime: times.printTime,
+        qTime: times.qTime,
+      },
+    });
+  } catch (error) {
+    console.error("Error in getCartTimeAction:", error);
     return getActionResponse({ error });
   }
 };

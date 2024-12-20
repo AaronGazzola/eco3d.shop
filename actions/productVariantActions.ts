@@ -3,7 +3,6 @@ import getActionResponse from "@/actions/getActionResponse";
 import { getUserIsAdminAction } from "@/actions/userActions";
 import getSupabaseServerActionClient from "@/clients/action-client";
 import { ActionResponse } from "@/types/action.types";
-import { CartItem } from "@/types/cart.types";
 import { Json } from "@/types/database.types";
 import { ProductVariant, ProductVariantWithImages } from "@/types/db.types";
 
@@ -270,84 +269,6 @@ export const deleteProductVariantAction = async (id: string) => {
     if (deleteError) throw new Error(deleteError.message);
 
     return getActionResponse({ data: deletedVariant });
-  } catch (error) {
-    return getActionResponse({ error });
-  }
-};
-
-const transformSize = (size: string): "sm" | "md" | "lg" => {
-  const sizeMap: Record<string, "sm" | "md" | "lg"> = {
-    Small: "sm",
-    Medium: "md",
-    Large: "lg",
-  };
-  return sizeMap[size] || "md";
-};
-
-export const getCartTimeAction = async (
-  items: CartItem[],
-): Promise<ActionResponse<{ printTime: number; qTime: number }>> => {
-  try {
-    const supabase = await getSupabaseServerActionClient();
-    const { data: variants, error } = await supabase
-      .from("product_variants")
-      .select("*");
-    if (error) throw error;
-    if (!variants)
-      return getActionResponse({ data: { printTime: 0, qTime: 0 } });
-
-    const totalPrintTime = items.reduce((acc, item) => {
-      const variantAttributes = {
-        size: transformSize(item.size),
-        color: item.colors?.map((c) => c.toLowerCase()),
-      };
-      const matchingVariant = variants.find((variant: ProductVariant) => {
-        const attrs = variant.attributes as { size: string; color: string[] };
-        return (
-          attrs.size === variantAttributes.size &&
-          JSON.stringify(attrs.color?.sort()) ===
-            JSON.stringify(variantAttributes.color?.sort())
-        );
-      });
-      if (matchingVariant?.estimated_print_seconds) {
-        return acc + matchingVariant.estimated_print_seconds * item.quantity;
-      }
-      return acc;
-    }, 0);
-
-    const queueIds = [
-      ...new Set(
-        variants.filter((v) => v.print_queue_id).map((v) => v.print_queue_id),
-      ),
-    ];
-
-    const { data: queueItems, error: queueError } = await supabase
-      .from("print_queue_items")
-      .select("*, product_variant_id(*)")
-      .in("print_queue_id", queueIds)
-      .eq("is_processed", false);
-
-    if (queueError) throw queueError;
-
-    const queueTimes = queueIds.map((queueId) => {
-      return (
-        queueItems
-          ?.filter((item) => item.print_queue_id === queueId)
-          .reduce((acc, item) => {
-            const variant = item.product_variant_id as any as ProductVariant;
-            return acc + (variant.estimated_print_seconds || 0) * item.quantity;
-          }, 0) || 0
-      );
-    });
-
-    const maxQueueTime = Math.max(...queueTimes, 0);
-
-    return getActionResponse({
-      data: {
-        printTime: totalPrintTime,
-        qTime: maxQueueTime,
-      },
-    });
   } catch (error) {
     return getActionResponse({ error });
   }

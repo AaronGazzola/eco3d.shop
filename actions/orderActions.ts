@@ -49,37 +49,94 @@ const calculateOrderTimes = (
   queueItems: any[],
   variants: ProductVariant[],
 ) => {
+  // Start order time calculation logging
+  console.log(`\n#=== Order:${order.id}`);
+
+  // Calculate times for each item in the order
   const orderItemTimes: ItemTime[] = order.order_items.map((item: any) => {
+    console.log(`\n>Item:${item.id}`);
+
+    // Get the variant details for this item
     const variant = variants.find((v) => v.id === item.product_variant_id);
+    console.log(
+      `|V|${variant?.id}|${variant?.variant_name}|${variant?.estimated_print_seconds}`,
+    );
+
+    // Skip if variant has no queue or print time
     if (!variant?.print_queue_id || !variant.estimated_print_seconds) {
+      console.log(`|X|skip:no_queue_or_time`);
       return { printTime: 0, queueTime: 0 };
     }
 
+    // Find queue items for this order item
     const itemQueueItems = queueItems.filter(
       (qi) => qi.order_item_id === item.id,
     );
-    const queueItemsAhead = queueItems.filter(
-      (qi) =>
-        qi.print_queue_id === variant.print_queue_id &&
-        new Date(qi.created_at) <
-          new Date(itemQueueItems[0]?.created_at || Date.now()),
+    console.log(
+      `|Q|${itemQueueItems
+        .map(
+          (qi) =>
+            `${qi.id}:c${qi.created_seconds}:s${qi.print_started_seconds}:p${qi.is_processed}`,
+        )
+        .join("|")}`,
     );
 
+    // Find all unprocessed items in same queue with earlier creation time
+    const queueItemsAhead = queueItems.filter(
+      (qi) =>
+        !qi.is_processed &&
+        qi.print_queue_id === variant.print_queue_id &&
+        qi.created_seconds < itemQueueItems[0]?.created_seconds,
+    );
+
+    console.log(`|A|count:${queueItemsAhead.length}`);
+    console.log(
+      queueItemsAhead
+        .map(
+          (qi) =>
+            `|Q+|${qi.id}|v:${qi.product_variant_id}|c${qi.created_seconds}|s${qi.print_started_seconds}|q${qi.quantity}`,
+        )
+        .join("\n"),
+    );
+
+    // Sum up print times for all items ahead in queue
     const queueTime = queueItemsAhead.reduce((total, qi) => {
       const qiVariant = variants.find((v) => v.id === qi.product_variant_id);
-      return total + (qiVariant?.estimated_print_seconds || 0) * qi.quantity;
+      const itemTime = (qiVariant?.estimated_print_seconds || 0) * qi.quantity;
+      console.log(
+        `|T+|${qiVariant?.variant_name}|q${qi.quantity}|e${qiVariant?.estimated_print_seconds}|t${itemTime}|Σ${total + itemTime}`,
+      );
+      return total + itemTime;
     }, 0);
 
-    const printTime =
-      queueTime + variant.estimated_print_seconds * item.quantity;
+    // Calculate remaining print time if printing has started
+    const itemStartTime = itemQueueItems[0]?.print_started_seconds || 0;
+    const currentTime = Math.floor(Date.now() / 1000);
+    const elapsedTime = itemStartTime ? currentTime - itemStartTime : 0;
+    const remainingPrintTime = Math.max(
+      0,
+      variant.estimated_print_seconds * item.quantity - elapsedTime,
+    );
+
+    console.log(
+      `|C|start:${itemStartTime}|now:${currentTime}|elapsed:${elapsedTime}|est:${variant.estimated_print_seconds * item.quantity}|remain:${remainingPrintTime}`,
+    );
+
+    const printTime = queueTime + remainingPrintTime;
+    console.log(`|F|queue:${queueTime}|print:${printTime}`);
 
     return { printTime, queueTime };
   });
 
-  return {
-    printTime: Math.max(...orderItemTimes.map((t: ItemTime) => t.printTime)),
-    queueTime: Math.max(...orderItemTimes.map((t: ItemTime) => t.queueTime)),
+  // Queue time is shortest time until any item starts printing
+  // Print time is longest time until all items complete printing
+  const times = {
+    printTime: Math.max(...orderItemTimes.map((t) => t.printTime)),
+    queueTime: Math.min(...orderItemTimes.map((t) => t.queueTime)),
   };
+  console.log(`\n#=== Final|print:${times.printTime}|queue:${times.queueTime}`);
+
+  return times;
 };
 
 const transformOrderData = (

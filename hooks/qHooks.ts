@@ -1,10 +1,12 @@
 "use client";
 
 import {
+  getCartTimeAction,
   getQueueItemsAction,
   updatePrintQueueItemStatusAction,
   UpdateStatusParams,
 } from "@/actions/qActions";
+import { CartItem } from "@/types/cart.types";
 import { QueueItemResponse } from "@/types/q.types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -41,3 +43,15 @@ export function useQueueItems(queueId: string) {
     },
   });
 }
+
+export const useCartQTime = (items: CartItem[], isEnabled = false) => {
+  return useQuery({
+    queryKey: ["variant_ids_by_attributes", items],
+    queryFn: async () => {
+      const { data, error } = await getCartTimeAction(items);
+      if (error) throw new Error(error);
+      return data;
+    },
+    enabled: items.length > 0 && isEnabled,
+  });
+};
