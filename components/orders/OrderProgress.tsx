@@ -37,22 +37,22 @@ const OrderProgress = ({
     isRefundProgress: boolean,
   ) => {
     if (isRefundProgress) {
-      if (!(currentStatus in RefundStatus)) return "0%";
-      const refundStatus = currentStatus as RefundStatus;
-      const index = REFUND_STAGES.indexOf(refundStatus);
-      return `${((index + 1) / REFUND_STAGES.length) * 100}%`;
+      const refundPositions: Record<RefundStatus, string> = {
+        pending: "25%",
+        processing: "50%",
+        processed: "100%",
+      };
+      return refundPositions[currentStatus as RefundStatus] || "0%";
     }
 
-    if (!(currentStatus in OrderStatus)) return "0%";
-    const orderStatus = currentStatus as OrderStatus;
-    const positions: Record<OrderStatus, string> = {
-      [OrderStatus.Waiting]: "25%",
-      [OrderStatus.Printing]: "50%",
-      [OrderStatus.Packing]: "75%",
-      [OrderStatus.Shipped]: "75%",
-      [OrderStatus.Delivered]: "100%",
+    const orderPositions: Record<OrderStatus, string> = {
+      waiting: "25%",
+      printing: "50%",
+      packing: "75%",
+      shipped: "100%",
+      delivered: "100%",
     };
-    return positions[orderStatus];
+    return orderPositions[currentStatus as OrderStatus] || "0%";
   };
 
   const isStatusCompleted = (iconStatus: OrderStatus | RefundStatus) => {
