@@ -3,9 +3,10 @@
 import getActionResponse from "@/actions/getActionResponse";
 import { getUserAction } from "@/actions/userActions";
 import getSupabaseServerActionClient from "@/clients/action-client";
+import { QueueItem, calculateQueueTimes } from "@/lib/q.util";
 import { ActionResponse } from "@/types/action.types";
 import { ProductVariant } from "@/types/db.types";
-import { ItemTime, Order, OrderStatus } from "@/types/order.types";
+import { Order, OrderStatus } from "@/types/order.types";
 
 const getMostRecent = (items: { updated_at: string }[]) => {
   if (!items.length) return null;
@@ -46,50 +47,46 @@ const determineOrderStatus = (
 };
 
 const calculateOrderTimes = (
-  order: any,
+  orderItems: any[],
   queueItems: any[],
   variants: ProductVariant[],
 ) => {
-  const orderItemTimes: ItemTime[] = order.order_items.map((item: any) => {
-    const variant = variants.find((v) => v.id === item.product_variant_id);
+  const variantsWithTimes = orderItems
+    .map((item) => {
+      const variant = variants.find((v) => v.id === item.product_variant_id);
+      if (!variant) return null;
 
-    if (!variant?.print_queue_id || !variant.estimated_print_seconds) {
-      return { printTime: 0, queueTime: 0 };
-    }
+      return {
+        id: variant.id,
+        print_queue_id: variant.print_queue_id,
+        estimated_print_seconds: variant.estimated_print_seconds
+          ? variant.estimated_print_seconds * item.quantity
+          : null,
+        variant_name: variant.variant_name,
+      };
+    })
+    .filter((v): v is NonNullable<typeof v> => v !== null);
 
-    const itemQueueItems = queueItems.filter(
-      (qi) => qi.order_item_id === item.id,
-    );
+  const relevantQueueItems: QueueItem[] = queueItems.map((qi) => ({
+    id: qi.id,
+    quantity: qi.quantity,
+    product_variant_id: qi.product_variant_id,
+    created_seconds: qi.created_seconds,
+    print_started_seconds: qi.print_started_seconds,
+    is_processed: qi.is_processed,
+    print_queue_id: qi.print_queue_id,
+    order_item_id: qi.order_item_id,
+    updated_at: qi.updated_at,
+    product_variants: qi.product_variant_id
+      ? {
+          estimated_print_seconds:
+            variants.find((v) => v.id === qi.product_variant_id)
+              ?.estimated_print_seconds ?? null,
+        }
+      : null,
+  }));
 
-    const queueItemsAhead = queueItems.filter(
-      (qi) =>
-        !qi.is_processed &&
-        qi.print_queue_id === variant.print_queue_id &&
-        qi.created_seconds < itemQueueItems[0]?.created_seconds,
-    );
-
-    const queueTime = queueItemsAhead.reduce((total, qi) => {
-      const qiVariant = variants.find((v) => v.id === qi.product_variant_id);
-      return total + (qiVariant?.estimated_print_seconds || 0) * qi.quantity;
-    }, 0);
-
-    const itemStartTime = itemQueueItems[0]?.print_started_seconds || 0;
-    const currentTime = Math.floor(Date.now() / 1000);
-    const elapsedTime = itemStartTime ? currentTime - itemStartTime : 0;
-    const remainingPrintTime = Math.max(
-      0,
-      variant.estimated_print_seconds * item.quantity - elapsedTime,
-    );
-
-    const printTime = queueTime + remainingPrintTime;
-
-    return { printTime, queueTime };
-  });
-
-  return {
-    printTime: Math.max(...orderItemTimes.map((t) => t.printTime)),
-    queueTime: Math.min(...orderItemTimes.map((t) => t.queueTime)),
-  };
+  return calculateQueueTimes(variantsWithTimes, relevantQueueItems);
 };
 
 const transformOrderData = (
@@ -102,7 +99,7 @@ const transformOrderData = (
   };
   const status = determineOrderStatus(order, queueItems, latestShippingDetail);
 
-  const times = calculateOrderTimes(order, queueItems, variants);
+  const times = calculateOrderTimes(order.order_items, queueItems, variants);
 
   return {
     id: order.id,
@@ -124,7 +121,7 @@ const transformOrderData = (
     currency: order.currency,
     createdAt: new Date(order.created_at || Date.now()),
     printTime: times.printTime,
-    queueTime: times.queueTime,
+    queueTime: times.qTime,
     items: order.order_items.map((item: any) => ({
       id: Number(item.id),
       name: item.product_variants?.variant_name || "",
