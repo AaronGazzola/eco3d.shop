@@ -37,3 +37,4 @@ next-env.d.ts
 
 # development
 changes.txt
+*_combined_migrations.sql
