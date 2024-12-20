@@ -91,10 +91,15 @@ export const getQueueItemsAction = async (queueId: string) => {
       .from("print_queue_items")
       .select(
         `
-        *,
-        product_variant:product_variants!inner ( 
+        id,
+        print_queue_id,
+        updated_at,
+        is_processed,
+        print_started_seconds,
+        quantity,
+        product_variant:product_variants!inner (
           id,
-          estimated_print_seconds,
+          estimated_print_seconds, 
           variant_name,
           attributes
         ),
@@ -110,9 +115,10 @@ export const getQueueItemsAction = async (queueId: string) => {
       `,
       )
       .eq("print_queue_id", queueId)
-      .order("updated_at", { ascending: false });
+      .order("updated_at", { ascending: true });
 
     if (error) throw error;
+    console.log(data);
     return getActionResponse({ data });
   } catch (error) {
     return getActionResponse({ error });

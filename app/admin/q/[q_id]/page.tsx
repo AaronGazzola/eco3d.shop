@@ -1,4 +1,5 @@
 "use client";
+
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,7 +14,11 @@ import { Toggle } from "@/components/ui/toggle";
 import { useQueueItems, useUpdatePrintQueueItemStatus } from "@/hooks/qHooks";
 import { useToastQueue } from "@/hooks/useToastQueue";
 import { formatPrintSeconds } from "@/lib/number.util";
-import { Json } from "@/types/database.types";
+import {
+  PrintQueueItemWithStatus,
+  PrintStatus,
+  QueueItemResponse,
+} from "@/types/q.types";
 import {
   ColumnDef,
   Row,
@@ -26,40 +31,6 @@ import {
 } from "@tanstack/react-table";
 import { Clock, Printer, PrinterCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-
-type PrintStatus = "waiting" | "printing" | "complete";
-
-// Server response type
-type QueueItemResponse = {
-  id: string;
-  order_item_id: string | null;
-  quantity: number;
-  is_processed: boolean | null;
-  print_started_seconds: number | null;
-  print_queue_id: string | null;
-  product_variant_id: string | null;
-  updated_at: string | null;
-  product_variant: {
-    id: string;
-    estimated_print_seconds: number | null;
-    variant_name: string;
-    attributes: Json;
-  };
-  order_items: {
-    order: {
-      id: string;
-      created_at: string | null;
-      profile: {
-        email: string;
-      } | null;
-    } | null;
-  } | null;
-};
-
-// Client-side enriched type
-type PrintQItem = QueueItemResponse & {
-  printStatus: PrintStatus;
-};
 
 const getPrintStatus = (item: QueueItemResponse): PrintStatus => {
   if (item.is_processed) return "complete";
@@ -85,12 +56,12 @@ const StatusCell = ({
   row,
   queueId,
 }: {
-  row: Row<PrintQItem>;
+  row: Row<PrintQueueItemWithStatus>;
   queueId: string;
 }) => {
   const updateStatus = useUpdatePrintQueueItemStatus(row.original.id, queueId);
   const { toast } = useToastQueue();
-  const currentStatus = row.original.printStatus || "waiting";
+  const currentStatus = row.original.printStatus;
   const [lastClickTime, setLastClickTime] = useState(0);
 
   const cycleStatus = async () => {
@@ -145,7 +116,7 @@ const StatusCell = ({
   );
 };
 
-const TimeRemainingCell = ({ row }: { row: Row<PrintQItem> }) => {
+const TimeRemainingCell = ({ row }: { row: Row<PrintQueueItemWithStatus> }) => {
   const printSeconds =
     row.original.product_variant?.estimated_print_seconds || 0;
   const startTimeSeconds = row.original.print_started_seconds;
@@ -166,7 +137,7 @@ const TimeRemainingCell = ({ row }: { row: Row<PrintQItem> }) => {
 
 export default function Page({ params }: { params: { q_id: string } }) {
   const [sorting, setSorting] = useState<SortingState>([
-    { id: "print_started_seconds", desc: true },
+    { id: "created_at", desc: false },
   ]);
   const [showComplete, setShowComplete] = useState(false);
   const [showPrinting, setShowPrinting] = useState(true);
@@ -175,14 +146,16 @@ export default function Page({ params }: { params: { q_id: string } }) {
 
   const { data: items = [] } = useQueueItems(params.q_id);
 
-  const itemsWithStatus = useMemo(
-    () =>
-      items?.map((item) => ({
-        ...item,
-        printStatus: getPrintStatus(item),
-      })),
-    [items],
-  );
+  const itemsWithStatus = useMemo<PrintQueueItemWithStatus[]>(() => {
+    if (!items) return [];
+
+    return items.map((item) => ({
+      ...item,
+      created_at:
+        item.created_at || item.updated_at || new Date().toISOString(),
+      printStatus: getPrintStatus(item),
+    }));
+  }, [items]);
 
   const statusCounts = useMemo(
     () =>
@@ -199,19 +172,21 @@ export default function Page({ params }: { params: { q_id: string } }) {
   const filteredItems = useMemo(
     () =>
       itemsWithStatus?.filter((item) => {
-        const emailMatch = item.order_items?.order?.profile?.email
+        const emailQuery = emailFilter.toLowerCase();
+        const emailMatch = item.order_items?.[0]?.order?.profile?.email
           ?.toLowerCase()
-          .includes(emailFilter.toLowerCase());
+          .includes(emailQuery);
+
         const statusMatch =
           (item.printStatus === "complete" && showComplete) ||
           (item.printStatus === "printing" && showPrinting) ||
           (item.printStatus === "waiting" && showWaiting);
-        return emailMatch && statusMatch;
+        return (emailQuery && emailMatch) || (!emailQuery && statusMatch);
       }),
     [itemsWithStatus, emailFilter, showComplete, showPrinting, showWaiting],
   );
 
-  const columns: ColumnDef<PrintQItem>[] = [
+  const columns: ColumnDef<PrintQueueItemWithStatus>[] = [
     {
       id: "status",
       header: "Status",
@@ -221,8 +196,7 @@ export default function Page({ params }: { params: { q_id: string } }) {
     {
       id: "variant",
       header: "Variant",
-      accessorKey: "product_variant.variant_name",
-      cell: ({ row }) => row.original.product_variant?.variant_name || "N/A",
+      accessorFn: (row) => row.product_variant?.variant_name || "N/A",
     },
     {
       id: "quantity",
@@ -237,12 +211,12 @@ export default function Page({ params }: { params: { q_id: string } }) {
     {
       id: "orderId",
       header: "Order ID",
-      accessorKey: "order_items.order.id",
+      accessorFn: (row) => row.order_items?.[0]?.order?.id || "",
     },
     {
       id: "email",
       header: "Customer",
-      accessorFn: (row) => row.order_items?.order?.profile?.email || "",
+      accessorFn: (row) => row.order_items?.[0]?.order?.profile?.email || "",
     },
     {
       id: "started",
@@ -253,10 +227,16 @@ export default function Page({ params }: { params: { q_id: string } }) {
           ? new Date(row.original.print_started_seconds * 1000).toLocaleString()
           : "",
     },
+    {
+      id: "created_at",
+      header: "Added",
+      accessorKey: "created_at",
+      cell: ({ getValue }) => new Date(getValue() as string).toLocaleString(),
+    },
   ];
 
   const table = useReactTable({
-    data: filteredItems || [],
+    data: filteredItems,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),

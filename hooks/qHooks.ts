@@ -5,7 +5,9 @@ import {
   updatePrintQueueItemStatusAction,
   UpdateStatusParams,
 } from "@/actions/qActions";
+import { QueueItemResponse } from "@/types/q.types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
 export const PRINT_QUEUE_ITEMS_KEY = (queueId: string) =>
   ["print-queue-items", queueId] as const;
 
@@ -22,7 +24,6 @@ export function useUpdatePrintQueueItemStatus(itemId: string, queueId: string) {
       return data;
     },
     onSuccess: () => {
-      // Invalidate the specific queue's data
       queryClient.invalidateQueries({
         queryKey: PRINT_QUEUE_ITEMS_KEY(queueId),
       });
@@ -36,7 +37,7 @@ export function useQueueItems(queueId: string) {
     queryFn: async () => {
       const { data, error } = await getQueueItemsAction(queueId);
       if (error) throw new Error(error);
-      return data;
+      return data as QueueItemResponse[] | null;
     },
   });
 }
