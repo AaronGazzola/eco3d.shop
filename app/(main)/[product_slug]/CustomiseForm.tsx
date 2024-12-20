@@ -1,4 +1,3 @@
-// components/CustomiseForm.tsx
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -58,6 +57,11 @@ export function CustomiseForm({ isAnimating }: CustomiseFormProps) {
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
       if (name === "size" && value.size) {
+        if (value.size === "Small" && colors.includes("White")) {
+          const newColors = colors.filter((c) => c !== "White");
+          form.setValue("colors", newColors);
+          setColors(newColors);
+        }
         setSize(value.size);
       }
       if (name === "colors" && value.colors) {
@@ -65,13 +69,7 @@ export function CustomiseForm({ isAnimating }: CustomiseFormProps) {
       }
     });
     return () => subscription.unsubscribe();
-  }, [form, setSize, setColors]);
-
-  useEffect(() => {
-    if (size === "Small" && colors.includes("White")) {
-      setColors(colors.filter((c) => c !== "White"));
-    }
-  }, [size, colors, setColors]);
+  }, [form, setSize, setColors, colors]);
 
   const hasWhite = colors.includes("White");
   const getImages = () => [

@@ -2,11 +2,7 @@
 
 import getActionResponse from "@/actions/getActionResponse";
 import getSupabaseServerActionClient from "@/clients/action-client";
-import {
-  calculatePrintTimes,
-  calculateQueueTimes,
-  findVariantsForCart,
-} from "@/lib/q.util";
+import { calculatePrintTimes, findVariantsForCart } from "@/lib/q.util";
 import { ActionResponse } from "@/types/action.types";
 import { CartItem } from "@/types/cart.types";
 
@@ -48,47 +44,6 @@ export const updatePrintQueueItemStatusAction = async ({
 
     if (error) throw error;
     return getActionResponse({ data });
-  } catch (error) {
-    return getActionResponse({ error });
-  }
-};
-
-export const getQueueTimeAction = async (variantIds: string[]) => {
-  try {
-    const supabase = await getSupabaseServerActionClient();
-    const [queueResponse, variantsResponse] = await Promise.all([
-      supabase
-        .from("print_queue_items")
-        .select(
-          `
-          id,
-          quantity,
-          product_variant_id,
-          created_seconds,
-          print_started_seconds,
-          is_processed,
-          print_queue_id
-        `,
-        )
-        .eq("is_processed", false)
-        .order("created_at", { ascending: true }),
-      supabase.from("product_variants").select("*").in("id", variantIds),
-    ]);
-
-    if (queueResponse.error) throw queueResponse.error;
-    if (variantsResponse.error) throw variantsResponse.error;
-
-    const times = calculateQueueTimes(
-      variantsResponse.data,
-      queueResponse.data,
-    );
-
-    return getActionResponse({
-      data: {
-        qTimeMs: times.qTime * 1000,
-        printTimeMs: times.printTime * 1000,
-      },
-    });
   } catch (error) {
     return getActionResponse({ error });
   }
@@ -149,18 +104,12 @@ export const getCartTimeAction = async (
   try {
     const supabase = await getSupabaseServerActionClient();
 
-    console.log("Finding variants for cart items:", items);
     const variants = await findVariantsForCart(supabase, items);
 
     if (!variants.length) {
-      console.log("No variants found for cart items");
       return getActionResponse({ data: { printTime: 0, qTime: 0 } });
     }
 
-    console.log(
-      "Found variants:",
-      variants.map((v) => v.id),
-    );
     const times = await calculatePrintTimes(supabase, variants);
 
     return getActionResponse({

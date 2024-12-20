@@ -172,7 +172,7 @@ export async function handlePaymentSuccess(
     .select();
   if (itemsError) throw itemsError;
 
-  const printQueueItems = insertedOrderItems.map((orderItem) => {
+  const printQueueItems = insertedOrderItems.flatMap((orderItem) => {
     const variant = products.product_variants.find(
       (v) => v.id === orderItem.product_variant_id,
     );
@@ -184,13 +184,13 @@ export async function handlePaymentSuccess(
 
     const queueId = hasWhite ? whiteQueueId : colorQueueId;
 
-    return {
+    return Array.from({ length: orderItem.quantity }, () => ({
       print_queue_id: queueId,
       order_item_id: orderItem.id,
       product_variant_id: orderItem.product_variant_id,
-      quantity: orderItem.quantity,
+      quantity: 1,
       is_processed: false,
-    };
+    }));
   });
 
   const { error: queueError } = await supabase

@@ -23,7 +23,7 @@ export default async function PrintQueuePage() {
             href={configuration.paths.admin.q(queue.id)}
             className="p-4 border rounded hover:bg-accent"
           >
-            <div>Queue #{queue.id.slice(0, 8)}</div>
+            <div>Queue #{queue.id}</div>
             <div className="text-sm text-muted-foreground">
               Created: {new Date(queue.created_at!).toLocaleString()}
             </div>
