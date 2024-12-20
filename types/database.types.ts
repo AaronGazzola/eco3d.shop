@@ -426,6 +426,7 @@ export type Database = {
       }
       print_queue_items: {
         Row: {
+          created_seconds: number
           id: string
           is_processed: boolean | null
           order_item_id: string | null
@@ -436,6 +437,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          created_seconds?: number
           id?: string
           is_processed?: boolean | null
           order_item_id?: string | null
@@ -446,6 +448,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          created_seconds?: number
           id?: string
           is_processed?: boolean | null
           order_item_id?: string | null

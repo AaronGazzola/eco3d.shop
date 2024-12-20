@@ -42,6 +42,7 @@ const OrderProgress = ({
       [OrderStatus.Waiting]: "25%",
       [OrderStatus.Printing]: "50%",
       [OrderStatus.Shipped]: "75%",
+      [OrderStatus.Packing]: "75%",
       [OrderStatus.Delivered]: "100%",
     };
     return positions[currentStatus as OrderStatus];

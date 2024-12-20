@@ -16,7 +16,10 @@ export interface HookOptions<T = unknown> {
 export function useDbQuery<T>(
   queryKey: string[],
   action: () => Promise<ActionResponse<T>>,
-  options?: Omit<HookOptions<T>, "queryKey">,
+  options?: Omit<HookOptions<T>, "queryKey"> & {
+    initialData?: T;
+    refetchInterval?: number;
+  },
 ) {
   return useQuery<T | null>({
     queryKey,

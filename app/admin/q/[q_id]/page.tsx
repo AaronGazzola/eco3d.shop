@@ -106,7 +106,7 @@ const StatusCell = ({
         {currentStatus === "complete" ? (
           <PrinterCheck className="text-green-500" />
         ) : currentStatus === "printing" ? (
-          <Printer className="animate-pulse text-blue-500" />
+          <Printer className=" text-blue-500" />
         ) : (
           <Clock className="text-gray-500" />
         )}

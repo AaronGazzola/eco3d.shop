@@ -1,6 +1,7 @@
 export enum OrderStatus {
   Waiting = "waiting",
   Printing = "printing",
+  Packing = "packing",
   Shipped = "shipped",
   Delivered = "delivered",
 }
@@ -42,6 +43,8 @@ export interface Order {
   items: OrderItem[];
   createdAt: Date;
   shippingCost: number;
+  printTime: number;
+  queueTime: number;
 }
 
 export const ORDER_STAGES = [
@@ -64,4 +67,9 @@ export interface Address {
   state: string;
   postalCode: string;
   country: string;
+}
+
+export interface ItemTime {
+  printTime: number;
+  queueTime: number;
 }
