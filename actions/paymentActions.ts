@@ -60,6 +60,21 @@ async function getQueueIdsByColor() {
   };
 }
 
+type OrderNotificationSettings = {
+  enabled: boolean;
+};
+
+function isOrderNotificationSettings(
+  value: unknown,
+): value is OrderNotificationSettings {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "enabled" in value &&
+    typeof (value as OrderNotificationSettings).enabled === "boolean"
+  );
+}
+
 export async function handlePaymentSuccess(
   paymentIntentId: string,
   items: CartItem[],
@@ -67,6 +82,17 @@ export async function handlePaymentSuccess(
 ) {
   const supabase = await getSupabaseServerActionClient();
   console.log(`PAYMENT_START:${paymentIntentId}:${email}`);
+
+  const { data: settings } = await supabase
+    .from("system_settings")
+    .select("value")
+    .eq("key", "order_notifications")
+    .single();
+
+  const settingsValue = settings?.value;
+  const shouldSendNotification =
+    isOrderNotificationSettings(settingsValue) && settingsValue.enabled;
+  const contactEmail = process.env.CONTACT_EMAIL;
 
   const { data: userData } = await getUserAction();
   console.log(`USER_DATA:${JSON.stringify(userData)}`);
@@ -258,6 +284,13 @@ export async function handlePaymentSuccess(
       subject: `Order Confirmed - #${orderResult.data.id}`,
       content: emailHtml,
     });
+    if (shouldSendNotification && contactEmail) {
+      await sendEmailAction({
+        email: contactEmail,
+        subject: `[COPY] Order Confirmed - #${orderResult.data.id}`,
+        content: emailHtml,
+      });
+    }
   } catch (error) {
     console.error("Failed to send confirmation email:", error);
   }

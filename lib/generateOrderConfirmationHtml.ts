@@ -15,7 +15,7 @@ export function generateOrderConfirmationHtml(
         <tr>
           <td>
             <p style="color: #0F172A; font-size: 16px; margin: 0; line-height: 24px;">
-              ${item.size} - ${item.colors?.join(", ")}
+              Model V8 - ${item.size} - ${item.colors?.join(", ")}
             </p>
             <p style="color: #64748B; font-size: 14px; margin: 4px 0 16px; line-height: 24px;">
               Quantity: ${item.quantity}
