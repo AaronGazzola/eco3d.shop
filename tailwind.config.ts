@@ -95,6 +95,11 @@ const config = {
             height: "0",
           },
         },
+        blub: {
+          "0%": { transform: "scale(1)", opacity: "1", rotate: "0deg" },
+          "50%": { transform: "scale(0)", opacity: "0", rotate: "180deg" },
+          "100%": { transform: "scale(1)", opacity: "1", rotate: "360deg" },
+        },
       },
       "rotate-arrows": {
         "0%": { transform: "rotate(0deg)" },
@@ -107,6 +112,7 @@ const config = {
         "rotate-arrows": "rotate-arrows 1s ease-in-out",
         "fade-in-delayed": "fade-in-delayed 1s ease-in-out",
         "fade-out-early": "fade-out-early 1s ease-in-out",
+        blub: "blub 1s ease-in-out infinite alternate",
       },
       fontFamily: {
         poppins: ["Poppins"],

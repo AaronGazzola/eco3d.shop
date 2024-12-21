@@ -1,39 +1,26 @@
+// app/payment/success/page.tsx
 "use client";
-import { handlePaymentSuccess } from "@/actions/paymentActions";
-import { useCartStore } from "@/hooks/useCartStore";
-import { useSignInWithMagicLink } from "@/hooks/userHooks";
-import { useSearchParamsContext } from "@/providers/SearchParamsProvider";
-import { useRouter } from "next/navigation";
-import { Suspense, useEffect } from "react";
+
+import useIsMounted from "@/hooks/useIsMounted";
+import { Suspense } from "react";
+import { PaymentProcessor } from "./PaymentProcessor";
 
 export default function SuccessPage() {
+  const isMounted = useIsMounted();
+  if (!isMounted) return null;
   return (
     <div className="flex items-center justify-center min-h-screen">
-      <Suspense fallback={null}>
+      <Suspense fallback={<LoadingSpinner />}>
         <PaymentProcessor />
       </Suspense>
     </div>
   );
 }
 
-function PaymentProcessor() {
-  const router = useRouter();
-  const { searchParams } = useSearchParamsContext();
-  const { items, clearCart, shippingEmail: email } = useCartStore();
-  const { mutate: signIn } = useSignInWithMagicLink();
-
-  useEffect(() => {
-    const processPayment = async () => {
-      const paymentIntent = searchParams?.get("payment_intent");
-      if (paymentIntent && items.length) {
-        await handlePaymentSuccess(paymentIntent, items, email);
-        clearCart();
-        signIn(email);
-        router.push("/");
-      }
-    };
-    processPayment();
-  }, [clearCart, items, router, searchParams, email, signIn]);
-
-  return <div className="animate-pulse">Processing your order...</div>;
+function LoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center">
+      <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
 }

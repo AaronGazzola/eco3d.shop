@@ -4,7 +4,7 @@ import { Calendar, Ruler } from "lucide-react";
 import Image from "next/image";
 
 export const ProductListItem = () => (
-  <div className="p-3 rounded-xl border shadow-lg bg-white cursor-pointer">
+  <div className="p-3 rounded-xl border shadow-lg bg-white cursor-pointer w-72">
     <div className="overflow-hidden flex flex-col gap-4">
       <div className="relative pt-[100%] w-full">
         <Image
@@ -17,8 +17,8 @@ export const ProductListItem = () => (
       </div>
 
       <div className="px-2.5 pt-1 pb-3">
-        <h2 className="font-bold text-2xl text-gray-700 mb-2">
-          Scale Model V8 Engine
+        <h2 className="font-bold text-2xl text-center text-gray-700 mb-2">
+          Model V8 Engine
         </h2>
         <div className="flex flex-col items-center">
           <div className="flex flex-col w-min items-center mb-4">

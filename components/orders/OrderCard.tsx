@@ -9,15 +9,10 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { useUpdateTrackingMutation } from "@/hooks/orderHooks";
 import { Order } from "@/types/order.types";
 import { formatDate } from "date-fns";
-import { ChevronDown, ChevronUp, Frown, HelpCircle, Phone } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 
 const OrderCard = ({
@@ -41,7 +36,7 @@ const OrderCard = ({
 
   return (
     <Card className="w-full max-w-3xl p-6 relative">
-      <Popover>
+      {/* <Popover>
         <PopoverTrigger asChild>
           <Button
             variant="ghost"
@@ -65,7 +60,7 @@ const OrderCard = ({
             Contact support <Phone className="w-4 h-4" />
           </Button>
         </PopoverContent>
-      </Popover>
+      </Popover> */}
       <div className="flex flex-col">
         <h3 className="text-lg font-semibold w-[calc(100%-8px)]">
           Order #{order.id}
