@@ -1,5 +1,4 @@
 "use server";
-
 import getActionResponse from "@/actions/getActionResponse";
 import { ActionResponse } from "@/types/action.types";
 import { ContactFormData, contactFormSchema } from "@/types/contact.types";
@@ -14,8 +13,8 @@ export async function sendContactEmail(
     const parsed = contactFormSchema.parse(data);
 
     const emailResponse = await resend.emails.send({
-      from: "Eco3D.Shop <noreply@eco3d.shop>",
-      to: "aaron@gazzola.dev",
+      from: "Eco3D Support <noreply@eco3d.shop>",
+      to: process.env.CONTACT_EMAIL ?? "",
       subject: `New Contact Form Submission: ${parsed.type}`,
       html: `
         <h2>New Contact Form Submission</h2>
@@ -25,14 +24,14 @@ export async function sendContactEmail(
         <p><strong>Message:</strong></p>
         <p>${parsed.message}</p>
       `,
+      replyTo: parsed.email,
     });
-
-    if (emailResponse.error) {
-      throw new Error(emailResponse.error.message || "Failed to send email");
-    }
 
     return getActionResponse();
   } catch (error) {
+    console.log(
+      `[ERROR] ${error instanceof Error ? error.message : JSON.stringify(error)}`,
+    );
     return getActionResponse({ error });
   }
 }
