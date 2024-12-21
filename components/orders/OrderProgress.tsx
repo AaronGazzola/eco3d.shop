@@ -174,7 +174,7 @@ const OrderProgress = ({
                     isActive && <OrderCountdown order={order} />}
                   {isShipped && trackingNumber && (
                     <Link
-                      href={`https://track.auspost.com.au/track/search/${trackingNumber}`}
+                      href={`https://auspost.com.au/mypost/track/details/${trackingNumber}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 underline"
