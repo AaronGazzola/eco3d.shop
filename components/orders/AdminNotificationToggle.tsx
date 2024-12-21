@@ -10,7 +10,8 @@ import { useState } from "react";
 
 export const AdminNotificationsToggle = () => {
   const [showConfirm, setShowConfirm] = useState(false);
-  const { data: enabled } = useAdminNotificationsQuery();
+  const { data } = useAdminNotificationsQuery();
+  const enabled = data?.enabled;
   const { mutate: updateNotifications } = useUpdateAdminNotifications();
 
   const handleToggle = () => {

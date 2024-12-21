@@ -1,6 +1,4 @@
-// hooks/admin.hooks.ts
 "use client";
-
 import {
   getAdminNotificationsAction,
   updateAdminNotificationsAction,
@@ -20,9 +18,11 @@ export const useAdminNotificationsQuery = () => {
 
 export const useUpdateAdminNotifications = () => {
   const queryClient = useQueryClient();
+  const query = useAdminNotificationsQuery();
 
   return useMutation({
     mutationFn: async (enabled: boolean) => {
+      if (!query.data) throw new Error("No current notification settings");
       const response = await updateAdminNotificationsAction(enabled);
       if (response.error) throw new Error(response.error.toString());
       return response.data;

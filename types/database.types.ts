@@ -583,21 +583,18 @@ export type Database = {
           created_at: string | null
           email: string
           id: string
-          order_notifications: boolean | null
           user_id: string | null
         }
         Insert: {
           created_at?: string | null
           email: string
           id?: string
-          order_notifications?: boolean | null
           user_id?: string | null
         }
         Update: {
           created_at?: string | null
           email?: string
           id?: string
-          order_notifications?: boolean | null
           user_id?: string | null
         }
         Relationships: []
@@ -795,6 +792,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      system_settings: {
+        Row: {
+          created_at: string | null
+          id: string
+          key: string
+          updated_at: string | null
+          value: Json
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          key: string
+          updated_at?: string | null
+          value: Json
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          key?: string
+          updated_at?: string | null
+          value?: Json
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
