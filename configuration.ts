@@ -37,11 +37,11 @@ const configuration = {
     resetPassword: "/reset-password",
     authCallback: "/auth/callback",
     resetPasswordCallback: "/reset-password/callback",
-    pricing: "/pricing",
     privacy: "/privacy",
     terms: "/terms",
     faq: "/faq",
     notFound: "/404",
+    contact: "/contact",
   },
   production,
 };

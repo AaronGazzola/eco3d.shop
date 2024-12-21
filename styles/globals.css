@@ -10,7 +10,7 @@
     --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
     --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
+    --popover: 0 0% 0%;
     --popover-foreground: 0 0% 100%;
     --primary: 141 71% 29%;
     --primary-foreground: 0 0% 98%;
@@ -34,13 +34,12 @@
     --text-white: 0, 0%, 100%;
     --hero-text: 141 85% 85%;
   }
-
   .dark {
     --background: 240 10% 3.9%;
     --foreground: 0 0% 90%;
     --card: 240 10% 3.9%;
     --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
+    --popover: 0 0% 0%;
     --popover-foreground: 0 0% 100%;
     --primary: 0 0% 90%;
     --primary-foreground: 240 5.9% 10%;

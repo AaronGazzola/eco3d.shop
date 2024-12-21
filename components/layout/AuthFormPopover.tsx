@@ -74,7 +74,7 @@ const AuthFormPopover = () => {
           <CircleUser className="" />
         </ActionButton>
       </PopoverTrigger>
-      <PopoverContent className="w-min border border-gray-500 text-gray-900 px-6 py-4 min-w-80">
+      <PopoverContent className="w-min border border-gray-500 text-gray-900 px-6 py-4 min-w-80 bg-white">
         {user ? (
           <div className="flex flex-col items-center py-2">
             <div className="flex flex-col items-center">
