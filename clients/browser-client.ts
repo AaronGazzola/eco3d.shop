@@ -14,12 +14,19 @@ function getSupabaseBrowserClient() {
   }
 
   const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const NEXT_PUBLIC_SUPABASE_ANON_KEY =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   invariant(SUPABASE_URL, `Supabase URL was not provided`);
-  invariant(SUPABASE_ANON_KEY, `Supabase Anon key was not provided`);
+  invariant(
+    NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    `Supabase Anon key was not provided`,
+  );
 
-  client = createBrowserClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY);
+  client = createBrowserClient<Database>(
+    SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
 
   return client;
 }

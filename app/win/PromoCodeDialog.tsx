@@ -1,6 +1,5 @@
 import { DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { PromoCodeWithPromoKey } from "@/types/db.types";
-import dayjs from "dayjs";
 
 const PromoCodeDialog = ({
   promoCode: { promo_code, percentage_discount, expiration_date },
@@ -21,12 +20,15 @@ const PromoCodeDialog = ({
         <p className="text-lg font-bold">{percentage_discount}% OFF</p>
       </div>
       <DialogDescription className="text-center">
-        Use this promo code at checkout once our store opens to recieve{" "}
-        {percentage_discount}% off the total price of your order. Maximum spend
-        $250
-        <br />
+        <p>
+          Use this promo code at checkout (once we add that feature - sorry!) to
+          get
+          {percentage_discount}% off the total price of your order. Maximum
+          spend $250
+        </p>
+        {/* <br />
         <br /> Redeem before{" "}
-        <strong>{dayjs(expiration_date).format("D-MMM-YY")}</strong>.
+        <strong>{dayjs(expiration_date).format("D-MMM-YY")}</strong>. */}
       </DialogDescription>
     </>
   );
