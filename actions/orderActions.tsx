@@ -7,6 +7,7 @@ import OrderConfirmationEmail from "@/components/emails/OrderConfirmationEmail";
 import { QueueItem, calculateQueueTimes } from "@/lib/q.util";
 import { ActionResponse } from "@/types/action.types";
 import { CartItem } from "@/types/cart.types";
+import { Database } from "@/types/database.types";
 import { ProductVariant } from "@/types/db.types";
 import { Order, OrderStatus } from "@/types/order.types";
 import { render } from "@react-email/render";
@@ -147,21 +148,79 @@ const transformOrderData = (
   };
 };
 
+type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+
 export const getUserOrdersAction = async (): Promise<
   ActionResponse<Order[]>
 > => {
   try {
     const supabase = await getSupabaseServerActionClient();
-    const { data: userData, error: userError } = await getUserAction();
-    if (userError) throw new Error(userError);
-    if (!userData?.user) throw new Error("User not found");
 
-    const { data: profileData, error: profileError } = await supabase
+    const { data: userData, error: userError } = await getUserAction();
+
+    if (userError) throw new Error(userError);
+    if (!userData?.user?.id || !userData.user.email) {
+      throw new Error("User ID or email not found");
+    }
+
+    const { data: existingProfile, error: profileQueryError } = await supabase
       .from("profiles")
       .select()
-      .eq("user_id", userData.user.id)
-      .single();
-    if (profileError) throw new Error(profileError.message);
+      .or(`user_id.eq.${userData.user.id},email.eq.${userData.user.email}`)
+      .maybeSingle();
+
+    let profileData: Profile;
+
+    if (!existingProfile) {
+      const { data: newProfile, error: createError } = await supabase
+        .from("profiles")
+        .insert({
+          user_id: userData.user.id,
+          email: userData.user.email,
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        const { data: retryProfile, error: retryError } = await supabase
+          .from("profiles")
+          .select()
+          .eq("email", userData.user.email)
+          .single();
+
+        if (retryError || !retryProfile) {
+          throw new Error(
+            `Failed to get or create profile: ${createError.message}`,
+          );
+        }
+
+        profileData = retryProfile;
+      } else if (!newProfile) {
+        throw new Error("Failed to create profile: No data returned");
+      } else {
+        profileData = newProfile;
+      }
+    } else {
+      if (!existingProfile.user_id) {
+        const { data: updatedProfile, error: updateError } = await supabase
+          .from("profiles")
+          .update({ user_id: userData.user.id })
+          .eq("email", userData.user.email)
+          .select()
+          .single();
+
+        if (updateError) {
+          throw new Error(`Failed to update profile: ${updateError.message}`);
+        }
+        profileData = updatedProfile;
+      } else {
+        profileData = existingProfile;
+      }
+    }
+
+    if (!profileData?.id) {
+      throw new Error("Profile ID not found after get/create operation");
+    }
 
     const [ordersResponse, queueItemsResponse, variantsResponse] =
       await Promise.all([
@@ -169,26 +228,26 @@ export const getUserOrdersAction = async (): Promise<
           .from("orders")
           .select(
             `
-           *,
-           shipping_details!left(
-             id,
-             shipping_provider,
-             tracking_number,
-             shipping_status,
-             estimated_delivery
-           ),
-           order_items(
-             *,
-             product_variants(
-               *,
-               variant_images(
-                 *,
-                 images(*)
-               )
-             )
-           ),
-           refunds(*)
-         `,
+          *,
+          shipping_details!left(
+            id,
+            shipping_provider,
+            tracking_number,
+            shipping_status,
+            estimated_delivery
+          ),
+          order_items(
+            *,
+            product_variants(
+              *,
+              variant_images(
+                *,
+                images(*)
+              )
+            )
+          ),
+          refunds(*)
+        `,
           )
           .eq("profile_id", profileData.id),
         supabase.from("print_queue_items").select("*"),
