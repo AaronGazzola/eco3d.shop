@@ -1,5 +1,6 @@
 "use client";
 
+import useIsMounted from "@/hooks/useIsMounted";
 import AuthProvider from "@/providers/AuthClientProvider";
 import ProgressProvider from "@/providers/ProgressProvider";
 import QueryProvider from "@/providers/QueryProvider";
@@ -7,21 +8,11 @@ import SuspendedSearchParamsProvider from "@/providers/SearchParamsProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { ZIndexProvider } from "@/providers/ZIndexProvider";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
-import { ReactNode, useEffect } from "react";
+import { ReactNode } from "react";
 
 const Providers = ({ children }: { children: ReactNode }) => {
-  useEffect(() => {
-    console.log("_prov_mount", {
-      nuqs: !!NuqsAdapter,
-      query: !!QueryProvider,
-      theme: !!ThemeProvider,
-      zindex: !!ZIndexProvider,
-      progress: !!ProgressProvider,
-      search: !!SuspendedSearchParamsProvider,
-      auth: !!AuthProvider,
-    });
-  }, []);
-
+  const isMounted = useIsMounted();
+  if (!isMounted) return null;
   return (
     <NuqsAdapter>
       <QueryProvider>
