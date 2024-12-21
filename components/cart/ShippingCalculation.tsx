@@ -3,7 +3,6 @@
 import Australia from "@/components/svg/Australia";
 import { MS_PER_DAY, ShippingDays } from "@/constants/order.constants";
 import { useCartQTime } from "@/hooks/qHooks";
-
 import { useCartStore } from "@/hooks/useCartStore";
 import { cn } from "@/lib/utils";
 import { Address } from "@/types/order.types";
@@ -26,11 +25,14 @@ const ShippingCalculation = ({
     const minutes = Math.floor((seconds % 3600) / 60);
     return `${days}d ${hours}h ${minutes}m`;
   };
+
   const shippingDays =
     address.state === "VIC" ? ShippingDays.Victoria : ShippingDays.Default;
 
   const totalTime =
-    (data?.qTime || 0) + (data?.printTime || 0) + shippingDays * MS_PER_DAY;
+    ((data?.qTime || 0) + (data?.printTime || 0)) * 1000 +
+    shippingDays * MS_PER_DAY;
+
   const estimatedDelivery = addMilliseconds(new Date(), totalTime);
 
   return (

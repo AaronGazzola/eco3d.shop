@@ -1,6 +1,7 @@
 "use server";
-
+import sendEmailAction from "@/actions/emailActions";
 import getSupabaseServerActionClient from "@/clients/action-client";
+import { generateOrderConfirmationHtml } from "@/lib/generateOrderConfirmationHtml";
 import { CartItem } from "@/types/cart.types";
 import { Database } from "@/types/database.types";
 import Stripe from "stripe";
@@ -15,6 +16,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function createPaymentIntent(amount: number) {
   try {
+    console.log(`PI_CREATE:${amount}`);
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100),
       currency: "aud",
@@ -22,8 +24,10 @@ export async function createPaymentIntent(amount: number) {
         enabled: true,
       },
     });
+    console.log(`PI_SUCCESS:${paymentIntent.id}`);
     return { clientSecret: paymentIntent.client_secret };
   } catch (error) {
+    console.log(`PI_ERROR:${JSON.stringify(error)}`);
     throw new Error("Failed to create payment intent");
   }
 }
@@ -44,6 +48,8 @@ async function getQueueIdsByColor() {
     .select("id")
     .limit(2);
 
+  console.log(`QUEUES:${JSON.stringify({ queues, error })}`);
+
   if (error || !queues || queues.length < 2) {
     throw new Error("Failed to fetch print queues");
   }
@@ -60,8 +66,13 @@ export async function handlePaymentSuccess(
   email: string,
 ) {
   const supabase = await getSupabaseServerActionClient();
+  console.log(`PAYMENT_START:${paymentIntentId}:${email}`);
+
   const { data: userData } = await getUserAction();
+  console.log(`USER_DATA:${JSON.stringify(userData)}`);
+
   const { whiteQueueId, colorQueueId } = await getQueueIdsByColor();
+  console.log(`QUEUE_IDS:${whiteQueueId}:${colorQueueId}`);
 
   let profileId: string;
   if (userData?.user) {
@@ -72,6 +83,10 @@ export async function handlePaymentSuccess(
         .eq("user_id", userData.user.id)
         .single();
 
+    console.log(
+      `EXISTING_PROFILE:${JSON.stringify({ existingProfile, existingProfileError })}`,
+    );
+
     if (existingProfile) {
       profileId = existingProfile.id;
     } else {
@@ -81,26 +96,41 @@ export async function handlePaymentSuccess(
         .select()
         .single();
 
+      console.log(
+        `NEW_PROFILE:${JSON.stringify({ newProfile, profileError })}`,
+      );
       if (profileError) throw profileError;
       profileId = newProfile.id;
     }
   } else {
-    const { data: guestProfile, error: profileError } = await supabase
+    const { data: existingProfile } = await supabase
       .from("profiles")
-      .insert({ email })
-      .select()
+      .select("id")
+      .eq("email", email)
       .single();
 
-    if (profileError) throw profileError;
-    profileId = guestProfile.id;
-    const { error: signInError } = await supabase.auth.signInWithOtp({
-      email,
-    });
+    console.log(`EXISTING_GUEST:${JSON.stringify(existingProfile)}`);
 
-    if (signInError) throw signInError;
+    if (existingProfile) {
+      profileId = existingProfile.id;
+    } else {
+      const { data: guestProfile, error: profileError } = await supabase
+        .from("profiles")
+        .insert({ email })
+        .select()
+        .single();
+
+      console.log(
+        `NEW_GUEST:${JSON.stringify({ guestProfile, profileError })}`,
+      );
+      if (profileError) throw profileError;
+      profileId = guestProfile.id;
+    }
   }
 
   const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+  console.log(`PAYMENT_VERIFY:${paymentIntent.status}`);
+
   if (paymentIntent.status !== "succeeded") {
     throw new Error("Payment not successful");
   }
@@ -120,6 +150,8 @@ export async function handlePaymentSuccess(
     )
     .eq("name", "Model V8")
     .single();
+
+  console.log(`PRODUCTS:${JSON.stringify({ products, productsError })}`);
   if (productsError) throw productsError;
 
   const orderResult = await supabase
@@ -137,16 +169,23 @@ export async function handlePaymentSuccess(
     })
     .select()
     .single();
+
+  console.log(`ORDER:${JSON.stringify(orderResult)}`);
   if (orderResult.error) throw orderResult.error;
 
   const orderItems = await Promise.all(
     items.map(async (item) => {
       const normalizedSize = normalizeSize(item.size);
+      console.log(`ITEM_PROCESS:${JSON.stringify({ item, normalizedSize })}`);
+
       const variant = products.product_variants.find((v) => {
         const attrs = v.attributes as { size: string; color: string[] };
         const hasMatchingSize = attrs.size === normalizedSize;
         const hasMatchingColors = item.colors?.every((color) =>
           attrs.color.includes(color.toLowerCase()),
+        );
+        console.log(
+          `VARIANT_MATCH:${JSON.stringify({ variantId: v.id, hasMatchingSize, hasMatchingColors, attrs })}`,
         );
         return hasMatchingSize && hasMatchingColors;
       });
@@ -170,6 +209,10 @@ export async function handlePaymentSuccess(
     .from("order_items")
     .insert(orderItems)
     .select();
+
+  console.log(
+    `ORDER_ITEMS:${JSON.stringify({ insertedOrderItems, itemsError })}`,
+  );
   if (itemsError) throw itemsError;
 
   const printQueueItems = insertedOrderItems.flatMap((orderItem) => {
@@ -183,6 +226,9 @@ export async function handlePaymentSuccess(
     );
 
     const queueId = hasWhite ? whiteQueueId : colorQueueId;
+    console.log(
+      `QUEUE_ASSIGNMENT:${JSON.stringify({ orderItemId: orderItem.id, hasWhite, queueId })}`,
+    );
 
     return Array.from({ length: orderItem.quantity }, () => ({
       print_queue_id: queueId,
@@ -196,7 +242,25 @@ export async function handlePaymentSuccess(
   const { error: queueError } = await supabase
     .from("print_queue_items")
     .insert(printQueueItems);
+
+  console.log(`QUEUE_INSERT:${JSON.stringify({ queueError })}`);
   if (queueError) throw queueError;
+
+  const emailHtml = generateOrderConfirmationHtml(
+    orderResult.data.id,
+    items,
+    paymentIntent.amount / 100,
+  );
+
+  try {
+    await sendEmailAction({
+      email,
+      subject: `Order Confirmed - #${orderResult.data.id}`,
+      content: emailHtml,
+    });
+  } catch (error) {
+    console.error("Failed to send confirmation email:", error);
+  }
 
   return { orderId: orderResult.data.id };
 }

@@ -18,16 +18,19 @@ import { useUpdateTrackingMutation } from "@/hooks/orderHooks";
 import { Order } from "@/types/order.types";
 import { formatDate } from "date-fns";
 import { ChevronDown, ChevronUp, Frown, HelpCircle, Phone } from "lucide-react";
-import { usePathname } from "next/navigation";
 import { useState } from "react";
 
-const OrderCard = ({ order }: { order: Order }) => {
+const OrderCard = ({
+  order,
+  isAdmin = false,
+}: {
+  order: Order;
+  isAdmin?: boolean;
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState(
     order.trackingNumber || "",
   );
-  const pathname = usePathname();
-  const isAdmin = pathname.startsWith("/admin");
   const { mutate: updateTracking, isPending } = useUpdateTrackingMutation();
 
   const handleUpdateTracking = () => {

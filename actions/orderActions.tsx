@@ -3,10 +3,14 @@
 import getActionResponse from "@/actions/getActionResponse";
 import { getUserAction } from "@/actions/userActions";
 import getSupabaseServerActionClient from "@/clients/action-client";
+import OrderConfirmationEmail from "@/components/emails/OrderConfirmationEmail";
 import { QueueItem, calculateQueueTimes } from "@/lib/q.util";
 import { ActionResponse } from "@/types/action.types";
+import { CartItem } from "@/types/cart.types";
 import { ProductVariant } from "@/types/db.types";
 import { Order, OrderStatus } from "@/types/order.types";
+import { render } from "@react-email/render";
+import sendEmailAction from "./emailActions";
 
 const getMostRecent = (items: { updated_at: string }[]) => {
   if (!items.length) return null;
@@ -326,3 +330,20 @@ export const updateOrderTrackingAction = async (
     return getActionResponse({ error });
   }
 };
+
+export async function sendOrderConfirmation(
+  email: string,
+  orderId: string,
+  items: CartItem[],
+  total: number,
+) {
+  const html = await render(
+    <OrderConfirmationEmail orderId={orderId} items={items} total={total} />,
+  );
+
+  return sendEmailAction({
+    email,
+    subject: `Order Confirmed - #${orderId}`,
+    content: html,
+  });
+}
