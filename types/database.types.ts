@@ -583,18 +583,21 @@ export type Database = {
           created_at: string | null
           email: string
           id: string
+          order_notifications: boolean | null
           user_id: string | null
         }
         Insert: {
           created_at?: string | null
           email: string
           id?: string
+          order_notifications?: boolean | null
           user_id?: string | null
         }
         Update: {
           created_at?: string | null
           email?: string
           id?: string
+          order_notifications?: boolean | null
           user_id?: string | null
         }
         Relationships: []
