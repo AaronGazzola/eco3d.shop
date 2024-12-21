@@ -59,10 +59,14 @@ export default function FAQPage() {
       <div className="container py-8 space-y-8 max-w-4xl">
         <h1 className="text-5xl font-bold">Frequently Asked Questions</h1>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-2">
             <Accordion type="single" collapsible className="w-full">
               {FAQ_ITEMS.map((item, index) => (
-                <AccordionItem key={index} value={`item-${index}`}>
+                <AccordionItem
+                  className="last:border-none"
+                  key={index}
+                  value={`item-${index}`}
+                >
                   <AccordionTrigger className="text-xl text-left">
                     {item.question}
                   </AccordionTrigger>
