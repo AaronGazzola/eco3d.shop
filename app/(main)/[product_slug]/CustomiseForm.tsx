@@ -34,7 +34,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Axis3D, Check, MoveHorizontal, MoveVertical } from "lucide-react";
 import Image from "next/image";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -45,6 +45,7 @@ const customiseSchema = z.object({
 
 export function CustomiseForm({ isAnimating }: CustomiseFormProps) {
   const { size, colors, setSize, setColors } = useProductStore();
+  const isMounted = useRef(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(customiseSchema),
@@ -53,6 +54,13 @@ export function CustomiseForm({ isAnimating }: CustomiseFormProps) {
       colors,
     },
   });
+
+  useEffect(() => {
+    if (!isMounted.current) {
+      isMounted.current = true;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, []);
 
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
