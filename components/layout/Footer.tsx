@@ -4,7 +4,7 @@ import Link from "next/link";
 
 const Footer = () => {
   return (
-    <div className="w-full bg-gradient-to-r from-green-900 via-green-950 to-green-900 flex items-center justify-center text-gray-200 font-black text-sm shadow relative flex-cold">
+    <div className="w-full bg-gradient-to-r from-green-900 via-green-950 to-green-900 flex items-center justify-center text-gray-200 font-black text-sm shadow relative flex-col">
       <div className="hidden md:absolute md:inset-0 md:flex items-center md:justify-end pr-2 font-normal pointer-events-none">
         <span className="text-white text-xs">
           Copyright Apex Apps © {new Date().getFullYear()}
@@ -39,7 +39,7 @@ const Footer = () => {
           Contact
         </Link>
       </div>
-      <div className="md:absolute md:inset-0 md:flex items-center md:justify-end pr-2 font-normal flex-shrink-0 pointer-events-none">
+      <div className="md:absolute md:inset-0 flex items-center md:hidden pr-2 font-normal flex-shrink-0 pointer-events-none py-1">
         <span className="text-white">
           Copyright Apex Apps © {new Date().getFullYear()}
         </span>
