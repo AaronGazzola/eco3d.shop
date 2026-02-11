@@ -8,7 +8,7 @@ const fontPlus_Jakarta_Sans = Plus_Jakarta_Sans({
 })
 
 const fontLora = Lora({
-  weight: ['300', '400', '700'],
+  weight: ['400', '700'],
   subsets: ['latin'],
   variable: '--font-lora',
 })
