@@ -1,9 +1,0 @@
-{
-  "semi": true,
-  "trailingComma": "all",
-  "arrowParens": "always",
-  "singleQuote": false,
-  "quoteProps": "as-needed",
-  "bracketSpacing": true,
-  "endOfLine": "lf"
-}

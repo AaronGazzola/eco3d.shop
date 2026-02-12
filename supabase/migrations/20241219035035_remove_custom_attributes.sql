@@ -1,1 +1,0 @@
-ALTER TABLE product_variants DROP COLUMN custom_attributes;
