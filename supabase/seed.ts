@@ -1,5 +1,6 @@
 import type { Database } from "@/supabase/types";
 import { createClient } from "@supabase/supabase-js";
+import type { ModelData } from "../app/layout.types";
 import dotenv from "dotenv";
 import path from "path";
 
@@ -14,6 +15,57 @@ const supabase = createClient<Database>(supabaseUrl, supabaseServiceKey, {
     persistSession: false,
   },
 });
+
+const cubeModel: ModelData = {
+  type: "scene-graph",
+  objects: [
+    {
+      id: "cube-1",
+      type: "cube",
+      position: [0, 0.5, 0],
+      rotation: [0, 0.5, 0],
+      scale: [1, 1, 1],
+      color: "#4ade80",
+    },
+  ],
+  metadata: {
+    objectCount: 1,
+  },
+};
+
+const sphereModel: ModelData = {
+  type: "scene-graph",
+  objects: [
+    {
+      id: "sphere-1",
+      type: "sphere",
+      position: [0, 0.5, 0],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+      color: "#60a5fa",
+    },
+  ],
+  metadata: {
+    objectCount: 1,
+  },
+};
+
+const cylinderModel: ModelData = {
+  type: "scene-graph",
+  objects: [
+    {
+      id: "cylinder-1",
+      type: "cylinder",
+      position: [0, 0.5, 0],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+      color: "#f472b6",
+    },
+  ],
+  metadata: {
+    objectCount: 1,
+  },
+};
 
 async function seed() {
   console.log("Starting database seed...");
@@ -125,10 +177,10 @@ async function seed() {
       .from("projects")
       .insert({
         user_id: designer.userId,
-        title: "Custom Vase Design",
-        description: "A beautiful spiral vase design",
-        model_data: { type: "vase", spirals: 12, height: 200 },
-        settings: { color: "blue", material: "PLA" },
+        title: "Green Cube",
+        description: "A simple green cube for demonstrating 3D design",
+        model_data: cubeModel,
+        settings: { color: "green" },
         is_public: true,
       })
       .select()
@@ -137,7 +189,7 @@ async function seed() {
     if (projectError1) {
       console.error("Error creating project 1:", projectError1);
     } else {
-      console.log("Created project: Custom Vase Design");
+      console.log("Created project: Green Cube");
 
       if (project1) {
         const { error: designError } = await supabase
@@ -145,10 +197,10 @@ async function seed() {
           .insert({
             user_id: designer.userId,
             project_id: project1.id,
-            title: "Spiral Vase",
-            description: "Modern spiral vase perfect for home decor",
-            preview_url: "https://placeholder.com/vase.jpg",
-            model_data: project1.model_data,
+            title: "Green Cube",
+            description: "A vibrant green cube perfect for learning 3D design basics",
+            preview_url: "",
+            model_data: cubeModel,
             configuration: { sizes: ["small", "medium", "large"] },
             status: "published",
           });
@@ -156,7 +208,7 @@ async function seed() {
         if (designError) {
           console.error("Error creating published design:", designError);
         } else {
-          console.log("Published design: Spiral Vase");
+          console.log("Published design: Green Cube");
         }
       }
     }
@@ -165,10 +217,11 @@ async function seed() {
       .from("projects")
       .insert({
         user_id: designer.userId,
-        title: "Planter Pot",
-        description: "Decorative planter pot with drainage",
-        model_data: { type: "pot", diameter: 150, drainage: true },
-        is_public: false,
+        title: "Blue Sphere",
+        description: "A smooth blue sphere",
+        model_data: sphereModel,
+        settings: { color: "blue" },
+        is_public: true,
       })
       .select()
       .single();
@@ -176,7 +229,45 @@ async function seed() {
     if (projectError2) {
       console.error("Error creating project 2:", projectError2);
     } else {
-      console.log("Created project: Planter Pot");
+      console.log("Created project: Blue Sphere");
+
+      if (project2) {
+        const { error: designError2 } = await supabase
+          .from("published_designs")
+          .insert({
+            user_id: designer.userId,
+            project_id: project2.id,
+            title: "Blue Sphere",
+            description: "A perfectly smooth blue sphere for decorative purposes",
+            preview_url: "",
+            model_data: sphereModel,
+            configuration: { sizes: ["small", "medium"] },
+            status: "published",
+          });
+
+        if (designError2) {
+          console.error("Error creating published design 2:", designError2);
+        } else {
+          console.log("Published design: Blue Sphere");
+        }
+      }
+    }
+
+    const { error: projectError3 } = await supabase
+      .from("projects")
+      .insert({
+        user_id: designer.userId,
+        title: "Pink Cylinder",
+        description: "A sleek pink cylinder design",
+        model_data: cylinderModel,
+        settings: { color: "pink" },
+        is_public: false,
+      });
+
+    if (projectError3) {
+      console.error("Error creating project 3:", projectError3);
+    } else {
+      console.log("Created project: Pink Cylinder");
     }
   }
 
