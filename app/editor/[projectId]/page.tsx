@@ -18,8 +18,6 @@ import {
 } from "@/components/ui/dialog";
 import { MainHeader } from "@/components/layouts/MainHeader";
 import { useAuth } from "@/app/layout.hooks";
-import { toast } from "sonner";
-import { CustomToast } from "@/components/CustomToast";
 import { useEditorStore } from "./page.stores";
 import { useProject, useSaveProject, useSubmitDesign } from "./page.hooks";
 import { EditorCanvas } from "@/components/3d/EditorCanvas";
@@ -102,11 +100,56 @@ export default function EditorPage() {
     transformMode,
     addObject,
     updateObject,
+    removeObject,
     setSelectedObjectId,
     setCurrentTool,
     setTransformMode,
     setSceneObjects,
   } = useEditorStore();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+
+      switch (e.key.toLowerCase()) {
+        case "q":
+          setCurrentTool("select");
+          break;
+        case "w":
+          setTransformMode("translate");
+          break;
+        case "e":
+          setTransformMode("rotate");
+          break;
+        case "r":
+          setTransformMode("scale");
+          break;
+        case "delete":
+        case "backspace":
+          if (selectedObjectId) {
+            removeObject(selectedObjectId);
+          }
+          break;
+        case "escape":
+          setSelectedObjectId(null);
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    selectedObjectId,
+    removeObject,
+    setSelectedObjectId,
+    setCurrentTool,
+    setTransformMode,
+  ]);
 
   // Removed auth redirect - editor is accessible to everyone
   // Saving and publishing will require authentication
@@ -163,13 +206,7 @@ export default function EditorPage() {
 
   const handleSave = useCallback(async () => {
     if (!user) {
-      toast.custom(() => (
-        <CustomToast
-          variant="error"
-          title="Sign in required"
-          message="Please sign in to save your project"
-        />
-      ));
+      router.push("/sign-in");
       return;
     }
 
@@ -204,6 +241,8 @@ export default function EditorPage() {
   }, [currentProjectId, sceneObjects, saveProject, user, router]);
 
   useEffect(() => {
+    if (!user) return;
+
     autoSaveInterval.current = setInterval(() => {
       if (sceneObjects.length > 0) {
         handleSave();
@@ -215,7 +254,7 @@ export default function EditorPage() {
         clearInterval(autoSaveInterval.current);
       }
     };
-  }, [sceneObjects, handleSave]);
+  }, [sceneObjects, handleSave, user]);
 
   const handleToolChange = (tool: EditorTool) => {
     setCurrentTool(tool);
@@ -251,13 +290,7 @@ export default function EditorPage() {
 
   const handleSubmit = () => {
     if (!user) {
-      toast.custom(() => (
-        <CustomToast
-          variant="error"
-          title="Sign in required"
-          message="Please sign in to submit your design for review"
-        />
-      ));
+      router.push("/sign-in");
       return;
     }
 

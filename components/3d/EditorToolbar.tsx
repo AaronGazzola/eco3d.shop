@@ -39,6 +39,7 @@ export function EditorToolbar({
     {
       id: "select" as const,
       label: "Select",
+      shortcut: "Q",
       icon: (
         <svg
           className="w-4 h-4"
@@ -56,6 +57,7 @@ export function EditorToolbar({
     {
       id: "addCube" as const,
       label: "Cube",
+      shortcut: null,
       icon: (
         <svg
           className="w-4 h-4"
@@ -73,6 +75,7 @@ export function EditorToolbar({
     {
       id: "addSphere" as const,
       label: "Sphere",
+      shortcut: null,
       icon: (
         <svg
           className="w-4 h-4"
@@ -90,6 +93,7 @@ export function EditorToolbar({
     {
       id: "addCylinder" as const,
       label: "Cylinder",
+      shortcut: null,
       icon: (
         <svg
           className="w-4 h-4"
@@ -107,9 +111,9 @@ export function EditorToolbar({
   ];
 
   const transformModes = [
-    { id: "translate" as const, label: "Move" },
-    { id: "rotate" as const, label: "Rotate" },
-    { id: "scale" as const, label: "Scale" },
+    { id: "translate" as const, label: "Move", shortcut: "W" },
+    { id: "rotate" as const, label: "Rotate", shortcut: "E" },
+    { id: "scale" as const, label: "Scale", shortcut: "R" },
   ];
 
   return (
@@ -123,9 +127,15 @@ export function EditorToolbar({
             size="sm"
             onClick={() => onToolChange(tool.id)}
             className="gap-2"
+            title={tool.shortcut ? `${tool.label} (${tool.shortcut})` : tool.label}
           >
             {tool.icon}
             <span className="hidden sm:inline">{tool.label}</span>
+            {tool.shortcut && (
+              <kbd className="hidden sm:inline text-[10px] opacity-50 ml-0.5">
+                {tool.shortcut}
+              </kbd>
+            )}
           </Button>
         ))}
       </div>
@@ -138,8 +148,12 @@ export function EditorToolbar({
             variant={transformMode === mode.id ? "default" : "outline"}
             size="sm"
             onClick={() => onTransformModeChange(mode.id)}
+            title={`${mode.label} (${mode.shortcut})`}
           >
             {mode.label}
+            <kbd className="hidden sm:inline text-[10px] opacity-50 ml-1">
+              {mode.shortcut}
+            </kbd>
           </Button>
         ))}
       </div>

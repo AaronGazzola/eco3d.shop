@@ -1,9 +1,20 @@
 "use client";
 
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, PerspectiveCamera, Grid, TransformControls } from "@react-three/drei";
+import {
+  OrbitControls,
+  PerspectiveCamera,
+  Grid,
+  TransformControls,
+} from "@react-three/drei";
 import * as THREE from "three";
 import { useRef, useEffect } from "react";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 
 type SceneObject = {
   id: string;
@@ -22,6 +33,17 @@ type EditorCanvasProps = {
   onUpdateObject: (id: string, updates: Partial<SceneObject>) => void;
 };
 
+function ObjectGeometry({ type }: { type: SceneObject["type"] }) {
+  switch (type) {
+    case "cube":
+      return <boxGeometry args={[1, 1, 1]} />;
+    case "sphere":
+      return <sphereGeometry args={[0.5, 32, 32]} />;
+    case "cylinder":
+      return <cylinderGeometry args={[0.5, 0.5, 1, 32]} />;
+  }
+}
+
 function SceneObjectMesh({
   obj,
   isSelected,
@@ -37,24 +59,10 @@ function SceneObjectMesh({
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
 
-  let geometry: THREE.BufferGeometry;
-  switch (obj.type) {
-    case "cube":
-      geometry = new THREE.BoxGeometry(1, 1, 1);
-      break;
-    case "sphere":
-      geometry = new THREE.SphereGeometry(0.5, 32, 32);
-      break;
-    case "cylinder":
-      geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32);
-      break;
-  }
-
   return (
     <group>
       <mesh
         ref={meshRef}
-        geometry={geometry}
         position={obj.position}
         rotation={obj.rotation}
         scale={obj.scale}
@@ -63,6 +71,7 @@ function SceneObjectMesh({
           onSelect();
         }}
       >
+        <ObjectGeometry type={obj.type} />
         <meshStandardMaterial
           color={obj.color}
           emissive={isSelected ? obj.color : "#000000"}
@@ -93,6 +102,93 @@ function SceneObjectMesh({
   );
 }
 
+function EditorHelpPopover() {
+  return (
+    <div className="absolute top-3 right-3 z-10">
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 rounded-full bg-white/90 backdrop-blur-sm shadow-sm"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-64 text-sm">
+          <p className="font-semibold mb-2">Editor Controls</p>
+          <div className="space-y-3">
+            <div>
+              <p className="font-medium text-muted-foreground mb-1">Mouse</p>
+              <ul className="space-y-0.5 text-xs">
+                <li className="flex justify-between">
+                  <span>Left click</span>
+                  <span className="text-muted-foreground">Select object</span>
+                </li>
+                <li className="flex justify-between">
+                  <span>Left drag gizmo</span>
+                  <span className="text-muted-foreground">Transform</span>
+                </li>
+                <li className="flex justify-between">
+                  <span>Right drag</span>
+                  <span className="text-muted-foreground">Orbit camera</span>
+                </li>
+                <li className="flex justify-between">
+                  <span>Middle drag</span>
+                  <span className="text-muted-foreground">Pan camera</span>
+                </li>
+                <li className="flex justify-between">
+                  <span>Scroll</span>
+                  <span className="text-muted-foreground">Zoom</span>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-medium text-muted-foreground mb-1">Keyboard</p>
+              <ul className="space-y-0.5 text-xs">
+                <li className="flex justify-between">
+                  <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">W</kbd>
+                  <span className="text-muted-foreground">Move</span>
+                </li>
+                <li className="flex justify-between">
+                  <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">E</kbd>
+                  <span className="text-muted-foreground">Rotate</span>
+                </li>
+                <li className="flex justify-between">
+                  <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">R</kbd>
+                  <span className="text-muted-foreground">Scale</span>
+                </li>
+                <li className="flex justify-between">
+                  <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Q</kbd>
+                  <span className="text-muted-foreground">Select tool</span>
+                </li>
+                <li className="flex justify-between">
+                  <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Del</kbd>
+                  <span className="text-muted-foreground">Delete object</span>
+                </li>
+                <li className="flex justify-between">
+                  <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Esc</kbd>
+                  <span className="text-muted-foreground">Deselect</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 export function EditorCanvas({
   sceneObjects,
   selectedObjectId,
@@ -100,10 +196,46 @@ export function EditorCanvas({
   onSelectObject,
   onUpdateObject,
 }: EditorCanvasProps) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+
+    const onContextMenu = (e: Event) => {
+      e.preventDefault();
+    };
+
+    el.addEventListener("contextmenu", onContextMenu);
+
+    return () => {
+      el.removeEventListener("contextmenu", onContextMenu);
+    };
+  }, []);
+
   return (
-    <Canvas onClick={() => onSelectObject(null)}>
+    <div
+      ref={wrapperRef}
+      className="w-full h-full relative"
+    >
+    <EditorHelpPopover />
+    <Canvas
+      onPointerMissed={(e) => {
+        if (e.button === 0) onSelectObject(null);
+      }}
+    >
       <PerspectiveCamera makeDefault position={[5, 5, 5]} />
-      <OrbitControls makeDefault />
+      <OrbitControls
+        makeDefault
+        mouseButtons={{
+          LEFT: undefined as unknown as THREE.MOUSE,
+          MIDDLE: THREE.MOUSE.PAN,
+          RIGHT: THREE.MOUSE.ROTATE,
+        }}
+        maxPolarAngle={Math.PI / 2}
+        minDistance={1}
+        maxDistance={50}
+      />
 
       <ambientLight intensity={0.5} />
       <directionalLight position={[10, 10, 5]} intensity={1} />
@@ -133,5 +265,6 @@ export function EditorCanvas({
         />
       ))}
     </Canvas>
+    </div>
   );
 }
