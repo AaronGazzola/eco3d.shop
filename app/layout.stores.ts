@@ -21,15 +21,3 @@ export const useAuthStore = create<AuthState>((set) => ({
   setLoading: (loading) => set({ loading }),
   clearAuth: () => set({ user: null, profile: null, loading: false }),
 }));
-
-type UIState = {
-  sidebarOpen: boolean;
-  toggleSidebar: () => void;
-  closeSidebar: () => void;
-};
-
-export const useUIStore = create<UIState>((set) => ({
-  sidebarOpen: false,
-  toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
-  closeSidebar: () => set({ sidebarOpen: false }),
-}));

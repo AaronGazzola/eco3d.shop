@@ -12,7 +12,7 @@ export default function AuthErrorPage() {
           again.
         </p>
         <Link
-          href="/login"
+          href="/sign-in"
           className="inline-block rounded-radius bg-primary px-6 py-2 text-primary-foreground hover:bg-primary/90"
         >
           Return to Login

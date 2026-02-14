@@ -78,5 +78,5 @@ export async function checkIsAdminAction() {
     return false;
   }
 
-  return profile.role === "admin" || profile.role === "super-admin";
+  return profile.role === "admin";
 }
