@@ -76,6 +76,12 @@ function SnakeVisual({ controlRef }: SnakeVisualProps) {
                 roughness={0.6}
               />
             </mesh>
+            {isSelected && (
+              <mesh position={[0, 0, -0.12]}>
+                <sphereGeometry args={[0.04, 16, 16]} />
+                <meshStandardMaterial color="#00ff00" emissive="#00ff00" emissiveIntensity={2} toneMapped={false} />
+              </mesh>
+            )}
             <mesh position={[0, 0, 0.12]} rotation={[Math.PI / 2, Math.PI / 2, 0]}>
               <torusGeometry args={[0.1, 0.035, 12, 24]} />
               <meshStandardMaterial
@@ -84,6 +90,12 @@ function SnakeVisual({ controlRef }: SnakeVisualProps) {
                 roughness={0.6}
               />
             </mesh>
+            {isSelected && (
+              <mesh position={[0, 0, 0.12]}>
+                <sphereGeometry args={[0.04, 16, 16]} />
+                <meshStandardMaterial color="#00ff00" emissive="#00ff00" emissiveIntensity={2} toneMapped={false} />
+              </mesh>
+            )}
           </group>
         );
       })}

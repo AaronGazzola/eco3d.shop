@@ -3,15 +3,37 @@
 import { useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Physics } from "@react-three/rapier";
-import { Lizard } from "./Lizard";
-import { Fish } from "./Fish";
-import { Snake } from "./Snake";
+import { OrbitControls } from "@react-three/drei";
+import { Character } from "./Character";
 import { Environment } from "./Environment";
 import { Controls } from "./Controls";
-import { AnimalSelector } from "./AnimalSelector";
+import * as THREE from "three";
+
+function Collectible({ position, onCollect }: { position: THREE.Vector3; onCollect: () => void }) {
+  return (
+    <mesh position={[position.x, position.y, position.z]}>
+      <sphereGeometry args={[0.15, 16, 16]} />
+      <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={0.5} />
+    </mesh>
+  );
+}
+
+function randomPosition() {
+  return new THREE.Vector3(
+    (Math.random() - 0.5) * 20,
+    0.5,
+    (Math.random() - 0.5) * 20
+  );
+}
 
 export function Game() {
-  const [selectedAnimal, setSelectedAnimal] = useState<"fish" | "lizard" | "snake">("lizard");
+  const [linkCount, setLinkCount] = useState(2);
+  const [collectiblePosition, setCollectiblePosition] = useState(randomPosition());
+
+  const handleCollect = () => {
+    setLinkCount(prev => prev + 1);
+    setCollectiblePosition(randomPosition());
+  };
 
   return (
     <div className="h-full w-full">
@@ -35,15 +57,26 @@ export function Game() {
           shadow-camera-top={10}
           shadow-camera-bottom={-10}
         />
+        <OrbitControls
+          enableRotate={true}
+          enablePan={false}
+          enableZoom={true}
+          minDistance={2}
+          maxDistance={50}
+          maxPolarAngle={Math.PI / 2}
+          mouseButtons={{
+            LEFT: undefined,
+            MIDDLE: 2,
+            RIGHT: 0,
+          }}
+        />
         <Physics gravity={[0, -9.8, 0]}>
-          {selectedAnimal === "fish" && <Fish />}
-          {selectedAnimal === "lizard" && <Lizard />}
-          {selectedAnimal === "snake" && <Snake />}
+          <Character linkCount={linkCount} collectiblePosition={collectiblePosition} onCollect={handleCollect} />
+          <Collectible position={collectiblePosition} onCollect={handleCollect} />
           <Environment />
         </Physics>
       </Canvas>
       <Controls />
-      <AnimalSelector selected={selectedAnimal} onSelect={setSelectedAnimal} />
     </div>
   );
 }

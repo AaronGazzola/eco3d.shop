@@ -75,6 +75,12 @@ export function LizardVisual({ controlRef }: LizardVisualProps) {
                 roughness={0.7}
               />
             </mesh>
+            {isSelected && (
+              <mesh position={[0, 0, -0.13]}>
+                <sphereGeometry args={[0.04, 16, 16]} />
+                <meshStandardMaterial color="#00ff00" emissive="#00ff00" emissiveIntensity={2} toneMapped={false} />
+              </mesh>
+            )}
             <mesh position={[0, 0, 0.13]} rotation={[Math.PI / 2, Math.PI / 2, 0]}>
               <torusGeometry args={[0.11, 0.038, 12, 24]} />
               <meshStandardMaterial
@@ -83,6 +89,12 @@ export function LizardVisual({ controlRef }: LizardVisualProps) {
                 roughness={0.7}
               />
             </mesh>
+            {isSelected && (
+              <mesh position={[0, 0, 0.13]}>
+                <sphereGeometry args={[0.04, 16, 16]} />
+                <meshStandardMaterial color="#00ff00" emissive="#00ff00" emissiveIntensity={2} toneMapped={false} />
+              </mesh>
+            )}
           </group>
         );
       })}

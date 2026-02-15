@@ -11,9 +11,7 @@ interface LinkPreviewProps {
 }
 
 const linkConfigs = {
-  Snake: { radius: 0.15, flattenDepth: 0.06, torusRadius: 0.1, tubeRadius: 0.035, color: "#ac3931", metalness: 0.4, roughness: 0.6 },
-  Fish: { radius: 0.18, flattenDepth: 0.07, torusRadius: 0.12, tubeRadius: 0.04, color: "#3a7ca5", metalness: 0.5, roughness: 0.5 },
-  Lizard: { radius: 0.16, flattenDepth: 0.065, torusRadius: 0.11, tubeRadius: 0.038, color: "#52796f", metalness: 0.3, roughness: 0.7 },
+  Character: { radius: 0.16, flattenDepth: 0.065, torusRadius: 0.11, tubeRadius: 0.038, color: "#52796f", metalness: 0.3, roughness: 0.7, frontConnectionOffset: 0.2, backConnectionOffset: 0.2 },
 };
 
 export function LinkPreview({ animalType, linkIndex }: LinkPreviewProps) {
@@ -35,9 +33,17 @@ export function LinkPreview({ animalType, linkIndex }: LinkPreviewProps) {
           <torusGeometry args={[config.torusRadius, config.tubeRadius, 16, 32]} />
           <meshStandardMaterial color={config.color} metalness={config.metalness} roughness={config.roughness} />
         </mesh>
+        <mesh position={[0, 0, -config.frontConnectionOffset]}>
+          <sphereGeometry args={[0.04, 16, 16]} />
+          <meshStandardMaterial color="#00ff00" emissive="#00ff00" emissiveIntensity={2} toneMapped={false} />
+        </mesh>
         <mesh position={[0, 0, config.radius * 0.8]} rotation={[Math.PI / 2, Math.PI / 2, 0]}>
           <torusGeometry args={[config.torusRadius, config.tubeRadius, 16, 32]} />
           <meshStandardMaterial color={config.color} metalness={config.metalness} roughness={config.roughness} />
+        </mesh>
+        <mesh position={[0, 0, config.backConnectionOffset]}>
+          <sphereGeometry args={[0.04, 16, 16]} />
+          <meshStandardMaterial color="#00ff00" emissive="#00ff00" emissiveIntensity={2} toneMapped={false} />
         </mesh>
       </group>
 
