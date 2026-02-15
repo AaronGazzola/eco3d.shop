@@ -1,16 +1,21 @@
 "use client";
 
+import { useEditModeStore } from "../page.stores";
+
 interface AnimalSelectorProps {
   selected: "fish" | "lizard" | "snake";
   onSelect: (animal: "fish" | "lizard" | "snake") => void;
 }
 
 export function AnimalSelector({ selected, onSelect }: AnimalSelectorProps) {
+  const { selectedLink } = useEditModeStore();
   const animals = [
     { id: "fish" as const, label: "Fish", emoji: "🐟" },
     { id: "lizard" as const, label: "Lizard", emoji: "🦎" },
     { id: "snake" as const, label: "Snake", emoji: "🐍" },
   ];
+
+  if (selectedLink) return null;
 
   return (
     <div className="pointer-events-auto fixed right-4 top-4 flex gap-2">

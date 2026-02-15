@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { RigidBody, RapierRigidBody } from "@react-three/rapier";
 import * as THREE from "three";
 import { usePointerControl } from "./usePointerControl";
+import { useEditModeStore } from "../page.stores";
 
 interface PlayerControllerProps {
   children: (controlRef: React.RefObject<RapierRigidBody | null>) => React.ReactNode;
@@ -15,9 +16,32 @@ export function PlayerController({ children }: PlayerControllerProps) {
   const { gl, camera } = useThree();
   const canvasRef = useRef(gl.domElement);
   const pointerControl = usePointerControl(canvasRef);
+  const { isEditMode, selectedLink } = useEditModeStore();
+  const [zoomLevel, setZoomLevel] = useState(1);
+
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      setZoomLevel((prev) => {
+        const delta = e.deltaY * -0.001;
+        return Math.max(0.3, Math.min(3, prev + delta));
+      });
+    };
+
+    const canvas = gl.domElement;
+    canvas.addEventListener("wheel", handleWheel, { passive: false });
+
+    return () => {
+      canvas.removeEventListener("wheel", handleWheel);
+    };
+  }, [gl]);
 
   useFrame((state) => {
     if (!controlRef.current) return;
+
+    if (selectedLink) {
+      return;
+    }
 
     const moveSpeed = 5;
     const velocity = { x: 0, z: 0 };
@@ -42,10 +66,6 @@ export function PlayerController({ children }: PlayerControllerProps) {
           direction.normalize();
           velocity.x = direction.x * moveSpeed;
           velocity.z = direction.z * moveSpeed;
-
-          console.log(
-            `Movement - Target: x:${intersectPoint.x.toFixed(2)} z:${intersectPoint.z.toFixed(2)} - Position: x:${position.x.toFixed(2)} z:${position.z.toFixed(2)}`
-          );
         }
       }
     }
@@ -55,7 +75,7 @@ export function PlayerController({ children }: PlayerControllerProps) {
     controlRef.current.setLinvel({ x: velocity.x, y: currentLinvel.y, z: velocity.z }, true);
 
     const position = controlRef.current.translation();
-    const cameraOffset = new THREE.Vector3(0, 5, 8);
+    const cameraOffset = new THREE.Vector3(0, 5 * zoomLevel, 8 * zoomLevel);
 
     state.camera.position.lerp(
       new THREE.Vector3(

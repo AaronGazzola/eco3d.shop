@@ -13,8 +13,6 @@ import { AnimalSelector } from "./AnimalSelector";
 export function Game() {
   const [selectedAnimal, setSelectedAnimal] = useState<"fish" | "lizard" | "snake">("lizard");
 
-  console.log(`Game rendered - Selected animal: ${selectedAnimal}`);
-
   return (
     <div className="h-full w-full">
       <Canvas

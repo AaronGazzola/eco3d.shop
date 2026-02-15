@@ -9,7 +9,7 @@ interface ChainOptions {
 
 export function useChain({ segmentCount, segmentLength, stiffness = 0.3 }: ChainOptions) {
   const positions = useRef<THREE.Vector3[]>(
-    Array.from({ length: segmentCount }, () => new THREE.Vector3(0, 0.5, 0))
+    Array.from({ length: segmentCount }, (_, i) => new THREE.Vector3(0, 0.5, i * segmentLength))
   );
 
   const update = (targetPosition: THREE.Vector3) => {
@@ -23,10 +23,7 @@ export function useChain({ segmentCount, segmentLength, stiffness = 0.3 }: Chain
 
       if (distance > 0) {
         direction.normalize();
-        const targetPos = new THREE.Vector3()
-          .copy(segments[i - 1])
-          .sub(direction.multiplyScalar(segmentLength));
-        segments[i].lerp(targetPos, 0.5);
+        segments[i].copy(segments[i - 1]).sub(direction.multiplyScalar(segmentLength));
       }
     }
   };

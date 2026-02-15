@@ -1,10 +1,19 @@
 "use client";
 
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { RapierRigidBody } from "@react-three/rapier";
 import { useRef } from "react";
 import * as THREE from "three";
 import { useChain } from "./useChain";
+import { useEditModeStore } from "../page.stores";
+import { FlattenedSphere } from "./FlattenedSphere";
+
+function getLinkName(index: number, total: number): string {
+  if (index === 0) return "Head";
+  if (index === 1) return "Neck";
+  if (index >= total - 3) return `Tail ${total - index}`;
+  return `Body ${index - 1}`;
+}
 
 interface LizardVisualProps {
   controlRef: React.RefObject<RapierRigidBody | null>;
@@ -13,8 +22,7 @@ interface LizardVisualProps {
 export function LizardVisual({ controlRef }: LizardVisualProps) {
   const chain = useChain({ segmentCount: 14, segmentLength: 0.28, stiffness: 0.35 });
   const meshRefs = useRef<(THREE.Mesh | null)[]>([]);
-
-  console.log(`LizardVisual rendered - Chain segments: ${chain.positions.length}`);
+  const { isEditMode, selectedLink, selectLink } = useEditModeStore();
 
   useFrame(() => {
     if (!controlRef.current) return;
@@ -30,17 +38,52 @@ export function LizardVisual({ controlRef }: LizardVisualProps) {
     });
   });
 
-  const widths = [0.45, 0.48, 0.35, 0.5, 0.55, 0.58, 0.52, 0.4, 0.25, 0.15, 0.12, 0.1, 0.08, 0.08];
-
   return (
     <group>
-      {chain.positions.map((pos, i) => {
-        const scale = widths[i] || 0.1;
+      {chain.positions.map((_, i) => {
+        const linkName = getLinkName(i, chain.positions.length);
+        const isSelected = selectedLink?.animalType === "Lizard" && selectedLink?.linkIndex === i;
+        const rotation = (i * Math.PI) / 2;
+
         return (
-          <mesh key={i} ref={(el) => (meshRefs.current[i] = el)} position={pos}>
-            <sphereGeometry args={[scale, 16, 16]} />
-            <meshStandardMaterial color="#52796f" metalness={0.2} roughness={0.8} />
-          </mesh>
+          <group
+            key={`link-${i}`}
+            ref={(el) => {
+              meshRefs.current[i] = el as any;
+            }}
+            onClick={(e) => {
+              if (isEditMode) {
+                e.stopPropagation();
+                selectLink("Lizard", i, linkName);
+              }
+            }}
+            rotation={[0, rotation, 0]}
+          >
+            <mesh>
+              <FlattenedSphere radius={0.16} flattenDepth={0.065} />
+              <meshStandardMaterial
+                color={isSelected ? "#7ab8a8" : "#52796f"}
+                metalness={0.3}
+                roughness={0.7}
+              />
+            </mesh>
+            <mesh position={[0, 0, -0.13]} rotation={[Math.PI / 2, 0, 0]}>
+              <torusGeometry args={[0.11, 0.038, 12, 24]} />
+              <meshStandardMaterial
+                color={isSelected ? "#7ab8a8" : "#52796f"}
+                metalness={0.3}
+                roughness={0.7}
+              />
+            </mesh>
+            <mesh position={[0, 0, 0.13]} rotation={[Math.PI / 2, Math.PI / 2, 0]}>
+              <torusGeometry args={[0.11, 0.038, 12, 24]} />
+              <meshStandardMaterial
+                color={isSelected ? "#7ab8a8" : "#52796f"}
+                metalness={0.3}
+                roughness={0.7}
+              />
+            </mesh>
+          </group>
         );
       })}
     </group>
