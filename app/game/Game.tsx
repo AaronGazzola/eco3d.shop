@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Physics } from "@react-three/rapier";
 import { OrbitControls } from "@react-three/drei";
-import { Character } from "./Character";
+import { DragonCharacter } from "./DragonCharacter";
 import { Environment } from "./Environment";
 import { Controls } from "./Controls";
 import * as THREE from "three";
@@ -27,7 +27,7 @@ function randomPosition() {
 }
 
 export function Game() {
-  const [linkCount, setLinkCount] = useState(2);
+  const [linkCount, setLinkCount] = useState(1);
   const [collectiblePosition, setCollectiblePosition] = useState(randomPosition());
 
   const handleCollect = () => {
@@ -58,20 +58,23 @@ export function Game() {
           shadow-camera-bottom={-10}
         />
         <OrbitControls
+          makeDefault={false}
           enableRotate={true}
-          enablePan={false}
+          enablePan={true}
           enableZoom={true}
           minDistance={2}
           maxDistance={50}
           maxPolarAngle={Math.PI / 2}
           mouseButtons={{
             LEFT: undefined,
-            MIDDLE: 2,
-            RIGHT: 0,
+            MIDDLE: 0,
+            RIGHT: 1,
           }}
         />
         <Physics gravity={[0, -9.8, 0]}>
-          <Character linkCount={linkCount} collectiblePosition={collectiblePosition} onCollect={handleCollect} />
+          <Suspense fallback={null}>
+            <DragonCharacter linkCount={linkCount} collectiblePosition={collectiblePosition} onCollect={handleCollect} />
+          </Suspense>
           <Collectible position={collectiblePosition} onCollect={handleCollect} />
           <Environment />
         </Physics>

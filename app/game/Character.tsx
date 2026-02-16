@@ -2,6 +2,7 @@
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { useRef, useState, useEffect } from "react";
+import { TransformControls } from "@react-three/drei";
 import * as THREE from "three";
 import { useEditModeStore } from "../page.stores";
 import { FlattenedSphere } from "./FlattenedSphere";
@@ -12,9 +13,69 @@ interface CharacterProps {
   onCollect: () => void;
 }
 
+function ConnectionPoint({
+  linkIndex,
+  point,
+  defaultPosition,
+}: {
+  linkIndex: number;
+  point: "front" | "back";
+  defaultPosition: [number, number, number];
+}) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const {
+    selectedLink,
+    selectedConnectionPoint,
+    selectConnectionPoint,
+    setConnectionOffset,
+    connectionOffsets,
+  } = useEditModeStore();
+
+  const key = `Character-${linkIndex}`;
+  const offsets = connectionOffsets[key];
+  const position: [number, number, number] = offsets ? offsets[point] : defaultPosition;
+  const isActive = selectedLink?.linkIndex === linkIndex && selectedConnectionPoint === point;
+
+  const baseColor = point === "front" ? "#0000ff" : "#00ff00";
+  const activeColor = "#ffff00";
+
+  return (
+    <>
+      <mesh
+        ref={meshRef}
+        position={position}
+        onClick={(e) => {
+          e.stopPropagation();
+          selectConnectionPoint(isActive ? null : point);
+        }}
+      >
+        <sphereGeometry args={[0.04, 16, 16]} />
+        <meshStandardMaterial
+          color={isActive ? activeColor : baseColor}
+          emissive={isActive ? activeColor : baseColor}
+          emissiveIntensity={2}
+          toneMapped={false}
+        />
+      </mesh>
+      {isActive && meshRef.current && (
+        <TransformControls
+          object={meshRef.current}
+          mode="translate"
+          size={0.5}
+          onObjectChange={() => {
+            if (!meshRef.current) return;
+            const p = meshRef.current.position;
+            setConnectionOffset("Character", linkIndex, point, [p.x, p.y, p.z]);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
 export function Character({ linkCount, collectiblePosition, onCollect }: CharacterProps) {
   const linkRefs = useRef<(THREE.Group | null)[]>([]);
-  const { isEditMode, selectedLink, selectLink } = useEditModeStore();
+  const { isEditMode, selectedLink, selectLink, connectionOffsets } = useEditModeStore();
   const { camera, raycaster, size } = useThree();
 
   const [isMouseDown, setIsMouseDown] = useState(false);
@@ -32,6 +93,19 @@ export function Character({ linkCount, collectiblePosition, onCollect }: Charact
       linkRotations.current.push(0);
     }
   }, [linkCount]);
+
+  const linkConfig = {
+    radius: 0.16,
+    flattenDepth: 0.065,
+    torusRadius: 0.11,
+    tubeRadius: 0.038,
+    color: "#52796f",
+    metalness: 0.3,
+    roughness: 0.7,
+    donutOffset: 0.13,
+    defaultFrontOffset: [0, 0, -(0.13 + 0.07)] as [number, number, number],
+    defaultBackOffset: [0, 0, 0.13 + 0.07] as [number, number, number],
+  };
 
   useFrame(() => {
     if (linkRefs.current.length < linkCount) return;
@@ -56,7 +130,12 @@ export function Character({ linkCount, collectiblePosition, onCollect }: Charact
 
     for (let i = 0; i < linkCount; i++) {
       const ref = linkRefs.current[i];
-      if (!ref) continue;
+      if (!ref || !linkPositions.current[i]) continue;
+
+      const key = `Character-${i}`;
+      const offsets = connectionOffsets[key];
+      const frontOffset = offsets ? offsets.front[2] : linkConfig.defaultFrontOffset[2];
+      const backOffset = offsets ? offsets.back[2] : linkConfig.defaultBackOffset[2];
 
       if (i === 0) {
         const direction = new THREE.Vector3()
@@ -64,17 +143,21 @@ export function Character({ linkCount, collectiblePosition, onCollect }: Charact
           .normalize();
 
         linkPositions.current[i].copy(frontPosition.current)
-          .add(direction.clone().multiplyScalar(-linkConfig.frontConnectionOffset));
+          .add(direction.clone().multiplyScalar(frontOffset));
 
         const angle = Math.atan2(direction.x, direction.z);
         linkRotations.current[i] = angle;
       } else {
+        const prevKey = `Character-${i - 1}`;
+        const prevOffsets = connectionOffsets[prevKey];
+        const prevBackOffset = prevOffsets ? prevOffsets.back[2] : linkConfig.defaultBackOffset[2];
+
         const prevBackPosition = linkPositions.current[i - 1].clone()
           .add(new THREE.Vector3(
             Math.sin(linkRotations.current[i - 1]),
             0,
             Math.cos(linkRotations.current[i - 1])
-          ).multiplyScalar(-linkConfig.backConnectionOffset));
+          ).multiplyScalar(prevBackOffset));
 
         const pullDirection = new THREE.Vector3()
           .subVectors(prevBackPosition, linkPositions.current[i])
@@ -94,26 +177,13 @@ export function Character({ linkCount, collectiblePosition, onCollect }: Charact
         );
 
         linkPositions.current[i].copy(prevBackPosition)
-          .add(direction.clone().multiplyScalar(-linkConfig.frontConnectionOffset));
+          .add(direction.clone().multiplyScalar(frontOffset));
       }
 
       ref.position.copy(linkPositions.current[i]);
       ref.rotation.y = linkRotations.current[i];
     }
   });
-
-  const linkConfig = {
-    radius: 0.16,
-    flattenDepth: 0.065,
-    torusRadius: 0.11,
-    tubeRadius: 0.038,
-    color: "#52796f",
-    metalness: 0.3,
-    roughness: 0.7,
-    donutOffset: 0.13,
-    frontConnectionOffset: 0.13 + 0.07,
-    backConnectionOffset: 0.13 + 0.07,
-  };
 
   return (
     <>
@@ -143,7 +213,7 @@ export function Character({ linkCount, collectiblePosition, onCollect }: Charact
       </mesh>
       <group>
         {Array.from({ length: linkCount }).map((_, i) => {
-          const isSelected = selectedLink?.linkIndex === i;
+          const isSelected = selectedLink?.linkIndex === i && selectedLink?.animalType === "Character";
           return (
             <group
               key={i}
@@ -174,10 +244,11 @@ export function Character({ linkCount, collectiblePosition, onCollect }: Charact
                 />
               </mesh>
               {isSelected && (
-                <mesh position={[0, 0, -linkConfig.frontConnectionOffset]}>
-                  <sphereGeometry args={[0.04, 16, 16]} />
-                  <meshStandardMaterial color="#00ff00" emissive="#00ff00" emissiveIntensity={2} toneMapped={false} />
-                </mesh>
+                <ConnectionPoint
+                  linkIndex={i}
+                  point="front"
+                  defaultPosition={linkConfig.defaultFrontOffset}
+                />
               )}
               <mesh position={[0, 0, linkConfig.donutOffset]} rotation={[Math.PI / 2, Math.PI / 2, 0]}>
                 <torusGeometry args={[linkConfig.torusRadius, linkConfig.tubeRadius, 12, 24]} />
@@ -188,10 +259,11 @@ export function Character({ linkCount, collectiblePosition, onCollect }: Charact
                 />
               </mesh>
               {isSelected && (
-                <mesh position={[0, 0, linkConfig.backConnectionOffset]}>
-                  <sphereGeometry args={[0.04, 16, 16]} />
-                  <meshStandardMaterial color="#00ff00" emissive="#00ff00" emissiveIntensity={2} toneMapped={false} />
-                </mesh>
+                <ConnectionPoint
+                  linkIndex={i}
+                  point="back"
+                  defaultPosition={linkConfig.defaultBackOffset}
+                />
               )}
             </group>
           );
