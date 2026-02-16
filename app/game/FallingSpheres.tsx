@@ -1,10 +1,9 @@
 "use client";
 
-import { useCompoundBody } from "@react-three/cannon";
+import { RigidBody, RapierRigidBody } from "@react-three/rapier";
 import { FlattenedSphere } from "./FlattenedSphere";
 import { ReactNode, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useConvexDecomposition } from "./useConvexDecomposition";
 import * as THREE from "three";
 
 interface WrapperProps {
@@ -16,44 +15,32 @@ interface WrapperProps {
   friction: number;
   mass: number;
   scale: number;
-  apiRef?: React.MutableRefObject<any>;
+  apiRef?: React.MutableRefObject<RapierRigidBody | null>;
 }
 
 function PhysicsWrapper({ children, position, rotation, collisionEnabled, restitution, friction, mass, scale, apiRef }: WrapperProps) {
-  const groupRef = useRef<THREE.Group>(null);
-  const { shapes } = useConvexDecomposition(scale);
-
-  const [ref, api] = useCompoundBody(
-    () => ({
-      mass: 1,
-      position,
-      rotation,
-      material: { restitution, friction },
-      type: "Dynamic",
-      shapes: shapes.map(shape => ({
-        type: shape.type,
-        args: shape.args,
-        position: shape.position,
-        rotation: shape.rotation,
-      })),
-    }),
-    groupRef
-  );
-
-  useFrame(() => {
-    if (api && api.mass) {
-      api.mass.set(collisionEnabled ? mass : 0);
-    }
-  });
-
-  if (apiRef) {
-    apiRef.current = api;
-  }
+  const rigidBodyRef = useRef<RapierRigidBody>(null);
 
   return (
-    <group ref={ref as any}>
+    <RigidBody
+      ref={(ref) => {
+        rigidBodyRef.current = ref;
+        if (apiRef) {
+          apiRef.current = ref;
+        }
+      }}
+      position={position}
+      rotation={rotation}
+      colliders="hull"
+      restitution={restitution}
+      friction={friction}
+      type={collisionEnabled ? "dynamic" : "kinematicPosition"}
+      mass={collisionEnabled ? mass : 1}
+      linearDamping={0.5}
+      angularDamping={0.5}
+    >
       {children}
-    </group>
+    </RigidBody>
   );
 }
 
@@ -115,8 +102,8 @@ export function FallingSpheres({ collisionEnabled, restitution, friction, mass, 
   const { camera, raycaster, size } = useThree();
   const [isMouseDown, setIsMouseDown] = useState(false);
   const mousePosition = useRef(new THREE.Vector2());
-  const link1Ref = useRef<any>(null);
-  const link2Ref = useRef<any>(null);
+  const link1Ref = useRef<RapierRigidBody | null>(null);
+  const link2Ref = useRef<RapierRigidBody | null>(null);
 
   useFrame(() => {
     if (isMouseDown && link1Ref.current && collisionEnabled) {
@@ -126,8 +113,8 @@ export function FallingSpheres({ collisionEnabled, restitution, friction, mass, 
       raycaster.ray.intersectPlane(plane, intersection);
 
       if (intersection) {
-        link1Ref.current.position.set(intersection.x, groundHeight, intersection.z);
-        link1Ref.current.velocity.set(0, 0, 0);
+        link1Ref.current.setTranslation({ x: intersection.x, y: groundHeight, z: intersection.z }, true);
+        link1Ref.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
       }
     }
   });
