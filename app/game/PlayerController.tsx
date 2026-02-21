@@ -5,7 +5,6 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { RigidBody, RapierRigidBody } from "@react-three/rapier";
 import * as THREE from "three";
 import { usePointerControl } from "./usePointerControl";
-import { useEditModeStore } from "../page.stores";
 
 interface PlayerControllerProps {
   children: (controlRef: React.RefObject<RapierRigidBody | null>) => React.ReactNode;
@@ -16,7 +15,6 @@ export function PlayerController({ children }: PlayerControllerProps) {
   const { gl, camera } = useThree();
   const canvasRef = useRef(gl.domElement);
   const pointerControl = usePointerControl(canvasRef);
-  const { isEditMode, selectedLink } = useEditModeStore();
   const [zoomLevel, setZoomLevel] = useState(1);
 
   useEffect(() => {
@@ -38,10 +36,6 @@ export function PlayerController({ children }: PlayerControllerProps) {
 
   useFrame((state) => {
     if (!controlRef.current) return;
-
-    if (selectedLink) {
-      return;
-    }
 
     const moveSpeed = 5;
     const velocity = { x: 0, z: 0 };

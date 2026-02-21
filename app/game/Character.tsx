@@ -2,9 +2,7 @@
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { useRef, useState, useEffect } from "react";
-import { TransformControls } from "@react-three/drei";
 import * as THREE from "three";
-import { useEditModeStore } from "../page.stores";
 import { FlattenedSphere } from "./FlattenedSphere";
 
 interface CharacterProps {
@@ -13,69 +11,8 @@ interface CharacterProps {
   onCollect: () => void;
 }
 
-function ConnectionPoint({
-  linkIndex,
-  point,
-  defaultPosition,
-}: {
-  linkIndex: number;
-  point: "front" | "back";
-  defaultPosition: [number, number, number];
-}) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const {
-    selectedLink,
-    selectedConnectionPoint,
-    selectConnectionPoint,
-    setConnectionOffset,
-    connectionOffsets,
-  } = useEditModeStore();
-
-  const key = `Character-${linkIndex}`;
-  const offsets = connectionOffsets[key];
-  const position: [number, number, number] = offsets ? offsets[point] : defaultPosition;
-  const isActive = selectedLink?.linkIndex === linkIndex && selectedConnectionPoint === point;
-
-  const baseColor = point === "front" ? "#0000ff" : "#00ff00";
-  const activeColor = "#ffff00";
-
-  return (
-    <>
-      <mesh
-        ref={meshRef}
-        position={position}
-        onClick={(e) => {
-          e.stopPropagation();
-          selectConnectionPoint(isActive ? null : point);
-        }}
-      >
-        <sphereGeometry args={[0.04, 16, 16]} />
-        <meshStandardMaterial
-          color={isActive ? activeColor : baseColor}
-          emissive={isActive ? activeColor : baseColor}
-          emissiveIntensity={2}
-          toneMapped={false}
-        />
-      </mesh>
-      {isActive && meshRef.current && (
-        <TransformControls
-          object={meshRef.current}
-          mode="translate"
-          size={0.5}
-          onObjectChange={() => {
-            if (!meshRef.current) return;
-            const p = meshRef.current.position;
-            setConnectionOffset("Character", linkIndex, point, [p.x, p.y, p.z]);
-          }}
-        />
-      )}
-    </>
-  );
-}
-
 export function Character({ linkCount, collectiblePosition, onCollect }: CharacterProps) {
   const linkRefs = useRef<(THREE.Group | null)[]>([]);
-  const { isEditMode, selectedLink, selectLink, connectionOffsets } = useEditModeStore();
   const { camera, raycaster, size } = useThree();
 
   const [isMouseDown, setIsMouseDown] = useState(false);
@@ -132,10 +69,8 @@ export function Character({ linkCount, collectiblePosition, onCollect }: Charact
       const ref = linkRefs.current[i];
       if (!ref || !linkPositions.current[i]) continue;
 
-      const key = `Character-${i}`;
-      const offsets = connectionOffsets[key];
-      const frontOffset = offsets ? offsets.front[2] : linkConfig.defaultFrontOffset[2];
-      const backOffset = offsets ? offsets.back[2] : linkConfig.defaultBackOffset[2];
+      const frontOffset = linkConfig.defaultFrontOffset[2];
+      const backOffset = linkConfig.defaultBackOffset[2];
 
       if (i === 0) {
         const direction = new THREE.Vector3()
@@ -148,9 +83,7 @@ export function Character({ linkCount, collectiblePosition, onCollect }: Charact
         const angle = Math.atan2(direction.x, direction.z);
         linkRotations.current[i] = angle;
       } else {
-        const prevKey = `Character-${i - 1}`;
-        const prevOffsets = connectionOffsets[prevKey];
-        const prevBackOffset = prevOffsets ? prevOffsets.back[2] : linkConfig.defaultBackOffset[2];
+        const prevBackOffset = linkConfig.defaultBackOffset[2];
 
         const prevBackPosition = linkPositions.current[i - 1].clone()
           .add(new THREE.Vector3(
@@ -212,62 +145,39 @@ export function Character({ linkCount, collectiblePosition, onCollect }: Charact
         <meshBasicMaterial transparent opacity={0} />
       </mesh>
       <group>
-        {Array.from({ length: linkCount }).map((_, i) => {
-          const isSelected = selectedLink?.linkIndex === i && selectedLink?.animalType === "Character";
-          return (
-            <group
-              key={i}
-              ref={(el) => {
-                linkRefs.current[i] = el;
-              }}
-              onClick={(e) => {
-                if (isEditMode) {
-                  e.stopPropagation();
-                  selectLink("Character", i, `Link ${i + 1}`);
-                }
-              }}
-            >
-              <mesh>
-                <FlattenedSphere radius={linkConfig.radius} flattenDepth={linkConfig.flattenDepth} />
-                <meshStandardMaterial
-                  color={isSelected ? "#7ab8a8" : linkConfig.color}
-                  metalness={linkConfig.metalness}
-                  roughness={linkConfig.roughness}
-                />
-              </mesh>
-              <mesh position={[0, 0, -linkConfig.donutOffset]} rotation={[Math.PI / 2, 0, 0]}>
-                <torusGeometry args={[linkConfig.torusRadius, linkConfig.tubeRadius, 12, 24]} />
-                <meshStandardMaterial
-                  color={isSelected ? "#7ab8a8" : linkConfig.color}
-                  metalness={linkConfig.metalness}
-                  roughness={linkConfig.roughness}
-                />
-              </mesh>
-              {isSelected && (
-                <ConnectionPoint
-                  linkIndex={i}
-                  point="front"
-                  defaultPosition={linkConfig.defaultFrontOffset}
-                />
-              )}
-              <mesh position={[0, 0, linkConfig.donutOffset]} rotation={[Math.PI / 2, Math.PI / 2, 0]}>
-                <torusGeometry args={[linkConfig.torusRadius, linkConfig.tubeRadius, 12, 24]} />
-                <meshStandardMaterial
-                  color={isSelected ? "#7ab8a8" : linkConfig.color}
-                  metalness={linkConfig.metalness}
-                  roughness={linkConfig.roughness}
-                />
-              </mesh>
-              {isSelected && (
-                <ConnectionPoint
-                  linkIndex={i}
-                  point="back"
-                  defaultPosition={linkConfig.defaultBackOffset}
-                />
-              )}
-            </group>
-          );
-        })}
+        {Array.from({ length: linkCount }).map((_, i) => (
+          <group
+            key={i}
+            ref={(el) => {
+              linkRefs.current[i] = el;
+            }}
+          >
+            <mesh>
+              <FlattenedSphere radius={linkConfig.radius} flattenDepth={linkConfig.flattenDepth} />
+              <meshStandardMaterial
+                color={linkConfig.color}
+                metalness={linkConfig.metalness}
+                roughness={linkConfig.roughness}
+              />
+            </mesh>
+            <mesh position={[0, 0, -linkConfig.donutOffset]} rotation={[Math.PI / 2, 0, 0]}>
+              <torusGeometry args={[linkConfig.torusRadius, linkConfig.tubeRadius, 12, 24]} />
+              <meshStandardMaterial
+                color={linkConfig.color}
+                metalness={linkConfig.metalness}
+                roughness={linkConfig.roughness}
+              />
+            </mesh>
+            <mesh position={[0, 0, linkConfig.donutOffset]} rotation={[Math.PI / 2, Math.PI / 2, 0]}>
+              <torusGeometry args={[linkConfig.torusRadius, linkConfig.tubeRadius, 12, 24]} />
+              <meshStandardMaterial
+                color={linkConfig.color}
+                metalness={linkConfig.metalness}
+                roughness={linkConfig.roughness}
+              />
+            </mesh>
+          </group>
+        ))}
       </group>
     </>
   );

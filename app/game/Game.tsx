@@ -1,39 +1,17 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Physics } from "@react-three/rapier";
 import { OrbitControls } from "@react-three/drei";
+import * as THREE from "three";
 import { DragonCharacter } from "./DragonCharacter";
 import { Environment } from "./Environment";
-import { Controls } from "./Controls";
-import * as THREE from "three";
-
-function Collectible({ position, onCollect }: { position: THREE.Vector3; onCollect: () => void }) {
-  return (
-    <mesh position={[position.x, position.y, position.z]}>
-      <sphereGeometry args={[0.15, 16, 16]} />
-      <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={0.5} />
-    </mesh>
-  );
-}
-
-function randomPosition() {
-  return new THREE.Vector3(
-    (Math.random() - 0.5) * 20,
-    0.5,
-    (Math.random() - 0.5) * 20
-  );
-}
+import { ConnectionStatus } from "./ConnectionStatus";
+import { usePageStore } from "../page.stores";
 
 export function Game() {
-  const [linkCount, setLinkCount] = useState(1);
-  const [collectiblePosition, setCollectiblePosition] = useState(randomPosition());
-
-  const handleCollect = () => {
-    setLinkCount(prev => prev + 1);
-    setCollectiblePosition(randomPosition());
-  };
+  const { bodyLinkCount, addBodyLink, removeBodyLink } = usePageStore();
 
   return (
     <div className="h-full w-full">
@@ -58,28 +36,45 @@ export function Game() {
           shadow-camera-bottom={-10}
         />
         <OrbitControls
-          makeDefault={false}
-          enableRotate={true}
-          enablePan={true}
-          enableZoom={true}
+          makeDefault
+          enableRotate
+          enablePan
+          enableZoom
           minDistance={2}
           maxDistance={50}
           maxPolarAngle={Math.PI / 2}
           mouseButtons={{
-            LEFT: undefined,
-            MIDDLE: 0,
-            RIGHT: 1,
+            LEFT: null as unknown as THREE.MOUSE,
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.ROTATE,
           }}
         />
-        <Physics gravity={[0, -9.8, 0]}>
+        <Physics gravity={[0, -5, 0]}>
           <Suspense fallback={null}>
-            <DragonCharacter linkCount={linkCount} collectiblePosition={collectiblePosition} onCollect={handleCollect} />
+            <DragonCharacter />
           </Suspense>
-          <Collectible position={collectiblePosition} onCollect={handleCollect} />
           <Environment />
         </Physics>
       </Canvas>
-      <Controls />
+
+      <ConnectionStatus />
+
+      <div className="absolute bottom-4 left-4 flex items-center gap-2 pointer-events-auto">
+        <button
+          onClick={removeBodyLink}
+          disabled={bodyLinkCount <= 1}
+          className="w-9 h-9 flex items-center justify-center rounded-lg bg-white/90 hover:bg-white text-black font-bold shadow-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          −
+        </button>
+        <span className="text-sm font-medium text-white drop-shadow px-1">{bodyLinkCount}</span>
+        <button
+          onClick={addBodyLink}
+          className="w-9 h-9 flex items-center justify-center rounded-lg bg-white/90 hover:bg-white text-black font-bold shadow-lg transition-colors"
+        >
+          +
+        </button>
+      </div>
     </div>
   );
 }

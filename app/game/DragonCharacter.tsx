@@ -1,521 +1,453 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
-import { useFrame, useThree, ThreeEvent } from "@react-three/fiber";
+import { Suspense, useRef, useEffect } from "react";
+import type { RefObject } from "react";
 import * as THREE from "three";
-import { useEditModeStore } from "../page.stores";
-import { useSplitStl, DragonPiece } from "./StlModel";
+import { useFrame, useThree } from "@react-three/fiber";
+import { RigidBody, BallCollider, useSphericalJoint, interactionGroups } from "@react-three/rapier";
+import type { RapierRigidBody } from "@react-three/rapier";
+import { usePageStore } from "../page.stores";
+import type { ColumnShape, Sphere, ConnectionLimits } from "../page.stores";
+import { useSplitStl } from "./StlModel";
+import type { DragonPiece } from "./StlModel";
 
-interface DragonCharacterProps {
-  linkCount: number;
-  collectiblePosition: THREE.Vector3;
-  onCollect: () => void;
+const MAX_BODY_LINKS = 10;
+
+function rigidBodyRef(): RefObject<RapierRigidBody> {
+  return { current: null } as unknown as RefObject<RapierRigidBody>;
 }
 
-function RotationLimitVisualization({
-  position,
-  animalType,
-  linkIndex,
-  point,
-  allConnectionPoints,
-}: {
-  position: [number, number, number];
-  animalType: string;
-  linkIndex: number;
-  point: "front" | "back" | "tipFront" | "tipBack";
-  allConnectionPoints?: {
-    tipFront?: [number, number, number];
-    front?: [number, number, number];
-    back?: [number, number, number];
-    tipBack?: [number, number, number];
-  };
-}) {
-  const { getRotationLimit } = useEditModeStore();
-  let positiveLimit = getRotationLimit(animalType, linkIndex, point, "positive");
-  let negativeLimit = getRotationLimit(animalType, linkIndex, point, "negative");
+function buildAlignmentFrame(
+  parentQuat: THREE.Quaternion,
+  backCol: ColumnShape,
+  frontConn: Sphere,
+): {
+  colWorldQuat: THREE.Quaternion;
+  normalWorld: THREE.Vector3;
+  tangentWorld: THREE.Vector3;
+  binormalWorld: THREE.Vector3;
+  qAlign: THREE.Quaternion;
+} {
+  const colLocalQuat = new THREE.Quaternion().setFromEuler(
+    new THREE.Euler(backCol.rotationX, backCol.rotationY, backCol.rotationZ)
+  );
+  const colWorldQuat = parentQuat.clone().multiply(colLocalQuat);
 
-  const frontPos = allConnectionPoints?.front;
-  const backPos = allConnectionPoints?.back;
+  const normalWorld = new THREE.Vector3(-backCol.height, 0, 0)
+    .normalize().applyQuaternion(colWorldQuat);
+  const tangentWorld = new THREE.Vector3(0, backCol.height, 0)
+    .normalize().applyQuaternion(colWorldQuat);
+  const binormalWorld = tangentWorld.clone().cross(normalWorld).normalize();
 
-  if (point === "back" && linkIndex === 2) {
-    const childFrontPosLimit = getRotationLimit(animalType, 1, "front", "positive");
-    const childFrontNegLimit = getRotationLimit(animalType, 1, "front", "negative");
-    positiveLimit = Math.min(positiveLimit, childFrontPosLimit);
-    negativeLimit = Math.min(negativeLimit, childFrontNegLimit);
-  } else if (point === "front" && linkIndex === 1) {
-    const parentBackPosLimit = getRotationLimit(animalType, 2, "back", "positive");
-    const parentBackNegLimit = getRotationLimit(animalType, 2, "back", "negative");
-    positiveLimit = Math.min(positiveLimit, parentBackPosLimit);
-    negativeLimit = Math.min(negativeLimit, parentBackNegLimit);
-  } else if (point === "back" && linkIndex === 1) {
-    const childFrontPosLimit = getRotationLimit(animalType, 0, "front", "positive");
-    const childFrontNegLimit = getRotationLimit(animalType, 0, "front", "negative");
-    positiveLimit = Math.min(positiveLimit, childFrontPosLimit);
-    negativeLimit = Math.min(negativeLimit, childFrontNegLimit);
-  } else if (point === "front" && linkIndex === 0) {
-    const parentBackPosLimit = getRotationLimit(animalType, 1, "back", "positive");
-    const parentBackNegLimit = getRotationLimit(animalType, 1, "back", "negative");
-    positiveLimit = Math.min(positiveLimit, parentBackPosLimit);
-    negativeLimit = Math.min(negativeLimit, parentBackNegLimit);
+  const frontDir = new THREE.Vector3(...frontConn.position).normalize();
+  const localUpRef = new THREE.Vector3(0, 1, 0);
+  let localUp = localUpRef.clone().sub(frontDir.clone().multiplyScalar(localUpRef.dot(frontDir)));
+  if (localUp.lengthSq() < 0.001) {
+    const alt = new THREE.Vector3(0, 0, 1);
+    localUp = alt.clone().sub(frontDir.clone().multiplyScalar(alt.dot(frontDir)));
   }
+  localUp.normalize();
+  const localRight = new THREE.Vector3().crossVectors(frontDir, localUp).normalize();
+  const mLocal = new THREE.Matrix4().makeBasis(localRight, localUp, frontDir.clone().negate());
+  const mWorld = new THREE.Matrix4().makeBasis(binormalWorld, tangentWorld, normalWorld.clone());
+  const qAlign = new THREE.Quaternion().setFromRotationMatrix(
+    new THREE.Matrix4().multiplyMatrices(mWorld, mLocal.clone().transpose())
+  );
 
-  console.log(`RotationLimitVisualization rendering: ${animalType}-${linkIndex} ${point}`);
-  console.log(`  Effective limits: +${positiveLimit.toFixed(4)} / -${negativeLimit.toFixed(4)}`);
+  return { colWorldQuat, normalWorld, tangentWorld, binormalWorld, qAlign };
+}
 
-  if (frontPos && backPos) {
-    const frontAngle = Math.atan2(frontPos[2], frontPos[0]);
-    const backAngle = Math.atan2(backPos[2], backPos[0]);
+function computeChildTransform(
+  parentPos: THREE.Vector3,
+  parentQuat: THREE.Quaternion,
+  backCol: ColumnShape,
+  frontConn: Sphere,
+  position: number,
+  pitch: number,
+  yaw: number,
+  roll: number,
+): { pos: THREE.Vector3; quat: THREE.Quaternion } {
+  const t = position - 0.5;
+  const { colWorldQuat, normalWorld, tangentWorld, binormalWorld, qAlign } =
+    buildAlignmentFrame(parentQuat, backCol, frontConn);
 
-    const frontPosLimit = getRotationLimit(animalType, linkIndex, "front", "positive");
-    const frontNegLimit = getRotationLimit(animalType, linkIndex, "front", "negative");
-    const backPosLimit = getRotationLimit(animalType, linkIndex, "back", "positive");
-    const backNegLimit = getRotationLimit(animalType, linkIndex, "back", "negative");
+  const centerWorld = new THREE.Vector3(...backCol.center).applyQuaternion(parentQuat).add(parentPos);
+  const attachPt = new THREE.Vector3(0, t * backCol.height, 0).applyQuaternion(colWorldQuat).add(centerWorld);
 
-    const frontPosWallAngle = frontAngle + frontPosLimit;
-    const frontNegWallAngle = frontAngle - frontNegLimit;
-    const backPosWallAngle = backAngle + backPosLimit;
-    const backNegWallAngle = backAngle - backNegLimit;
+  const qPitch = new THREE.Quaternion().setFromAxisAngle(binormalWorld, pitch);
+  const qYaw   = new THREE.Quaternion().setFromAxisAngle(tangentWorld, yaw);
+  const qRoll  = new THREE.Quaternion().setFromAxisAngle(normalWorld, roll);
+  const childQuat = qRoll.clone().multiply(qYaw).multiply(qPitch).multiply(qAlign);
+  const childPos = attachPt.clone().sub(new THREE.Vector3(...frontConn.position).applyQuaternion(childQuat));
 
-    const posToPosGap = Math.abs(backPosWallAngle - frontPosWallAngle);
-    const posToNegGap = Math.abs(backPosWallAngle - frontNegWallAngle);
-    const negToPosGap = Math.abs(backNegWallAngle - frontPosWallAngle);
-    const negToNegGap = Math.abs(backNegWallAngle - frontNegWallAngle);
-    const minGap = Math.min(posToPosGap, posToNegGap, negToPosGap, negToNegGap);
+  return { pos: childPos, quat: childQuat };
+}
 
-    console.log(`${animalType}-${linkIndex} ${point} - Rotation Limit Wall Angles:`);
-    console.log(`  FRONT connection:`);
-    console.log(`    Positive wall: ${frontPosWallAngle.toFixed(4)} rad (${(frontPosWallAngle * 180 / Math.PI).toFixed(2)}°)`);
-    console.log(`    Negative wall: ${frontNegWallAngle.toFixed(4)} rad (${(frontNegWallAngle * 180 / Math.PI).toFixed(2)}°)`);
-    console.log(`  BACK connection:`);
-    console.log(`    Positive wall: ${backPosWallAngle.toFixed(4)} rad (${(backPosWallAngle * 180 / Math.PI).toFixed(2)}°)`);
-    console.log(`    Negative wall: ${backNegWallAngle.toFixed(4)} rad (${(backNegWallAngle * 180 / Math.PI).toFixed(2)}°)`);
-    console.log(`  Wall-to-wall gaps:`);
-    console.log(`    Back+ to Front+: ${posToPosGap.toFixed(4)} rad (${(posToPosGap * 180 / Math.PI).toFixed(2)}°)`);
-    console.log(`    Back+ to Front-: ${posToNegGap.toFixed(4)} rad (${(posToNegGap * 180 / Math.PI).toFixed(2)}°)`);
-    console.log(`    Back- to Front+: ${negToPosGap.toFixed(4)} rad (${(negToPosGap * 180 / Math.PI).toFixed(2)}°)`);
-    console.log(`    Back- to Front-: ${negToNegGap.toFixed(4)} rad (${(negToNegGap * 180 / Math.PI).toFixed(2)}°)`);
-    console.log(`    MINIMUM GAP: ${minGap.toFixed(4)} rad (${(minGap * 180 / Math.PI).toFixed(2)}°)`);
+function computeBackAnchor(col: ColumnShape, position: number): [number, number, number] {
+  const t = position - 0.5;
+  const offset = new THREE.Vector3(0, t * col.height, 0);
+  offset.applyEuler(new THREE.Euler(col.rotationX, col.rotationY, col.rotationZ));
+  return new THREE.Vector3(...col.center).add(offset).toArray() as [number, number, number];
+}
 
-    if (point === "back") {
-      let angleDiff = backAngle - frontAngle;
-      while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-      while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+type JointAngles = {
+  yaw: number;
+  pitch: number;
+  roll: number;
+  yawAxis: THREE.Vector3;
+  pitchAxis: THREE.Vector3;
+  rollAxis: THREE.Vector3;
+};
 
-      const maxAllowedLimit = Math.abs(angleDiff) - 0.1;
+function computeJointAngles(
+  parentQuat: THREE.Quaternion,
+  childQuat: THREE.Quaternion,
+  backCol: ColumnShape,
+  frontConn: Sphere,
+  yawOffset: number = 0,
+): JointAngles {
+  const { normalWorld, tangentWorld, binormalWorld, qAlign } = buildAlignmentFrame(parentQuat, backCol, frontConn);
+  const qRef = yawOffset !== 0
+    ? new THREE.Quaternion().setFromAxisAngle(tangentWorld, yawOffset).multiply(qAlign)
+    : qAlign;
+  const devQuat = qRef.clone().conjugate().multiply(childQuat);
+  const qRefConj = qRef.clone().conjugate();
+  const tangentLocal  = tangentWorld.clone().applyQuaternion(qRefConj);
+  const binormalLocal = binormalWorld.clone().applyQuaternion(qRefConj);
+  const normalLocal   = normalWorld.clone().applyQuaternion(qRefConj);
+  const basisMat = new THREE.Matrix4().makeBasis(binormalLocal, tangentLocal, normalLocal);
+  const qBasis = new THREE.Quaternion().setFromRotationMatrix(basisMat);
+  const devLocal = qBasis.clone().conjugate().multiply(devQuat).multiply(qBasis);
+  const euler = new THREE.Euler().setFromQuaternion(devLocal, "ZYX");
+  return {
+    yaw:   yawOffset + euler.y,
+    pitch: euler.x,
+    roll:  euler.z,
+    yawAxis:   tangentWorld,
+    pitchAxis: binormalWorld,
+    rollAxis:  normalWorld,
+  };
+}
 
-      if (positiveLimit > maxAllowedLimit) {
-        positiveLimit = maxAllowedLimit;
-      }
-      if (negativeLimit > maxAllowedLimit) {
-        negativeLimit = maxAllowedLimit;
-      }
+function enforceAngleLimits(
+  angles: JointAngles,
+  limits: ConnectionLimits,
+  child: RapierRigidBody,
+) {
+  const vel = child.angvel();
+  let vx = vel.x, vy = vel.y, vz = vel.z;
+  let changed = false;
+  const clamp = (actual: number, min: number, max: number, axis: THREE.Vector3) => {
+    const dir = actual < min ? -1 : actual > max ? 1 : 0;
+    if (dir === 0) return;
+    const velOnAxis = vx * axis.x + vy * axis.y + vz * axis.z;
+    if (dir * velOnAxis > 0) {
+      vx -= velOnAxis * axis.x;
+      vy -= velOnAxis * axis.y;
+      vz -= velOnAxis * axis.z;
+      changed = true;
     }
-  }
-
-  const wallRadius = 0.3;
-  const wallHeight = 0.02;
-
-  return (
-    <group position={position}>
-      <mesh>
-        <sphereGeometry args={[0.05, 16, 16]} />
-        <meshStandardMaterial
-          color={point.includes("Front") ? "#00ff00" : "#ff00ff"}
-          emissive={point.includes("Front") ? "#00ff00" : "#ff00ff"}
-          emissiveIntensity={2}
-          toneMapped={false}
-        />
-      </mesh>
-
-      <group rotation={[0, positiveLimit, 0]}>
-        <mesh position={[wallRadius / 2, 0, 0]}>
-          <boxGeometry args={[wallRadius, wallHeight, 0.01]} />
-          <meshStandardMaterial
-            color="#ffff00"
-            transparent
-            opacity={0.5}
-            emissive="#ffff00"
-            emissiveIntensity={0.5}
-          />
-        </mesh>
-        <mesh position={[wallRadius, 0, 0]}>
-          <sphereGeometry args={[0.04, 16, 16]} />
-          <meshStandardMaterial
-            color="#00ff00"
-            emissive="#00ff00"
-            emissiveIntensity={1}
-            toneMapped={false}
-          />
-        </mesh>
-      </group>
-
-      <group rotation={[0, -negativeLimit, 0]}>
-        <mesh position={[wallRadius / 2, 0, 0]}>
-          <boxGeometry args={[wallRadius, wallHeight, 0.01]} />
-          <meshStandardMaterial
-            color="#ffff00"
-            transparent
-            opacity={0.5}
-            emissive="#ffff00"
-            emissiveIntensity={0.5}
-          />
-        </mesh>
-        <mesh position={[wallRadius, 0, 0]}>
-          <sphereGeometry args={[0.04, 16, 16]} />
-          <meshStandardMaterial
-            color="#ff00ff"
-            emissive="#ff00ff"
-            emissiveIntensity={1}
-            toneMapped={false}
-          />
-        </mesh>
-      </group>
-    </group>
-  );
+  };
+  clamp(angles.yaw,   limits.yawMin,   limits.yawMax,   angles.yawAxis);
+  clamp(angles.pitch, limits.pitchMin, limits.pitchMax, angles.pitchAxis);
+  clamp(angles.roll,  limits.rollMin,  limits.rollMax,  angles.rollAxis);
+  if (changed) child.setAngvel({ x: vx, y: vy, z: vz }, true);
 }
 
-function DragonLink({
-  piece,
-  isSelected,
-  onClick,
-  connectionPoints,
-  animalType,
-  linkIndex,
+function SegmentJoint({
+  parentRef,
+  childRef,
+  anchor1,
+  anchor2,
 }: {
-  piece: DragonPiece;
-  isSelected: boolean;
-  onClick: (e: ThreeEvent<MouseEvent>) => void;
-  connectionPoints?: {
-    tipFront?: [number, number, number];
-    front?: [number, number, number];
-    back?: [number, number, number];
-    tipBack?: [number, number, number];
-  };
-  animalType: string;
-  linkIndex: number;
+  parentRef: RefObject<RapierRigidBody>;
+  childRef: RefObject<RapierRigidBody>;
+  anchor1: [number, number, number];
+  anchor2: [number, number, number];
 }) {
-  const { isEditMode } = useEditModeStore();
-
-  return (
-    <group onClick={onClick}>
-      <mesh geometry={piece.geometry} rotation={[-Math.PI / 2, 0, 0]}>
-        <meshStandardMaterial
-          color={isSelected ? "#e8d5a8" : "#c9b18c"}
-          metalness={0.3}
-          roughness={0.6}
-          transparent={isEditMode}
-          opacity={isEditMode ? 0.3 : 1.0}
-        />
-      </mesh>
-
-      {isEditMode && connectionPoints?.front && (
-        <RotationLimitVisualization
-          position={connectionPoints.front}
-          animalType={animalType}
-          linkIndex={linkIndex}
-          point="front"
-          allConnectionPoints={connectionPoints}
-        />
-      )}
-      {isEditMode && connectionPoints?.back && (
-        <RotationLimitVisualization
-          position={connectionPoints.back}
-          animalType={animalType}
-          linkIndex={linkIndex}
-          point="back"
-          allConnectionPoints={connectionPoints}
-        />
-      )}
-    </group>
-  );
+  const joint = useSphericalJoint(parentRef, childRef, [anchor1, anchor2]);
+  useEffect(() => {
+    if (joint.current) {
+      joint.current.setContactsEnabled(false);
+    }
+  });
+  return null;
 }
 
 function DragonChain({ pieces }: { pieces: DragonPiece[] }) {
-  const { isEditMode, selectedLink, selectLink, connectionOffsets, getRotationLimit } = useEditModeStore();
-  const { camera, raycaster, size, gl } = useThree();
+  const {
+    frontConnection,
+    backConnection,
+    bodyConnectionParams,
+    bodyToBodyConnectionParams,
+    bodyToTailConnectionParams,
+    headBodyLimits,
+    bodyBodyLimits,
+    bodyTailLimits,
+    bodyLinkCount,
+    collisionSpheres,
+    setLiveJointValues,
+  } = usePageStore();
 
-  const targetPosition = useRef(new THREE.Vector3(0, 0.5, 0));
-  const headTipPos = useRef(new THREE.Vector3(0, 0.5, 0));
-  const headBackPos = useRef(new THREE.Vector3(0, 0.3, 0));
-  const bodyFrontPos = useRef(new THREE.Vector3(0, 0.3, 0));
-  const bodyBackPos = useRef(new THREE.Vector3(0, 0.1, 0));
-  const tailFrontPos = useRef(new THREE.Vector3(0, 0.1, 0));
-  const tailBackPos = useRef(new THREE.Vector3(0, -0.1, 0));
-  const dragonGroups = useRef<(THREE.Group | null)[]>([null, null, null]);
-  const isMouseDown = useRef(false);
-  const prevBodyRelativeRotation = useRef(0);
-  const prevTailRelativeRotation = useRef(0);
+  const headRef = useRef<RapierRigidBody>(null);
+  const tailRef = useRef<RapierRigidBody>(null);
+  const bodyRefs = useRef<RefObject<RapierRigidBody>[]>(
+    Array.from({ length: MAX_BODY_LINKS }, () => rigidBodyRef())
+  );
+
+  const cursorTarget = useRef<THREE.Vector3 | null>(null);
+  const isPointerDown = useRef(false);
+  const frameCount = useRef(0);
+  const { gl } = useThree();
+
+  useEffect(() => {
+    const handleUp = () => { isPointerDown.current = false; };
+    gl.domElement.addEventListener("pointerup", handleUp);
+    return () => gl.domElement.removeEventListener("pointerup", handleUp);
+  }, [gl]);
+
+  useFrame((_state, delta) => {
+    frameCount.current++;
+
+    if (headRef.current && cursorTarget.current && isPointerDown.current) {
+      const body = headRef.current;
+      const pos = body.translation();
+      const target = cursorTarget.current;
+      const dx = target.x - pos.x;
+      const dz = target.z - pos.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist > 0.05) {
+        const speed = Math.min(dist * 3, 4);
+        const curVel = body.linvel();
+        const t = Math.min(10 * delta, 1);
+        body.setLinvel({
+          x: curVel.x + ((dx / dist) * speed - curVel.x) * t,
+          y: curVel.y,
+          z: curVel.z + ((dz / dist) * speed - curVel.z) * t,
+        }, true);
+
+        const rot = body.rotation();
+        const worldQuat = new THREE.Quaternion(rot.x, rot.y, rot.z, rot.w);
+        const headForward = new THREE.Vector3(1, 0, 0).applyQuaternion(worldQuat);
+        headForward.y = 0;
+        headForward.normalize();
+        const desired = new THREE.Vector3(dx / dist, 0, dz / dist);
+        const cross = headForward.clone().cross(desired);
+        const dot = headForward.dot(desired);
+        const angle = Math.atan2(cross.y, dot);
+        const angVel = Math.max(-8, Math.min(8, angle * 12));
+        body.setAngvel({ x: 0, y: angVel, z: 0 }, true);
+        body.wakeUp();
+      }
+    }
+
+    const headBody = headRef.current;
+    const body0 = bodyRefs.current[0].current;
+    const tailBody = tailRef.current;
+    if (!headBody || !body0 || !tailBody) return;
+
+    const headBackCol = backConnection["Dragon-2"];
+    const bodyFrontPt = frontConnection["Dragon-1"];
+    const bodyBackCol = backConnection["Dragon-1"];
+    const tailFrontPt = frontConnection["Dragon-0"];
+    if (!headBackCol || !bodyFrontPt || !bodyBackCol || !tailFrontPt) return;
+
+    const headRot = headBody.rotation();
+    const headQuat = new THREE.Quaternion(headRot.x, headRot.y, headRot.z, headRot.w);
+    const body0Rot = body0.rotation();
+    const body0Quat = new THREE.Quaternion(body0Rot.x, body0Rot.y, body0Rot.z, body0Rot.w);
+
+    const hbAngles = computeJointAngles(headQuat, body0Quat, headBackCol, bodyFrontPt);
+    enforceAngleLimits(hbAngles, headBodyLimits, body0);
+
+    let bbAngles: JointAngles | null = null;
+    let prevQuat = body0Quat;
+
+    for (let i = 1; i < bodyLinkCount; i++) {
+      const nextBody = bodyRefs.current[i].current;
+      if (!nextBody) break;
+      const nextRot = nextBody.rotation();
+      const nextQuat = new THREE.Quaternion(nextRot.x, nextRot.y, nextRot.z, nextRot.w);
+      const angles = computeJointAngles(prevQuat, nextQuat, bodyBackCol, bodyFrontPt);
+      enforceAngleLimits(angles, bodyBodyLimits, nextBody);
+      if (!bbAngles) bbAngles = angles;
+      prevQuat = nextQuat;
+    }
+
+    const tailRot = tailBody.rotation();
+    const tailQuat = new THREE.Quaternion(tailRot.x, tailRot.y, tailRot.z, tailRot.w);
+    const btAngles = computeJointAngles(prevQuat, tailQuat, bodyBackCol, tailFrontPt, Math.PI);
+    enforceAngleLimits(btAngles, bodyTailLimits, tailBody);
+
+    if (frameCount.current % 6 === 0) {
+      setLiveJointValues({
+        headBody: { position: bodyConnectionParams.position, yaw: hbAngles.yaw, pitch: hbAngles.pitch, roll: hbAngles.roll },
+        bodyBody: bbAngles
+          ? { position: bodyToBodyConnectionParams.position, yaw: bbAngles.yaw, pitch: bbAngles.pitch, roll: bbAngles.roll }
+          : bodyToBodyConnectionParams,
+        bodyTail: { position: bodyToTailConnectionParams.position, yaw: btAngles.yaw, pitch: btAngles.pitch, roll: btAngles.roll },
+      });
+    }
+  });
 
   const headPiece = pieces.find((p) => p.label === "Head")!;
   const bodyPiece = pieces.find((p) => p.label === "Body")!;
   const tailPiece = pieces.find((p) => p.label === "Tail")!;
 
-  const links = [tailPiece, bodyPiece, headPiece];
+  const headBackCol = backConnection["Dragon-2"];
+  const bodyFrontPt = frontConnection["Dragon-1"];
+  const bodyBackCol = backConnection["Dragon-1"];
+  const tailFrontPt = frontConnection["Dragon-0"];
 
-  function getConnectionPointsLocal(i: number): {
-    tipFront?: [number, number, number];
-    front?: [number, number, number];
-    back?: [number, number, number];
-    tipBack?: [number, number, number];
-  } {
-    const key = `Dragon-${i}`;
-    const offsets = connectionOffsets[key];
+  const headInitialPos = new THREE.Vector3(0, 3, 0);
+  const headInitialQuat = new THREE.Quaternion();
 
-    if (i === 2) {
-      return {
-        tipFront: offsets?.tipFront ?? [0.9169, -0.1559, 0.0612],
-        back: offsets?.back ?? [0.1314, -0.1747, -0.0115],
-      };
-    } else if (i === 0) {
-      return {
-        front: offsets?.front ?? [-0.1350, -0.1436, 0.0248],
-        tipBack: offsets?.tipBack ?? [-0.9625, -0.2899, 0.3212],
-      };
-    } else {
-      return {
-        front: offsets?.front ?? [0.1300, -0.1435, -0.0109],
-        back: offsets?.back ?? [-0.1451, -0.1378, 0.0282],
-      };
-    }
+  const bodyInitialTransforms: { pos: THREE.Vector3; quat: THREE.Quaternion }[] = [];
+  let prevPos = headInitialPos;
+  let prevQuat = headInitialQuat;
+  for (let i = 0; i < bodyLinkCount; i++) {
+    const isFirst = i === 0;
+    const connParams = isFirst ? bodyConnectionParams : bodyToBodyConnectionParams;
+    const backCol = isFirst ? headBackCol : bodyBackCol;
+    if (!backCol || !bodyFrontPt) break;
+    const t = computeChildTransform(
+      prevPos, prevQuat, backCol, bodyFrontPt,
+      connParams.position, connParams.pitch, connParams.yaw, connParams.roll,
+    );
+    bodyInitialTransforms.push(t);
+    prevPos = t.pos;
+    prevQuat = t.quat;
   }
 
-  function clampRotationWithLimits(
-    desiredRotation: number,
-    parentRotation: number,
-    parentLinkIndex: number,
-    childLinkIndex: number,
-    prevRelativeRotationRef: React.MutableRefObject<number>
-  ): number {
-    const parentBackPosLimit = getRotationLimit("Dragon", parentLinkIndex, "back", "positive");
-    const parentBackNegLimit = getRotationLimit("Dragon", parentLinkIndex, "back", "negative");
-    const childFrontPosLimit = getRotationLimit("Dragon", childLinkIndex, "front", "positive");
-    const childFrontNegLimit = getRotationLimit("Dragon", childLinkIndex, "front", "negative");
+  const tailInitialPos = (bodyBackCol && tailFrontPt)
+    ? computeChildTransform(
+        prevPos, prevQuat, bodyBackCol, tailFrontPt,
+        bodyToTailConnectionParams.position, bodyToTailConnectionParams.pitch,
+        bodyToTailConnectionParams.yaw, bodyToTailConnectionParams.roll,
+      ).pos
+    : headInitialPos.clone().add(new THREE.Vector3(1, 0, 0));
 
-    const positiveLimit = Math.min(parentBackPosLimit, childFrontPosLimit);
-    const negativeLimit = Math.min(parentBackNegLimit, childFrontNegLimit);
+  const headSpheres = collisionSpheres["Dragon-2"] ?? [];
+  const bodySpheres = collisionSpheres["Dragon-1"] ?? [];
+  const tailSpheres = collisionSpheres["Dragon-0"] ?? [];
 
-    let desiredRelative = desiredRotation - parentRotation;
-    const prevRelative = prevRelativeRotationRef.current;
+  const headAnchor: [number, number, number] = headBackCol
+    ? computeBackAnchor(headBackCol, bodyConnectionParams.position)
+    : [0, 0, 0];
+  const bodyBodyAnchor: [number, number, number] = bodyBackCol
+    ? computeBackAnchor(bodyBackCol, bodyToBodyConnectionParams.position)
+    : [0, 0, 0];
+  const bodyTailAnchor: [number, number, number] = bodyBackCol
+    ? computeBackAnchor(bodyBackCol, bodyToTailConnectionParams.position)
+    : [0, 0, 0];
+  const bodyFrontAnchor: [number, number, number] = bodyFrontPt
+    ? [...bodyFrontPt.position]
+    : [0, 0, 0];
+  const tailFrontAnchor: [number, number, number] = tailFrontPt
+    ? [...tailFrontPt.position]
+    : [0, 0, 0];
 
-    let delta = desiredRelative - prevRelative;
-    while (delta > Math.PI) delta -= Math.PI * 2;
-    while (delta < -Math.PI) delta += Math.PI * 2;
-
-    let newRelative = prevRelative + delta;
-
-    if (newRelative > positiveLimit) {
-      newRelative = positiveLimit;
-    } else if (newRelative < -negativeLimit) {
-      newRelative = -negativeLimit;
-    }
-
-    prevRelativeRotationRef.current = newRelative;
-    return parentRotation + newRelative;
-  }
-
-  useFrame(() => {
-    if (isMouseDown.current) {
-      headTipPos.current.lerp(targetPosition.current, 0.1);
-    }
-
-    const headTipLocal = getConnectionPointsLocal(2).tipFront!;
-    const headBackLocal = getConnectionPointsLocal(2).back!;
-    const distanceBetween = Math.sqrt(
-      Math.pow(headTipLocal[0] - headBackLocal[0], 2) +
-      Math.pow(headTipLocal[1] - headBackLocal[1], 2) +
-      Math.pow(headTipLocal[2] - headBackLocal[2], 2)
-    );
-
-    const headBackTarget = headTipPos.current.clone().sub(
-      new THREE.Vector3()
-        .subVectors(headTipPos.current, headBackPos.current)
-        .normalize()
-        .multiplyScalar(distanceBetween)
-    );
-    headBackPos.current.lerp(headBackTarget, 0.15);
-
-    const headDirection = new THREE.Vector3()
-      .subVectors(headTipPos.current, headBackPos.current)
-      .normalize();
-
-    const headRotation = Math.atan2(-headDirection.z, headDirection.x);
-
-    const headTipLocalVec = new THREE.Vector3(headTipLocal[0], headTipLocal[1], headTipLocal[2]);
-    headTipLocalVec.applyAxisAngle(new THREE.Vector3(0, 1, 0), headRotation);
-    const headPos = headTipPos.current.clone().sub(headTipLocalVec);
-
-    const headBackLocalVec = new THREE.Vector3(headBackLocal[0], headBackLocal[1], headBackLocal[2]);
-    headBackLocalVec.applyAxisAngle(new THREE.Vector3(0, 1, 0), headRotation);
-    const headBackWorldPos = headPos.clone().add(headBackLocalVec);
-
-    const bodyFrontLocal = getConnectionPointsLocal(1).front!;
-    const bodyBackLocal = getConnectionPointsLocal(1).back!;
-    const bodyDistanceBetween = Math.sqrt(
-      Math.pow(bodyFrontLocal[0] - bodyBackLocal[0], 2) +
-      Math.pow(bodyFrontLocal[1] - bodyBackLocal[1], 2) +
-      Math.pow(bodyFrontLocal[2] - bodyBackLocal[2], 2)
-    );
-
-    bodyFrontPos.current.copy(headBackWorldPos);
-
-    const bodyBackTarget = bodyFrontPos.current.clone().sub(
-      new THREE.Vector3()
-        .subVectors(bodyFrontPos.current, bodyBackPos.current)
-        .normalize()
-        .multiplyScalar(bodyDistanceBetween)
-    );
-    bodyBackPos.current.lerp(bodyBackTarget, 0.2);
-
-    const bodyDirection = new THREE.Vector3()
-      .subVectors(bodyFrontPos.current, bodyBackPos.current)
-      .normalize();
-    let bodyRotation = Math.atan2(-bodyDirection.z, bodyDirection.x);
-    bodyRotation = clampRotationWithLimits(bodyRotation, headRotation, 2, 1, prevBodyRelativeRotation);
-
-    const bodyFrontLocalVec = new THREE.Vector3(bodyFrontLocal[0], bodyFrontLocal[1], bodyFrontLocal[2]);
-    bodyFrontLocalVec.applyAxisAngle(new THREE.Vector3(0, 1, 0), bodyRotation);
-    const bodyPos = bodyFrontPos.current.clone().sub(bodyFrontLocalVec);
-
-    const bodyBackLocalVec = new THREE.Vector3(bodyBackLocal[0], bodyBackLocal[1], bodyBackLocal[2]);
-    bodyBackLocalVec.applyAxisAngle(new THREE.Vector3(0, 1, 0), bodyRotation);
-    const bodyBackWorldPos = bodyPos.clone().add(bodyBackLocalVec);
-
-    const tailFrontLocal = getConnectionPointsLocal(0).front!;
-    const tailBackLocal = getConnectionPointsLocal(0).tipBack!;
-    const tailDistanceBetween = Math.sqrt(
-      Math.pow(tailFrontLocal[0] - tailBackLocal[0], 2) +
-      Math.pow(tailFrontLocal[1] - tailBackLocal[1], 2) +
-      Math.pow(tailFrontLocal[2] - tailBackLocal[2], 2)
-    );
-
-    tailFrontPos.current.copy(bodyBackWorldPos);
-
-    const tailBackTarget = tailFrontPos.current.clone().sub(
-      new THREE.Vector3()
-        .subVectors(tailFrontPos.current, tailBackPos.current)
-        .normalize()
-        .multiplyScalar(tailDistanceBetween)
-    );
-    tailBackPos.current.lerp(tailBackTarget, 0.2);
-
-    const tailDirection = new THREE.Vector3()
-      .subVectors(tailFrontPos.current, tailBackPos.current)
-      .normalize();
-    let tailRotation = Math.atan2(-tailDirection.z, tailDirection.x);
-    tailRotation = clampRotationWithLimits(tailRotation, bodyRotation, 1, 0, prevTailRelativeRotation);
-
-    const tailFrontLocalVec = new THREE.Vector3(tailFrontLocal[0], tailFrontLocal[1], tailFrontLocal[2]);
-    tailFrontLocalVec.applyAxisAngle(new THREE.Vector3(0, 1, 0), tailRotation);
-    const tailPos = tailFrontPos.current.clone().sub(tailFrontLocalVec);
-
-    if (dragonGroups.current[0]) {
-      dragonGroups.current[0].position.copy(tailPos);
-      dragonGroups.current[0].rotation.y = tailRotation;
-    }
-    if (dragonGroups.current[1]) {
-      dragonGroups.current[1].position.copy(bodyPos);
-      dragonGroups.current[1].rotation.y = bodyRotation;
-    }
-    if (dragonGroups.current[2]) {
-      dragonGroups.current[2].position.copy(headPos);
-      dragonGroups.current[2].rotation.y = headRotation;
-    }
-
-    if (isEditMode) {
-      const currentBodyRelative = prevBodyRelativeRotation.current;
-      const currentTailRelative = prevTailRelativeRotation.current;
-
-      const head2BackPosLimit = getRotationLimit("Dragon", 2, "back", "positive");
-      const head2BackNegLimit = getRotationLimit("Dragon", 2, "back", "negative");
-      const body1FrontPosLimit = getRotationLimit("Dragon", 1, "front", "positive");
-      const body1FrontNegLimit = getRotationLimit("Dragon", 1, "front", "negative");
-
-      const effectiveHeadBodyPosLimit = Math.min(head2BackPosLimit, body1FrontPosLimit);
-      const effectiveHeadBodyNegLimit = Math.min(head2BackNegLimit, body1FrontNegLimit);
-
-      const headBodyPosGap = effectiveHeadBodyPosLimit - currentBodyRelative;
-      const headBodyNegGap = effectiveHeadBodyNegLimit + currentBodyRelative;
-      const headBodyMinGap = Math.min(headBodyPosGap, headBodyNegGap);
-
-      const body1BackPosLimit = getRotationLimit("Dragon", 1, "back", "positive");
-      const body1BackNegLimit = getRotationLimit("Dragon", 1, "back", "negative");
-      const tail0FrontPosLimit = getRotationLimit("Dragon", 0, "front", "positive");
-      const tail0FrontNegLimit = getRotationLimit("Dragon", 0, "front", "negative");
-
-      const effectiveBodyTailPosLimit = Math.min(body1BackPosLimit, tail0FrontPosLimit);
-      const effectiveBodyTailNegLimit = Math.min(body1BackNegLimit, tail0FrontNegLimit);
-
-      const bodyTailPosGap = effectiveBodyTailPosLimit - currentTailRelative;
-      const bodyTailNegGap = effectiveBodyTailNegLimit + currentTailRelative;
-      const bodyTailMinGap = Math.min(bodyTailPosGap, bodyTailNegGap);
-
-      console.log(
-        `Frame - Head↔Body: ${headBodyMinGap.toFixed(4)} rad (${(headBodyMinGap * 180 / Math.PI).toFixed(2)}°) ` +
-        `[curr: ${currentBodyRelative.toFixed(2)}, limits: +${effectiveHeadBodyPosLimit.toFixed(2)}/-${effectiveHeadBodyNegLimit.toFixed(2)}] | ` +
-        `Body↔Tail: ${bodyTailMinGap.toFixed(4)} rad (${(bodyTailMinGap * 180 / Math.PI).toFixed(2)}°) ` +
-        `[curr: ${currentTailRelative.toFixed(2)}, limits: +${effectiveBodyTailPosLimit.toFixed(2)}/-${effectiveBodyTailNegLimit.toFixed(2)}]`
-      );
-    }
-  });
+  const segmentGroups = interactionGroups(1, [0, 1]);
 
   return (
     <>
       <mesh
-        position={[0, 0.5, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, 0.01, 0]}
         onPointerDown={(e) => {
-          isMouseDown.current = true;
-          targetPosition.current.copy(e.point);
+          isPointerDown.current = true;
+          cursorTarget.current = e.point.clone();
         }}
         onPointerMove={(e) => {
-          if (isMouseDown.current) {
-            targetPosition.current.copy(e.point);
-          }
-        }}
-        onPointerUp={() => {
-          isMouseDown.current = false;
+          cursorTarget.current = e.point.clone();
         }}
       >
-        <planeGeometry args={[100, 100]} />
-        <meshBasicMaterial transparent opacity={0} />
+        <planeGeometry args={[1000, 1000]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
-      <group>
-        {links.map((piece, i) => {
-          const isSelected =
-            selectedLink?.linkIndex === i &&
-            selectedLink?.animalType === "Dragon";
-          return (
-            <group key={i} ref={(el) => (dragonGroups.current[i] = el)}>
-              <DragonLink
-                piece={piece}
-                isSelected={isSelected}
-                connectionPoints={getConnectionPointsLocal(i)}
-                animalType="Dragon"
-                linkIndex={i}
-                onClick={(e) => {
-                  if (isEditMode) {
-                    e.stopPropagation();
-                    selectLink("Dragon", i, piece.label);
-                  }
-                }}
-              />
-            </group>
-          );
-        })}
-      </group>
+
+      <RigidBody
+        ref={headRef}
+        position={headInitialPos.toArray()}
+        collisionGroups={segmentGroups}
+        linearDamping={0.5}
+        angularDamping={0.8}
+      >
+        <mesh geometry={headPiece.geometry} rotation={[-Math.PI / 2, 0, 0]}>
+          <meshStandardMaterial color="#c9b18c" metalness={0.3} roughness={0.6} />
+        </mesh>
+        {headSpheres.map((s) => (
+          <BallCollider key={s.id} args={[s.radius]} position={s.position} />
+        ))}
+      </RigidBody>
+
+      {Array.from({ length: bodyLinkCount }, (_, i) => {
+        const t = bodyInitialTransforms[i];
+        return (
+          <RigidBody
+            key={i}
+            ref={bodyRefs.current[i]}
+            position={t ? t.pos.toArray() : headInitialPos.toArray()}
+            collisionGroups={segmentGroups}
+            linearDamping={0.5}
+            angularDamping={0.8}
+          >
+            <mesh geometry={bodyPiece.geometry} rotation={[-Math.PI / 2, 0, 0]}>
+              <meshStandardMaterial color="#c9b18c" metalness={0.3} roughness={0.6} />
+            </mesh>
+            {bodySpheres.map((s) => (
+              <BallCollider key={s.id} args={[s.radius]} position={s.position} />
+            ))}
+          </RigidBody>
+        );
+      })}
+
+      <RigidBody
+        ref={tailRef}
+        position={tailInitialPos.toArray()}
+        collisionGroups={segmentGroups}
+        linearDamping={0.5}
+        angularDamping={0.8}
+      >
+        <mesh geometry={tailPiece.geometry} rotation={[-Math.PI / 2, 0, 0]}>
+          <meshStandardMaterial color="#c9b18c" metalness={0.3} roughness={0.6} />
+        </mesh>
+        {tailSpheres.map((s) => (
+          <BallCollider key={s.id} args={[s.radius]} position={s.position} />
+        ))}
+      </RigidBody>
+
+      <SegmentJoint
+        parentRef={headRef as RefObject<RapierRigidBody>}
+        childRef={bodyRefs.current[0]}
+        anchor1={headAnchor}
+        anchor2={bodyFrontAnchor}
+      />
+
+      {Array.from({ length: bodyLinkCount - 1 }, (_, i) => (
+        <SegmentJoint
+          key={i}
+          parentRef={bodyRefs.current[i]}
+          childRef={bodyRefs.current[i + 1]}
+          anchor1={bodyBodyAnchor}
+          anchor2={bodyFrontAnchor}
+        />
+      ))}
+
+      <SegmentJoint
+        key={`tail-${bodyLinkCount}`}
+        parentRef={bodyRefs.current[bodyLinkCount - 1]}
+        childRef={tailRef as RefObject<RapierRigidBody>}
+        anchor1={bodyTailAnchor}
+        anchor2={tailFrontAnchor}
+      />
     </>
   );
 }
 
-export function DragonCharacter({
-  linkCount,
-  collectiblePosition,
-  onCollect,
-}: DragonCharacterProps) {
+export function DragonCharacter() {
   const pieces = useSplitStl("/models/Bone_Dragon-1.stl");
-
   if (pieces.length < 3) return null;
-
   return (
     <Suspense fallback={null}>
       <DragonChain pieces={pieces} />
