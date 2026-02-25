@@ -22,6 +22,8 @@ type Props = {
   onYawLimitsToggle: () => void;
   collisionSkip: number;
   onCollisionSkipChange: (v: number) => void;
+  headMoveSpeed: number;
+  onHeadMoveSpeedChange: (v: number) => void;
   collapsed: boolean;
   onCollapsedToggle: () => void;
   copied: boolean;
@@ -38,6 +40,7 @@ export function GameSlidersPanel({
   floorPush, onFloorPushChange,
   yawLimitsOn, onYawLimitsToggle,
   collisionSkip, onCollisionSkipChange,
+  headMoveSpeed, onHeadMoveSpeedChange,
   collapsed, onCollapsedToggle,
   copied, onCopy,
 }: Props) {
@@ -115,6 +118,12 @@ export function GameSlidersPanel({
         >
           {yawLimitsOn ? "Yaw Limits: On" : "Yaw Limits: Off"}
         </button>
+
+        <label className="flex items-center justify-between text-xs text-white/80 mt-1">
+          <span>Head Speed (W/S)</span>
+          <span className="tabular-nums">{headMoveSpeed.toFixed(1)}</span>
+        </label>
+        <input type="range" min={0} max={20} step={0.5} value={headMoveSpeed} onChange={(e) => onHeadMoveSpeedChange(Number(e.target.value))} className="w-full accent-white h-1" />
 
         <label className="flex items-center justify-between text-xs text-white/80 mt-1">
           <span>Skip Neighbors</span>

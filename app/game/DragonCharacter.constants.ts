@@ -20,3 +20,7 @@ export const DEFAULT_TAIL_BACK: [number, number, number] = [-0.9, -0.26, 0.3];
 
 export const DRAGON_COLOR = "#c9b18c";
 export const DRAGON_MODEL_URL = "/models/Bone_Dragon-1.stl";
+
+export const HEAD_MOVE_SPEED = 2;
+export const HEAD_YAW_SPEED = 1.5;
+export const HEAD_PITCH_SPEED = 1.0;

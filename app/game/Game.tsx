@@ -23,12 +23,13 @@ export function Game() {
   const [pickThreshold, setPickThreshold] = useState(GAME_DEFAULTS.pickThreshold);
   const [floorPush, setFloorPush] = useState(GAME_DEFAULTS.floorPush);
   const [yawLimitsOn, setYawLimitsOn] = useState(GAME_DEFAULTS.yawLimitsOn);
+  const [headMoveSpeed, setHeadMoveSpeed] = useState(GAME_DEFAULTS.headMoveSpeed);
   const [copied, setCopied] = useState(false);
   const [collapsed, setCollapsed] = useState(true);
   const { bodyLinkCount, addBodyLink, removeBodyLink } = usePageStore();
 
   const handleCopy = useCallback(() => {
-    const data = { gravity, damping, collisionPush, collisionSkip, constraintIters, dragStrength, pickThreshold, floorPush, yawLimitsOn, bodyLinkCount };
+    const data = { gravity, damping, collisionPush, collisionSkip, constraintIters, dragStrength, pickThreshold, floorPush, yawLimitsOn, headMoveSpeed, bodyLinkCount };
     navigator.clipboard.writeText(JSON.stringify(data, null, 2));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -72,7 +73,7 @@ export function Game() {
           }}
         />
         <Suspense fallback={null}>
-          <DragonCharacter orbitRef={orbitRef} ghost={ghost} gravity={gravity} damping={damping} collisionPush={collisionPush} collisionSkip={collisionSkip} constraintIters={constraintIters} dragStrength={dragStrength} pickThreshold={pickThreshold} floorPush={floorPush} yawLimitsOn={yawLimitsOn} />
+          <DragonCharacter orbitRef={orbitRef} ghost={ghost} gravity={gravity} damping={damping} collisionPush={collisionPush} collisionSkip={collisionSkip} constraintIters={constraintIters} dragStrength={dragStrength} pickThreshold={pickThreshold} floorPush={floorPush} yawLimitsOn={yawLimitsOn} headMoveSpeed={headMoveSpeed} />
         </Suspense>
         <Environment />
       </Canvas>
@@ -113,6 +114,7 @@ export function Game() {
         floorPush={floorPush} onFloorPushChange={setFloorPush}
         yawLimitsOn={yawLimitsOn} onYawLimitsToggle={() => setYawLimitsOn((v) => !v)}
         collisionSkip={collisionSkip} onCollisionSkipChange={setCollisionSkip}
+        headMoveSpeed={headMoveSpeed} onHeadMoveSpeedChange={setHeadMoveSpeed}
         collapsed={collapsed} onCollapsedToggle={() => setCollapsed((v) => !v)}
         copied={copied} onCopy={handleCopy}
       />

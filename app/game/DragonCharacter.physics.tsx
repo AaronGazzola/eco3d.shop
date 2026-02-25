@@ -9,11 +9,12 @@ import type { DragonPiece } from "./StlModel";
 import {
   MAX_PARTICLES, MAX_SEGMENTS, FLOOR_Y, PARTICLE_R,
   DRAGON_COLOR, INITIAL_PARTICLE_HEIGHT,
+  HEAD_MOVE_SPEED, HEAD_YAW_SPEED, HEAD_PITCH_SPEED,
 } from "./DragonCharacter.constants";
 import type { Particle } from "./DragonCharacter.types";
 import { _v, _v2, _v3, _v4, _q, pieceKey, buildSegDef } from "./DragonCharacter.utils";
 
-export function DragonString({ pieces, orbitRef, ghost, gravity, damping, collisionPush, collisionSkip, constraintIters, dragStrength, pickThreshold, floorPush, yawLimitsOn }: { pieces: DragonPiece[]; orbitRef?: RefObject<any>; ghost: boolean; gravity: number; damping: number; collisionPush: number; collisionSkip: number; constraintIters: number; dragStrength: number; pickThreshold: number; floorPush: number; yawLimitsOn: boolean }) {
+export function DragonString({ pieces, orbitRef, ghost, gravity, damping, collisionPush, collisionSkip, constraintIters, dragStrength, pickThreshold, floorPush, yawLimitsOn, headMoveSpeed }: { pieces: DragonPiece[]; orbitRef?: RefObject<any>; ghost: boolean; gravity: number; damping: number; collisionPush: number; collisionSkip: number; constraintIters: number; dragStrength: number; pickThreshold: number; floorPush: number; yawLimitsOn: boolean; headMoveSpeed: number }) {
   const { bodyLinkCount, frontConnection, backConnection, frontPoints, backPoints, collisionSpheres, headBodyLimits, bodyBodyLimits, bodyTailLimits } = usePageStore();
   const segCount = Math.min(bodyLinkCount, 50) + 2;
   const particleCount = segCount + 1;
@@ -51,6 +52,7 @@ export function DragonString({ pieces, orbitRef, ghost, gravity, damping, collis
   const dragPlane = useRef(new THREE.Plane());
   const mouseNDC = useRef(new THREE.Vector2());
   const raycaster = useRef(new THREE.Raycaster());
+  const keysRef = useRef(new Set<string>());
 
   const { gl, camera } = useThree();
 
@@ -123,10 +125,75 @@ export function DragonString({ pieces, orbitRef, ghost, gravity, damping, collis
     };
   }, [gl, camera, orbitRef, particleCount]);
 
+  useEffect(() => {
+    const onDown = (e: KeyboardEvent) => keysRef.current.add(e.key);
+    const onUp   = (e: KeyboardEvent) => keysRef.current.delete(e.key);
+    window.addEventListener("keydown", onDown);
+    window.addEventListener("keyup",   onUp);
+    return () => {
+      window.removeEventListener("keydown", onDown);
+      window.removeEventListener("keyup",   onUp);
+    };
+  }, []);
+
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05);
     const pts = particles.current;
     const sd = segDefs.current;
+    const keys = keysRef.current;
+
+    if (keys.size > 0 && particleCount >= 3) {
+      const bodyDir = _v.copy(pts[2].pos).sub(pts[1].pos);
+      const bodyLen = bodyDir.length();
+      if (bodyLen > 0.0001) {
+        bodyDir.divideScalar(bodyLen);
+        const right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), bodyDir);
+        const rightLen = right.length();
+        if (rightLen > 0.0001) {
+          right.divideScalar(rightLen);
+          const bodyUp = new THREE.Vector3().crossVectors(bodyDir, right);
+
+          const headDiff = new THREE.Vector3().copy(pts[0].pos).sub(pts[1].pos);
+          const headLen = headDiff.length();
+          if (headLen > 0.0001) {
+            const headDir = headDiff.clone().divideScalar(headLen);
+            const pitch = Math.atan2(headDir.dot(bodyUp), headDir.dot(bodyDir));
+            const yawAxis = bodyUp.clone().applyAxisAngle(right, pitch);
+
+            if (keys.has("a") || keys.has("A")) {
+              _q.setFromAxisAngle(yawAxis, HEAD_YAW_SPEED * dt);
+              pts[0].pos.sub(pts[1].pos).applyQuaternion(_q).add(pts[1].pos);
+              pts[0].prev.sub(pts[1].pos).applyQuaternion(_q).add(pts[1].pos);
+            }
+            if (keys.has("d") || keys.has("D")) {
+              _q.setFromAxisAngle(yawAxis, -HEAD_YAW_SPEED * dt);
+              pts[0].pos.sub(pts[1].pos).applyQuaternion(_q).add(pts[1].pos);
+              pts[0].prev.sub(pts[1].pos).applyQuaternion(_q).add(pts[1].pos);
+            }
+            if (keys.has("ArrowUp")) {
+              _q.setFromAxisAngle(right, -HEAD_PITCH_SPEED * dt);
+              pts[0].pos.sub(pts[1].pos).applyQuaternion(_q).add(pts[1].pos);
+              pts[0].prev.sub(pts[1].pos).applyQuaternion(_q).add(pts[1].pos);
+            }
+            if (keys.has("ArrowDown")) {
+              _q.setFromAxisAngle(right, HEAD_PITCH_SPEED * dt);
+              pts[0].pos.sub(pts[1].pos).applyQuaternion(_q).add(pts[1].pos);
+              pts[0].prev.sub(pts[1].pos).applyQuaternion(_q).add(pts[1].pos);
+            }
+
+            const headDirNow = new THREE.Vector3().copy(pts[0].pos).sub(pts[1].pos).normalize();
+            if (keys.has("w") || keys.has("W")) {
+              pts[0].prev.addScaledVector(headDirNow, -headMoveSpeed * dt);
+              pts[1].prev.addScaledVector(headDirNow, -headMoveSpeed * dt);
+            }
+            if (keys.has("s") || keys.has("S")) {
+              pts[0].prev.addScaledVector(headDirNow, headMoveSpeed * dt);
+              pts[1].prev.addScaledVector(headDirNow, headMoveSpeed * dt);
+            }
+          }
+        }
+      }
+    }
 
     for (let i = 0; i < particleCount; i++) {
       const p = pts[i];
@@ -171,9 +238,19 @@ export function DragonString({ pieces, orbitRef, ghost, gravity, damping, collis
         if (d0Len < 0.0001) continue;
         _v2.divideScalar(d0Len);
 
-        _v4.set(0, 1, 0);
-        if (Math.abs(_v2.dot(_v4)) > 0.99) continue;
-        _v4.crossVectors(_v2, _v4).normalize();
+        if (i >= 2) {
+          _v.copy(pts[i - 1].pos).sub(pts[i - 2].pos).normalize();
+          const proj = _v2.dot(_v);
+          _v.addScaledVector(_v2, -proj);
+          const upLen = _v.length();
+          if (upLen < 0.001) continue;
+          _v.divideScalar(upLen);
+          _v4.crossVectors(_v2, _v).normalize();
+        } else {
+          _v4.set(0, 1, 0);
+          if (Math.abs(_v2.dot(_v4)) > 0.99) continue;
+          _v4.crossVectors(_v2, _v4).normalize();
+        }
 
         _v3.copy(pts[i + 1].pos).sub(pts[i].pos);
         const childDist = _v3.length();

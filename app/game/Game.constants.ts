@@ -9,4 +9,5 @@ export const GAME_DEFAULTS = {
   pickThreshold: 0.3,
   floorPush: 0.5,
   yawLimitsOn: true,
+  headMoveSpeed: 2,
 };
