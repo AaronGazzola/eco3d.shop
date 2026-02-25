@@ -7,21 +7,15 @@ import * as THREE from "three";
 import { usePageStore } from "../page.stores";
 import type { ConnectionLimits } from "../page.stores";
 import { cn } from "@/lib/utils";
-import { LimitedSliderRow } from "./SegmentEditor.sliders";
 import { SpherePanel, ColumnPanel, DiagnosticsPanel } from "./SegmentEditor.panels";
 import { SegmentScene } from "./SegmentEditor.scene";
 import { SimulateScene } from "./SegmentEditor.simulate";
 import type { SimDiagnostics } from "./SegmentEditor.simulate";
+import { SegmentEditorToolbar } from "./SegmentEditor.toolbar";
+import { HeadBodyConnectionPanel, BodyConnectionPanel } from "./SegmentEditor.connections";
+import type { SegmentType, SelectedItem } from "./SegmentEditor.types";
 
-export type SegmentType = "head" | "body" | "tail";
-
-export type SelectedItem =
-  | { type: "collision"; id: string }
-  | { type: "frontConnection" }
-  | { type: "backConnection" }
-  | { type: "frontPoint"; id: string }
-  | { type: "backPoint"; id: string }
-  | null;
+export type { SegmentType, SelectedItem };
 
 export function SegmentEditor({ segment }: { segment: SegmentType }) {
   const orbitRef = useRef<any>(null);
@@ -178,97 +172,22 @@ export function SegmentEditor({ segment }: { segment: SegmentType }) {
       </button>
 
       <div className="absolute bottom-4 left-4 flex flex-col gap-2 pointer-events-auto">
-        <div className="flex flex-wrap gap-2">
-          {!simulateMode && (
-            <>
-              <button
-                onClick={() => addCollisionSphere(segmentKey)}
-                className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium shadow-lg transition-colors text-sm"
-              >
-                + Collision
-              </button>
-              {(segment === "head" || segment === "body") && !bckConn && (
-                <button
-                  onClick={() => addBackConnection(segmentKey)}
-                  className="px-3 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-lg font-medium shadow-lg transition-colors text-sm"
-                >
-                  + Rear Column
-                </button>
-              )}
-              {segment === "head" && (
-                <button
-                  onClick={() => addFrontPoint(segmentKey)}
-                  className="px-3 py-2 bg-yellow-400 hover:bg-yellow-500 text-black rounded-lg font-medium shadow-lg transition-colors text-sm"
-                >
-                  + Front Point
-                </button>
-              )}
-              {segment === "tail" && (
-                <button
-                  onClick={() => addBackPoint(segmentKey)}
-                  className="px-3 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium shadow-lg transition-colors text-sm"
-                >
-                  + Back Point
-                </button>
-              )}
-            </>
-          )}
-          {segment === "head" && !simulateMode && (
-            <button
-              onClick={() => setShowBodyOnHead((v) => !v)}
-              className={cn(
-                "px-3 py-2 rounded-lg font-medium shadow-lg transition-colors text-sm",
-                showBodyOnHead ? "bg-black text-white" : "bg-white/90 hover:bg-white text-black"
-              )}
-            >
-              {showBodyOnHead ? "Hide Body" : "Show Body"}
-            </button>
-          )}
-          {segment === "body" && (
-            <>
-              <button
-                onClick={() => setBodyActiveGhost((v) => v === "body" ? "none" : "body")}
-                className={cn(
-                  "px-3 py-2 rounded-lg font-medium shadow-lg transition-colors text-sm",
-                  bodyActiveGhost === "body" ? "bg-black text-white" : "bg-white/90 hover:bg-white text-black"
-                )}
-              >
-                {bodyActiveGhost === "body" ? "Hide Body" : "Show Body"}
-              </button>
-              <button
-                onClick={() => setBodyActiveGhost((v) => v === "tail" ? "none" : "tail")}
-                className={cn(
-                  "px-3 py-2 rounded-lg font-medium shadow-lg transition-colors text-sm",
-                  bodyActiveGhost === "tail" ? "bg-black text-white" : "bg-white/90 hover:bg-white text-black"
-                )}
-              >
-                {bodyActiveGhost === "tail" ? "Hide Tail" : "Show Tail"}
-              </button>
-            </>
-          )}
-          {!simulateMode && (
-            <button
-              onClick={() => setGhostMesh((v) => !v)}
-              className={cn(
-                "px-3 py-2 rounded-lg font-medium shadow-lg transition-colors text-sm",
-                ghostMesh ? "bg-black text-white" : "bg-white/90 hover:bg-white text-black"
-              )}
-            >
-              Ghost
-            </button>
-          )}
-          {segment !== "tail" && (
-            <button
-              onClick={() => { setSimulateMode((v) => !v); setSimDiagnostics(null); }}
-              className={cn(
-                "px-3 py-2 rounded-lg font-medium shadow-lg transition-colors text-sm",
-                simulateMode ? "bg-orange-500 text-white" : "bg-white/90 hover:bg-white text-black"
-              )}
-            >
-              {simulateMode ? "Stop" : "Simulate"}
-            </button>
-          )}
-        </div>
+        <SegmentEditorToolbar
+          segment={segment}
+          simulateMode={simulateMode}
+          showBodyOnHead={showBodyOnHead}
+          bodyActiveGhost={bodyActiveGhost}
+          ghostMesh={ghostMesh}
+          hasBckConn={!!bckConn}
+          onAddCollision={() => addCollisionSphere(segmentKey)}
+          onAddRearColumn={() => addBackConnection(segmentKey)}
+          onAddFrontPoint={() => addFrontPoint(segmentKey)}
+          onAddBackPoint={() => addBackPoint(segmentKey)}
+          onToggleShowBodyOnHead={() => setShowBodyOnHead((v) => !v)}
+          onSetBodyActiveGhost={setBodyActiveGhost}
+          onToggleGhostMesh={() => setGhostMesh((v) => !v)}
+          onToggleSimulate={() => { setSimulateMode((v) => !v); setSimDiagnostics(null); }}
+        />
 
         {simulateMode && simDiagnostics && (
           <DiagnosticsPanel
@@ -318,73 +237,23 @@ export function SegmentEditor({ segment }: { segment: SegmentType }) {
           />
         )}
         {!simulateMode && segment === "head" && (
-          <div className="bg-white/90 rounded-lg p-3 shadow-lg flex flex-col gap-2 min-w-56">
-            <span className="text-sm font-medium text-black">Body Connection</span>
-            <LimitedSliderRow label="Position" value={bodyConnectionParams.position} min={0} max={1} step={0.01}
-              onChange={(v) => setBodyConnectionParams({ position: v })}
-              limitMin={headBodyLimits.positionMin} limitMax={headBodyLimits.positionMax}
-              onSetMin={(v) => setHeadBodyLimits({ positionMin: v })}
-              onSetMax={(v) => setHeadBodyLimits({ positionMax: v })}
-            />
-            <LimitedSliderRow label="Yaw" value={bodyConnectionParams.yaw} min={-Math.PI} max={Math.PI} step={0.05}
-              onChange={(v) => setBodyConnectionParams({ yaw: v })}
-              limitMin={headBodyLimits.yawMin} limitMax={headBodyLimits.yawMax}
-              onSetMin={(v) => setHeadBodyLimits({ yawMin: v })}
-              onSetMax={(v) => setHeadBodyLimits({ yawMax: v })}
-            />
-            <LimitedSliderRow label="Pitch" value={bodyConnectionParams.pitch} min={-Math.PI} max={Math.PI} step={0.05}
-              onChange={(v) => setBodyConnectionParams({ pitch: v })}
-              limitMin={headBodyLimits.pitchMin} limitMax={headBodyLimits.pitchMax}
-              onSetMin={(v) => setHeadBodyLimits({ pitchMin: v })}
-              onSetMax={(v) => setHeadBodyLimits({ pitchMax: v })}
-            />
-            <LimitedSliderRow label="Roll" value={bodyConnectionParams.roll} min={-Math.PI} max={Math.PI} step={0.05}
-              onChange={(v) => setBodyConnectionParams({ roll: v })}
-              limitMin={headBodyLimits.rollMin} limitMax={headBodyLimits.rollMax}
-              onSetMin={(v) => setHeadBodyLimits({ rollMin: v })}
-              onSetMax={(v) => setHeadBodyLimits({ rollMax: v })}
-            />
-          </div>
+          <HeadBodyConnectionPanel
+            bodyConnectionParams={bodyConnectionParams}
+            setBodyConnectionParams={setBodyConnectionParams}
+            headBodyLimits={headBodyLimits}
+            setHeadBodyLimits={setHeadBodyLimits}
+          />
         )}
         {!simulateMode && segment === "body" && bodyActiveGhost !== "none" && activeBodyParams && setActiveBodyParams && (
-          <div className="bg-white/90 rounded-lg p-3 shadow-lg flex flex-col gap-2 min-w-56">
-            <span className="text-sm font-medium text-black">
-              {bodyActiveGhost === "body" ? "Body Connection" : "Tail Connection"}
-            </span>
-            {(() => {
-              const limits: ConnectionLimits = bodyActiveGhost === "body" ? bodyBodyLimits : bodyTailLimits;
-              const setLimits = bodyActiveGhost === "body" ? setBodyBodyLimits : setBodyTailLimits;
-              const yawOffset = bodyActiveGhost === "tail" ? Math.PI : 0;
-              return (
-                <>
-                  <LimitedSliderRow label="Position" value={activeBodyParams.position} min={0} max={1} step={0.01}
-                    onChange={(v) => setActiveBodyParams({ position: v })}
-                    limitMin={limits.positionMin} limitMax={limits.positionMax}
-                    onSetMin={(v) => setLimits({ positionMin: v })}
-                    onSetMax={(v) => setLimits({ positionMax: v })}
-                  />
-                  <LimitedSliderRow label="Yaw" value={activeBodyParams.yaw - yawOffset} min={-Math.PI} max={Math.PI} step={0.05}
-                    onChange={(v) => setActiveBodyParams({ yaw: v + yawOffset })}
-                    limitMin={limits.yawMin - yawOffset} limitMax={limits.yawMax - yawOffset}
-                    onSetMin={(v) => setLimits({ yawMin: v + yawOffset })}
-                    onSetMax={(v) => setLimits({ yawMax: v + yawOffset })}
-                  />
-                  <LimitedSliderRow label="Pitch" value={activeBodyParams.pitch} min={-Math.PI} max={Math.PI} step={0.05}
-                    onChange={(v) => setActiveBodyParams({ pitch: v })}
-                    limitMin={limits.pitchMin} limitMax={limits.pitchMax}
-                    onSetMin={(v) => setLimits({ pitchMin: v })}
-                    onSetMax={(v) => setLimits({ pitchMax: v })}
-                  />
-                  <LimitedSliderRow label="Roll" value={activeBodyParams.roll} min={-Math.PI} max={Math.PI} step={0.05}
-                    onChange={(v) => setActiveBodyParams({ roll: v })}
-                    limitMin={limits.rollMin} limitMax={limits.rollMax}
-                    onSetMin={(v) => setLimits({ rollMin: v })}
-                    onSetMax={(v) => setLimits({ rollMax: v })}
-                  />
-                </>
-              );
-            })()}
-          </div>
+          <BodyConnectionPanel
+            bodyActiveGhost={bodyActiveGhost as "body" | "tail"}
+            activeBodyParams={activeBodyParams}
+            setActiveBodyParams={setActiveBodyParams}
+            bodyBodyLimits={bodyBodyLimits}
+            bodyTailLimits={bodyTailLimits}
+            setBodyBodyLimits={setBodyBodyLimits}
+            setBodyTailLimits={setBodyTailLimits}
+          />
         )}
       </div>
     </div>

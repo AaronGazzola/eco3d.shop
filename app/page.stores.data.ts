@@ -74,6 +74,16 @@ export const INITIAL_BACK_POINTS: Record<string, Sphere[]> = {
   ],
 };
 
+export const DEFAULT_BACK_CONNECTION_SHAPE: ColumnShape = {
+  center: [0, 0, 0],
+  height: 0.2,
+  radius: 0.05,
+  curve: 0,
+  rotationX: 0,
+  rotationY: 0,
+  rotationZ: 0,
+};
+
 export const DEFAULT_PHYSICS_PARAMS: PhysicsParams = {
   cursorStiffness: 8,
   cursorDamping: 5,

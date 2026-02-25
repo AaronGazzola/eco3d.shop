@@ -5,7 +5,7 @@ import {
   INITIAL_FRONT_POINTS, INITIAL_BACK_POINTS,
   DEFAULT_PHYSICS_PARAMS, DEFAULT_BODY_CONNECTION_PARAMS, DEFAULT_BODY_TO_BODY_CONNECTION_PARAMS,
   DEFAULT_BODY_TO_TAIL_CONNECTION_PARAMS, DEFAULT_HEAD_BODY_LIMITS, DEFAULT_BODY_BODY_LIMITS,
-  DEFAULT_BODY_TAIL_LIMITS,
+  DEFAULT_BODY_TAIL_LIMITS, DEFAULT_BACK_CONNECTION_SHAPE,
 } from "./page.stores.data";
 
 export interface Sphere {
@@ -87,13 +87,6 @@ export interface ConnectionLimits {
   rollMin: number;
   rollMax: number;
 }
-
-const DEFAULT_LIMITS: ConnectionLimits = {
-  positionMin: 0, positionMax: 1,
-  yawMin: -Math.PI, yawMax: Math.PI,
-  pitchMin: -Math.PI, pitchMax: Math.PI,
-  rollMin: -Math.PI, rollMax: Math.PI,
-};
 
 interface PageState {
   viewMode: ViewMode;
@@ -185,7 +178,7 @@ export const usePageStore = create<PageState>()(persist((set) => {
       set((state) => ({
         backConnection: {
           ...state.backConnection,
-          [segmentKey]: { center: [0, 0, 0], height: 0.2, radius: 0.05, curve: 0, rotationX: 0, rotationY: 0, rotationZ: 0 },
+          [segmentKey]: DEFAULT_BACK_CONNECTION_SHAPE,
         },
       })),
     updateBackConnection: (segmentKey, updates) =>

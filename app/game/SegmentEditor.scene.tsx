@@ -4,8 +4,9 @@ import { useMemo } from "react";
 import * as THREE from "three";
 import { useSplitStl } from "./StlModel";
 import { usePageStore } from "../page.stores";
-import type { SegmentType, SelectedItem } from "./SegmentEditor";
+import type { SegmentType, SelectedItem } from "./SegmentEditor.types";
 import { SphereObj, BackConnectionHandle } from "./SegmentEditor.objects";
+import { DRAGON_MODEL_URL } from "./DragonCharacter.constants";
 
 const segmentToIndex: Record<SegmentType, number> = { tail: 0, body: 1, head: 2 };
 
@@ -26,7 +27,7 @@ export function SegmentScene({
   ghostPieceIndex?: number;
   ghostFrontConnKey?: string;
 }) {
-  const pieces = useSplitStl("/models/Bone_Dragon-1.stl");
+  const pieces = useSplitStl(DRAGON_MODEL_URL);
   const linkIndex = segmentToIndex[segment];
   const piece = pieces[linkIndex];
   const segmentKey = `Dragon-${linkIndex}`;

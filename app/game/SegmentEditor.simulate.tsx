@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { useSplitStl } from "./StlModel";
 import { usePageStore } from "../page.stores";
 import { buildAlignmentFrame } from "./DragonCharacter.math";
+import { DRAGON_MODEL_URL } from "./DragonCharacter.constants";
 import type { BodyConnectionParams, ConnectionLimits } from "../page.stores";
 
 export type SimDiagnostics = {
@@ -46,7 +47,7 @@ export function SimulateScene({
   damping: number;
   yawFlip: boolean;
 }) {
-  const pieces = useSplitStl("/models/Bone_Dragon-1.stl");
+  const pieces = useSplitStl(DRAGON_MODEL_URL);
   const frameCount = useRef(0);
   const { backConnection, frontConnection } = usePageStore();
 
