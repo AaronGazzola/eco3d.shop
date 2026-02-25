@@ -1,0 +1,9 @@
+export const MAX_SEGMENTS = 52;
+export const DEFAULT_MOVE_SPEED = 8;
+export const DEFAULT_ROLL_SPEED = 3;
+export const DEFAULT_PITCH_SPEED = 2;
+export const DEFAULT_FOLLOW_SPEED = 3;
+export const BANK_TURN_STRENGTH = 2.0;
+export const THROTTLE_ACCEL_MULT = 2;
+export const THROTTLE_DECAY = 0.95;
+export const INIT_HEAD_Y = 3;

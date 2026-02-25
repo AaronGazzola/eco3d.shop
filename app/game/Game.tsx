@@ -4,24 +4,27 @@ import { Suspense, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
+import { ChevronUp, ChevronDown } from "lucide-react";
 import { DragonCharacter } from "./DragonCharacter";
 import { Environment } from "./Environment";
 import { usePageStore } from "../page.stores";
 import { cn } from "@/lib/utils";
+import {
+  DEFAULT_MOVE_SPEED,
+  DEFAULT_ROLL_SPEED,
+  DEFAULT_PITCH_SPEED,
+  DEFAULT_FOLLOW_SPEED,
+} from "./DragonCharacter.constants";
 
 export function Game() {
   const orbitRef = useRef<any>(null);
   const [ghost, setGhost] = useState(true);
-  const [gravity, setGravity] = useState(9.8);
-  const [damping, setDamping] = useState(0.98);
-  const [collisionPush, setCollisionPush] = useState(0.5);
-  const [collisionSkip, setCollisionSkip] = useState(0);
-  const [constraintIters, setConstraintIters] = useState(20);
-  const [dragStrength, setDragStrength] = useState(0.4);
-  const [pickThreshold, setPickThreshold] = useState(0.3);
-  const [floorPush, setFloorPush] = useState(0.5);
-  const [yawLimitsOn, setYawLimitsOn] = useState(true);
+  const [moveSpeed, setMoveSpeed] = useState(DEFAULT_MOVE_SPEED);
+  const [rollSpeed, setRollSpeed] = useState(DEFAULT_ROLL_SPEED);
+  const [pitchSpeed, setPitchSpeed] = useState(DEFAULT_PITCH_SPEED);
+  const [followSpeed, setFollowSpeed] = useState(DEFAULT_FOLLOW_SPEED);
   const [copied, setCopied] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(true);
   const { bodyLinkCount, addBodyLink, removeBodyLink } = usePageStore();
 
   return (
@@ -62,7 +65,13 @@ export function Game() {
           }}
         />
         <Suspense fallback={null}>
-          <DragonCharacter orbitRef={orbitRef} ghost={ghost} gravity={gravity} damping={damping} collisionPush={collisionPush} collisionSkip={collisionSkip} constraintIters={constraintIters} dragStrength={dragStrength} pickThreshold={pickThreshold} floorPush={floorPush} yawLimitsOn={yawLimitsOn} />
+          <DragonCharacter
+            ghost={ghost}
+            moveSpeed={moveSpeed}
+            rollSpeed={rollSpeed}
+            pitchSpeed={pitchSpeed}
+            followSpeed={followSpeed}
+          />
         </Suspense>
         <Environment />
       </Canvas>
@@ -93,91 +102,58 @@ export function Game() {
         </button>
       </div>
 
-      <div className="absolute top-4 left-4 w-52 flex flex-col gap-2 pointer-events-auto bg-black/50 backdrop-blur-sm rounded-xl p-3">
-        <button
-          onClick={() => {
-            const data = { gravity, damping, collisionPush, collisionSkip, constraintIters, dragStrength, pickThreshold, floorPush, yawLimitsOn, bodyLinkCount };
-            navigator.clipboard.writeText(JSON.stringify(data, null, 2));
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-          }}
-          className={cn(
-            "px-3 h-7 rounded-lg text-xs font-medium transition-colors mb-1",
-            copied ? "bg-green-500 text-white" : "bg-white/90 hover:bg-white text-black",
-          )}
-        >
-          {copied ? "Copied!" : "Copy State"}
-        </button>
-        <label className="flex items-center justify-between text-xs text-white/80">
-          <span>Gravity</span>
-          <span className="tabular-nums">{gravity.toFixed(1)}</span>
-        </label>
-        <input type="range" min={0} max={30} step={0.1} value={gravity} onChange={(e) => setGravity(Number(e.target.value))} className="w-full accent-white h-1" />
-
-        <label className="flex items-center justify-between text-xs text-white/80 mt-1">
-          <span>Damping</span>
-          <span className="tabular-nums">{damping.toFixed(2)}</span>
-        </label>
-        <input type="range" min={0} max={1} step={0.005} value={damping} onChange={(e) => setDamping(Number(e.target.value))} className="w-full accent-white h-1" />
-
-        <label className="flex items-center justify-between text-xs text-white/80 mt-1">
-          <span>Collision Push</span>
-          <span className="tabular-nums">{collisionPush.toFixed(2)}</span>
-        </label>
-        <input type="range" min={0} max={2} step={0.01} value={collisionPush} onChange={(e) => setCollisionPush(Number(e.target.value))} className="w-full accent-white h-1" />
-
-        <label className="flex items-center justify-between text-xs text-white/80 mt-1">
-          <span>Constraint Iters</span>
-          <span className="tabular-nums">{constraintIters}</span>
-        </label>
-        <input type="range" min={1} max={50} step={1} value={constraintIters} onChange={(e) => setConstraintIters(Number(e.target.value))} className="w-full accent-white h-1" />
-
-        <label className="flex items-center justify-between text-xs text-white/80 mt-1">
-          <span>Drag Strength</span>
-          <span className="tabular-nums">{dragStrength.toFixed(2)}</span>
-        </label>
-        <input type="range" min={0.05} max={1} step={0.05} value={dragStrength} onChange={(e) => setDragStrength(Number(e.target.value))} className="w-full accent-white h-1" />
-
-        <label className="flex items-center justify-between text-xs text-white/80 mt-1">
-          <span>Pick Threshold</span>
-          <span className="tabular-nums">{pickThreshold.toFixed(2)}</span>
-        </label>
-        <input type="range" min={0.1} max={1} step={0.05} value={pickThreshold} onChange={(e) => setPickThreshold(Number(e.target.value))} className="w-full accent-white h-1" />
-
-        <label className="flex items-center justify-between text-xs text-white/80 mt-1">
-          <span>Floor Push</span>
-          <span className="tabular-nums">{floorPush.toFixed(2)}</span>
-        </label>
-        <input type="range" min={0} max={1} step={0.05} value={floorPush} onChange={(e) => setFloorPush(Number(e.target.value))} className="w-full accent-white h-1" />
-
-        <button
-          onClick={() => setYawLimitsOn((v) => !v)}
-          className={cn(
-            "mt-1 px-3 h-7 rounded-lg text-xs font-medium transition-colors",
-            yawLimitsOn ? "bg-white/90 text-black" : "bg-white/20 hover:bg-white/40 text-white/70",
-          )}
-        >
-          {yawLimitsOn ? "Yaw Limits: On" : "Yaw Limits: Off"}
-        </button>
-
-        <label className="flex items-center justify-between text-xs text-white/80 mt-1">
-          <span>Skip Neighbors</span>
-          <span className="tabular-nums">{collisionSkip}</span>
-        </label>
-        <div className="flex gap-1">
-          {[0, 1, 2, 3].map((n) => (
+      <div className="absolute top-4 left-4 w-52 pointer-events-auto bg-black/50 backdrop-blur-sm rounded-xl p-3">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-medium text-white/80">Controls</span>
+          <button
+            onClick={() => setPanelOpen((v) => !v)}
+            className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-white/20 transition-colors text-white/80"
+          >
+            {panelOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+        </div>
+        {panelOpen && (
+          <div className="flex flex-col gap-2">
             <button
-              key={n}
-              onClick={() => setCollisionSkip(n)}
+              onClick={() => {
+                const data = { moveSpeed, rollSpeed, pitchSpeed, followSpeed, bodyLinkCount };
+                navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
               className={cn(
-                "flex-1 h-7 rounded-lg text-xs font-medium transition-colors",
-                collisionSkip === n ? "bg-white/90 text-black" : "bg-white/20 hover:bg-white/40 text-white/70",
+                "px-3 h-7 rounded-lg text-xs font-medium transition-colors",
+                copied ? "bg-green-500 text-white" : "bg-white/90 hover:bg-white text-black",
               )}
             >
-              {n}
+              {copied ? "Copied!" : "Copy State"}
             </button>
-          ))}
-        </div>
+
+            <label className="flex items-center justify-between text-xs text-white/80">
+              <span>Move Speed</span>
+              <span className="tabular-nums">{moveSpeed.toFixed(1)}</span>
+            </label>
+            <input type="range" min={0} max={30} step={0.5} value={moveSpeed} onChange={(e) => setMoveSpeed(Number(e.target.value))} className="w-full accent-white h-1" />
+
+            <label className="flex items-center justify-between text-xs text-white/80 mt-1">
+              <span>Roll Speed</span>
+              <span className="tabular-nums">{rollSpeed.toFixed(1)}</span>
+            </label>
+            <input type="range" min={0.5} max={10} step={0.5} value={rollSpeed} onChange={(e) => setRollSpeed(Number(e.target.value))} className="w-full accent-white h-1" />
+
+            <label className="flex items-center justify-between text-xs text-white/80 mt-1">
+              <span>Pitch Speed</span>
+              <span className="tabular-nums">{pitchSpeed.toFixed(1)}</span>
+            </label>
+            <input type="range" min={0.5} max={10} step={0.5} value={pitchSpeed} onChange={(e) => setPitchSpeed(Number(e.target.value))} className="w-full accent-white h-1" />
+
+            <label className="flex items-center justify-between text-xs text-white/80 mt-1">
+              <span>Follow Speed</span>
+              <span className="tabular-nums">{followSpeed.toFixed(1)}</span>
+            </label>
+            <input type="range" min={0.1} max={20} step={0.1} value={followSpeed} onChange={(e) => setFollowSpeed(Number(e.target.value))} className="w-full accent-white h-1" />
+          </div>
+        )}
       </div>
     </div>
   );
