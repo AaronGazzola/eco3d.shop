@@ -1,44 +1,33 @@
-"use client";
+'use client'
 
-import { Game } from "./game/Game";
-import { SegmentEditor } from "./game/SegmentEditor";
-import { usePageStore, ViewMode } from "./page.stores";
-import { cn } from "@/lib/utils";
-
-const NAV_BUTTONS: { mode: ViewMode; label: string }[] = [
-  { mode: "play", label: "Play" },
-  { mode: "head", label: "Head" },
-  { mode: "body", label: "Body" },
-  { mode: "tail", label: "Tail" },
-];
+import { useCreatureStore } from './page.stores'
+import { SkeletonScene } from './game/SkeletonScene'
+import { ConfigPanel } from './game/ConfigPanel'
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from '@/components/ui/sidebar'
 
 export default function HomePage() {
-  const { viewMode, setViewMode } = usePageStore();
+  const { config, showAttractor } = useCreatureStore()
 
   return (
-    <div className="fixed inset-0">
-      <div className="absolute top-4 right-4 z-50 flex gap-2">
-        {NAV_BUTTONS.map(({ mode, label }) => (
-          <button
-            key={mode}
-            onClick={() => setViewMode(mode)}
-            className={cn(
-              "px-4 py-2 rounded-lg font-medium shadow-lg transition-colors",
-              viewMode === mode
-                ? "bg-black text-white"
-                : "bg-white/90 hover:bg-white text-black"
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {viewMode === "play" ? (
-        <Game />
-      ) : (
-        <SegmentEditor segment={viewMode} />
-      )}
-    </div>
-  );
+    <SidebarProvider
+      className="h-screen overflow-hidden bg-[#0a0a0a]"
+      style={{ '--sidebar-width': '20rem' } as React.CSSProperties}
+    >
+      <SidebarInset className="relative overflow-hidden">
+        <SkeletonScene config={config} showAttractor={showAttractor} />
+        <SidebarTrigger className="absolute top-3 right-3 z-10 text-white/50 hover:text-white hover:bg-white/15 [&_svg]:size-4" />
+      </SidebarInset>
+      <Sidebar side="right" collapsible="offcanvas">
+        <SidebarContent className="overflow-y-auto bg-[#0f0f0f]">
+          <ConfigPanel />
+        </SidebarContent>
+      </Sidebar>
+    </SidebarProvider>
+  )
 }
