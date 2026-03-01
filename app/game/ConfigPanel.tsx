@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { useCreatureStore } from '../page.stores'
 import { SliderField, SectionTitle, Divider } from './ConfigPanel.primitives'
@@ -178,7 +180,36 @@ export function ConfigPanel() {
         </div>
       </div>
 
-      <div className="h-4" />
+      <Divider />
+
+      <div className="pb-2">
+        <Link
+          href="/studio"
+          className="flex items-center justify-center gap-2 w-full py-2 text-xs font-semibold rounded border border-white/15 text-white/50 hover:border-violet-500/50 hover:text-violet-300 transition-colors"
+        >
+          Open Dragon Studio →
+        </Link>
+      </div>
+
+      <div className="flex flex-col items-center gap-2 pb-4 pt-2">
+        <Image
+          src="/images/Authorized_Seller_Badge.png"
+          alt="Saber 3D Authorized Seller"
+          width={96}
+          height={96}
+        />
+        <p className="text-[10px] text-white/30 text-center">
+          3D models designed by{' '}
+          <a
+            href="https://www.saber-3d.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-white/50 hover:text-white/80 underline underline-offset-2 transition-colors"
+          >
+            Saber3D
+          </a>
+        </p>
+      </div>
     </div>
   )
 }

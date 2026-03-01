@@ -67,8 +67,8 @@ export function SkeletonScene({ config, showAttractor }: Props) {
       <OrbitControls
         makeDefault
         mouseButtons={{
-          LEFT: undefined as unknown as THREE.MOUSE,
-          MIDDLE: THREE.MOUSE.DOLLY,
+          LEFT: THREE.MOUSE.PAN,
+          MIDDLE: THREE.MOUSE.ROTATE,
           RIGHT: THREE.MOUSE.ROTATE,
         }}
       />
