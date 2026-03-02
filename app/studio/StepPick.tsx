@@ -85,6 +85,19 @@ export function StepPick() {
         const geometry = loader.parse(buffer)
         const positions = geometry.attributes.position.array as Float32Array
         const componentArrays = detectSegments(positions)
+
+        let minY = Infinity
+        for (const arr of componentArrays) {
+          for (let i = 1; i < arr.length; i += 3) {
+            if (arr[i] < minY) minY = arr[i]
+          }
+        }
+        for (const arr of componentArrays) {
+          for (let i = 1; i < arr.length; i += 3) {
+            arr[i] -= minY
+          }
+        }
+
         const segments: SegmentData[] = componentArrays.map((arr, i) => ({
           id: `seg-${i}`,
           positions: arr,

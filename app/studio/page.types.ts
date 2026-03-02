@@ -10,3 +10,14 @@ export interface SegmentData {
   positions: Float32Array
   color: string
 }
+
+export type BodyGroupType = 'head' | 'spine' | 'tail' | 'leg-left' | 'leg-right'
+
+export interface BodyGroup {
+  id: string
+  name: string
+  segmentIds: string[]
+  color: string
+  type: BodyGroupType
+  attachedToSpineId?: string
+}
