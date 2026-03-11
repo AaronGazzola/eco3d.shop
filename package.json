@@ -7,8 +7,8 @@
     "build": "doppler run -- next build",
     "start": "doppler run -- next start",
     "lint": "eslint",
-    "db:seed": "tsx supabase/seed.ts",
-    "db:reset-seed": "bash scripts/reset-seed.sh"
+    "db:seed": "doppler run -- tsx supabase/seed.ts",
+    "db:reset-seed": "doppler run -- bash scripts/reset-seed.sh"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1000.0",
