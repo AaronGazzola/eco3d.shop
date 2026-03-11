@@ -83,20 +83,13 @@ export function StepPick() {
       .then((buffer) => {
         const loader = new STLLoader()
         const geometry = loader.parse(buffer)
+        geometry.rotateX(-Math.PI / 2)
+        geometry.scale(0.1, 0.1, 0.1)
+        geometry.computeBoundingBox()
+        const minY = geometry.boundingBox!.min.y
+        geometry.translate(0, -minY, 0)
         const positions = geometry.attributes.position.array as Float32Array
         const componentArrays = detectSegments(positions)
-
-        let minY = Infinity
-        for (const arr of componentArrays) {
-          for (let i = 1; i < arr.length; i += 3) {
-            if (arr[i] < minY) minY = arr[i]
-          }
-        }
-        for (const arr of componentArrays) {
-          for (let i = 1; i < arr.length; i += 3) {
-            arr[i] -= minY
-          }
-        }
 
         const segments: SegmentData[] = componentArrays.map((arr, i) => ({
           id: `seg-${i}`,

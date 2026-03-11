@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { cn } from '@/lib/utils'
 
 function GroupRow({
   group,
@@ -77,6 +78,10 @@ export function StepGroup() {
     createGroup,
     deleteGroup,
     reorderSpineGroups,
+    selectionMode,
+    sphere,
+    setSelectionMode,
+    setSphereRadius,
   } = useStudioStore()
 
   const [name, setName] = useState('')
@@ -112,6 +117,48 @@ export function StepGroup() {
       <h3 className="text-xs font-semibold uppercase tracking-widest text-white/40">
         Group Segments
       </h3>
+
+      <div className="flex gap-1 p-1 bg-white/5 rounded-lg">
+        <button
+          onClick={() => setSelectionMode('click')}
+          className={cn(
+            'flex-1 py-1 text-xs rounded-md transition-colors',
+            selectionMode === 'click' ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white/70'
+          )}
+        >
+          Click
+        </button>
+        <button
+          onClick={() => setSelectionMode('sphere')}
+          className={cn(
+            'flex-1 py-1 text-xs rounded-md transition-colors',
+            selectionMode === 'sphere' ? 'bg-violet-600/40 text-violet-300' : 'text-white/40 hover:text-white/70'
+          )}
+        >
+          Sphere
+        </button>
+      </div>
+
+      {selectionMode === 'sphere' && (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-white/50">Radius</span>
+            <span className="text-xs text-white/70">{(sphere?.radius ?? 2.0).toFixed(1)}</span>
+          </div>
+          <input
+            type="range"
+            min={0.2}
+            max={8}
+            step={0.1}
+            value={sphere?.radius ?? 2.0}
+            onChange={(e) => setSphereRadius(parseFloat(e.target.value))}
+            className="w-full accent-violet-500"
+          />
+          {sphere === null && (
+            <p className="text-[10px] text-white/30">Click in the scene to place the sphere</p>
+          )}
+        </div>
+      )}
 
       {pendingSegmentIds.length > 0 && (
         <div className="flex items-center justify-between">

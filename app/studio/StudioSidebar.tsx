@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { StepPick } from './StepPick'
 import { StepGroup } from './StepGroup'
-import { useStudioStore, CameraPreset } from './page.stores'
+import { useStudioStore } from './page.stores'
 
 const STEPS = [
   { n: 1 as const, label: 'Pick Model' },
@@ -12,8 +12,7 @@ const STEPS = [
 ]
 
 export function StudioSidebar() {
-  const { step, setStep, segments, setCameraPreset, rotateModel } = useStudioStore()
-  const HALF_PI = Math.PI / 2
+  const { step, setStep, segments } = useStudioStore()
 
   const canGoBack = step > 1
   const canGoForward = step < 2 && segments.length > 0
@@ -61,52 +60,6 @@ export function StudioSidebar() {
       <div className="flex-1 overflow-y-auto">
         {step === 1 && <StepPick />}
         {step === 2 && <StepGroup />}
-      </div>
-
-      <div className="px-4 py-3 border-t border-white/8 shrink-0 space-y-3">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30 mb-2">Camera</p>
-          <div className="grid grid-cols-4 gap-1">
-            {(['reset', 'front', 'top', 'side'] as CameraPreset[]).map((preset) => (
-              <button
-                key={preset}
-                onClick={() => setCameraPreset(preset)}
-                className="py-1 text-[11px] text-white/40 hover:text-white/80 hover:bg-white/8 rounded capitalize transition-colors"
-              >
-                {preset}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30 mb-2">Rotate</p>
-          <div className="space-y-1">
-            {([
-              { label: 'Yaw',   axis: 'y' as const, neg: '←', pos: '→' },
-              { label: 'Pitch', axis: 'x' as const, neg: '↑', pos: '↓' },
-              { label: 'Roll',  axis: 'z' as const, neg: '↺', pos: '↻' },
-            ]).map(({ label, axis, neg, pos }) => (
-              <div key={axis} className="flex items-center gap-2">
-                <span className="text-[11px] text-white/30 w-8">{label}</span>
-                <div className="flex gap-1 flex-1">
-                  <button
-                    onClick={() => rotateModel(axis, -HALF_PI)}
-                    className="flex-1 py-0.5 text-sm text-white/40 hover:text-white/80 hover:bg-white/8 rounded transition-colors"
-                  >
-                    {neg}
-                  </button>
-                  <button
-                    onClick={() => rotateModel(axis, HALF_PI)}
-                    className="flex-1 py-0.5 text-sm text-white/40 hover:text-white/80 hover:bg-white/8 rounded transition-colors"
-                  >
-                    {pos}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
 
       <div className="flex flex-col items-center gap-2 py-4 border-t border-white/8 shrink-0">

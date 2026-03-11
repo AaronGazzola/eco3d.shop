@@ -20,6 +20,8 @@ interface StudioStore {
   step: 1 | 2
   cameraPreset: CameraPreset | null
   modelRotation: [number, number, number]
+  selectionMode: 'click' | 'sphere'
+  sphere: { x: number; y: number; z: number; radius: number } | null
 
   setStlKey: (key: string) => void
   setSegments: (segments: SegmentData[]) => void
@@ -33,6 +35,10 @@ interface StudioStore {
   deleteGroup: (id: string) => void
   reorderSpineGroups: (newOrderIds: string[]) => void
   setGroupAttachment: (groupId: string, spineGroupId: string) => void
+  setSelectionMode: (mode: 'click' | 'sphere') => void
+  setSphere: (sphere: { x: number; y: number; z: number; radius: number } | null) => void
+  setSphereRadius: (radius: number) => void
+  setPendingSegmentIds: (ids: string[]) => void
 }
 
 export const useStudioStore = create<StudioStore>((set, get) => ({
@@ -44,6 +50,8 @@ export const useStudioStore = create<StudioStore>((set, get) => ({
   step: 1,
   cameraPreset: null,
   modelRotation: [0, 0, 0],
+  selectionMode: 'click',
+  sphere: null,
 
   setStlKey: (key) => set({ stlKey: key }),
 
@@ -55,6 +63,8 @@ export const useStudioStore = create<StudioStore>((set, get) => ({
       groups: [],
       step: 2,
       modelRotation: [0, 0, 0],
+      selectionMode: 'click',
+      sphere: null,
     }),
 
   setSelectedSegmentId: (id) => set({ selectedSegmentId: id }),
@@ -113,4 +123,14 @@ export const useStudioStore = create<StudioStore>((set, get) => ({
         g.id === groupId ? { ...g, attachedToSpineId: spineGroupId } : g
       ),
     })),
+
+  setSelectionMode: (mode) =>
+    set(mode === 'click' ? { selectionMode: mode, sphere: null } : { selectionMode: mode }),
+
+  setSphere: (sphere) => set({ sphere }),
+
+  setSphereRadius: (radius) =>
+    set((state) => ({ sphere: state.sphere ? { ...state.sphere, radius } : null })),
+
+  setPendingSegmentIds: (ids) => set({ pendingSegmentIds: ids }),
 }))
