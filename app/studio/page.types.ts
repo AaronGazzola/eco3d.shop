@@ -20,4 +20,6 @@ export interface BodyGroup {
   color: string
   type: BodyGroupType
   attachedToSpineId?: string
+  nodePosition?: { x: number; z: number }
+  nodeAngle?: number
 }

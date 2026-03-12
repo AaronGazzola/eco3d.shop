@@ -1,0 +1,2 @@
+- assign animation nodes to segments
+- Store segment data with model references in db

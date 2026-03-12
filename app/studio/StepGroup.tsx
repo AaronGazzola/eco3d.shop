@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useStudioStore } from './page.stores'
 import { BodyGroup, BodyGroupType } from './page.types'
 import { Button } from '@/components/ui/button'
@@ -82,6 +82,9 @@ export function StepGroup() {
     sphere,
     setSelectionMode,
     setSphereRadius,
+    selectedNodeGroupId,
+    nodeTransformMode,
+    setNodeTransformMode,
   } = useStudioStore()
 
   const [name, setName] = useState('')
@@ -112,11 +115,36 @@ export function StepGroup() {
 
   const hasGroups = groups.length > 0
 
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = useCallback(() => {
+    const data = groups.map((g) => ({
+      name: g.name,
+      type: g.type,
+      segmentIds: g.segmentIds,
+      ...(g.attachedToSpineId ? { attachedToSpineId: g.attachedToSpineId } : {}),
+    }))
+    navigator.clipboard.writeText(JSON.stringify(data, null, 2)).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }, [groups])
+
   return (
     <div className="flex flex-col gap-4 p-4 text-white">
-      <h3 className="text-xs font-semibold uppercase tracking-widest text-white/40">
-        Group Segments
-      </h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold uppercase tracking-widest text-white/40">
+          Group Segments
+        </h3>
+        {hasGroups && (
+          <button
+            onClick={handleCopy}
+            className="text-[10px] text-white/30 hover:text-white/70 transition-colors"
+          >
+            {copied ? 'Copied!' : 'Copy'}
+          </button>
+        )}
+      </div>
 
       <div className="flex gap-1 p-1 bg-white/5 rounded-lg">
         <button
@@ -137,7 +165,43 @@ export function StepGroup() {
         >
           Sphere
         </button>
+        <button
+          onClick={() => setSelectionMode('node')}
+          disabled={!hasGroups}
+          className={cn(
+            'flex-1 py-1 text-xs rounded-md transition-colors disabled:opacity-25 disabled:pointer-events-none',
+            selectionMode === 'node' ? 'bg-amber-600/40 text-amber-300' : 'text-white/40 hover:text-white/70'
+          )}
+        >
+          Node
+        </button>
       </div>
+
+      {selectionMode === 'node' && selectedNodeGroupId && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[10px] text-white/40 uppercase tracking-widest">Transform</span>
+          <div className="flex gap-1 p-1 bg-white/5 rounded-lg">
+            <button
+              onClick={() => setNodeTransformMode('translate')}
+              className={cn(
+                'flex-1 py-1 text-xs rounded-md transition-colors',
+                nodeTransformMode === 'translate' ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white/70'
+              )}
+            >
+              Move
+            </button>
+            <button
+              onClick={() => setNodeTransformMode('rotate')}
+              className={cn(
+                'flex-1 py-1 text-xs rounded-md transition-colors',
+                nodeTransformMode === 'rotate' ? 'bg-amber-600/40 text-amber-300' : 'text-white/40 hover:text-white/70'
+              )}
+            >
+              Rotate
+            </button>
+          </div>
+        </div>
+      )}
 
       {selectionMode === 'sphere' && (
         <div className="flex flex-col gap-1.5">

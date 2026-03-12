@@ -132,7 +132,7 @@ function SegmentMesh({
     e.stopPropagation()
     if (selectionMode === 'sphere') {
       setSphere({ x: e.point.x, y: e.point.y, z: e.point.z, radius: sphere?.radius ?? 2.0 })
-    } else {
+    } else if (selectionMode === 'click') {
       onClick()
     }
   }, [selectionMode, sphere, setSphere, onClick])
