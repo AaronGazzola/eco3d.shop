@@ -10,173 +10,38 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.4"
   }
   public: {
     Tables: {
-      contact_submissions: {
+      model_configs: {
         Row: {
           created_at: string
-          email: string
+          groups: Json
           id: string
-          message: string
+          model_rotation: number[]
           name: string
-          status: Database["public"]["Enums"]["contact_status"]
-          subject: string
+          stl_key: string
           updated_at: string
+          user_id: string
         }
         Insert: {
           created_at?: string
-          email: string
+          groups?: Json
           id?: string
-          message: string
+          model_rotation?: number[]
           name: string
-          status?: Database["public"]["Enums"]["contact_status"]
-          subject: string
+          stl_key: string
           updated_at?: string
+          user_id: string
         }
         Update: {
           created_at?: string
-          email?: string
+          groups?: Json
           id?: string
-          message?: string
+          model_rotation?: number[]
           name?: string
-          status?: Database["public"]["Enums"]["contact_status"]
-          subject?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      design_reviews: {
-        Row: {
-          created_at: string
-          design_id: string
-          feedback: string | null
-          id: string
-          reviewer_id: string | null
-          status: Database["public"]["Enums"]["review_status"]
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          design_id: string
-          feedback?: string | null
-          id?: string
-          reviewer_id?: string | null
-          status?: Database["public"]["Enums"]["review_status"]
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          design_id?: string
-          feedback?: string | null
-          id?: string
-          reviewer_id?: string | null
-          status?: Database["public"]["Enums"]["review_status"]
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      order_items: {
-        Row: {
-          colors: string[]
-          created_at: string
-          design_id: string | null
-          id: string
-          order_id: string
-          quantity: number
-          size: Database["public"]["Enums"]["print_size"]
-          unit_price: number
-          user_id: string
-        }
-        Insert: {
-          colors: string[]
-          created_at?: string
-          design_id?: string | null
-          id?: string
-          order_id: string
-          quantity?: number
-          size: Database["public"]["Enums"]["print_size"]
-          unit_price: number
-          user_id: string
-        }
-        Update: {
-          colors?: string[]
-          created_at?: string
-          design_id?: string | null
-          id?: string
-          order_id?: string
-          quantity?: number
-          size?: Database["public"]["Enums"]["print_size"]
-          unit_price?: number
-          user_id?: string
-        }
-        Relationships: []
-      }
-      order_reviews: {
-        Row: {
-          created_at: string
-          id: string
-          notes: string | null
-          order_id: string
-          price_adjustment: number | null
-          reviewer_id: string | null
-          status: Database["public"]["Enums"]["review_status"]
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          notes?: string | null
-          order_id: string
-          price_adjustment?: number | null
-          reviewer_id?: string | null
-          status?: Database["public"]["Enums"]["review_status"]
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          notes?: string | null
-          order_id?: string
-          price_adjustment?: number | null
-          reviewer_id?: string | null
-          status?: Database["public"]["Enums"]["review_status"]
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      print_orders: {
-        Row: {
-          created_at: string
-          id: string
-          notes: string | null
-          payment_status: Database["public"]["Enums"]["payment_status"]
-          shipping_address: Json
-          status: Database["public"]["Enums"]["order_status"]
-          total_amount: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          notes?: string | null
-          payment_status?: Database["public"]["Enums"]["payment_status"]
-          shipping_address: Json
-          status?: Database["public"]["Enums"]["order_status"]
-          total_amount: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          notes?: string | null
-          payment_status?: Database["public"]["Enums"]["payment_status"]
-          shipping_address?: Json
-          status?: Database["public"]["Enums"]["order_status"]
-          total_amount?: number
+          stl_key?: string
           updated_at?: string
           user_id?: string
         }
@@ -189,7 +54,6 @@ export type Database = {
           display_name: string
           id: string
           role: Database["public"]["Enums"]["user_role"]
-          shipping_address: Json | null
           updated_at: string
           user_id: string
         }
@@ -199,7 +63,6 @@ export type Database = {
           display_name: string
           id?: string
           role?: Database["public"]["Enums"]["user_role"]
-          shipping_address?: Json | null
           updated_at?: string
           user_id: string
         }
@@ -209,121 +72,6 @@ export type Database = {
           display_name?: string
           id?: string
           role?: Database["public"]["Enums"]["user_role"]
-          shipping_address?: Json | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      projects: {
-        Row: {
-          created_at: string
-          description: string | null
-          id: string
-          is_public: boolean
-          model_data: Json
-          settings: Json | null
-          title: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_public?: boolean
-          model_data: Json
-          settings?: Json | null
-          title: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_public?: boolean
-          model_data?: Json
-          settings?: Json | null
-          title?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      published_designs: {
-        Row: {
-          configuration: Json | null
-          created_at: string
-          description: string | null
-          id: string
-          model_data: Json
-          preview_url: string
-          project_id: string
-          status: Database["public"]["Enums"]["publication_status"]
-          title: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          configuration?: Json | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          model_data: Json
-          preview_url: string
-          project_id: string
-          status?: Database["public"]["Enums"]["publication_status"]
-          title: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          configuration?: Json | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          model_data?: Json
-          preview_url?: string
-          project_id?: string
-          status?: Database["public"]["Enums"]["publication_status"]
-          title?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      shipping_tracking: {
-        Row: {
-          carrier: string
-          created_at: string
-          id: string
-          order_id: string
-          status: Database["public"]["Enums"]["shipping_status"]
-          tracking_number: string
-          tracking_url: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          carrier: string
-          created_at?: string
-          id?: string
-          order_id: string
-          status?: Database["public"]["Enums"]["shipping_status"]
-          tracking_number: string
-          tracking_url?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          carrier?: string
-          created_at?: string
-          id?: string
-          order_id?: string
-          status?: Database["public"]["Enums"]["shipping_status"]
-          tracking_number?: string
-          tracking_url?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -337,20 +85,7 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
-      contact_status: "unread" | "read" | "replied" | "archived"
-      order_status:
-        | "pending"
-        | "approved"
-        | "printing"
-        | "shipped"
-        | "delivered"
-        | "cancelled"
-      payment_status: "pending" | "paid" | "refunded" | "failed"
-      print_size: "small" | "medium" | "large" | "custom"
-      publication_status: "draft" | "pending" | "published" | "rejected"
-      review_status: "pending" | "approved" | "rejected"
-      shipping_status: "pending" | "shipped" | "delivered" | "returned"
-      user_role: "user" | "admin" | "super-admin"
+      user_role: "user" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -478,21 +213,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      contact_status: ["unread", "read", "replied", "archived"],
-      order_status: [
-        "pending",
-        "approved",
-        "printing",
-        "shipped",
-        "delivered",
-        "cancelled",
-      ],
-      payment_status: ["pending", "paid", "refunded", "failed"],
-      print_size: ["small", "medium", "large", "custom"],
-      publication_status: ["draft", "pending", "published", "rejected"],
-      review_status: ["pending", "approved", "rejected"],
-      shipping_status: ["pending", "shipped", "delivered", "returned"],
-      user_role: ["user", "admin", "super-admin"],
+      user_role: ["user", "admin"],
     },
   },
 } as const

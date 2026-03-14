@@ -13,6 +13,15 @@ export interface SegmentData {
 
 export type BodyGroupType = 'head' | 'spine' | 'tail' | 'leg-left' | 'leg-right'
 
+export interface ModelConfigRow {
+  id: string
+  stl_key: string
+  name: string
+  groups: BodyGroup[]
+  model_rotation: [number, number, number]
+  created_at: string
+}
+
 export interface BodyGroup {
   id: string
   name: string

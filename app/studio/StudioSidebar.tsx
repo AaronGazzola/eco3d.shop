@@ -1,10 +1,12 @@
 'use client'
 
+import { useEffect } from 'react'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { StepPick } from './StepPick'
 import { StepGroup } from './StepGroup'
 import { useStudioStore } from './page.stores'
+import { useStlLoader } from './page.hooks'
 
 const STEPS = [
   { n: 1 as const, label: 'Pick Model' },
@@ -13,6 +15,20 @@ const STEPS = [
 
 export function StudioSidebar() {
   const { step, setStep, segments } = useStudioStore()
+  const { loadStl } = useStlLoader()
+
+  useEffect(() => {
+    const tryLoad = () => {
+      const { stlKey, segments } = useStudioStore.getState()
+      if (stlKey && segments.length === 0) loadStl(stlKey, true)
+    }
+
+    if (useStudioStore.persist.hasHydrated()) {
+      tryLoad()
+    } else {
+      return useStudioStore.persist.onFinishHydration(tryLoad)
+    }
+  }, [])
 
   const canGoBack = step > 1
   const canGoForward = step < 2 && segments.length > 0

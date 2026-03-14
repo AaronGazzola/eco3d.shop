@@ -13,11 +13,6 @@ import { useCompleteProfile } from "./page.hooks";
 
 const welcomeSchema = z.object({
   displayName: z.string().min(1, "Display name is required"),
-  street: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  zip: z.string().optional(),
-  country: z.string().optional(),
 });
 
 export default function WelcomePage() {
@@ -27,14 +22,7 @@ export default function WelcomePage() {
 
   const form = useForm({
     resolver: zodResolver(welcomeSchema),
-    defaultValues: {
-      displayName: "",
-      street: "",
-      city: "",
-      state: "",
-      zip: "",
-      country: "",
-    },
+    defaultValues: { displayName: "" },
   });
 
   useEffect(() => {
@@ -44,21 +32,7 @@ export default function WelcomePage() {
   }, [user, isLoading, router]);
 
   const onSubmit = (data: z.infer<typeof welcomeSchema>) => {
-    const shippingAddress =
-      data.street || data.city || data.state || data.zip || data.country
-        ? {
-            street: data.street || "",
-            city: data.city || "",
-            state: data.state || "",
-            zip: data.zip || "",
-            country: data.country || "",
-          }
-        : undefined;
-
-    completeProfile.mutate({
-      display_name: data.displayName,
-      shipping_address: shippingAddress,
-    });
+    completeProfile.mutate({ display_name: data.displayName });
   };
 
   if (isLoading) {
@@ -91,53 +65,6 @@ export default function WelcomePage() {
               {form.formState.errors.displayName.message}
             </p>
           )}
-        </div>
-
-        <div className="border-t pt-4">
-          <p className="text-sm font-medium mb-3 text-gray-700">
-            Shipping Address (Optional)
-          </p>
-
-          <div className="space-y-3">
-            <div>
-              <Label htmlFor="street">Street</Label>
-              <Input
-                id="street"
-                placeholder="123 Main St"
-                {...form.register("street")}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="city">City</Label>
-                <Input id="city" placeholder="City" {...form.register("city")} />
-              </div>
-              <div>
-                <Label htmlFor="state">State</Label>
-                <Input
-                  id="state"
-                  placeholder="State"
-                  {...form.register("state")}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="zip">ZIP Code</Label>
-                <Input id="zip" placeholder="12345" {...form.register("zip")} />
-              </div>
-              <div>
-                <Label htmlFor="country">Country</Label>
-                <Input
-                  id="country"
-                  placeholder="Country"
-                  {...form.register("country")}
-                />
-              </div>
-            </div>
-          </div>
         </div>
 
         <Button type="submit" className="w-full" disabled={completeProfile.isPending}>

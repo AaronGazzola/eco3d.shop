@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useEffect, useRef, useLayoutEffect, useCallback } from 'react'
+import { useMemo, useEffect, useRef, useLayoutEffect, useCallback, useState } from 'react'
 import { Canvas, useThree, useFrame } from '@react-three/fiber'
 import { OrbitControls, Grid, TransformControls } from '@react-three/drei'
 import * as THREE from 'three'
@@ -172,11 +172,30 @@ function SegmentMesh({
   )
 }
 
+const BATCH_SIZE = 10
+
 function SceneContent() {
   const {
     segments, pendingSegmentIds, groups, togglePendingSegment, modelRotation,
     selectionMode, sphere, setSphere,
   } = useStudioStore()
+
+  const [renderCount, setRenderCount] = useState(0)
+
+  useEffect(() => {
+    if (segments.length === 0) { setRenderCount(0); return }
+    let count = 0
+    let raf: number
+    function addBatch() {
+      count = Math.min(count + BATCH_SIZE, segments.length)
+      setRenderCount(count)
+      if (count < segments.length) raf = requestAnimationFrame(addBatch)
+    }
+    raf = requestAnimationFrame(addBatch)
+    return () => cancelAnimationFrame(raf)
+  }, [segments])
+
+  const visibleSegments = segments.slice(0, renderCount)
 
   const assignedMap = useMemo(() => {
     const map = new Map<string, string>()
@@ -217,7 +236,7 @@ function SceneContent() {
         </mesh>
       )}
       <group rotation={modelRotation}>
-        {segments.map((seg) => (
+        {visibleSegments.map((seg) => (
           <SegmentMesh
             key={seg.id}
             seg={seg}
