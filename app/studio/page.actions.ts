@@ -2,7 +2,8 @@
 
 import { S3Client, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { R2FileNode } from './page.types'
+import { createClient } from '@/supabase/server-client'
+import { R2FileNode, BodyGroup, ModelConfigRow } from './page.types'
 
 const s3 = new S3Client({
   region: 'auto',
@@ -55,4 +56,57 @@ export async function listR2FilesAction(): Promise<R2FileNode[]> {
 export async function getSignedUrlAction(key: string): Promise<string> {
   const cmd = new GetObjectCommand({ Bucket: BUCKET, Key: key })
   return getSignedUrl(s3, cmd, { expiresIn: 3600 })
+}
+
+export async function saveModelConfigAction(params: {
+  id: string | null
+  stlKey: string
+  name: string
+  groups: BodyGroup[]
+  modelRotation: [number, number, number]
+}): Promise<ModelConfigRow> {
+  const supabase = await createClient()
+
+  const payload = {
+    stl_key: params.stlKey,
+    name: params.name,
+    groups: params.groups as unknown as import('@/supabase/types').Json,
+    model_rotation: params.modelRotation,
+    updated_at: new Date().toISOString(),
+  }
+
+  if (params.id) {
+    const { data, error } = await supabase
+      .from('model_configs')
+      .update(payload)
+      .eq('id', params.id)
+      .select()
+      .single()
+    if (error) { console.error(error); throw new Error('Failed to save config') }
+    return { ...data, groups: data.groups as unknown as BodyGroup[], model_rotation: data.model_rotation as [number, number, number] }
+  }
+
+  const { data, error } = await supabase
+    .from('model_configs')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .insert(payload as any)
+    .select()
+    .single()
+  if (error) { console.error(error); throw new Error('Failed to save config') }
+  return { ...data, groups: data.groups as unknown as BodyGroup[], model_rotation: data.model_rotation as [number, number, number] }
+}
+
+export async function listModelConfigsAction(): Promise<ModelConfigRow[]> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('model_configs')
+    .select('id, stl_key, name, groups, model_rotation, created_at')
+    .order('updated_at', { ascending: false })
+  if (error) { console.error(error); throw new Error('Failed to list configs') }
+  return data.map((row) => ({
+    ...row,
+    groups: row.groups as unknown as BodyGroup[],
+    model_rotation: row.model_rotation as [number, number, number],
+  }))
 }

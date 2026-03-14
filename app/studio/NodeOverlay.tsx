@@ -1,7 +1,9 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useLayoutEffect, useCallback, useMemo } from 'react'
 import * as THREE from 'three'
+import { useThree } from '@react-three/fiber'
+import { TransformControls } from '@react-three/drei'
 import { useStudioStore } from './page.stores'
 import { SegmentData, BodyGroup } from './page.types'
 
@@ -29,9 +31,103 @@ function disposeObject(obj: THREE.Object3D) {
   }
 }
 
-export function NodeOverlay() {
+function getNodePosition(group: BodyGroup, segmentMap: Map<string, SegmentData>): THREE.Vector3 {
+  if (group.nodePosition) return new THREE.Vector3(group.nodePosition.x, 0, group.nodePosition.z)
+  return computeFloorCentroid(group.segmentIds, segmentMap)
+}
+
+function InteractiveNode({ group, centroid }: { group: BodyGroup; centroid: THREE.Vector3 }) {
+  const groupRef = useRef<THREE.Group>(null!)
+  const { controls } = useThree()
+
+  const {
+    selectedNodeGroupId,
+    nodeTransformMode,
+    setSelectedNodeGroupId,
+    setNodeGroupPosition,
+    setNodeGroupAngle,
+  } = useStudioStore()
+
+  const isSelected = selectedNodeGroupId === group.id
+  const pos = group.nodePosition ?? { x: centroid.x, z: centroid.z }
+  const angle = group.nodeAngle ?? 0
+
+  useLayoutEffect(() => {
+    if (!groupRef.current) return
+    groupRef.current.position.set(pos.x, 0, pos.z)
+    groupRef.current.rotation.set(0, angle, 0)
+  }, [pos.x, pos.z, angle])
+
+  const arrowGeom = useMemo(() => {
+    const g = new THREE.BufferGeometry()
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, 0, 0, 0, 0, 1.5]), 3))
+    return g
+  }, [])
+
+  useEffect(() => () => arrowGeom.dispose(), [arrowGeom])
+
+  const handleMouseDown = useCallback(() => {
+    if (controls) (controls as unknown as { enabled: boolean }).enabled = false
+  }, [controls])
+
+  const handleMouseUp = useCallback(() => {
+    if (controls) (controls as unknown as { enabled: boolean }).enabled = true
+    if (!groupRef.current) return
+    if (nodeTransformMode === 'translate') {
+      groupRef.current.position.y = 0
+      setNodeGroupPosition(group.id, groupRef.current.position.x, groupRef.current.position.z)
+    } else {
+      setNodeGroupAngle(group.id, groupRef.current.rotation.y)
+    }
+  }, [controls, nodeTransformMode, group.id, setNodeGroupPosition, setNodeGroupAngle])
+
+  const handleChange = useCallback(() => {
+    if (nodeTransformMode === 'translate' && groupRef.current) {
+      groupRef.current.position.y = 0
+    }
+  }, [nodeTransformMode])
+
+  return (
+    <>
+      <group ref={groupRef}>
+        <mesh
+          onClick={(e) => {
+            e.stopPropagation()
+            setSelectedNodeGroupId(group.id)
+          }}
+        >
+          <sphereGeometry args={[isSelected ? 0.25 : 0.18, 10, 10]} />
+          <meshStandardMaterial
+            color={isSelected ? '#ffffff' : group.color}
+            emissive={group.color}
+            emissiveIntensity={isSelected ? 1 : 0.3}
+            roughness={0.3}
+            metalness={0.1}
+          />
+        </mesh>
+        <line>
+          <primitive attach="geometry" object={arrowGeom} />
+          <lineBasicMaterial color={group.color} opacity={0.85} transparent />
+        </line>
+      </group>
+      {isSelected && (
+        <TransformControls
+          object={groupRef}
+          mode={nodeTransformMode}
+          showY={nodeTransformMode === 'translate' ? false : undefined}
+          showX={nodeTransformMode === 'rotate' ? false : undefined}
+          showZ={nodeTransformMode === 'rotate' ? false : undefined}
+          onMouseDown={handleMouseDown}
+          onMouseUp={handleMouseUp}
+          onChange={handleChange}
+        />
+      )}
+    </>
+  )
+}
+
+function StaticNodeOverlay({ groups, segments }: { groups: BodyGroup[]; segments: SegmentData[] }) {
   const containerRef = useRef<THREE.Group>(null)
-  const { segments, groups } = useStudioStore()
 
   useEffect(() => {
     const container = containerRef.current
@@ -46,7 +142,7 @@ export function NodeOverlay() {
     const segmentMap = new Map(segments.map((s) => [s.id, s]))
     const centroidMap = new Map<string, THREE.Vector3>()
     for (const g of groups) {
-      centroidMap.set(g.id, computeFloorCentroid(g.segmentIds, segmentMap))
+      centroidMap.set(g.id, getNodePosition(g, segmentMap))
     }
 
     const headGroup = groups.find((g) => g.type === 'head')
@@ -76,11 +172,10 @@ export function NodeOverlay() {
     ]
     if (spineChain.length >= 2) {
       const points = spineChain.map((g) => centroidMap.get(g.id)!)
-      const spineLine = new THREE.Line(
+      container.add(new THREE.Line(
         new THREE.BufferGeometry().setFromPoints(points),
         new THREE.LineBasicMaterial({ color: '#ffffff', opacity: 0.6, transparent: true })
-      )
-      container.add(spineLine)
+      ))
     }
 
     const legPairs: THREE.Vector3[] = []
@@ -105,4 +200,26 @@ export function NodeOverlay() {
   }, [segments, groups])
 
   return <group ref={containerRef} />
+}
+
+export function NodeOverlay() {
+  const { segments, groups, selectionMode } = useStudioStore()
+
+  const segmentMap = useMemo(() => new Map(segments.map((s) => [s.id, s])), [segments])
+
+  if (selectionMode === 'node' && groups.length > 0) {
+    return (
+      <>
+        {groups.map((g) => (
+          <InteractiveNode
+            key={g.id}
+            group={g}
+            centroid={getNodePosition(g, segmentMap)}
+          />
+        ))}
+      </>
+    )
+  }
+
+  return <StaticNodeOverlay groups={groups} segments={segments} />
 }

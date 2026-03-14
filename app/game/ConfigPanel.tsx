@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { useCreatureStore } from '../page.stores'
 import { SliderField, SectionTitle, Divider } from './ConfigPanel.primitives'
+import { ModelList } from './ModelList'
 
 export function ConfigPanel() {
   const {
@@ -178,6 +179,13 @@ export function ConfigPanel() {
             Left-click the floor to set a target.
           </p>
         </div>
+      </div>
+
+      <Divider />
+
+      <div>
+        <SectionTitle>Models</SectionTitle>
+        <ModelList />
       </div>
 
       <Divider />

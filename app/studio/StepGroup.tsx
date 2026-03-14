@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useStudioStore } from './page.stores'
 import { BodyGroup, BodyGroupType } from './page.types'
+import { useSaveConfig } from './page.hooks'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -12,9 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { cn } from '@/lib/utils'
 
 function GroupRow({
   group,
+  hasSelection,
+  onAddSelected,
   onDelete,
   onMoveUp,
   onMoveDown,
@@ -23,6 +27,8 @@ function GroupRow({
   nested,
 }: {
   group: BodyGroup
+  hasSelection: boolean
+  onAddSelected: () => void
   onDelete: () => void
   onMoveUp?: () => void
   onMoveDown?: () => void
@@ -40,6 +46,14 @@ function GroupRow({
       <span className="text-[10px] text-white/30 shrink-0">
         {group.type} · {group.segmentIds.length}
       </span>
+      {hasSelection && (
+        <button
+          onClick={onAddSelected}
+          className="text-[10px] bg-emerald-600/30 hover:bg-emerald-600/60 text-emerald-300 rounded px-1.5 py-0.5 transition-colors shrink-0"
+        >
+          Add
+        </button>
+      )}
       {group.type === 'spine' && (
         <>
           <button
@@ -70,16 +84,25 @@ function GroupRow({
 
 export function StepGroup() {
   const {
-    segments,
     pendingSegmentIds,
     groups,
+    stlKey,
+    configName,
+    setConfigName,
     clearPending,
     createGroup,
+    addToGroup,
     deleteGroup,
     reorderSpineGroups,
+    selectionMode,
+    setSelectionMode,
+    selectedNodeGroupId,
+    nodeTransformMode,
+    setNodeTransformMode,
   } = useStudioStore()
 
-  const [name, setName] = useState('')
+  const { mutate: saveConfig, isPending: saving } = useSaveConfig()
+
   const [type, setType] = useState<BodyGroupType>('spine')
   const [attachedToSpineId, setAttachedToSpineId] = useState<string>('')
 
@@ -89,9 +112,10 @@ export function StepGroup() {
   const isLeg = type === 'leg-left' || type === 'leg-right'
 
   function handleCreate() {
-    if (!name.trim() || pendingSegmentIds.length === 0) return
-    createGroup(name.trim(), type, isLeg && attachedToSpineId ? attachedToSpineId : undefined)
-    setName('')
+    if (pendingSegmentIds.length === 0) return
+    const sameType = groups.filter((g) => g.type === type).length
+    const autoName = sameType > 0 ? `${type}-${sameType + 1}` : type
+    createGroup(autoName, type, isLeg && attachedToSpineId ? attachedToSpineId : undefined)
   }
 
   function moveSpine(id: string, dir: -1 | 1) {
@@ -107,11 +131,84 @@ export function StepGroup() {
 
   const hasGroups = groups.length > 0
 
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = useCallback(() => {
+    const data = groups.map((g) => ({
+      name: g.name,
+      type: g.type,
+      segmentIds: g.segmentIds,
+      ...(g.attachedToSpineId ? { attachedToSpineId: g.attachedToSpineId } : {}),
+    }))
+    navigator.clipboard.writeText(JSON.stringify(data, null, 2)).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }, [groups])
+
   return (
     <div className="flex flex-col gap-4 p-4 text-white">
-      <h3 className="text-xs font-semibold uppercase tracking-widest text-white/40">
-        Group Segments
-      </h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold uppercase tracking-widest text-white/40">
+          Group Segments
+        </h3>
+        {hasGroups && (
+          <button
+            onClick={handleCopy}
+            className="text-[10px] text-white/30 hover:text-white/70 transition-colors"
+          >
+            {copied ? 'Copied!' : 'Copy'}
+          </button>
+        )}
+      </div>
+
+      <div className="flex gap-1 p-1 bg-white/5 rounded-lg">
+        <button
+          onClick={() => setSelectionMode('click')}
+          className={cn(
+            'flex-1 py-1 text-xs rounded-md transition-colors',
+            selectionMode === 'click' ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white/70'
+          )}
+        >
+          Click
+        </button>
+        <button
+          onClick={() => setSelectionMode('node')}
+          disabled={!hasGroups}
+          className={cn(
+            'flex-1 py-1 text-xs rounded-md transition-colors disabled:opacity-25 disabled:pointer-events-none',
+            selectionMode === 'node' ? 'bg-amber-600/40 text-amber-300' : 'text-white/40 hover:text-white/70'
+          )}
+        >
+          Node
+        </button>
+      </div>
+
+      {selectionMode === 'node' && selectedNodeGroupId && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[10px] text-white/40 uppercase tracking-widest">Transform</span>
+          <div className="flex gap-1 p-1 bg-white/5 rounded-lg">
+            <button
+              onClick={() => setNodeTransformMode('translate')}
+              className={cn(
+                'flex-1 py-1 text-xs rounded-md transition-colors',
+                nodeTransformMode === 'translate' ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white/70'
+              )}
+            >
+              Move
+            </button>
+            <button
+              onClick={() => setNodeTransformMode('rotate')}
+              className={cn(
+                'flex-1 py-1 text-xs rounded-md transition-colors',
+                nodeTransformMode === 'rotate' ? 'bg-amber-600/40 text-amber-300' : 'text-white/40 hover:text-white/70'
+              )}
+            >
+              Rotate
+            </button>
+          </div>
+        </div>
+      )}
 
       {pendingSegmentIds.length > 0 && (
         <div className="flex items-center justify-between">
@@ -128,12 +225,6 @@ export function StepGroup() {
       )}
 
       <div className="flex flex-col gap-2">
-        <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Group name"
-          className="h-7 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/25"
-        />
         <Select value={type} onValueChange={(v) => setType(v as BodyGroupType)}>
           <SelectTrigger className="h-7 text-xs bg-white/5 border-white/10 text-white">
             <SelectValue />
@@ -163,7 +254,7 @@ export function StepGroup() {
         <Button
           size="sm"
           className="h-7 text-xs"
-          disabled={!name.trim() || pendingSegmentIds.length === 0}
+          disabled={pendingSegmentIds.length === 0}
           onClick={handleCreate}
         >
           Create Group
@@ -175,6 +266,8 @@ export function StepGroup() {
           {headGroup && (
             <GroupRow
               group={headGroup}
+              hasSelection={pendingSegmentIds.length > 0}
+              onAddSelected={() => addToGroup(headGroup.id)}
               onDelete={() => deleteGroup(headGroup.id)}
             />
           )}
@@ -186,6 +279,8 @@ export function StepGroup() {
               <div key={sg.id}>
                 <GroupRow
                   group={sg}
+                  hasSelection={pendingSegmentIds.length > 0}
+                  onAddSelected={() => addToGroup(sg.id)}
                   onDelete={() => deleteGroup(sg.id)}
                   onMoveUp={() => moveSpine(sg.id, -1)}
                   onMoveDown={() => moveSpine(sg.id, 1)}
@@ -196,6 +291,8 @@ export function StepGroup() {
                   <GroupRow
                     key={leg.id}
                     group={leg}
+                    hasSelection={pendingSegmentIds.length > 0}
+                    onAddSelected={() => addToGroup(leg.id)}
                     onDelete={() => deleteGroup(leg.id)}
                     nested
                   />
@@ -209,11 +306,19 @@ export function StepGroup() {
                 (g.type === 'leg-left' || g.type === 'leg-right') && !g.attachedToSpineId
             )
             .map((leg) => (
-              <GroupRow key={leg.id} group={leg} onDelete={() => deleteGroup(leg.id)} />
+              <GroupRow
+                key={leg.id}
+                group={leg}
+                hasSelection={pendingSegmentIds.length > 0}
+                onAddSelected={() => addToGroup(leg.id)}
+                onDelete={() => deleteGroup(leg.id)}
+              />
             ))}
           {tailGroup && (
             <GroupRow
               group={tailGroup}
+              hasSelection={pendingSegmentIds.length > 0}
+              onAddSelected={() => addToGroup(tailGroup.id)}
               onDelete={() => deleteGroup(tailGroup.id)}
             />
           )}
@@ -224,6 +329,25 @@ export function StepGroup() {
         <p className="text-[10px] text-white/25 text-center py-2">
           Select components in the scene, then create a group.
         </p>
+      )}
+
+      {stlKey && hasGroups && (
+        <div className="flex flex-col gap-2 pt-2 border-t border-white/8">
+          <Input
+            value={configName}
+            onChange={(e) => setConfigName(e.target.value)}
+            placeholder="Configuration name"
+            className="h-7 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/25"
+          />
+          <Button
+            size="sm"
+            className="h-7 text-xs"
+            disabled={!configName.trim() || saving}
+            onClick={() => saveConfig(configName.trim())}
+          >
+            {saving ? 'Saving…' : 'Save Configuration'}
+          </Button>
+        </div>
       )}
     </div>
   )

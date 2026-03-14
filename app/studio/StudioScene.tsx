@@ -1,8 +1,8 @@
 'use client'
 
-import { useMemo, useEffect } from 'react'
-import { Canvas, useThree } from '@react-three/fiber'
-import { OrbitControls, Grid } from '@react-three/drei'
+import { useMemo, useEffect, useRef, useLayoutEffect, useCallback, useState } from 'react'
+import { Canvas, useThree, useFrame } from '@react-three/fiber'
+import { OrbitControls, Grid, TransformControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { useStudioStore } from './page.stores'
 import { SegmentData } from './page.types'
@@ -32,6 +32,80 @@ function CameraController() {
   return null
 }
 
+function SphereSelector() {
+  const { sphere, setSphere } = useStudioStore()
+  const groupRef = useRef<THREE.Group>(null!)
+  const isDragging = useRef(false)
+  const lastIdsKey = useRef('')
+  const { controls } = useThree()
+
+  useLayoutEffect(() => {
+    if (!groupRef.current || isDragging.current || !sphere) return
+    groupRef.current.position.set(sphere.x, sphere.y, sphere.z)
+  }, [sphere?.x, sphere?.y, sphere?.z])
+
+  useFrame(() => {
+    if (!groupRef.current) return
+    const s = useStudioStore.getState().sphere
+    if (!s) return
+    const { segments: segs, modelRotation: mr } = useStudioStore.getState()
+    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(...mr)).invert()
+    const { x, y, z } = groupRef.current.position
+    const localCenter = new THREE.Vector3(x, y, z).applyQuaternion(q)
+    const r2 = s.radius * s.radius
+    const matchingIds: string[] = []
+    for (const seg of segs) {
+      let hit = false
+      for (let i = 0; i < seg.positions.length; i += 3) {
+        const dx = seg.positions[i] - localCenter.x
+        const dy = seg.positions[i + 1] - localCenter.y
+        const dz = seg.positions[i + 2] - localCenter.z
+        if (dx * dx + dy * dy + dz * dz <= r2) { hit = true; break }
+      }
+      if (hit) matchingIds.push(seg.id)
+    }
+    const newKey = matchingIds.join(',')
+    if (newKey !== lastIdsKey.current) {
+      lastIdsKey.current = newKey
+      useStudioStore.getState().setPendingSegmentIds(matchingIds)
+    }
+  })
+
+  const handleMouseDown = useCallback(() => {
+    isDragging.current = true
+    if (controls) (controls as unknown as { enabled: boolean }).enabled = false
+  }, [controls])
+
+  const handleMouseUp = useCallback(() => {
+    isDragging.current = false
+    if (controls) (controls as unknown as { enabled: boolean }).enabled = true
+    if (!groupRef.current) return
+    const { x, y, z } = groupRef.current.position
+    const s = useStudioStore.getState().sphere
+    if (!s) return
+    setSphere({ x, y, z, radius: s.radius })
+  }, [controls, setSphere])
+
+  if (!sphere) return null
+
+  return (
+    <>
+      <group ref={groupRef}>
+        <mesh>
+          <sphereGeometry args={[sphere.radius, 32, 16]} />
+          <meshStandardMaterial color="#7c3aed" transparent opacity={0.2} depthWrite={false} />
+        </mesh>
+      </group>
+      <TransformControls
+        object={groupRef}
+        mode="translate"
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+      />
+    </>
+  )
+}
+
 function SegmentMesh({
   seg,
   isPending,
@@ -45,6 +119,8 @@ function SegmentMesh({
   dimmed: boolean
   onClick: () => void
 }) {
+  const { selectionMode, sphere, setSphere } = useStudioStore()
+
   const geom = useMemo(() => {
     const g = new THREE.BufferGeometry()
     g.setAttribute('position', new THREE.BufferAttribute(seg.positions, 3))
@@ -52,9 +128,18 @@ function SegmentMesh({
     return g
   }, [seg.positions])
 
+  const handleClick = useCallback((e: { stopPropagation: () => void; point: THREE.Vector3 }) => {
+    e.stopPropagation()
+    if (selectionMode === 'sphere') {
+      setSphere({ x: e.point.x, y: e.point.y, z: e.point.z, radius: sphere?.radius ?? 2.0 })
+    } else if (selectionMode === 'click') {
+      onClick()
+    }
+  }, [selectionMode, sphere, setSphere, onClick])
+
   if (isPending) {
     return (
-      <mesh geometry={geom} onClick={(e) => { e.stopPropagation(); onClick() }}>
+      <mesh geometry={geom} onClick={handleClick}>
         <meshStandardMaterial
           color={seg.color}
           emissive={seg.color}
@@ -68,14 +153,14 @@ function SegmentMesh({
 
   if (groupColor) {
     return (
-      <mesh geometry={geom} onClick={(e) => { e.stopPropagation(); onClick() }}>
+      <mesh geometry={geom} onClick={handleClick}>
         <meshStandardMaterial color={groupColor} roughness={0.4} metalness={0.05} />
       </mesh>
     )
   }
 
   return (
-    <mesh geometry={geom} onClick={(e) => { e.stopPropagation(); onClick() }}>
+    <mesh geometry={geom} onClick={handleClick}>
       <meshStandardMaterial
         color={seg.color}
         opacity={dimmed ? 0.35 : 1}
@@ -87,8 +172,30 @@ function SegmentMesh({
   )
 }
 
+const BATCH_SIZE = 10
+
 function SceneContent() {
-  const { segments, pendingSegmentIds, groups, togglePendingSegment, modelRotation } = useStudioStore()
+  const {
+    segments, pendingSegmentIds, groups, togglePendingSegment, modelRotation,
+    selectionMode, sphere, setSphere,
+  } = useStudioStore()
+
+  const [renderCount, setRenderCount] = useState(0)
+
+  useEffect(() => {
+    if (segments.length === 0) { setRenderCount(0); return }
+    let count = 0
+    let raf: number
+    function addBatch() {
+      count = Math.min(count + BATCH_SIZE, segments.length)
+      setRenderCount(count)
+      if (count < segments.length) raf = requestAnimationFrame(addBatch)
+    }
+    raf = requestAnimationFrame(addBatch)
+    return () => cancelAnimationFrame(raf)
+  }, [segments])
+
+  const visibleSegments = segments.slice(0, renderCount)
 
   const assignedMap = useMemo(() => {
     const map = new Map<string, string>()
@@ -115,8 +222,21 @@ function SceneContent() {
         fadeStrength={1}
         infiniteGrid
       />
+      {selectionMode === 'sphere' && (
+        <mesh
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[0, 0, 0]}
+          onClick={(e) => {
+            e.stopPropagation()
+            setSphere({ x: e.point.x, y: e.point.y, z: e.point.z, radius: sphere?.radius ?? 2.0 })
+          }}
+        >
+          <planeGeometry args={[1000, 1000]} />
+          <meshBasicMaterial visible={false} side={THREE.DoubleSide} />
+        </mesh>
+      )}
       <group rotation={modelRotation}>
-        {segments.map((seg) => (
+        {visibleSegments.map((seg) => (
           <SegmentMesh
             key={seg.id}
             seg={seg}
@@ -128,6 +248,7 @@ function SceneContent() {
         ))}
         <NodeOverlay />
       </group>
+      {selectionMode === 'sphere' && sphere !== null && <SphereSelector />}
     </>
   )
 }
