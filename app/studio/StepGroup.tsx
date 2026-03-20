@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useStudioStore } from './page.stores'
-import { BodyGroup, BodyGroupType } from './page.types'
+import { BodyGroup, BodyGroupType, NodeType } from './page.types'
 import { useSaveConfig } from './page.hooks'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -15,6 +16,15 @@ import {
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
+
+const GROUP_NODE_TYPES: Partial<Record<BodyGroup['type'], NodeType[]>> = {
+  head: ['front', 'back'],
+  spine: ['front', 'back'],
+  tail: ['front', 'back'],
+  'leg-left': ['hip', 'foot'],
+  'leg-right': ['hip', 'foot'],
+}
+
 function GroupRow({
   group,
   hasSelection,
@@ -25,6 +35,9 @@ function GroupRow({
   canMoveUp,
   canMoveDown,
   nested,
+  inNodeMode,
+  isNodeSelected,
+  onSelectNode,
 }: {
   group: BodyGroup
   hasSelection: boolean
@@ -35,49 +48,76 @@ function GroupRow({
   canMoveUp?: boolean
   canMoveDown?: boolean
   nested?: boolean
+  inNodeMode?: boolean
+  isNodeSelected?: (nodeType: NodeType) => boolean
+  onSelectNode?: (nodeType: NodeType) => void
 }) {
+  const nodeTypes = GROUP_NODE_TYPES[group.type] ?? []
+
   return (
-    <div className={`flex items-center gap-2 py-1 ${nested ? 'ml-4' : ''}`}>
-      <div
-        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-        style={{ backgroundColor: group.color }}
-      />
-      <span className="text-xs text-white/80 flex-1 truncate">{group.name}</span>
-      <span className="text-[10px] text-white/30 shrink-0">
-        {group.type} · {group.segmentIds.length}
-      </span>
-      {hasSelection && (
+    <div className={nested ? 'ml-4' : ''}>
+      <div className="flex items-center gap-2 py-1">
+        <div
+          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+          style={{ backgroundColor: group.color }}
+        />
+        <span className="text-xs text-white/80 flex-1 truncate">{group.name}</span>
+        <span className="text-[10px] text-white/30 shrink-0">
+          {group.type} · {group.segmentIds.length}
+        </span>
+        {hasSelection && (
+          <button
+            onClick={onAddSelected}
+            className="text-[10px] bg-emerald-600/30 hover:bg-emerald-600/60 text-emerald-300 rounded px-1.5 py-0.5 transition-colors shrink-0"
+          >
+            Add
+          </button>
+        )}
+        {group.type === 'spine' && (
+          <>
+            <button
+              onClick={onMoveUp}
+              disabled={!canMoveUp}
+              className="text-white/30 hover:text-white/70 disabled:opacity-20 text-xs px-0.5"
+            >
+              ▲
+            </button>
+            <button
+              onClick={onMoveDown}
+              disabled={!canMoveDown}
+              className="text-white/30 hover:text-white/70 disabled:opacity-20 text-xs px-0.5"
+            >
+              ▼
+            </button>
+          </>
+        )}
         <button
-          onClick={onAddSelected}
-          className="text-[10px] bg-emerald-600/30 hover:bg-emerald-600/60 text-emerald-300 rounded px-1.5 py-0.5 transition-colors shrink-0"
+          onClick={onDelete}
+          className="text-white/20 hover:text-red-400 text-xs px-0.5"
         >
-          Add
+          ✕
         </button>
+      </div>
+      {inNodeMode && nodeTypes.length > 0 && (
+        <div className="flex gap-1 ml-4 mb-1">
+          {nodeTypes.map((nt) => {
+            const isSelected = isNodeSelected?.(nt) ?? false
+            return (
+              <Badge
+                key={nt}
+                variant="outline"
+                className={cn(
+                  'text-[10px] cursor-pointer transition-colors',
+                  isSelected ? 'bg-white text-black border-white' : 'text-white/50 hover:text-white'
+                )}
+                onClick={() => onSelectNode?.(nt)}
+              >
+                {nt}
+              </Badge>
+            )
+          })}
+        </div>
       )}
-      {group.type === 'spine' && (
-        <>
-          <button
-            onClick={onMoveUp}
-            disabled={!canMoveUp}
-            className="text-white/30 hover:text-white/70 disabled:opacity-20 text-xs px-0.5"
-          >
-            ▲
-          </button>
-          <button
-            onClick={onMoveDown}
-            disabled={!canMoveDown}
-            className="text-white/30 hover:text-white/70 disabled:opacity-20 text-xs px-0.5"
-          >
-            ▼
-          </button>
-        </>
-      )}
-      <button
-        onClick={onDelete}
-        className="text-white/20 hover:text-red-400 text-xs px-0.5"
-      >
-        ✕
-      </button>
     </div>
   )
 }
@@ -96,9 +136,8 @@ export function StepGroup() {
     reorderSpineGroups,
     selectionMode,
     setSelectionMode,
-    selectedNodeGroupId,
-    nodeTransformMode,
-    setNodeTransformMode,
+    selectedNodeId,
+    setSelectedNodeId,
   } = useStudioStore()
 
   const { mutate: saveConfig, isPending: saving } = useSaveConfig()
@@ -130,6 +169,41 @@ export function StepGroup() {
   }
 
   const hasGroups = groups.length > 0
+  const inNodeMode = selectionMode === 'node'
+
+  const spineChain = useMemo(() => {
+    const head = groups.find((g) => g.type === 'head')
+    const tail = groups.find((g) => g.type === 'tail')
+    const spines = groups.filter((g) => g.type === 'spine')
+    return [...(head ? [head] : []), ...spines, ...(tail ? [tail] : [])]
+  }, [groups])
+
+  function resolveNodeOwner(groupId: string, nodeType: NodeType): { groupId: string; nodeType: NodeType } {
+    if (nodeType === 'front') {
+      const idx = spineChain.findIndex((g) => g.id === groupId)
+      if (idx > 0) return { groupId: spineChain[idx - 1].id, nodeType: 'back' }
+    }
+    if (nodeType === 'hip') {
+      const legGroup = groups.find((g) => g.id === groupId)
+      if (legGroup?.attachedToSpineId) {
+        return {
+          groupId: legGroup.attachedToSpineId,
+          nodeType: legGroup.type === 'leg-left' ? 'hipLeft' : 'hipRight',
+        }
+      }
+    }
+    return { groupId, nodeType }
+  }
+
+  function isNodeSelected(groupId: string, nodeType: NodeType): boolean {
+    if (!selectedNodeId) return false
+    const owner = resolveNodeOwner(groupId, nodeType)
+    return owner.groupId === selectedNodeId.groupId && owner.nodeType === selectedNodeId.nodeType
+  }
+
+  function handleSelectNode(groupId: string, nodeType: NodeType) {
+    setSelectedNodeId(resolveNodeOwner(groupId, nodeType))
+  }
 
   const [copied, setCopied] = useState(false)
 
@@ -183,32 +257,6 @@ export function StepGroup() {
           Node
         </button>
       </div>
-
-      {selectionMode === 'node' && selectedNodeGroupId && (
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[10px] text-white/40 uppercase tracking-widest">Transform</span>
-          <div className="flex gap-1 p-1 bg-white/5 rounded-lg">
-            <button
-              onClick={() => setNodeTransformMode('translate')}
-              className={cn(
-                'flex-1 py-1 text-xs rounded-md transition-colors',
-                nodeTransformMode === 'translate' ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white/70'
-              )}
-            >
-              Move
-            </button>
-            <button
-              onClick={() => setNodeTransformMode('rotate')}
-              className={cn(
-                'flex-1 py-1 text-xs rounded-md transition-colors',
-                nodeTransformMode === 'rotate' ? 'bg-amber-600/40 text-amber-300' : 'text-white/40 hover:text-white/70'
-              )}
-            >
-              Rotate
-            </button>
-          </div>
-        </div>
-      )}
 
       {pendingSegmentIds.length > 0 && (
         <div className="flex items-center justify-between">
@@ -269,6 +317,9 @@ export function StepGroup() {
               hasSelection={pendingSegmentIds.length > 0}
               onAddSelected={() => addToGroup(headGroup.id)}
               onDelete={() => deleteGroup(headGroup.id)}
+              inNodeMode={inNodeMode}
+              isNodeSelected={(nt) => isNodeSelected(headGroup.id, nt)}
+              onSelectNode={(nt) => handleSelectNode(headGroup.id, nt)}
             />
           )}
           {spineGroups.map((sg, i) => {
@@ -286,6 +337,9 @@ export function StepGroup() {
                   onMoveDown={() => moveSpine(sg.id, 1)}
                   canMoveUp={i > 0}
                   canMoveDown={i < spineGroups.length - 1}
+                  inNodeMode={inNodeMode}
+                  isNodeSelected={(nt) => isNodeSelected(sg.id, nt)}
+                  onSelectNode={(nt) => handleSelectNode(sg.id, nt)}
                 />
                 {attached.map((leg) => (
                   <GroupRow
@@ -295,6 +349,9 @@ export function StepGroup() {
                     onAddSelected={() => addToGroup(leg.id)}
                     onDelete={() => deleteGroup(leg.id)}
                     nested
+                    inNodeMode={inNodeMode}
+                    isNodeSelected={(nt) => isNodeSelected(leg.id, nt)}
+                    onSelectNode={(nt) => handleSelectNode(leg.id, nt)}
                   />
                 ))}
               </div>
@@ -312,6 +369,9 @@ export function StepGroup() {
                 hasSelection={pendingSegmentIds.length > 0}
                 onAddSelected={() => addToGroup(leg.id)}
                 onDelete={() => deleteGroup(leg.id)}
+                inNodeMode={inNodeMode}
+                isNodeSelected={(nt) => isNodeSelected(leg.id, nt)}
+                onSelectNode={(nt) => handleSelectNode(leg.id, nt)}
               />
             ))}
           {tailGroup && (
@@ -320,6 +380,9 @@ export function StepGroup() {
               hasSelection={pendingSegmentIds.length > 0}
               onAddSelected={() => addToGroup(tailGroup.id)}
               onDelete={() => deleteGroup(tailGroup.id)}
+              inNodeMode={inNodeMode}
+              isNodeSelected={(nt) => isNodeSelected(tailGroup.id, nt)}
+              onSelectNode={(nt) => handleSelectNode(tailGroup.id, nt)}
             />
           )}
         </div>

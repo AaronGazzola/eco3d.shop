@@ -38,11 +38,12 @@ export function useCreature(
   useEffect(() => {
     const baseY = config.limbSegmentLength * LIZARD_BASE_Y_RATIO
     const origin = new THREE.Vector3(0, baseY, 0)
-    chainRef.current = new Chain3D(origin, config.segmentCount, config.segmentLength, config.angleConstraint)
+    const segmentLengths = config.segmentLengths ?? Array(config.segmentCount - 1).fill(config.segmentLength)
+    chainRef.current = new Chain3D(origin, config.segmentCount, segmentLengths, config.angleConstraint)
     headingRef.current = 0
 
     limbStatesRef.current = config.limbNodes.map(() => makeLimb())
-  }, [config.segmentCount, config.segmentLength, config.angleConstraint, config.limbNodes.length, config.limbSegmentLength])
+  }, [config.segmentCount, config.segmentLength, config.segmentLengths, config.angleConstraint, config.limbNodes.length, config.limbSegmentLength])
 
   useFrame((_, delta) => {
     const chain = chainRef.current
@@ -71,18 +72,21 @@ export function useCreature(
       const spineAngle = chain.angles[limbNode.index]
 
       const side = limbNode.side
+      const halfWidth = limbNode.bodyHalfWidth ?? config.bodyHalfWidth
+      const reach = limbNode.limbReach ?? config.limbReach
+      const limbSegLen = limbNode.limbSegmentLength ?? config.limbSegmentLength
       const sideAngle = spineAngle + (Math.PI / 2) * side
       limb.anchor.set(
-        spineJoint.x + Math.cos(sideAngle) * config.bodyHalfWidth,
+        spineJoint.x + Math.cos(sideAngle) * halfWidth,
         spineJoint.y,
-        spineJoint.z + Math.sin(sideAngle) * config.bodyHalfWidth
+        spineJoint.z + Math.sin(sideAngle) * halfWidth
       )
 
       const footAngle = spineAngle + config.limbAngleOffset * side
       const desired = new THREE.Vector3(
-        spineJoint.x + Math.cos(footAngle) * config.limbReach,
+        spineJoint.x + Math.cos(footAngle) * reach,
         0,
-        spineJoint.z + Math.sin(footAngle) * config.limbReach,
+        spineJoint.z + Math.sin(footAngle) * reach,
       )
 
       if (desired.distanceTo(limb.desiredTarget) > config.stepThreshold) {
@@ -91,7 +95,7 @@ export function useCreature(
 
       limb.currentTarget.lerp(limb.desiredTarget, config.stepSmoothing)
 
-      fabrikResolve(limb.joints, limb.currentTarget, limb.anchor, config.limbSegmentLength)
+      fabrikResolve(limb.joints, limb.currentTarget, limb.anchor, limbSegLen)
     })
   })
 

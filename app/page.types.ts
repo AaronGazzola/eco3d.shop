@@ -3,12 +3,16 @@ export type AnimalType = 'lizard'
 export interface LimbNode {
   index: number
   side: 1 | -1
+  bodyHalfWidth?: number
+  limbSegmentLength?: number
+  limbReach?: number
 }
 
 export interface CreatureConfig {
   animalType: AnimalType
   segmentCount: number
   segmentLength: number
+  segmentLengths?: number[]
   angleConstraint: number
   limbNodes: LimbNode[]
   limbSegmentLength: number

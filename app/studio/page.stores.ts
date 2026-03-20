@@ -2,7 +2,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { SegmentData, BodyGroup, BodyGroupType, ModelConfigRow } from './page.types'
+import { SegmentData, BodyGroup, BodyGroupType, ModelConfigRow, NodeType } from './page.types'
 
 const SEGMENT_COLORS = [
   '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
@@ -25,8 +25,7 @@ interface StudioStore {
   modelRotation: [number, number, number]
   selectionMode: 'click' | 'sphere' | 'node'
   sphere: { x: number; y: number; z: number; radius: number } | null
-  selectedNodeGroupId: string | null
-  nodeTransformMode: 'translate' | 'rotate'
+  selectedNodeId: { groupId: string; nodeType: NodeType } | null
 
   setStlKey: (key: string) => void
   setConfigId: (id: string | null) => void
@@ -49,10 +48,8 @@ interface StudioStore {
   setSphere: (sphere: { x: number; y: number; z: number; radius: number } | null) => void
   setSphereRadius: (radius: number) => void
   setPendingSegmentIds: (ids: string[]) => void
-  setSelectedNodeGroupId: (id: string | null) => void
-  setNodeTransformMode: (mode: 'translate' | 'rotate') => void
-  setNodeGroupPosition: (groupId: string, x: number, z: number) => void
-  setNodeGroupAngle: (groupId: string, angle: number) => void
+  setSelectedNodeId: (id: { groupId: string; nodeType: NodeType } | null) => void
+  setGroupNode: (groupId: string, nodeType: NodeType, x: number, z: number) => void
 }
 
 export const useStudioStore = create<StudioStore>()(
@@ -70,8 +67,7 @@ export const useStudioStore = create<StudioStore>()(
       modelRotation: [0, 0, 0],
       selectionMode: 'click',
       sphere: null,
-      selectedNodeGroupId: null,
-      nodeTransformMode: 'translate',
+      selectedNodeId: null,
 
       setStlKey: (key) => set({ stlKey: key }),
 
@@ -90,7 +86,7 @@ export const useStudioStore = create<StudioStore>()(
           pendingSegmentIds: [],
           selectionMode: 'click',
           sphere: null,
-          selectedNodeGroupId: null,
+          selectedNodeId: null,
         }),
 
 
@@ -185,8 +181,8 @@ export const useStudioStore = create<StudioStore>()(
         })),
 
       setSelectionMode: (mode) => {
-        if (mode === 'click') set({ selectionMode: mode, sphere: null, selectedNodeGroupId: null })
-        else if (mode === 'sphere') set({ selectionMode: mode, selectedNodeGroupId: null })
+        if (mode === 'click') set({ selectionMode: mode, sphere: null, selectedNodeId: null })
+        else if (mode === 'sphere') set({ selectionMode: mode, selectedNodeId: null })
         else set({ selectionMode: mode, sphere: null, pendingSegmentIds: [] })
       },
 
@@ -197,22 +193,21 @@ export const useStudioStore = create<StudioStore>()(
 
       setPendingSegmentIds: (ids) => set({ pendingSegmentIds: ids }),
 
-      setSelectedNodeGroupId: (id) => set({ selectedNodeGroupId: id }),
+      setSelectedNodeId: (id) => set({ selectedNodeId: id }),
 
-      setNodeTransformMode: (mode) => set({ nodeTransformMode: mode }),
-
-      setNodeGroupPosition: (groupId, x, z) =>
+      setGroupNode: (groupId, nodeType, x, z) =>
         set((state) => ({
-          groups: state.groups.map((g) =>
-            g.id === groupId ? { ...g, nodePosition: { x, z } } : g
-          ),
-        })),
-
-      setNodeGroupAngle: (groupId, angle) =>
-        set((state) => ({
-          groups: state.groups.map((g) =>
-            g.id === groupId ? { ...g, nodeAngle: angle } : g
-          ),
+          groups: state.groups.map((g) => {
+            if (g.id !== groupId) return g
+            switch (nodeType) {
+              case 'front': return { ...g, nodeFront: { x, z } }
+              case 'back': return { ...g, nodeBack: { x, z } }
+              case 'hipLeft': return { ...g, nodeHipLeft: { x, z } }
+              case 'hipRight': return { ...g, nodeHipRight: { x, z } }
+              case 'hip': return { ...g, nodeHip: { x, z } }
+              case 'foot': return { ...g, nodeFoot: { x, z } }
+            }
+          }),
         })),
     }),
     {

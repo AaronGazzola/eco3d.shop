@@ -9,11 +9,15 @@ import { useCreature } from './useCreature'
 
 const BATCH_SIZE = 8
 
-function resolveNodePos(
-  group: BodyGroup,
-  segmentMap: Map<string, SegmentData>
-): { x: number; z: number } {
-  if (group.nodePosition) return group.nodePosition
+
+function getSpineChain(modelConfig: ModelConfigRow): BodyGroup[] {
+  const head = modelConfig.groups.find((g) => g.type === 'head')
+  const tail = modelConfig.groups.find((g) => g.type === 'tail')
+  const spines = modelConfig.groups.filter((g) => g.type === 'spine')
+  return [...(head ? [head] : []), ...spines, ...(tail ? [tail] : [])]
+}
+
+function centroid(group: BodyGroup, segmentMap: Map<string, SegmentData>): { x: number; z: number } {
   let sumX = 0, sumZ = 0, count = 0
   for (const sid of group.segmentIds) {
     const seg = segmentMap.get(sid)
@@ -25,13 +29,6 @@ function resolveNodePos(
     }
   }
   return count > 0 ? { x: sumX / count, z: sumZ / count } : { x: 0, z: 0 }
-}
-
-function getSpineChain(modelConfig: ModelConfigRow): BodyGroup[] {
-  const head = modelConfig.groups.find((g) => g.type === 'head')
-  const tail = modelConfig.groups.find((g) => g.type === 'tail')
-  const spines = modelConfig.groups.filter((g) => g.type === 'spine')
-  return [...(head ? [head] : []), ...spines, ...(tail ? [tail] : [])]
 }
 
 function SegmentMesh({
@@ -92,46 +89,70 @@ export function AnimatedModel({
 
   const allGroups = useMemo(() => [...spineChain, ...legGroups], [spineChain, legGroups])
 
-  const nodePositions = useMemo(
-    () => new Map(allGroups.map((g) => [g.id, resolveNodePos(g, segmentMap)])),
-    [allGroups, segmentMap]
-  )
+  // nodePositions: midpoint of each group's actual front and back in model space
+  const nodePositions = useMemo(() => {
+    const map = new Map<string, { x: number; z: number }>()
+    spineChain.forEach((g, i) => {
+      const prev = i > 0 ? spineChain[i - 1] : null
+      const front = i === 0
+        ? (g.nodeFront ?? centroid(g, segmentMap))
+        : (prev!.nodeBack ?? centroid(prev!, segmentMap))
+      const back = g.nodeBack ?? centroid(g, segmentMap)
+      map.set(g.id, { x: (front.x + back.x) / 2, z: (front.z + back.z) / 2 })
+    })
+    legGroups.forEach((g) => {
+      const spineGroup = modelConfig.groups.find((sg) => sg.id === g.attachedToSpineId)
+      const hipNode = spineGroup
+        ? (g.type === 'leg-left' ? spineGroup.nodeHipLeft : spineGroup.nodeHipRight)
+        : undefined
+      if (hipNode && g.nodeFoot) {
+        map.set(g.id, { x: (hipNode.x + g.nodeFoot.x) / 2, z: (hipNode.z + g.nodeFoot.z) / 2 })
+      } else if (hipNode) {
+        map.set(g.id, { x: hipNode.x, z: hipNode.z })
+      } else {
+        map.set(g.id, centroid(g, segmentMap))
+      }
+    })
+    return map
+  }, [spineChain, legGroups, segmentMap, modelConfig.groups])
 
   const legGroupIndexMap = useMemo(
     () => new Map(legGroups.map((g, i) => [g.id, i])),
     [legGroups]
   )
 
-  const chainIndexMap = useMemo(() => {
+  const chainSegmentIndexMap = useMemo(() => {
     const map = new Map<string, number>()
-    spineChain.forEach((g, i) => {
-      map.set(g.id, g.type === 'tail' ? spineChain.length : i)
-    })
+    spineChain.forEach((g, i) => map.set(g.id, i))
     return map
   }, [spineChain])
 
-  // restAngle[i] = "toward head" direction in model space for joint i
   const restAngles = useMemo(() => {
-    const angles = spineChain.map((g, i) => {
-      const curr = nodePositions.get(g.id)!
-      if (i === 0) {
-        const next = spineChain[1] ? nodePositions.get(spineChain[1].id)! : curr
-        return Math.atan2(curr.z - next.z, curr.x - next.x)
-      }
-      const prev = nodePositions.get(spineChain[i - 1].id)!
-      return Math.atan2(prev.z - curr.z, prev.x - curr.x)
+    return spineChain.map((g, i) => {
+      const prev = i > 0 ? spineChain[i - 1] : null
+      const front = i === 0
+        ? (g.nodeFront ?? centroid(g, segmentMap))
+        : (prev!.nodeBack ?? centroid(prev!, segmentMap))
+      const back = g.nodeBack ?? centroid(g, segmentMap)
+      return Math.atan2(front.z - back.z, front.x - back.x)
     })
-    return [...angles, angles[angles.length - 1] ?? 0]
-  }, [spineChain, nodePositions])
+  }, [spineChain, segmentMap])
 
   const legRestAngles = useMemo(() => {
     return legGroups.map((g) => {
+      const spineGroup = modelConfig.groups.find((sg) => sg.id === g.attachedToSpineId)
+      const hipNode = spineGroup
+        ? (g.type === 'leg-left' ? spineGroup.nodeHipLeft : spineGroup.nodeHipRight)
+        : undefined
+      if (hipNode && g.nodeFoot) {
+        return Math.atan2(hipNode.z - g.nodeFoot.z, hipNode.x - g.nodeFoot.x)
+      }
       const legNp = nodePositions.get(g.id)
       const parentNp = g.attachedToSpineId ? nodePositions.get(g.attachedToSpineId) : undefined
       if (!legNp || !parentNp) return 0
       return Math.atan2(parentNp.z - legNp.z, parentNp.x - legNp.x)
     })
-  }, [legGroups, nodePositions])
+  }, [legGroups, nodePositions, modelConfig.groups])
 
   const [renderCount, setRenderCount] = useState(0)
 
@@ -153,11 +174,12 @@ export function AnimatedModel({
     if (!chain) return
 
     groupRefsRef.current.forEach((obj, groupId) => {
-      const chainIdx = chainIndexMap.get(groupId)
-      if (chainIdx !== undefined && chainIdx < chain.joints.length) {
-        const joint = chain.joints[chainIdx]
-        obj.position.set(joint.x, 0, joint.z)
-        obj.rotation.y = restAngles[chainIdx] - chain.angles[chainIdx]
+      const segIdx = chainSegmentIndexMap.get(groupId)
+      if (segIdx !== undefined && segIdx + 1 < chain.joints.length) {
+        const joint0 = chain.joints[segIdx]
+        const joint1 = chain.joints[segIdx + 1]
+        obj.position.set((joint0.x + joint1.x) / 2, 0, (joint0.z + joint1.z) / 2)
+        obj.rotation.y = restAngles[segIdx] - chain.angles[segIdx]
         return
       }
 
@@ -167,10 +189,10 @@ export function AnimatedModel({
       if (!limb) return
 
       const legG = legGroups[limbIdx]
-      const parentIdx = legG.attachedToSpineId
-        ? (chainIndexMap.get(legG.attachedToSpineId) ?? 0)
+      const parentSegIdx = legG.attachedToSpineId
+        ? (chainSegmentIndexMap.get(legG.attachedToSpineId) ?? 0)
         : 0
-      const safeParentIdx = Math.min(parentIdx, chain.joints.length - 1)
+      const safeParentIdx = Math.min(parentSegIdx, chain.joints.length - 1)
       const parentJoint = chain.joints[safeParentIdx]
 
       const worldAngle = Math.atan2(
