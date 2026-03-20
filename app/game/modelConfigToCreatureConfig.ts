@@ -56,7 +56,7 @@ export function modelConfigToCreatureConfig(
 
   return {
     ...defaults,
-    segmentCount: chain.length,
+    segmentCount: chain.length + 1,
     segmentLength,
     limbNodes,
     limbSegmentLength: segmentLength * 1.2,

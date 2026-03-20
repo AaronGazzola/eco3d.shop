@@ -75,7 +75,7 @@ export function AnimatedModel({
   segments: SegmentData[]
   targetRef: MutableRefObject<THREE.Vector3>
 }) {
-  const { chainRef } = useCreature(creatureConfig, targetRef)
+  const { chainRef, limbStatesRef } = useCreature(creatureConfig, targetRef)
   const groupRefsRef = useRef<Map<string, THREE.Group>>(new Map())
 
   const segmentMap = useMemo(() => new Map(segments.map((s) => [s.id, s])), [segments])
@@ -97,14 +97,22 @@ export function AnimatedModel({
     [allGroups, segmentMap]
   )
 
-  const chainIndexMap = useMemo(
-    () => new Map(spineChain.map((g, i) => [g.id, i])),
-    [spineChain]
+  const legGroupIndexMap = useMemo(
+    () => new Map(legGroups.map((g, i) => [g.id, i])),
+    [legGroups]
   )
+
+  const chainIndexMap = useMemo(() => {
+    const map = new Map<string, number>()
+    spineChain.forEach((g, i) => {
+      map.set(g.id, g.type === 'tail' ? spineChain.length : i)
+    })
+    return map
+  }, [spineChain])
 
   // restAngle[i] = "toward head" direction in model space for joint i
   const restAngles = useMemo(() => {
-    return spineChain.map((g, i) => {
+    const angles = spineChain.map((g, i) => {
       const curr = nodePositions.get(g.id)!
       if (i === 0) {
         const next = spineChain[1] ? nodePositions.get(spineChain[1].id)! : curr
@@ -113,7 +121,17 @@ export function AnimatedModel({
       const prev = nodePositions.get(spineChain[i - 1].id)!
       return Math.atan2(prev.z - curr.z, prev.x - curr.x)
     })
+    return [...angles, angles[angles.length - 1] ?? 0]
   }, [spineChain, nodePositions])
+
+  const legRestAngles = useMemo(() => {
+    return legGroups.map((g) => {
+      const legNp = nodePositions.get(g.id)
+      const parentNp = g.attachedToSpineId ? nodePositions.get(g.attachedToSpineId) : undefined
+      if (!legNp || !parentNp) return 0
+      return Math.atan2(parentNp.z - legNp.z, parentNp.x - legNp.x)
+    })
+  }, [legGroups, nodePositions])
 
   const [renderCount, setRenderCount] = useState(0)
 
@@ -136,7 +154,6 @@ export function AnimatedModel({
 
     groupRefsRef.current.forEach((obj, groupId) => {
       const chainIdx = chainIndexMap.get(groupId)
-
       if (chainIdx !== undefined && chainIdx < chain.joints.length) {
         const joint = chain.joints[chainIdx]
         obj.position.set(joint.x, 0, joint.z)
@@ -144,22 +161,24 @@ export function AnimatedModel({
         return
       }
 
-      const legGroup = modelConfig.groups.find((g) => g.id === groupId)
-      if (!legGroup?.attachedToSpineId) return
-      const parentIdx = chainIndexMap.get(legGroup.attachedToSpineId)
-      if (parentIdx === undefined || parentIdx >= chain.joints.length) return
+      const limbIdx = legGroupIndexMap.get(groupId)
+      if (limbIdx === undefined) return
+      const limb = limbStatesRef.current[limbIdx]
+      if (!limb) return
 
-      const parentJoint = chain.joints[parentIdx]
-      const parentAngle = chain.angles[parentIdx]
-      const side = legGroup.type === 'leg-left' ? -1 : 1
-      const sideAngle = parentAngle + (Math.PI / 2) * side
+      const legG = legGroups[limbIdx]
+      const parentIdx = legG.attachedToSpineId
+        ? (chainIndexMap.get(legG.attachedToSpineId) ?? 0)
+        : 0
+      const safeParentIdx = Math.min(parentIdx, chain.joints.length - 1)
+      const parentJoint = chain.joints[safeParentIdx]
 
-      obj.position.set(
-        parentJoint.x + Math.cos(sideAngle) * creatureConfig.bodyHalfWidth,
-        0,
-        parentJoint.z + Math.sin(sideAngle) * creatureConfig.bodyHalfWidth
+      const worldAngle = Math.atan2(
+        parentJoint.z - limb.currentTarget.z,
+        parentJoint.x - limb.currentTarget.x
       )
-      obj.rotation.y = restAngles[parentIdx] - parentAngle
+      obj.position.set(limb.currentTarget.x, 0, limb.currentTarget.z)
+      obj.rotation.y = legRestAngles[limbIdx] - worldAngle
     })
   })
 
