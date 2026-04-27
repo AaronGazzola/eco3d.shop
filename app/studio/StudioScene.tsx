@@ -5,8 +5,42 @@ import { Canvas, useThree, useFrame } from '@react-three/fiber'
 import { OrbitControls, Grid, TransformControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { useStudioStore } from './page.stores'
-import { SegmentData } from './page.types'
+import { SegmentData, ModelConfigRow, BodyGroup } from './page.types'
 import { NodeOverlay } from './NodeOverlay'
+import { AnimatedModel } from '../game/AnimatedModel'
+import { TargetController } from '../game/TargetController'
+import { modelConfigToCreatureConfig } from '../game/modelConfigToCreatureConfig'
+
+function groupCentroidXZ(group: BodyGroup, segmentMap: Map<string, SegmentData>): { x: number; z: number } {
+  let sumX = 0, sumZ = 0, count = 0
+  for (const sid of group.segmentIds) {
+    const seg = segmentMap.get(sid)
+    if (!seg) continue
+    for (let i = 0; i < seg.positions.length; i += 3) {
+      sumX += seg.positions[i]
+      sumZ += seg.positions[i + 2]
+      count++
+    }
+  }
+  return count > 0 ? { x: sumX / count, z: sumZ / count } : { x: 0, z: 0 }
+}
+
+function buildChainJoints(groups: BodyGroup[], segments: SegmentData[]): { x: number; z: number }[] {
+  const head = groups.find((g) => g.type === 'head')
+  const tail = groups.find((g) => g.type === 'tail')
+  const spines = groups.filter((g) => g.type === 'spine')
+  const chain: BodyGroup[] = [...(head ? [head] : []), ...spines, ...(tail ? [tail] : [])]
+  if (chain.length === 0) return []
+  const segmentMap = new Map(segments.map((s) => [s.id, s]))
+  const joints: { x: number; z: number }[] = []
+  const front0 = chain[0].nodeFront ?? groupCentroidXZ(chain[0], segmentMap)
+  joints.push({ x: front0.x, z: front0.z })
+  for (const g of chain) {
+    const back = g.nodeBack ?? groupCentroidXZ(g, segmentMap)
+    joints.push({ x: back.x, z: back.z })
+  }
+  return joints
+}
 
 const CAMERA_PRESETS = {
   reset: { pos: [0, 8, 16]    as [number, number, number], target: [0, 3, 0] as [number, number, number] },
@@ -174,6 +208,74 @@ function SegmentMesh({
 
 const BATCH_SIZE = 10
 
+function AnimateContent() {
+  const { segments, groups, stlKey, configId, configName, modelRotation, animationConfig, showAttractor } = useStudioStore()
+
+  const initialJoints = useMemo(() => buildChainJoints(groups, segments), [groups, segments])
+  const headXZ = initialJoints[0] ?? null
+
+  const targetRef = useRef(new THREE.Vector3(headXZ?.x ?? 0, 0, headXZ?.z ?? 0))
+  const userTargetGoalRef = useRef(new THREE.Vector3(headXZ?.x ?? 0, 0, headXZ?.z ?? 0))
+
+  useEffect(() => {
+    if (!headXZ) return
+    targetRef.current.set(headXZ.x, 0, headXZ.z)
+    userTargetGoalRef.current.set(headXZ.x, 0, headXZ.z)
+  }, [headXZ?.x, headXZ?.z])
+
+  const modelConfig = useMemo<ModelConfigRow>(
+    () => ({
+      id: configId ?? 'studio-preview',
+      stl_key: stlKey ?? '',
+      name: configName || 'preview',
+      groups,
+      model_rotation: modelRotation,
+      created_at: new Date().toISOString(),
+    }),
+    [configId, stlKey, configName, groups, modelRotation]
+  )
+
+  const creatureConfig = useMemo(() => {
+    const base = modelConfigToCreatureConfig(modelConfig, segments)
+    return {
+      ...base,
+      ...animationConfig,
+      chainOrigin: headXZ ?? undefined,
+      initialJoints: initialJoints.length > 0 ? initialJoints : undefined,
+    }
+  }, [modelConfig, segments, animationConfig, headXZ?.x, headXZ?.z, initialJoints])
+
+  if (groups.length === 0 || segments.length === 0) return null
+
+  return (
+    <>
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, 0, 0]}
+        onPointerDown={(e) => {
+          e.stopPropagation()
+          userTargetGoalRef.current.set(e.point.x, 0, e.point.z)
+        }}
+      >
+        <planeGeometry args={[1000, 1000]} />
+        <meshBasicMaterial visible={false} side={THREE.DoubleSide} />
+      </mesh>
+      <TargetController
+        targetRef={targetRef}
+        userTargetGoalRef={userTargetGoalRef}
+        config={creatureConfig}
+        showAttractor={showAttractor}
+      />
+      <AnimatedModel
+        creatureConfig={creatureConfig}
+        modelConfig={modelConfig}
+        segments={segments}
+        targetRef={targetRef}
+      />
+    </>
+  )
+}
+
 function SceneContent() {
   const {
     segments, pendingSegmentIds, groups, togglePendingSegment, modelRotation,
@@ -253,6 +355,11 @@ function SceneContent() {
   )
 }
 
+function StepGate() {
+  const step = useStudioStore((s) => s.step)
+  return step === 3 ? <AnimateContent /> : <SceneContent />
+}
+
 export function StudioScene() {
   return (
     <Canvas
@@ -270,7 +377,7 @@ export function StudioScene() {
           RIGHT: THREE.MOUSE.ROTATE,
         }}
       />
-      <SceneContent />
+      <StepGate />
       <CameraController />
     </Canvas>
   )

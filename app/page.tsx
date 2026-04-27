@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/sidebar'
 
 export default function HomePage() {
-  const { config, showAttractor, selectedConfig } = useCreatureStore()
+  const { config, showAttractor, showSkeletonOverlay, selectedConfig } = useCreatureStore()
 
   return (
     <SidebarProvider
@@ -20,7 +20,7 @@ export default function HomePage() {
       style={{ '--sidebar-width': '20rem' } as React.CSSProperties}
     >
       <SidebarInset className="relative overflow-hidden">
-        <SkeletonScene config={config} showAttractor={showAttractor} selectedConfig={selectedConfig} />
+        <SkeletonScene config={config} showAttractor={showAttractor} showSkeletonOverlay={showSkeletonOverlay} selectedConfig={selectedConfig} />
         <SidebarTrigger className="absolute top-3 right-3 z-10 text-white/50 hover:text-white hover:bg-white/15 [&_svg]:size-4" />
       </SidebarInset>
       <Sidebar side="right" collapsible="offcanvas">

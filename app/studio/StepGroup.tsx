@@ -138,6 +138,7 @@ export function StepGroup() {
     setSelectionMode,
     selectedNodeId,
     setSelectedNodeId,
+    setStep,
   } = useStudioStore()
 
   const { mutate: saveConfig, isPending: saving } = useSaveConfig()
@@ -411,6 +412,16 @@ export function StepGroup() {
             {saving ? 'Saving…' : 'Save Configuration'}
           </Button>
         </div>
+      )}
+
+      {hasGroups && (
+        <Button
+          size="sm"
+          className="h-8 text-xs bg-violet-600 hover:bg-violet-500 text-white"
+          onClick={() => setStep(3)}
+        >
+          Animate →
+        </Button>
       )}
     </div>
   )

@@ -1,14 +1,26 @@
 'use client'
 
 import { useMemo, useRef, useState, useEffect, MutableRefObject } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { CreatureConfig } from '../page.types'
 import { ModelConfigRow, SegmentData, BodyGroup } from '../studio/page.types'
-import { useCreature } from './useCreature'
+import { useCreature, LimbState } from './useCreature'
+import { Chain3D } from './chain3d'
+import {
+  MAX_SEGMENTS,
+  MAX_LIMBS,
+  SPINE_NODE_RADIUS,
+  FOOT_RADIUS,
+  LIMB_JOINT_RADIUS,
+  SPINE_COLOR,
+  LIMB_COLOR,
+  FOOT_COLOR,
+  LIMB_JOINT_COLOR,
+} from './SkeletonRenderer.constants'
 
 const BATCH_SIZE = 8
-
+const _dummy = new THREE.Object3D()
 
 function getSpineChain(modelConfig: ModelConfigRow): BodyGroup[] {
   const head = modelConfig.groups.find((g) => g.type === 'head')
@@ -31,16 +43,146 @@ function centroid(group: BodyGroup, segmentMap: Map<string, SegmentData>): { x: 
   return count > 0 ? { x: sumX / count, z: sumZ / count } : { x: 0, z: 0 }
 }
 
+function SkeletonOverlay({
+  chainRef,
+  limbStatesRef,
+}: {
+  chainRef: MutableRefObject<Chain3D | null>
+  limbStatesRef: MutableRefObject<LimbState[]>
+}) {
+  const { scene } = useThree()
+  const spineGeomRef = useRef<THREE.BufferGeometry | null>(null)
+  const limbGeomRef = useRef<THREE.BufferGeometry | null>(null)
+  const nodesMeshRef = useRef<THREE.InstancedMesh | null>(null)
+  const footMeshRef = useRef<THREE.InstancedMesh | null>(null)
+  const limbJointMeshRef = useRef<THREE.InstancedMesh | null>(null)
+
+  useEffect(() => {
+    const spineGeom = new THREE.BufferGeometry()
+    const spineMat = new THREE.LineBasicMaterial({ color: SPINE_COLOR })
+    const spineLine = new THREE.Line(spineGeom, spineMat)
+    scene.add(spineLine)
+    spineGeomRef.current = spineGeom
+
+    const limbGeom = new THREE.BufferGeometry()
+    const limbMat = new THREE.LineBasicMaterial({ color: LIMB_COLOR })
+    const limbLine = new THREE.LineSegments(limbGeom, limbMat)
+    scene.add(limbLine)
+    limbGeomRef.current = limbGeom
+
+    const sphereGeom = new THREE.SphereGeometry(SPINE_NODE_RADIUS, 8, 8)
+    const whiteMat = new THREE.MeshStandardMaterial({ color: SPINE_COLOR })
+    const nodesMesh = new THREE.InstancedMesh(sphereGeom, whiteMat, MAX_SEGMENTS)
+    nodesMesh.count = 0
+    scene.add(nodesMesh)
+    nodesMeshRef.current = nodesMesh
+
+    const footGeom = new THREE.SphereGeometry(FOOT_RADIUS, 8, 8)
+    const greenMat = new THREE.MeshStandardMaterial({ color: FOOT_COLOR })
+    const footMesh = new THREE.InstancedMesh(footGeom, greenMat, MAX_LIMBS)
+    footMesh.count = 0
+    scene.add(footMesh)
+    footMeshRef.current = footMesh
+
+    const jGeom = new THREE.SphereGeometry(LIMB_JOINT_RADIUS, 6, 6)
+    const amberMat = new THREE.MeshStandardMaterial({ color: LIMB_JOINT_COLOR })
+    const jointMesh = new THREE.InstancedMesh(jGeom, amberMat, MAX_LIMBS * 3)
+    jointMesh.count = 0
+    scene.add(jointMesh)
+    limbJointMeshRef.current = jointMesh
+
+    return () => {
+      scene.remove(spineLine)
+      scene.remove(limbLine)
+      scene.remove(nodesMesh)
+      scene.remove(footMesh)
+      scene.remove(jointMesh)
+      spineGeom.dispose()
+      limbGeom.dispose()
+      sphereGeom.dispose()
+      footGeom.dispose()
+      jGeom.dispose()
+      spineMat.dispose()
+      limbMat.dispose()
+      whiteMat.dispose()
+      greenMat.dispose()
+      amberMat.dispose()
+    }
+  }, [scene])
+
+  useFrame(() => {
+    const chain = chainRef.current
+    if (!chain) return
+
+    const n = chain.joints.length
+    const arr = new Float32Array(n * 3)
+    for (let i = 0; i < n; i++) {
+      arr[i * 3] = chain.joints[i].x
+      arr[i * 3 + 1] = chain.joints[i].y
+      arr[i * 3 + 2] = chain.joints[i].z
+    }
+    if (spineGeomRef.current) {
+      spineGeomRef.current.setAttribute('position', new THREE.BufferAttribute(arr, 3))
+    }
+    if (nodesMeshRef.current) {
+      nodesMeshRef.current.count = n
+      for (let i = 0; i < n; i++) {
+        _dummy.position.copy(chain.joints[i])
+        _dummy.updateMatrix()
+        nodesMeshRef.current.setMatrixAt(i, _dummy.matrix)
+      }
+      nodesMeshRef.current.instanceMatrix.needsUpdate = true
+    }
+
+    const limbs = limbStatesRef.current
+    const ptr: number[] = []
+    limbs.forEach((limb) => {
+      ptr.push(limb.anchor.x, limb.anchor.y, limb.anchor.z, limb.currentTarget.x, limb.currentTarget.y, limb.currentTarget.z)
+    })
+    if (limbGeomRef.current) {
+      limbGeomRef.current.setAttribute(
+        'position',
+        new THREE.BufferAttribute(new Float32Array(ptr), 3)
+      )
+      limbGeomRef.current.computeBoundingSphere()
+    }
+
+    if (footMeshRef.current) {
+      footMeshRef.current.count = limbs.length
+      limbs.forEach((limb, i) => {
+        _dummy.position.copy(limb.currentTarget)
+        _dummy.updateMatrix()
+        footMeshRef.current!.setMatrixAt(i, _dummy.matrix)
+      })
+      footMeshRef.current.instanceMatrix.needsUpdate = true
+    }
+
+    if (limbJointMeshRef.current) {
+      limbJointMeshRef.current.count = limbs.length
+      limbs.forEach((limb, i) => {
+        _dummy.position.copy(limb.anchor)
+        _dummy.updateMatrix()
+        limbJointMeshRef.current!.setMatrixAt(i, _dummy.matrix)
+      })
+      limbJointMeshRef.current.instanceMatrix.needsUpdate = true
+    }
+  })
+
+  return null
+}
+
 function SegmentMesh({
   positions,
   color,
   offsetX,
   offsetZ,
+  transparent,
 }: {
   positions: Float32Array
   color: string
   offsetX: number
   offsetZ: number
+  transparent: boolean
 }) {
   const geometry = useMemo(() => {
     const arr = positions.slice()
@@ -56,7 +198,14 @@ function SegmentMesh({
 
   return (
     <mesh geometry={geometry}>
-      <meshStandardMaterial color={color} roughness={0.5} metalness={0.05} />
+      <meshStandardMaterial
+        key={transparent ? 'transparent' : 'opaque'}
+        color={color}
+        roughness={0.5}
+        metalness={0.05}
+        transparent={transparent}
+        opacity={transparent ? 0.18 : 1}
+      />
     </mesh>
   )
 }
@@ -66,11 +215,13 @@ export function AnimatedModel({
   modelConfig,
   segments,
   targetRef,
+  showSkeleton,
 }: {
   creatureConfig: CreatureConfig
   modelConfig: ModelConfigRow
   segments: SegmentData[]
   targetRef: MutableRefObject<THREE.Vector3>
+  showSkeleton?: boolean
 }) {
   const { chainRef, limbStatesRef } = useCreature(creatureConfig, targetRef)
   const groupRefsRef = useRef<Map<string, THREE.Group>>(new Map())
@@ -89,7 +240,6 @@ export function AnimatedModel({
 
   const allGroups = useMemo(() => [...spineChain, ...legGroups], [spineChain, legGroups])
 
-  // nodePositions: midpoint of each group's actual front and back in model space
   const nodePositions = useMemo(() => {
     const map = new Map<string, { x: number; z: number }>()
     spineChain.forEach((g, i) => {
@@ -97,18 +247,17 @@ export function AnimatedModel({
       const front = i === 0
         ? (g.nodeFront ?? centroid(g, segmentMap))
         : (prev!.nodeBack ?? centroid(prev!, segmentMap))
-      const back = g.nodeBack ?? centroid(g, segmentMap)
-      map.set(g.id, { x: (front.x + back.x) / 2, z: (front.z + back.z) / 2 })
+      map.set(g.id, { x: front.x, z: front.z })
     })
     legGroups.forEach((g) => {
       const spineGroup = modelConfig.groups.find((sg) => sg.id === g.attachedToSpineId)
       const hipNode = spineGroup
         ? (g.type === 'leg-left' ? spineGroup.nodeHipLeft : spineGroup.nodeHipRight)
         : undefined
-      if (hipNode && g.nodeFoot) {
-        map.set(g.id, { x: (hipNode.x + g.nodeFoot.x) / 2, z: (hipNode.z + g.nodeFoot.z) / 2 })
-      } else if (hipNode) {
+      if (hipNode) {
         map.set(g.id, { x: hipNode.x, z: hipNode.z })
+      } else if (g.nodeFoot) {
+        map.set(g.id, { x: g.nodeFoot.x, z: g.nodeFoot.z })
       } else {
         map.set(g.id, centroid(g, segmentMap))
       }
@@ -145,14 +294,11 @@ export function AnimatedModel({
         ? (g.type === 'leg-left' ? spineGroup.nodeHipLeft : spineGroup.nodeHipRight)
         : undefined
       if (hipNode && g.nodeFoot) {
-        return Math.atan2(hipNode.z - g.nodeFoot.z, hipNode.x - g.nodeFoot.x)
+        return Math.atan2(g.nodeFoot.z - hipNode.z, g.nodeFoot.x - hipNode.x)
       }
-      const legNp = nodePositions.get(g.id)
-      const parentNp = g.attachedToSpineId ? nodePositions.get(g.attachedToSpineId) : undefined
-      if (!legNp || !parentNp) return 0
-      return Math.atan2(parentNp.z - legNp.z, parentNp.x - legNp.x)
+      return 0
     })
-  }, [legGroups, nodePositions, modelConfig.groups])
+  }, [legGroups, modelConfig.groups])
 
   const [renderCount, setRenderCount] = useState(0)
 
@@ -178,8 +324,9 @@ export function AnimatedModel({
       if (segIdx !== undefined && segIdx + 1 < chain.joints.length) {
         const joint0 = chain.joints[segIdx]
         const joint1 = chain.joints[segIdx + 1]
-        obj.position.set((joint0.x + joint1.x) / 2, 0, (joint0.z + joint1.z) / 2)
-        obj.rotation.y = restAngles[segIdx] - chain.angles[segIdx]
+        const boneAngle = Math.atan2(joint1.z - joint0.z, joint1.x - joint0.x)
+        obj.position.set(joint0.x, 0, joint0.z)
+        obj.rotation.y = restAngles[segIdx] + Math.PI - boneAngle
         return
       }
 
@@ -188,18 +335,11 @@ export function AnimatedModel({
       const limb = limbStatesRef.current[limbIdx]
       if (!limb) return
 
-      const legG = legGroups[limbIdx]
-      const parentSegIdx = legG.attachedToSpineId
-        ? (chainSegmentIndexMap.get(legG.attachedToSpineId) ?? 0)
-        : 0
-      const safeParentIdx = Math.min(parentSegIdx, chain.joints.length - 1)
-      const parentJoint = chain.joints[safeParentIdx]
-
       const worldAngle = Math.atan2(
-        parentJoint.z - limb.currentTarget.z,
-        parentJoint.x - limb.currentTarget.x
+        limb.currentTarget.z - limb.anchor.z,
+        limb.currentTarget.x - limb.anchor.x
       )
-      obj.position.set(limb.currentTarget.x, 0, limb.currentTarget.z)
+      obj.position.set(limb.anchor.x, 0, limb.anchor.z)
       obj.rotation.y = legRestAngles[limbIdx] - worldAngle
     })
   })
@@ -228,12 +368,16 @@ export function AnimatedModel({
                   color={g.color}
                   offsetX={-np.x}
                   offsetZ={-np.z}
+                  transparent={!!showSkeleton}
                 />
               )
             })}
           </group>
         )
       })}
+      {showSkeleton && (
+        <SkeletonOverlay chainRef={chainRef} limbStatesRef={limbStatesRef} />
+      )}
     </group>
   )
 }

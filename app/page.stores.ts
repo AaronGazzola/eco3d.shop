@@ -8,6 +8,7 @@ import { CREATURE_DEFAULTS } from './page.constants'
 interface CreatureStore {
   config: CreatureConfig
   showAttractor: boolean
+  showSkeletonOverlay: boolean
   selectedConfig: ModelConfigRow | null
   setSegmentCount: (n: number) => void
   setSegmentLength: (s: number) => void
@@ -15,12 +16,14 @@ interface CreatureStore {
   toggleLimbNode: (index: number, side: 1 | -1) => void
   setConfigField: (key: keyof CreatureConfig, value: number) => void
   setShowAttractor: (v: boolean) => void
+  setShowSkeletonOverlay: (v: boolean) => void
   setSelectedConfig: (config: ModelConfigRow | null) => void
 }
 
 export const useCreatureStore = create<CreatureStore>((set) => ({
   config: CREATURE_DEFAULTS.lizard,
   showAttractor: true,
+  showSkeletonOverlay: false,
   selectedConfig: null,
 
   setSegmentCount: (n) =>
@@ -51,5 +54,6 @@ export const useCreatureStore = create<CreatureStore>((set) => ({
     set((state) => ({ config: { ...state.config, [key]: value } })),
 
   setShowAttractor: (v) => set({ showAttractor: v }),
+  setShowSkeletonOverlay: (v) => set({ showSkeletonOverlay: v }),
   setSelectedConfig: (config) => set({ selectedConfig: config }),
 }))

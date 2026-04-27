@@ -88,6 +88,20 @@ export function modelConfigToCreatureConfig(
         limbReach = spineCenter.distanceTo(footV)
       }
 
+      const parentLocalOrigin = idx === 0
+        ? (spineGroup.nodeFront ?? { x: spineCenter.x, z: spineCenter.z })
+        : (chain[idx - 1].nodeBack ?? { x: centroids[idx - 1].x, z: centroids[idx - 1].z })
+
+      const hipOffset = hipNode
+        ? { x: hipNode.x - parentLocalOrigin.x, z: hipNode.z - parentLocalOrigin.z }
+        : undefined
+
+      const parentBack = spineGroup.nodeBack ?? { x: spineCenter.x, z: spineCenter.z }
+      const parentRestAngle = Math.atan2(
+        parentLocalOrigin.z - parentBack.z,
+        parentLocalOrigin.x - parentBack.x
+      )
+
       return [
         {
           index: idx,
@@ -95,6 +109,8 @@ export function modelConfigToCreatureConfig(
           bodyHalfWidth,
           limbSegmentLength,
           limbReach,
+          hipOffset,
+          parentRestAngle,
         },
       ]
     })

@@ -6,6 +6,8 @@ export interface LimbNode {
   bodyHalfWidth?: number
   limbSegmentLength?: number
   limbReach?: number
+  hipOffset?: { x: number; z: number }
+  parentRestAngle?: number
 }
 
 export interface CreatureConfig {
@@ -25,4 +27,6 @@ export interface CreatureConfig {
   wanderSpeed: number
   maxSpeed: number
   followDistance: number
+  chainOrigin?: { x: number; z: number }
+  initialJoints?: { x: number; z: number }[]
 }

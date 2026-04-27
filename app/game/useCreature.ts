@@ -11,7 +11,7 @@ import {
   SPEED_DECAY_DIST,
 } from './useCreature.constants'
 
-interface LimbState {
+export interface LimbState {
   joints: THREE.Vector3[]
   anchor: THREE.Vector3
   currentTarget: THREE.Vector3
@@ -37,13 +37,27 @@ export function useCreature(
 
   useEffect(() => {
     const baseY = config.limbSegmentLength * LIZARD_BASE_Y_RATIO
-    const origin = new THREE.Vector3(0, baseY, 0)
+    const ox = config.chainOrigin?.x ?? 0
+    const oz = config.chainOrigin?.z ?? 0
+    const origin = new THREE.Vector3(ox, baseY, oz)
     const segmentLengths = config.segmentLengths ?? Array(config.segmentCount - 1).fill(config.segmentLength)
-    chainRef.current = new Chain3D(origin, config.segmentCount, segmentLengths, config.angleConstraint)
-    headingRef.current = 0
+    const chain = new Chain3D(origin, config.segmentCount, segmentLengths, config.angleConstraint)
+    if (config.initialJoints && config.initialJoints.length > 0) {
+      for (let i = 0; i < chain.joints.length; i++) {
+        const ij = config.initialJoints[Math.min(i, config.initialJoints.length - 1)]
+        chain.joints[i].set(ij.x, baseY, ij.z)
+      }
+      const j0 = chain.joints[0]
+      const j1 = chain.joints[Math.min(1, chain.joints.length - 1)]
+      headingRef.current = Math.atan2(j0.z - j1.z, j0.x - j1.x)
+      for (let i = 0; i < chain.angles.length; i++) chain.angles[i] = headingRef.current
+    } else {
+      headingRef.current = 0
+    }
+    chainRef.current = chain
 
     limbStatesRef.current = config.limbNodes.map(() => makeLimb())
-  }, [config.segmentCount, config.segmentLength, config.segmentLengths, config.angleConstraint, config.limbNodes.length, config.limbSegmentLength])
+  }, [config.segmentCount, config.segmentLength, config.segmentLengths, config.angleConstraint, config.limbNodes.length, config.limbSegmentLength, config.chainOrigin?.x, config.chainOrigin?.z, config.initialJoints])
 
   useFrame((_, delta) => {
     const chain = chainRef.current
@@ -70,17 +84,31 @@ export function useCreature(
       if (!limbNode || limbNode.index >= chain.joints.length) return
       const spineJoint = chain.joints[limbNode.index]
       const spineAngle = chain.angles[limbNode.index]
+      const nextJoint = chain.joints[Math.min(limbNode.index + 1, chain.joints.length - 1)]
+      const boneAngle = Math.atan2(nextJoint.z - spineJoint.z, nextJoint.x - spineJoint.x)
 
       const side = limbNode.side
       const halfWidth = limbNode.bodyHalfWidth ?? config.bodyHalfWidth
       const reach = limbNode.limbReach ?? config.limbReach
       const limbSegLen = limbNode.limbSegmentLength ?? config.limbSegmentLength
-      const sideAngle = spineAngle + (Math.PI / 2) * side
-      limb.anchor.set(
-        spineJoint.x + Math.cos(sideAngle) * halfWidth,
-        spineJoint.y,
-        spineJoint.z + Math.sin(sideAngle) * halfWidth
-      )
+
+      if (limbNode.hipOffset && limbNode.parentRestAngle !== undefined) {
+        const parentRot = limbNode.parentRestAngle + Math.PI - boneAngle
+        const cos = Math.cos(parentRot)
+        const sin = Math.sin(parentRot)
+        limb.anchor.set(
+          spineJoint.x + limbNode.hipOffset.x * cos + limbNode.hipOffset.z * sin,
+          spineJoint.y,
+          spineJoint.z - limbNode.hipOffset.x * sin + limbNode.hipOffset.z * cos
+        )
+      } else {
+        const sideAngle = spineAngle + (Math.PI / 2) * side
+        limb.anchor.set(
+          spineJoint.x + Math.cos(sideAngle) * halfWidth,
+          spineJoint.y,
+          spineJoint.z + Math.sin(sideAngle) * halfWidth
+        )
+      }
 
       const footAngle = spineAngle + config.limbAngleOffset * side
       const desired = new THREE.Vector3(

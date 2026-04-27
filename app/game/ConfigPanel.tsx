@@ -11,12 +11,15 @@ export function ConfigPanel() {
   const {
     config,
     showAttractor,
+    showSkeletonOverlay,
+    selectedConfig,
     setSegmentCount,
     setSegmentLength,
     setAngleConstraint,
     toggleLimbNode,
     setConfigField,
     setShowAttractor,
+    setShowSkeletonOverlay,
   } = useCreatureStore()
 
   const { segmentCount, segmentLength, angleConstraint, limbNodes } = config
@@ -186,6 +189,17 @@ export function ConfigPanel() {
       <div>
         <SectionTitle>Models</SectionTitle>
         <ModelList />
+        {selectedConfig && (
+          <label className="flex items-center gap-2 cursor-pointer select-none mt-3">
+            <input
+              type="checkbox"
+              checked={showSkeletonOverlay}
+              onChange={(e) => setShowSkeletonOverlay(e.target.checked)}
+              className="w-3.5 h-3.5 accent-violet-500"
+            />
+            <span className="text-xs text-white/60">Show skeleton overlay</span>
+          </label>
+        )}
       </div>
 
       <Divider />

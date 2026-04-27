@@ -37,3 +37,14 @@ export interface BodyGroup {
   nodeHipRight?: { x: number; z: number }
   nodeFoot?: { x: number; z: number }
 }
+
+export interface AnimationConfig {
+  angleConstraint: number
+  limbAngleOffset: number
+  stepThreshold: number
+  stepSmoothing: number
+  wanderRadius: number
+  wanderSpeed: number
+  maxSpeed: number
+  followDistance: number
+}

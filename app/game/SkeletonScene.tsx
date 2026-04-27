@@ -16,18 +16,21 @@ import { modelConfigToCreatureConfig } from './modelConfigToCreatureConfig'
 interface Props {
   config: CreatureConfig
   showAttractor: boolean
+  showSkeletonOverlay: boolean
   selectedConfig: ModelConfigRow | null
 }
 
 function SceneContent({
   config,
   showAttractor,
+  showSkeletonOverlay,
   targetRef,
   selectedConfig,
   segments,
 }: {
   config: CreatureConfig
   showAttractor: boolean
+  showSkeletonOverlay: boolean
   targetRef: MutableRefObject<THREE.Vector3>
   selectedConfig: ModelConfigRow | null
   segments: SegmentData[]
@@ -61,6 +64,7 @@ function SceneContent({
           modelConfig={selectedConfig}
           segments={segments}
           targetRef={targetRef}
+          showSkeleton={showSkeletonOverlay}
         />
       ) : (
         <SkeletonRenderer config={config} targetRef={targetRef} headPosRef={headPosRef} />
@@ -69,7 +73,7 @@ function SceneContent({
   )
 }
 
-function SkeletonSceneInner({ config, showAttractor, selectedConfig }: Props) {
+function SkeletonSceneInner({ config, showAttractor, showSkeletonOverlay, selectedConfig }: Props) {
   const targetRef = useRef(new THREE.Vector3(0, 0, 0))
   const { data: segments } = useStlSegments(selectedConfig?.stl_key ?? null)
 
@@ -97,6 +101,7 @@ function SkeletonSceneInner({ config, showAttractor, selectedConfig }: Props) {
       <SceneContent
         config={activeConfig}
         showAttractor={showAttractor}
+        showSkeletonOverlay={showSkeletonOverlay}
         targetRef={targetRef}
         selectedConfig={selectedConfig}
         segments={segments ?? []}
