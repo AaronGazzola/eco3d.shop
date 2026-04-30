@@ -7,13 +7,13 @@ import { ModelConfigRow } from './studio/page.types'
 interface GameStore {
   phase: GamePhase
   eggs: EggSlot[]
-  selectedEggKey: string | null
+  selectedEggId: string | null
   dragon: ModelConfigRow | null
   hatchStartedAt: number | null
   crackStartedAt: number | null
   emergeStartedAt: number | null
   setEggs: (eggs: EggSlot[]) => void
-  selectEgg: (key: string) => void
+  selectEgg: (id: string) => void
   cancelSelection: () => void
   beginHatching: (dragon: ModelConfigRow) => void
   beginCracking: () => void
@@ -25,7 +25,7 @@ interface GameStore {
 export const useGameStore = create<GameStore>((set) => ({
   phase: 'choosing',
   eggs: [],
-  selectedEggKey: null,
+  selectedEggId: null,
   dragon: null,
   hatchStartedAt: null,
   crackStartedAt: null,
@@ -33,17 +33,17 @@ export const useGameStore = create<GameStore>((set) => ({
 
   setEggs: (eggs) => set({ eggs }),
 
-  selectEgg: (key) =>
+  selectEgg: (id) =>
     set((state) =>
       state.phase === 'choosing'
-        ? { selectedEggKey: key, phase: 'confirming' }
+        ? { selectedEggId: id, phase: 'confirming' }
         : state
     ),
 
   cancelSelection: () =>
     set((state) =>
       state.phase === 'confirming'
-        ? { selectedEggKey: null, phase: 'choosing' }
+        ? { selectedEggId: null, phase: 'choosing' }
         : state
     ),
 
@@ -70,7 +70,7 @@ export const useGameStore = create<GameStore>((set) => ({
   reset: () =>
     set({
       phase: 'choosing',
-      selectedEggKey: null,
+      selectedEggId: null,
       dragon: null,
       hatchStartedAt: null,
       crackStartedAt: null,

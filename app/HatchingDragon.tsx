@@ -8,8 +8,7 @@ import { CreatureConfig } from './page.types'
 import { AnimatedModel } from './game/AnimatedModel'
 import { modelConfigToCreatureConfig } from './game/modelConfigToCreatureConfig'
 import { useGameStore } from './page.stores'
-
-const EMERGE_DURATION_MS = 1000
+import { DRAGON_SCALE_INITIAL, DRAGON_SCALE_FINAL, EMERGE_DURATION_MS } from './page.constants'
 
 interface Props {
   modelConfig: ModelConfigRow
@@ -45,24 +44,21 @@ export function HatchingDragon({
       g.visible = false
       return
     }
+
+    let scale = DRAGON_SCALE_FINAL
     if (phase === 'emerging' && emergeStartedAt !== null) {
-      g.visible = true
       const elapsed = performance.now() - emergeStartedAt
       const p = Math.min(Math.max(elapsed / EMERGE_DURATION_MS, 0), 1)
       const ease = 1 - Math.pow(1 - p, 3)
-      const startY = -1.4
-      g.position.y = startY + (0 - startY) * ease
-      const scale = 0.25 + (1 - 0.25) * ease
-      g.scale.set(scale, scale, scale)
+      scale = DRAGON_SCALE_INITIAL + (DRAGON_SCALE_FINAL - DRAGON_SCALE_INITIAL) * ease
+    } else if (phase !== 'live') {
+      g.visible = false
       return
     }
-    if (phase === 'live') {
-      g.visible = true
-      g.position.y = 0
-      g.scale.set(1, 1, 1)
-      return
-    }
-    g.visible = false
+
+    g.visible = true
+    g.scale.set(scale, scale, scale)
+    g.position.set(spawnX * (1 - scale), 0, spawnZ * (1 - scale))
   })
 
   if (segments.length === 0) return null

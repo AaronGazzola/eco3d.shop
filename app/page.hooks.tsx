@@ -3,12 +3,13 @@
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
-import { listEggKeysAction, listDragonConfigsAction } from './page.actions'
+import { listEggPairsAction, listDragonConfigsAction } from './page.actions'
 import { useGameStore } from './page.stores'
 import { EggSlot } from './page.types'
 
 const EGG_OFFSETS_X = [-3.2, 0, 3.2]
 const EGG_Z = 0
+const TARGET_HEIGHT = 1.6
 
 function pickRandom<T>(arr: T[], n: number): T[] {
   const copy = [...arr]
@@ -20,10 +21,10 @@ function pickRandom<T>(arr: T[], n: number): T[] {
   return out
 }
 
-export function useEggKeys() {
+export function useEggPairs() {
   return useQuery({
-    queryKey: ['egg-keys'],
-    queryFn: listEggKeysAction,
+    queryKey: ['egg-pairs'],
+    queryFn: listEggPairsAction,
     staleTime: Infinity,
   })
 }
@@ -37,46 +38,81 @@ export function useDragonConfigs() {
 }
 
 export function useInitEggs() {
-  const { data: eggKeys } = useEggKeys()
+  const { data: pairs } = useEggPairs()
   const { eggs, setEggs } = useGameStore()
 
   useEffect(() => {
-    if (!eggKeys || eggs.length > 0) return
-    const picks = pickRandom(eggKeys, 3)
-    const slots: EggSlot[] = picks.map((key, i) => ({
-      key,
+    if (!pairs || eggs.length > 0) return
+    const picks = pickRandom(pairs, 3)
+    const slots: EggSlot[] = picks.map((p, i) => ({
+      id: p.id,
+      topKey: p.topKey,
+      bottomKey: p.bottomKey,
       x: EGG_OFFSETS_X[i] ?? 0,
       z: EGG_Z,
     }))
     setEggs(slots)
-  }, [eggKeys, eggs.length, setEggs])
+  }, [pairs, eggs.length, setEggs])
 }
 
-export function useEggGeometry(key: string | null) {
+async function fetchAndParseStl(key: string) {
+  const r = await fetch(`/api/r2?key=${encodeURIComponent(key)}`)
+  if (!r.ok) throw new Error(`HTTP ${r.status}`)
+  const buffer = await r.arrayBuffer()
+  const loader = new STLLoader()
+  const geometry = loader.parse(buffer)
+  geometry.rotateX(-Math.PI / 2)
+  return geometry
+}
+
+export function useEggGeometryPair(topKey: string | null, bottomKey: string | null) {
   return useQuery({
-    queryKey: ['egg-geometry', key],
+    queryKey: ['egg-geometry-pair', topKey, bottomKey],
     queryFn: async () => {
-      const r = await fetch(`/api/r2?key=${encodeURIComponent(key!)}`)
-      if (!r.ok) throw new Error(`HTTP ${r.status}`)
-      const buffer = await r.arrayBuffer()
-      const loader = new STLLoader()
-      const geometry = loader.parse(buffer)
-      geometry.rotateX(-Math.PI / 2)
-      geometry.computeBoundingBox()
-      const bb = geometry.boundingBox!
-      const sizeY = bb.max.y - bb.min.y
-      const targetHeight = 1.6
-      const scale = targetHeight / Math.max(sizeY, 0.0001)
-      geometry.scale(scale, scale, scale)
-      geometry.computeBoundingBox()
-      const minY = geometry.boundingBox!.min.y
-      const cx = (geometry.boundingBox!.min.x + geometry.boundingBox!.max.x) / 2
-      const cz = (geometry.boundingBox!.min.z + geometry.boundingBox!.max.z) / 2
-      geometry.translate(-cx, -minY, -cz)
-      geometry.computeVertexNormals()
-      return geometry
+      const [top, bottom] = await Promise.all([
+        fetchAndParseStl(topKey!),
+        fetchAndParseStl(bottomKey!),
+      ])
+
+      top.computeBoundingBox()
+      bottom.computeBoundingBox()
+      const tbb = top.boundingBox!
+      const bbb = bottom.boundingBox!
+      const minY = Math.min(tbb.min.y, bbb.min.y)
+      const maxY = Math.max(tbb.max.y, bbb.max.y)
+      const sizeY = Math.max(maxY - minY, 0.0001)
+      const scale = TARGET_HEIGHT / sizeY
+
+      top.scale(scale, scale, scale)
+      bottom.scale(scale, scale, scale)
+
+      top.computeBoundingBox()
+      bottom.computeBoundingBox()
+      const tbb2 = top.boundingBox!
+      const bbb2 = bottom.boundingBox!
+      const minX = Math.min(tbb2.min.x, bbb2.min.x)
+      const maxX = Math.max(tbb2.max.x, bbb2.max.x)
+      const minY2 = Math.min(tbb2.min.y, bbb2.min.y)
+      const minZ = Math.min(tbb2.min.z, bbb2.min.z)
+      const maxZ = Math.max(tbb2.max.z, bbb2.max.z)
+      const cx = (minX + maxX) / 2
+      const cz = (minZ + maxZ) / 2
+      const ty = -minY2
+
+      top.translate(-cx, ty, -cz)
+      bottom.translate(-cx, ty, -cz)
+
+      top.computeVertexNormals()
+      bottom.computeVertexNormals()
+
+      top.computeBoundingBox()
+      bottom.computeBoundingBox()
+      const seamY = (top.boundingBox!.min.y + bottom.boundingBox!.max.y) / 2
+      const hingeZ = bottom.boundingBox!.max.z
+
+      return { top, bottom, seamY, hingeZ }
     },
-    enabled: !!key,
+    enabled: !!topKey && !!bottomKey,
     staleTime: Infinity,
     gcTime: Infinity,
   })

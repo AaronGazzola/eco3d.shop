@@ -5,17 +5,16 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, Grid } from '@react-three/drei'
 import * as THREE from 'three'
 import { useGameStore } from './page.stores'
-import { useEggKeys, useInitEggs } from './page.hooks'
+import { useEggPairs, useInitEggs } from './page.hooks'
 import { useStlSegments } from './game/useStlSegments'
 import { TargetController } from './game/TargetController'
 import { FloorClickHandler } from './game/FloorClickHandler'
 import { EggMesh } from './EggMesh'
 import { HatchingDragon } from './HatchingDragon'
-import { CREATURE_DEFAULTS } from './page.constants'
+import { CREATURE_DEFAULTS, DRAGON_SCALE_FINAL, EMERGE_DURATION_MS } from './page.constants'
 
 const SHAKE_DURATION_MS = 2000
 const CRACK_DURATION_MS = 600
-const EMERGE_DURATION_MS = 1000
 
 function PhaseDriver({ segmentsReady }: { segmentsReady: boolean }) {
   useFrame(() => {
@@ -78,10 +77,10 @@ function SceneContent() {
   useInitEggs()
   const phase = useGameStore((s) => s.phase)
   const eggs = useGameStore((s) => s.eggs)
-  const selectedEggKey = useGameStore((s) => s.selectedEggKey)
+  const selectedEggId = useGameStore((s) => s.selectedEggId)
   const dragon = useGameStore((s) => s.dragon)
   const selectEgg = useGameStore((s) => s.selectEgg)
-  const { isLoading: eggsLoading } = useEggKeys()
+  const { isLoading: eggsLoading } = useEggPairs()
 
   const targetRef = useRef(new THREE.Vector3(0, 0, 0))
   const userTargetGoalRef = useRef(new THREE.Vector3(0, 0, 0))
@@ -93,7 +92,7 @@ function SceneContent() {
   const { data: dragonSegments } = useStlSegments(stlKeyForLoad)
   const segmentsReady = !!dragonSegments && dragonSegments.length > 0
 
-  const selectedEgg = eggs.find((e) => e.key === selectedEggKey) ?? null
+  const selectedEgg = eggs.find((e) => e.id === selectedEggId) ?? null
   const spawnX = selectedEgg?.x ?? 0
   const spawnZ = selectedEgg?.z ?? 0
 
@@ -119,7 +118,11 @@ function SceneContent() {
         fadeStrength={1.5}
         infiniteGrid
       />
-      <FloorClickHandler userTargetGoalRef={userTargetGoalRef} />
+      <FloorClickHandler
+        userTargetGoalRef={userTargetGoalRef}
+        scale={phase === 'live' ? DRAGON_SCALE_FINAL : 1}
+        origin={{ x: spawnX, z: spawnZ }}
+      />
       {phase === 'live' && (
         <TargetController
           targetRef={targetRef}
@@ -138,13 +141,15 @@ function SceneContent() {
       )}
       {showEggs && !eggsLoading && eggs.map((egg, i) => (
         <EggMesh
-          key={egg.key}
-          stlKey={egg.key}
+          key={egg.id}
+          id={egg.id}
+          topKey={egg.topKey}
+          bottomKey={egg.bottomKey}
           position={[egg.x, 0, egg.z]}
           bobPhase={i * 1.7}
-          isSelected={selectedEggKey === egg.key}
-          dimmed={phase === 'confirming' && selectedEggKey !== egg.key}
-          onClick={() => phase === 'choosing' && selectEgg(egg.key)}
+          isSelected={selectedEggId === egg.id}
+          dimmed={phase === 'confirming' && selectedEggId !== egg.id}
+          onClick={() => phase === 'choosing' && selectEgg(egg.id)}
         />
       ))}
       {showDragon && dragon && dragonSegments && (

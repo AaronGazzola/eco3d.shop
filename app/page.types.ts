@@ -39,8 +39,16 @@ export type GamePhase =
   | 'emerging'
   | 'live'
 
+export interface EggPair {
+  id: string
+  topKey: string
+  bottomKey: string
+}
+
 export interface EggSlot {
-  key: string
+  id: string
+  topKey: string
+  bottomKey: string
   x: number
   z: number
 }

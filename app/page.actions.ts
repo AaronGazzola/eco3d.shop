@@ -3,6 +3,7 @@
 import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3'
 import { createClient } from '@/supabase/server-client'
 import { ModelConfigRow, BodyGroup } from './studio/page.types'
+import { EggPair } from './page.types'
 
 const s3 = new S3Client({
   region: 'auto',
@@ -15,13 +16,42 @@ const s3 = new S3Client({
 
 const BUCKET = process.env.R2_BUCKET_NAME!
 
-export async function listEggKeysAction(): Promise<string[]> {
+export async function listEggPairsAction(): Promise<EggPair[]> {
   const cmd = new ListObjectsV2Command({ Bucket: BUCKET })
   const res = await s3.send(cmd)
-  const keys = (res.Contents ?? []).map((o) => o.Key!).filter(Boolean)
-  return keys.filter(
-    (k) => k.toLowerCase().endsWith('.stl') && k.toLowerCase().includes('egg')
-  )
+  const allKeys = (res.Contents ?? []).map((o) => o.Key!).filter(Boolean)
+
+  const candidates = allKeys.filter((k) => {
+    const lower = k.toLowerCase()
+    if (!lower.endsWith('.stl')) return false
+    if (!lower.includes('egg')) return false
+    if (!k.includes('/STLs/')) return false
+    if (lower.includes('split')) return false
+    const file = k.split('/').pop()!.toLowerCase()
+    if (file.startsWith('simple_')) return false
+    return true
+  })
+
+  const byDir = new Map<string, string[]>()
+  for (const k of candidates) {
+    const dir = k.substring(0, k.lastIndexOf('/'))
+    const list = byDir.get(dir)
+    if (list) list.push(k)
+    else byDir.set(dir, [k])
+  }
+
+  const pairs: EggPair[] = []
+  for (const [dir, files] of byDir.entries()) {
+    const top = files.find((f) => /top/i.test(f.split('/').pop()!))
+    const bottom = files.find((f) => /bottom/i.test(f.split('/').pop()!))
+    if (!top || !bottom) continue
+    const parts = dir.split('/').filter(Boolean)
+    const stlsIdx = parts.lastIndexOf('STLs')
+    const id = stlsIdx > 0 ? parts[stlsIdx - 1] : parts[parts.length - 1]
+    pairs.push({ id, topKey: top, bottomKey: bottom })
+  }
+
+  return pairs
 }
 
 export async function listDragonConfigsAction(): Promise<ModelConfigRow[]> {
