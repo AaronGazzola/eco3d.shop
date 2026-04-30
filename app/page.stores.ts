@@ -1,59 +1,79 @@
 'use client'
 
 import { create } from 'zustand'
-import { CreatureConfig } from './page.types'
+import { EggSlot, GamePhase } from './page.types'
 import { ModelConfigRow } from './studio/page.types'
-import { CREATURE_DEFAULTS } from './page.constants'
 
-interface CreatureStore {
-  config: CreatureConfig
-  showAttractor: boolean
-  showSkeletonOverlay: boolean
-  selectedConfig: ModelConfigRow | null
-  setSegmentCount: (n: number) => void
-  setSegmentLength: (s: number) => void
-  setAngleConstraint: (a: number) => void
-  toggleLimbNode: (index: number, side: 1 | -1) => void
-  setConfigField: (key: keyof CreatureConfig, value: number) => void
-  setShowAttractor: (v: boolean) => void
-  setShowSkeletonOverlay: (v: boolean) => void
-  setSelectedConfig: (config: ModelConfigRow | null) => void
+interface GameStore {
+  phase: GamePhase
+  eggs: EggSlot[]
+  selectedEggKey: string | null
+  dragon: ModelConfigRow | null
+  hatchStartedAt: number | null
+  crackStartedAt: number | null
+  emergeStartedAt: number | null
+  setEggs: (eggs: EggSlot[]) => void
+  selectEgg: (key: string) => void
+  cancelSelection: () => void
+  beginHatching: (dragon: ModelConfigRow) => void
+  beginCracking: () => void
+  beginEmerging: () => void
+  goLive: () => void
+  reset: () => void
 }
 
-export const useCreatureStore = create<CreatureStore>((set) => ({
-  config: CREATURE_DEFAULTS.lizard,
-  showAttractor: true,
-  showSkeletonOverlay: false,
-  selectedConfig: null,
+export const useGameStore = create<GameStore>((set) => ({
+  phase: 'choosing',
+  eggs: [],
+  selectedEggKey: null,
+  dragon: null,
+  hatchStartedAt: null,
+  crackStartedAt: null,
+  emergeStartedAt: null,
 
-  setSegmentCount: (n) =>
-    set((state) => ({
-      config: {
-        ...state.config,
-        segmentCount: n,
-        limbNodes: state.config.limbNodes.filter((l) => l.index < n),
-      },
-    })),
+  setEggs: (eggs) => set({ eggs }),
 
-  setSegmentLength: (s) =>
-    set((state) => ({ config: { ...state.config, segmentLength: s } })),
+  selectEgg: (key) =>
+    set((state) =>
+      state.phase === 'choosing'
+        ? { selectedEggKey: key, phase: 'confirming' }
+        : state
+    ),
 
-  setAngleConstraint: (a) =>
-    set((state) => ({ config: { ...state.config, angleConstraint: a } })),
+  cancelSelection: () =>
+    set((state) =>
+      state.phase === 'confirming'
+        ? { selectedEggKey: null, phase: 'choosing' }
+        : state
+    ),
 
-  toggleLimbNode: (index, side) =>
-    set((state) => {
-      const has = state.config.limbNodes.some((l) => l.index === index && l.side === side)
-      const limbNodes = has
-        ? state.config.limbNodes.filter((l) => !(l.index === index && l.side === side))
-        : [...state.config.limbNodes, { index, side }].sort((a, b) => a.index - b.index || a.side - b.side)
-      return { config: { ...state.config, limbNodes } }
+  beginHatching: (dragon) =>
+    set({ phase: 'shaking', dragon, hatchStartedAt: performance.now() }),
+
+  beginCracking: () =>
+    set((state) =>
+      state.phase === 'shaking'
+        ? { phase: 'cracking', crackStartedAt: performance.now() }
+        : state
+    ),
+
+  beginEmerging: () =>
+    set((state) =>
+      state.phase === 'cracking'
+        ? { phase: 'emerging', emergeStartedAt: performance.now() }
+        : state
+    ),
+
+  goLive: () =>
+    set((state) => (state.phase === 'emerging' ? { phase: 'live' } : state)),
+
+  reset: () =>
+    set({
+      phase: 'choosing',
+      selectedEggKey: null,
+      dragon: null,
+      hatchStartedAt: null,
+      crackStartedAt: null,
+      emergeStartedAt: null,
     }),
-
-  setConfigField: (key, value) =>
-    set((state) => ({ config: { ...state.config, [key]: value } })),
-
-  setShowAttractor: (v) => set({ showAttractor: v }),
-  setShowSkeletonOverlay: (v) => set({ showSkeletonOverlay: v }),
-  setSelectedConfig: (config) => set({ selectedConfig: config }),
 }))

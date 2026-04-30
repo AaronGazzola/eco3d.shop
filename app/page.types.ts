@@ -30,3 +30,17 @@ export interface CreatureConfig {
   chainOrigin?: { x: number; z: number }
   initialJoints?: { x: number; z: number }[]
 }
+
+export type GamePhase =
+  | 'choosing'
+  | 'confirming'
+  | 'shaking'
+  | 'cracking'
+  | 'emerging'
+  | 'live'
+
+export interface EggSlot {
+  key: string
+  x: number
+  z: number
+}
