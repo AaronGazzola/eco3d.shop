@@ -80,14 +80,14 @@ function getCanonicalNodes(
       entries.push({
         groupId: g.id,
         nodeType: 'front',
-        position: g.nodeFront ? new THREE.Vector3(g.nodeFront.x, 0, g.nodeFront.z) : c.clone(),
+        position: g.nodeFront ? new THREE.Vector3(g.nodeFront.x, g.nodeFront.y ?? 0, g.nodeFront.z) : c.clone(),
         color: NODE_COLORS.front,
       })
     }
     entries.push({
       groupId: g.id,
       nodeType: 'back',
-      position: g.nodeBack ? new THREE.Vector3(g.nodeBack.x, 0, g.nodeBack.z) : c.clone(),
+      position: g.nodeBack ? new THREE.Vector3(g.nodeBack.x, g.nodeBack.y ?? 0, g.nodeBack.z) : c.clone(),
       color: NODE_COLORS.back,
     })
 
@@ -98,7 +98,7 @@ function getCanonicalNodes(
         groupId: g.id,
         nodeType: 'hipLeft',
         position: g.nodeHipLeft
-          ? new THREE.Vector3(g.nodeHipLeft.x, 0, g.nodeHipLeft.z)
+          ? new THREE.Vector3(g.nodeHipLeft.x, g.nodeHipLeft.y ?? 0, g.nodeHipLeft.z)
           : new THREE.Vector3(c.x - 0.3, 0, c.z),
         color: NODE_COLORS.hipLeft,
       })
@@ -108,7 +108,7 @@ function getCanonicalNodes(
         groupId: g.id,
         nodeType: 'hipRight',
         position: g.nodeHipRight
-          ? new THREE.Vector3(g.nodeHipRight.x, 0, g.nodeHipRight.z)
+          ? new THREE.Vector3(g.nodeHipRight.x, g.nodeHipRight.y ?? 0, g.nodeHipRight.z)
           : new THREE.Vector3(c.x + 0.3, 0, c.z),
         color: NODE_COLORS.hipRight,
       })
@@ -120,7 +120,7 @@ function getCanonicalNodes(
     entries.push({
       groupId: g.id,
       nodeType: 'foot',
-      position: g.nodeFoot ? new THREE.Vector3(g.nodeFoot.x, 0, g.nodeFoot.z) : c.clone(),
+      position: g.nodeFoot ? new THREE.Vector3(g.nodeFoot.x, g.nodeFoot.y ?? 0, g.nodeFoot.z) : c.clone(),
       color: NODE_COLORS.foot,
     })
   })
@@ -139,9 +139,9 @@ function buildLines(
   chain.forEach((g, i) => {
     const c = computeCentroid(g.segmentIds, segmentMap)
     if (i === 0) {
-      spinePoints.push(g.nodeFront ? new THREE.Vector3(g.nodeFront.x, 0, g.nodeFront.z) : c.clone())
+      spinePoints.push(g.nodeFront ? new THREE.Vector3(g.nodeFront.x, g.nodeFront.y ?? 0, g.nodeFront.z) : c.clone())
     }
-    spinePoints.push(g.nodeBack ? new THREE.Vector3(g.nodeBack.x, 0, g.nodeBack.z) : c.clone())
+    spinePoints.push(g.nodeBack ? new THREE.Vector3(g.nodeBack.x, g.nodeBack.y ?? 0, g.nodeBack.z) : c.clone())
   })
 
   const limbPairs: THREE.Vector3[] = []
@@ -150,8 +150,8 @@ function buildLines(
     if (!spineGroup) return
     const hipNode = g.type === 'leg-left' ? spineGroup.nodeHipLeft : spineGroup.nodeHipRight
     if (!hipNode) return
-    const hip = new THREE.Vector3(hipNode.x, 0, hipNode.z)
-    const foot = g.nodeFoot ? new THREE.Vector3(g.nodeFoot.x, 0, g.nodeFoot.z) : computeCentroid(g.segmentIds, segmentMap)
+    const hip = new THREE.Vector3(hipNode.x, hipNode.y ?? 0, hipNode.z)
+    const foot = g.nodeFoot ? new THREE.Vector3(g.nodeFoot.x, g.nodeFoot.y ?? 0, g.nodeFoot.z) : computeCentroid(g.segmentIds, segmentMap)
     limbPairs.push(hip, foot)
   })
 
@@ -169,7 +169,7 @@ function InteractiveNode({ entry }: { entry: NodeEntry }) {
   useLayoutEffect(() => {
     if (!groupRef.current) return
     groupRef.current.position.copy(entry.position)
-  }, [entry.position.x, entry.position.z])
+  }, [entry.position.x, entry.position.y, entry.position.z])
 
   const handleMouseDown = useCallback(() => {
     if (controls) (controls as unknown as { enabled: boolean }).enabled = false
@@ -178,13 +178,14 @@ function InteractiveNode({ entry }: { entry: NodeEntry }) {
   const handleMouseUp = useCallback(() => {
     if (controls) (controls as unknown as { enabled: boolean }).enabled = true
     if (!groupRef.current) return
-    groupRef.current.position.y = 0
-    setGroupNode(entry.groupId, entry.nodeType, groupRef.current.position.x, groupRef.current.position.z)
+    setGroupNode(
+      entry.groupId,
+      entry.nodeType,
+      groupRef.current.position.x,
+      groupRef.current.position.y,
+      groupRef.current.position.z,
+    )
   }, [controls, entry.groupId, entry.nodeType, setGroupNode])
-
-  const handleChange = useCallback(() => {
-    if (groupRef.current) groupRef.current.position.y = 0
-  }, [])
 
   return (
     <>
@@ -209,10 +210,8 @@ function InteractiveNode({ entry }: { entry: NodeEntry }) {
         <TransformControls
           object={groupRef}
           mode="translate"
-          showY={false}
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
-          onChange={handleChange}
         />
       )}
     </>

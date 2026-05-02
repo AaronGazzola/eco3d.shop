@@ -5,8 +5,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { CreatureConfig } from '../page.types'
 import { ModelConfigRow, SegmentData, BodyGroup } from '../studio/page.types'
-import { useCreature, LimbState, Director } from './useCreature'
-import { BehaviorId } from './animations/types'
+import { useCreature, LimbState } from './useCreature'
 import { Chain3D } from './chain3d'
 import {
   MAX_SEGMENTS,
@@ -217,21 +216,14 @@ export function AnimatedModel({
   segments,
   targetRef,
   showSkeleton,
-  initialBehavior,
-  directorRef,
 }: {
   creatureConfig: CreatureConfig
   modelConfig: ModelConfigRow
   segments: SegmentData[]
   targetRef: MutableRefObject<THREE.Vector3>
   showSkeleton?: boolean
-  initialBehavior?: BehaviorId
-  directorRef?: MutableRefObject<Director | null>
 }) {
-  const { chainRef, limbStatesRef } = useCreature(creatureConfig, targetRef, {
-    initialBehavior,
-    directorRef,
-  })
+  const { chainRef, limbStatesRef } = useCreature(creatureConfig, targetRef)
   const groupRefsRef = useRef<Map<string, THREE.Group>>(new Map())
 
   const segmentMap = useMemo(() => new Map(segments.map((s) => [s.id, s])), [segments])
@@ -335,7 +327,6 @@ export function AnimatedModel({
         const boneAngle = Math.atan2(joint1.z - joint0.z, joint1.x - joint0.x)
         obj.position.set(joint0.x, joint0.y, joint0.z)
         obj.rotation.y = restAngles[segIdx] + Math.PI - boneAngle
-        obj.rotation.z = chain.bankAngle
         return
       }
 

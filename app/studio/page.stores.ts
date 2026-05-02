@@ -65,7 +65,7 @@ interface StudioStore {
   setSphereRadius: (radius: number) => void
   setPendingSegmentIds: (ids: string[]) => void
   setSelectedNodeId: (id: { groupId: string; nodeType: NodeType } | null) => void
-  setGroupNode: (groupId: string, nodeType: NodeType, x: number, z: number) => void
+  setGroupNode: (groupId: string, nodeType: NodeType, x: number, y: number, z: number) => void
 }
 
 export const useStudioStore = create<StudioStore>()(
@@ -218,17 +218,17 @@ export const useStudioStore = create<StudioStore>()(
 
       setShowAttractor: (v) => set({ showAttractor: v }),
 
-      setGroupNode: (groupId, nodeType, x, z) =>
+      setGroupNode: (groupId, nodeType, x, y, z) =>
         set((state) => ({
           groups: state.groups.map((g) => {
             if (g.id !== groupId) return g
             switch (nodeType) {
-              case 'front': return { ...g, nodeFront: { x, z } }
-              case 'back': return { ...g, nodeBack: { x, z } }
-              case 'hipLeft': return { ...g, nodeHipLeft: { x, z } }
-              case 'hipRight': return { ...g, nodeHipRight: { x, z } }
-              case 'hip': return { ...g, nodeHip: { x, z } }
-              case 'foot': return { ...g, nodeFoot: { x, z } }
+              case 'front': return { ...g, nodeFront: { x, y, z } }
+              case 'back': return { ...g, nodeBack: { x, y, z } }
+              case 'hipLeft': return { ...g, nodeHipLeft: { x, y, z } }
+              case 'hipRight': return { ...g, nodeHipRight: { x, y, z } }
+              case 'hip': return g
+              case 'foot': return { ...g, nodeFoot: { x, y, z } }
             }
           }),
         })),
