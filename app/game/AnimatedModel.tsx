@@ -5,7 +5,8 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { CreatureConfig } from '../page.types'
 import { ModelConfigRow, SegmentData, BodyGroup } from '../studio/page.types'
-import { useCreature, LimbState } from './useCreature'
+import { useCreature, LimbState, Director } from './useCreature'
+import { BehaviorId } from './animations/types'
 import { Chain3D } from './chain3d'
 import {
   MAX_SEGMENTS,
@@ -216,14 +217,21 @@ export function AnimatedModel({
   segments,
   targetRef,
   showSkeleton,
+  initialBehavior,
+  directorRef,
 }: {
   creatureConfig: CreatureConfig
   modelConfig: ModelConfigRow
   segments: SegmentData[]
   targetRef: MutableRefObject<THREE.Vector3>
   showSkeleton?: boolean
+  initialBehavior?: BehaviorId
+  directorRef?: MutableRefObject<Director | null>
 }) {
-  const { chainRef, limbStatesRef } = useCreature(creatureConfig, targetRef)
+  const { chainRef, limbStatesRef } = useCreature(creatureConfig, targetRef, {
+    initialBehavior,
+    directorRef,
+  })
   const groupRefsRef = useRef<Map<string, THREE.Group>>(new Map())
 
   const segmentMap = useMemo(() => new Map(segments.map((s) => [s.id, s])), [segments])
@@ -325,8 +333,9 @@ export function AnimatedModel({
         const joint0 = chain.joints[segIdx]
         const joint1 = chain.joints[segIdx + 1]
         const boneAngle = Math.atan2(joint1.z - joint0.z, joint1.x - joint0.x)
-        obj.position.set(joint0.x, 0, joint0.z)
+        obj.position.set(joint0.x, joint0.y, joint0.z)
         obj.rotation.y = restAngles[segIdx] + Math.PI - boneAngle
+        obj.rotation.z = chain.bankAngle
         return
       }
 
@@ -339,7 +348,7 @@ export function AnimatedModel({
         limb.currentTarget.z - limb.anchor.z,
         limb.currentTarget.x - limb.anchor.x
       )
-      obj.position.set(limb.anchor.x, 0, limb.anchor.z)
+      obj.position.set(limb.anchor.x, limb.anchor.y, limb.anchor.z)
       obj.rotation.y = legRestAngles[limbIdx] - worldAngle
     })
   })

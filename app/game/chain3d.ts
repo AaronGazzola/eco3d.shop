@@ -17,6 +17,7 @@ export class Chain3D {
   angles: number[]
   segmentLengths: number[]
   angleConstraint: number
+  bankAngle: number
 
   constructor(
     origin: THREE.Vector3,
@@ -26,6 +27,7 @@ export class Chain3D {
   ) {
     this.segmentLengths = segmentLengths
     this.angleConstraint = constraint
+    this.bankAngle = 0
     this.joints = []
     this.angles = []
     let z = origin.z
@@ -47,6 +49,7 @@ export class Chain3D {
       const constrained = constrainAngle(rawAngle, this.angles[i - 1], this.angleConstraint)
       this.angles[i] = constrained
       curr.x = prev.x - Math.cos(constrained) * segLen
+      curr.y = prev.y
       curr.z = prev.z - Math.sin(constrained) * segLen
     }
   }

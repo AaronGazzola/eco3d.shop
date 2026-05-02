@@ -11,7 +11,8 @@ import { TargetController } from './game/TargetController'
 import { FloorClickHandler } from './game/FloorClickHandler'
 import { EggMesh } from './EggMesh'
 import { HatchingDragon } from './HatchingDragon'
-import { CREATURE_DEFAULTS, DRAGON_SCALE_FINAL, EMERGE_DURATION_MS } from './page.constants'
+import { CREATURE_DEFAULTS, DRAGON_SCALE_FINAL } from './page.constants'
+import { HATCHING_DURATION_MS } from './game/animations/dragon/constants'
 
 const SHAKE_DURATION_MS = 2000
 const CRACK_DURATION_MS = 600
@@ -38,7 +39,7 @@ function PhaseDriver({ segmentsReady }: { segmentsReady: boolean }) {
     }
     if (phase === 'emerging' && emergeStartedAt !== null) {
       const elapsed = now - emergeStartedAt
-      if (elapsed >= EMERGE_DURATION_MS) {
+      if (elapsed >= HATCHING_DURATION_MS) {
         state.goLive()
       }
       return
