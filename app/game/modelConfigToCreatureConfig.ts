@@ -17,8 +17,8 @@ function groupCentroid(group: BodyGroup, segmentMap: Map<string, SegmentData>): 
   return count > 0 ? new THREE.Vector3(sumX / count, 0, sumZ / count) : new THREE.Vector3()
 }
 
-function nodeVec(pos: { x: number; z: number }): THREE.Vector3 {
-  return new THREE.Vector3(pos.x, 0, pos.z)
+function nodeVec(pos: { x: number; y?: number; z: number }): THREE.Vector3 {
+  return new THREE.Vector3(pos.x, pos.y ?? 0, pos.z)
 }
 
 function spineChainGroups(config: ModelConfigRow): BodyGroup[] {
@@ -26,6 +26,10 @@ function spineChainGroups(config: ModelConfigRow): BodyGroup[] {
   const tail = config.groups.find((g) => g.type === 'tail')
   const spines = config.groups.filter((g) => g.type === 'spine')
   return [...(head ? [head] : []), ...spines, ...(tail ? [tail] : [])]
+}
+
+function xzDistance(a: THREE.Vector3, b: THREE.Vector3): number {
+  return Math.hypot(a.x - b.x, a.z - b.z)
 }
 
 export function modelConfigToCreatureConfig(
@@ -38,7 +42,6 @@ export function modelConfigToCreatureConfig(
 
   const centroids = chain.map((g) => groupCentroid(g, segmentMap))
 
-  // front of chain[0] = chain[0].nodeFront; front of chain[i>0] = chain[i-1].nodeBack
   const frontPositions = chain.map((g, i) =>
     i === 0
       ? (g.nodeFront ? nodeVec(g.nodeFront) : centroids[0].clone())
@@ -49,10 +52,10 @@ export function modelConfigToCreatureConfig(
   )
 
   const segmentLengths = chain.map((g, i) => {
-    const d = frontPositions[i].distanceTo(backPositions[i])
+    const d = xzDistance(frontPositions[i], backPositions[i])
     if (d > 0.001) return d
-    if (i < chain.length - 1) return centroids[i].distanceTo(centroids[i + 1])
-    if (i > 0) return centroids[i - 1].distanceTo(centroids[i])
+    if (i < chain.length - 1) return xzDistance(centroids[i], centroids[i + 1])
+    if (i > 0) return xzDistance(centroids[i - 1], centroids[i])
     return defaults.segmentLength
   })
 
@@ -74,9 +77,7 @@ export function modelConfigToCreatureConfig(
       let bodyHalfWidth = defaults.bodyHalfWidth
       const hipNode = isLeft ? spineGroup.nodeHipLeft : spineGroup.nodeHipRight
       if (hipNode) {
-        bodyHalfWidth = Math.sqrt(
-          (hipNode.x - spineCenter.x) ** 2 + (hipNode.z - spineCenter.z) ** 2
-        )
+        bodyHalfWidth = Math.hypot(hipNode.x - spineCenter.x, hipNode.z - spineCenter.z)
       }
 
       let limbSegmentLength = defaults.limbSegmentLength
@@ -85,22 +86,32 @@ export function modelConfigToCreatureConfig(
         const hipV = nodeVec(hipNode)
         const footV = nodeVec(g.nodeFoot)
         limbSegmentLength = hipV.distanceTo(footV) / 2
-        limbReach = spineCenter.distanceTo(footV)
+        limbReach = Math.hypot(footV.x - spineCenter.x, footV.z - spineCenter.z)
       }
 
-      const parentLocalOrigin = idx === 0
-        ? (spineGroup.nodeFront ?? { x: spineCenter.x, z: spineCenter.z })
-        : (chain[idx - 1].nodeBack ?? { x: centroids[idx - 1].x, z: centroids[idx - 1].z })
+      const parentLocalOriginNode = idx === 0
+        ? spineGroup.nodeFront
+        : chain[idx - 1].nodeBack
+      const parentLocalOrigin = parentLocalOriginNode
+        ? nodeVec(parentLocalOriginNode)
+        : (idx === 0 ? spineCenter.clone() : centroids[idx - 1].clone())
 
       const hipOffset = hipNode
-        ? { x: hipNode.x - parentLocalOrigin.x, z: hipNode.z - parentLocalOrigin.z }
+        ? {
+            x: hipNode.x - parentLocalOrigin.x,
+            y: (hipNode.y ?? 0) - parentLocalOrigin.y,
+            z: hipNode.z - parentLocalOrigin.z,
+          }
         : undefined
 
-      const parentBack = spineGroup.nodeBack ?? { x: spineCenter.x, z: spineCenter.z }
+      const parentBackNode = spineGroup.nodeBack
+      const parentBack = parentBackNode ? nodeVec(parentBackNode) : spineCenter.clone()
       const parentRestAngle = Math.atan2(
         parentLocalOrigin.z - parentBack.z,
         parentLocalOrigin.x - parentBack.x
       )
+
+      const footRestY = g.nodeFoot?.y ?? 0
 
       return [
         {
@@ -111,6 +122,7 @@ export function modelConfigToCreatureConfig(
           limbReach,
           hipOffset,
           parentRestAngle,
+          footRestY,
         },
       ]
     })

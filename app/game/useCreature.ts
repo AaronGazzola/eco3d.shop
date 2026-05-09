@@ -8,26 +8,22 @@ import { Chain3D } from './chain3d'
 import { Solver, LimbState } from './animations/solver'
 import { Director } from './animations/director'
 import { createDragonBehaviors } from './animations/dragon'
-import { BehaviorId } from './animations/types'
 
 export type { LimbState } from './animations/solver'
-export type { Director } from './animations/director'
 
 export function useCreature(
   config: CreatureConfig,
-  targetRef: MutableRefObject<THREE.Vector3>,
-  opts?: { initialBehavior?: BehaviorId; directorRef?: MutableRefObject<Director | null> }
+  targetRef: MutableRefObject<THREE.Vector3>
 ) {
   const solverRef = useRef<Solver | null>(null)
-  const localDirectorRef = useRef<Director | null>(null)
+  const directorRef = useRef<Director | null>(null)
   const chainRef = useRef<Chain3D | null>(null)
   const limbStatesRef = useRef<LimbState[]>([])
-  const directorRef = opts?.directorRef ?? localDirectorRef
 
   useEffect(() => {
     const solver = new Solver(config)
     const director = new Director({
-      initial: opts?.initialBehavior ?? 'wandering',
+      initial: 'wandering',
       registry: createDragonBehaviors(),
     })
     solverRef.current = solver
@@ -45,8 +41,6 @@ export function useCreature(
     config.chainOrigin?.z,
     config.initialJoints,
     config,
-    opts?.initialBehavior,
-    directorRef,
   ])
 
   useFrame((_, delta) => {
@@ -57,5 +51,5 @@ export function useCreature(
     solver.apply(drive, delta)
   })
 
-  return { chainRef, limbStatesRef, directorRef }
+  return { chainRef, limbStatesRef }
 }

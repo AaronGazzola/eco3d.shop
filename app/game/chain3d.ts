@@ -17,7 +17,6 @@ export class Chain3D {
   angles: number[]
   segmentLengths: number[]
   angleConstraint: number
-  bankAngle: number
 
   constructor(
     origin: THREE.Vector3,
@@ -27,7 +26,6 @@ export class Chain3D {
   ) {
     this.segmentLengths = segmentLengths
     this.angleConstraint = constraint
-    this.bankAngle = 0
     this.joints = []
     this.angles = []
     let z = origin.z

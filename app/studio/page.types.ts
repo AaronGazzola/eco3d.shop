@@ -31,11 +31,11 @@ export interface BodyGroup {
   color: string
   type: BodyGroupType
   attachedToSpineId?: string
-  nodeFront?: { x: number; z: number }
-  nodeBack?: { x: number; z: number }
-  nodeHipLeft?: { x: number; z: number }
-  nodeHipRight?: { x: number; z: number }
-  nodeFoot?: { x: number; z: number }
+  nodeFront?: { x: number; y?: number; z: number }
+  nodeBack?: { x: number; y?: number; z: number }
+  nodeHipLeft?: { x: number; y?: number; z: number }
+  nodeHipRight?: { x: number; y?: number; z: number }
+  nodeFoot?: { x: number; y?: number; z: number }
 }
 
 export interface AnimationConfig {

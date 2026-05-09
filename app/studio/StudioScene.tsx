@@ -25,19 +25,20 @@ function groupCentroidXZ(group: BodyGroup, segmentMap: Map<string, SegmentData>)
   return count > 0 ? { x: sumX / count, z: sumZ / count } : { x: 0, z: 0 }
 }
 
-function buildChainJoints(groups: BodyGroup[], segments: SegmentData[]): { x: number; z: number }[] {
+function buildChainJoints(groups: BodyGroup[], segments: SegmentData[]): { x: number; y?: number; z: number }[] {
   const head = groups.find((g) => g.type === 'head')
   const tail = groups.find((g) => g.type === 'tail')
   const spines = groups.filter((g) => g.type === 'spine')
   const chain: BodyGroup[] = [...(head ? [head] : []), ...spines, ...(tail ? [tail] : [])]
   if (chain.length === 0) return []
   const segmentMap = new Map(segments.map((s) => [s.id, s]))
-  const joints: { x: number; z: number }[] = []
-  const front0 = chain[0].nodeFront ?? groupCentroidXZ(chain[0], segmentMap)
-  joints.push({ x: front0.x, z: front0.z })
+  const joints: { x: number; y?: number; z: number }[] = []
+  const front0Node = chain[0].nodeFront
+  const front0 = front0Node ?? groupCentroidXZ(chain[0], segmentMap)
+  joints.push({ x: front0.x, y: front0Node?.y, z: front0.z })
   for (const g of chain) {
     const back = g.nodeBack ?? groupCentroidXZ(g, segmentMap)
-    joints.push({ x: back.x, z: back.z })
+    joints.push({ x: back.x, y: g.nodeBack?.y, z: back.z })
   }
   return joints
 }
