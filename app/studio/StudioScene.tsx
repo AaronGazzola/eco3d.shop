@@ -10,6 +10,8 @@ import { NodeOverlay } from './NodeOverlay'
 import { AnimatedModel } from '../game/AnimatedModel'
 import { TargetController } from '../game/TargetController'
 import { modelConfigToCreatureConfig } from '../game/modelConfigToCreatureConfig'
+import { useCreature } from '../game/useCreature'
+import { AnimationDebugOverlay } from './AnimationDebugOverlay'
 
 function groupCentroidXZ(group: BodyGroup, segmentMap: Map<string, SegmentData>): { x: number; z: number } {
   let sumX = 0, sumZ = 0, count = 0
@@ -51,7 +53,8 @@ const CAMERA_PRESETS = {
 }
 
 function CameraController() {
-  const { cameraPreset, setCameraPreset } = useStudioStore()
+  const cameraPreset = useStudioStore((s) => s.cameraPreset)
+  const setCameraPreset = useStudioStore((s) => s.setCameraPreset)
   const { camera, controls } = useThree()
 
   useEffect(() => {
@@ -210,7 +213,14 @@ function SegmentMesh({
 const BATCH_SIZE = 10
 
 function AnimateContent() {
-  const { segments, groups, stlKey, configId, configName, modelRotation, animationConfig, showAttractor } = useStudioStore()
+  const segments = useStudioStore((s) => s.segments)
+  const groups = useStudioStore((s) => s.groups)
+  const stlKey = useStudioStore((s) => s.stlKey)
+  const configId = useStudioStore((s) => s.configId)
+  const configName = useStudioStore((s) => s.configName)
+  const modelRotation = useStudioStore((s) => s.modelRotation)
+  const animationConfig = useStudioStore((s) => s.animationConfig)
+  const showAttractor = useStudioStore((s) => s.showAttractor)
 
   const initialJoints = useMemo(() => buildChainJoints(groups, segments), [groups, segments])
   const headXZ = initialJoints[0] ?? null
@@ -236,15 +246,22 @@ function AnimateContent() {
     [configId, stlKey, configName, groups, modelRotation]
   )
 
-  const creatureConfig = useMemo(() => {
-    const base = modelConfigToCreatureConfig(modelConfig, segments)
-    return {
-      ...base,
+  const baseCreatureConfig = useMemo(
+    () => modelConfigToCreatureConfig(modelConfig, segments),
+    [modelConfig, segments]
+  )
+
+  const creatureConfig = useMemo(
+    () => ({
+      ...baseCreatureConfig,
       ...animationConfig,
       chainOrigin: headXZ ?? undefined,
       initialJoints: initialJoints.length > 0 ? initialJoints : undefined,
-    }
-  }, [modelConfig, segments, animationConfig, headXZ?.x, headXZ?.z, initialJoints])
+    }),
+    [baseCreatureConfig, animationConfig, headXZ?.x, headXZ?.z, initialJoints]
+  )
+
+  const { chainRef, limbStatesRef } = useCreature(creatureConfig, targetRef)
 
   if (groups.length === 0 || segments.length === 0) return null
 
@@ -272,16 +289,27 @@ function AnimateContent() {
         modelConfig={modelConfig}
         segments={segments}
         targetRef={targetRef}
+        chainRef={chainRef}
+        limbStatesRef={limbStatesRef}
+      />
+      <AnimationDebugOverlay
+        chainRef={chainRef}
+        limbStatesRef={limbStatesRef}
+        targetRef={targetRef}
       />
     </>
   )
 }
 
 function SceneContent() {
-  const {
-    segments, pendingSegmentIds, groups, togglePendingSegment, modelRotation,
-    selectionMode, sphere, setSphere,
-  } = useStudioStore()
+  const segments = useStudioStore((s) => s.segments)
+  const pendingSegmentIds = useStudioStore((s) => s.pendingSegmentIds)
+  const groups = useStudioStore((s) => s.groups)
+  const togglePendingSegment = useStudioStore((s) => s.togglePendingSegment)
+  const modelRotation = useStudioStore((s) => s.modelRotation)
+  const selectionMode = useStudioStore((s) => s.selectionMode)
+  const sphere = useStudioStore((s) => s.sphere)
+  const setSphere = useStudioStore((s) => s.setSphere)
 
   const [renderCount, setRenderCount] = useState(0)
 

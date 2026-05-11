@@ -216,14 +216,20 @@ export function AnimatedModel({
   segments,
   targetRef,
   showSkeleton,
+  chainRef: externalChainRef,
+  limbStatesRef: externalLimbStatesRef,
 }: {
   creatureConfig: CreatureConfig
   modelConfig: ModelConfigRow
   segments: SegmentData[]
   targetRef: MutableRefObject<THREE.Vector3>
   showSkeleton?: boolean
+  chainRef?: MutableRefObject<Chain3D | null>
+  limbStatesRef?: MutableRefObject<LimbState[]>
 }) {
-  const { chainRef, limbStatesRef } = useCreature(creatureConfig, targetRef)
+  const internal = useCreature(creatureConfig, targetRef, !externalChainRef)
+  const chainRef = externalChainRef ?? internal.chainRef
+  const limbStatesRef = externalLimbStatesRef ?? internal.limbStatesRef
   const groupRefsRef = useRef<Map<string, THREE.Group>>(new Map())
 
   const segmentMap = useMemo(() => new Map(segments.map((s) => [s.id, s])), [segments])

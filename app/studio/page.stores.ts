@@ -2,7 +2,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { SegmentData, BodyGroup, BodyGroupType, ModelConfigRow, NodeType, AnimationConfig } from './page.types'
+import { SegmentData, BodyGroup, BodyGroupType, ModelConfigRow, NodeType, AnimationConfig, OverlayToggles } from './page.types'
 import { CREATURE_DEFAULTS } from '../page.constants'
 
 const ANIMATION_DEFAULTS: AnimationConfig = {
@@ -14,6 +14,14 @@ const ANIMATION_DEFAULTS: AnimationConfig = {
   wanderSpeed: CREATURE_DEFAULTS.lizard.wanderSpeed,
   maxSpeed: CREATURE_DEFAULTS.lizard.maxSpeed,
   followDistance: CREATURE_DEFAULTS.lizard.followDistance,
+}
+
+const OVERLAY_DEFAULTS: OverlayToggles = {
+  joints: true,
+  bones: true,
+  hips: true,
+  footTargets: true,
+  headTarget: true,
 }
 
 const SEGMENT_COLORS = [
@@ -40,6 +48,7 @@ interface StudioStore {
   selectedNodeId: { groupId: string; nodeType: NodeType } | null
   animationConfig: AnimationConfig
   showAttractor: boolean
+  overlayToggles: OverlayToggles
 
   setStlKey: (key: string) => void
   setConfigId: (id: string | null) => void
@@ -51,6 +60,7 @@ interface StudioStore {
   setStep: (step: 1 | 2 | 3) => void
   setAnimationField: (key: keyof AnimationConfig, value: number) => void
   setShowAttractor: (v: boolean) => void
+  setOverlayToggle: (key: keyof OverlayToggles, value: boolean) => void
   setCameraPreset: (preset: CameraPreset | null) => void
   rotateModel: (axis: 'x' | 'y' | 'z', delta: number) => void
   togglePendingSegment: (id: string) => void
@@ -86,6 +96,7 @@ export const useStudioStore = create<StudioStore>()(
       selectedNodeId: null,
       animationConfig: ANIMATION_DEFAULTS,
       showAttractor: true,
+      overlayToggles: OVERLAY_DEFAULTS,
 
       setStlKey: (key) => set({ stlKey: key }),
 
@@ -218,6 +229,9 @@ export const useStudioStore = create<StudioStore>()(
 
       setShowAttractor: (v) => set({ showAttractor: v }),
 
+      setOverlayToggle: (key, value) =>
+        set((state) => ({ overlayToggles: { ...state.overlayToggles, [key]: value } })),
+
       setGroupNode: (groupId, nodeType, x, y, z) =>
         set((state) => ({
           groups: state.groups.map((g) => {
@@ -244,6 +258,7 @@ export const useStudioStore = create<StudioStore>()(
         modelRotation: state.modelRotation,
         animationConfig: state.animationConfig,
         showAttractor: state.showAttractor,
+        overlayToggles: state.overlayToggles,
       }),
     }
   )

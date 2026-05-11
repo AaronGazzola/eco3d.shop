@@ -13,7 +13,8 @@ export type { LimbState } from './animations/solver'
 
 export function useCreature(
   config: CreatureConfig,
-  targetRef: MutableRefObject<THREE.Vector3>
+  targetRef: MutableRefObject<THREE.Vector3>,
+  enabled: boolean = true,
 ) {
   const solverRef = useRef<Solver | null>(null)
   const directorRef = useRef<Director | null>(null)
@@ -21,6 +22,7 @@ export function useCreature(
   const limbStatesRef = useRef<LimbState[]>([])
 
   useEffect(() => {
+    if (!enabled) return
     const solver = new Solver(config)
     const director = new Director({
       initial: 'wandering',
@@ -31,6 +33,7 @@ export function useCreature(
     chainRef.current = solver.chain
     limbStatesRef.current = solver.limbs
   }, [
+    enabled,
     config.segmentCount,
     config.segmentLength,
     config.segmentLengths,
@@ -40,14 +43,20 @@ export function useCreature(
     config.chainOrigin?.x,
     config.chainOrigin?.z,
     config.initialJoints,
-    config,
   ])
 
+  const configRef = useRef(config)
+  useEffect(() => {
+    configRef.current = config
+    if (solverRef.current) solverRef.current.config = config
+  }, [config])
+
   useFrame((_, delta) => {
+    if (!enabled) return
     const director = directorRef.current
     const solver = solverRef.current
     if (!director || !solver) return
-    const drive = director.update({ targetRef, config, time: performance.now() }, delta)
+    const drive = director.update({ targetRef, config: configRef.current, time: performance.now() }, delta)
     solver.apply(drive, delta)
   })
 

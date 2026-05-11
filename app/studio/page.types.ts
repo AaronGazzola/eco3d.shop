@@ -48,3 +48,11 @@ export interface AnimationConfig {
   maxSpeed: number
   followDistance: number
 }
+
+export interface OverlayToggles {
+  joints: boolean
+  bones: boolean
+  hips: boolean
+  footTargets: boolean
+  headTarget: boolean
+}
