@@ -1,5 +1,9 @@
 # Motion Composer — Design Intent and Workflow
 
+> **⚠ SUPERSEDED — DO NOT USE FOR NEW WORK.**
+>
+> The "stack of additive layers + signals + poses + triggers + timeline" paradigm described below was abandoned in favor of constraint-based procedural animation following `argonautcode/animal-proc-anim` and `zalo.github.io/blog/constraints`. The canonical design is now in `documentation/animation_design.md`. This file is kept for historical context only; the wireframe at `app/wireframe/page.tsx` corresponds to this deprecated direction.
+
 **Status:** wireframe at `/wireframe`. No production code touched.
 **Audience:** Aaron + future agents picking up this conversation.
 

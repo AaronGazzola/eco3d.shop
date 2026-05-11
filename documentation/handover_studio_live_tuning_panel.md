@@ -1,5 +1,9 @@
 # Handover: Studio Live-Tuning Panel — OpenSpec Brainstorm
 
+> **⚠ SUPERSEDED — DO NOT USE FOR NEW WORK.**
+>
+> This handover framed the panel as "slider-tune the existing `DragonDrive` constants + bake back to code", assuming the current scalar control surface was the destination. That direction has been abandoned. The canonical animation design is now in `documentation/animation_design.md`, which redefines the animation system around constraint-based procedural mechanics and a viewport-with-feedback panel. The clarifying questions queued below are no longer the right questions. Kept for historical context only.
+
 **For:** the next Claude Code agent picking up this conversation in a fresh window.
 **Date written:** 2026-05-09.
 **Status:** mid-brainstorm. Design not yet drafted. No code changes pending.
