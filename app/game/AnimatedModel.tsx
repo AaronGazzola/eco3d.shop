@@ -175,12 +175,14 @@ function SegmentMesh({
   positions,
   color,
   offsetX,
+  offsetY,
   offsetZ,
   transparent,
 }: {
   positions: Float32Array
   color: string
   offsetX: number
+  offsetY: number
   offsetZ: number
   transparent: boolean
 }) {
@@ -188,13 +190,14 @@ function SegmentMesh({
     const arr = positions.slice()
     for (let i = 0; i < arr.length; i += 3) {
       arr[i] += offsetX
+      arr[i + 1] += offsetY
       arr[i + 2] += offsetZ
     }
     const geo = new THREE.BufferGeometry()
     geo.setAttribute('position', new THREE.BufferAttribute(arr, 3))
     geo.computeVertexNormals()
     return geo
-  }, [positions, offsetX, offsetZ])
+  }, [positions, offsetX, offsetY, offsetZ])
 
   return (
     <mesh geometry={geometry}>
@@ -247,13 +250,16 @@ export function AnimatedModel({
   const allGroups = useMemo(() => [...spineChain, ...legGroups], [spineChain, legGroups])
 
   const nodePositions = useMemo(() => {
-    const map = new Map<string, { x: number; z: number }>()
+    const map = new Map<string, { x: number; y: number; z: number }>()
     spineChain.forEach((g, i) => {
       const prev = i > 0 ? spineChain[i - 1] : null
-      const front = i === 0
-        ? (g.nodeFront ?? centroid(g, segmentMap))
-        : (prev!.nodeBack ?? centroid(prev!, segmentMap))
-      map.set(g.id, { x: front.x, z: front.z })
+      const fallback = i === 0 ? centroid(g, segmentMap) : centroid(prev!, segmentMap)
+      const front = i === 0 ? g.nodeFront : prev!.nodeBack
+      map.set(g.id, {
+        x: front?.x ?? fallback.x,
+        y: front?.y ?? 0,
+        z: front?.z ?? fallback.z,
+      })
     })
     legGroups.forEach((g) => {
       const spineGroup = modelConfig.groups.find((sg) => sg.id === g.attachedToSpineId)
@@ -261,11 +267,12 @@ export function AnimatedModel({
         ? (g.type === 'leg-left' ? spineGroup.nodeHipLeft : spineGroup.nodeHipRight)
         : undefined
       if (hipNode) {
-        map.set(g.id, { x: hipNode.x, z: hipNode.z })
+        map.set(g.id, { x: hipNode.x, y: hipNode.y ?? 0, z: hipNode.z })
       } else if (g.nodeFoot) {
-        map.set(g.id, { x: g.nodeFoot.x, z: g.nodeFoot.z })
+        map.set(g.id, { x: g.nodeFoot.x, y: g.nodeFoot.y ?? 0, z: g.nodeFoot.z })
       } else {
-        map.set(g.id, centroid(g, segmentMap))
+        const c = centroid(g, segmentMap)
+        map.set(g.id, { x: c.x, y: 0, z: c.z })
       }
     })
     return map
@@ -355,7 +362,7 @@ export function AnimatedModel({
   return (
     <group>
       {visibleGroups.map((g) => {
-        const np = nodePositions.get(g.id) ?? { x: 0, z: 0 }
+        const np = nodePositions.get(g.id) ?? { x: 0, y: 0, z: 0 }
         return (
           <group
             key={g.id}
@@ -373,6 +380,7 @@ export function AnimatedModel({
                   positions={seg.positions}
                   color={g.color}
                   offsetX={-np.x}
+                  offsetY={-np.y}
                   offsetZ={-np.z}
                   transparent={!!showSkeleton}
                 />

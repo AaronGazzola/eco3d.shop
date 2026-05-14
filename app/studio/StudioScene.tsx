@@ -149,12 +149,14 @@ function SegmentMesh({
   isPending,
   groupColor,
   dimmed,
+  translucent,
   onClick,
 }: {
   seg: SegmentData
   isPending: boolean
   groupColor: string | null
   dimmed: boolean
+  translucent: boolean
   onClick: () => void
 }) {
   const { selectionMode, sphere, setSphere } = useStudioStore()
@@ -175,37 +177,56 @@ function SegmentMesh({
     }
   }, [selectionMode, sphere, setSphere, onClick])
 
-  if (isPending) {
-    return (
-      <mesh geometry={geom} onClick={handleClick}>
-        <meshStandardMaterial
-          color={seg.color}
-          emissive={seg.color}
-          emissiveIntensity={0.7}
-          roughness={0.3}
-          metalness={0.1}
-        />
-      </mesh>
-    )
-  }
+  const colorMaterial = isPending ? (
+    <meshStandardMaterial
+      color={seg.color}
+      emissive={seg.color}
+      emissiveIntensity={0.7}
+      roughness={0.3}
+      metalness={0.1}
+      opacity={translucent ? 0.4 : 1}
+      transparent={translucent}
+      depthWrite={!translucent}
+      depthFunc={translucent ? THREE.LessEqualDepth : THREE.LessDepth}
+    />
+  ) : groupColor ? (
+    <meshStandardMaterial
+      color={groupColor}
+      roughness={0.4}
+      metalness={0.05}
+      opacity={translucent ? 0.4 : 1}
+      transparent={translucent}
+      depthWrite={!translucent}
+      depthFunc={translucent ? THREE.LessEqualDepth : THREE.LessDepth}
+    />
+  ) : (
+    <meshStandardMaterial
+      color={seg.color}
+      opacity={translucent ? 0.4 : dimmed ? 0.35 : 1}
+      transparent={translucent || dimmed}
+      depthWrite={!translucent}
+      depthFunc={translucent ? THREE.LessEqualDepth : THREE.LessDepth}
+      roughness={0.5}
+      metalness={0.05}
+    />
+  )
 
-  if (groupColor) {
+  if (translucent) {
     return (
-      <mesh geometry={geom} onClick={handleClick}>
-        <meshStandardMaterial color={groupColor} roughness={0.4} metalness={0.05} />
-      </mesh>
+      <>
+        <mesh geometry={geom} renderOrder={0} raycast={() => null}>
+          <meshBasicMaterial colorWrite={false} />
+        </mesh>
+        <mesh geometry={geom} renderOrder={1} raycast={() => null}>
+          {colorMaterial}
+        </mesh>
+      </>
     )
   }
 
   return (
     <mesh geometry={geom} onClick={handleClick}>
-      <meshStandardMaterial
-        color={seg.color}
-        opacity={dimmed ? 0.35 : 1}
-        transparent={dimmed}
-        roughness={0.5}
-        metalness={0.05}
-      />
+      {colorMaterial}
     </mesh>
   )
 }
@@ -310,6 +331,8 @@ function SceneContent() {
   const selectionMode = useStudioStore((s) => s.selectionMode)
   const sphere = useStudioStore((s) => s.sphere)
   const setSphere = useStudioStore((s) => s.setSphere)
+  const step = useStudioStore((s) => s.step)
+  const translucent = step === 2 && selectionMode === 'node'
 
   const [renderCount, setRenderCount] = useState(0)
 
@@ -342,17 +365,6 @@ function SceneContent() {
 
   return (
     <>
-      <Grid
-        position={[0, 0.001, 0]}
-        args={[100, 100]}
-        cellSize={1}
-        cellColor="#888888"
-        sectionSize={5}
-        sectionColor="#aaaaaa"
-        fadeDistance={60}
-        fadeStrength={1}
-        infiniteGrid
-      />
       {selectionMode === 'sphere' && (
         <mesh
           rotation={[-Math.PI / 2, 0, 0]}
@@ -374,6 +386,7 @@ function SceneContent() {
             isPending={pendingSegmentIds.includes(seg.id)}
             groupColor={assignedMap.get(seg.id) ?? null}
             dimmed={anyPending && !pendingSegmentIds.includes(seg.id) && !assignedMap.has(seg.id)}
+            translucent={translucent}
             onClick={() => togglePendingSegment(seg.id)}
           />
         ))}
@@ -405,6 +418,17 @@ export function StudioScene() {
           MIDDLE: THREE.MOUSE.ROTATE,
           RIGHT: THREE.MOUSE.ROTATE,
         }}
+      />
+      <Grid
+        position={[0, 0.001, 0]}
+        args={[100, 100]}
+        cellSize={1}
+        cellColor="#888888"
+        sectionSize={5}
+        sectionColor="#aaaaaa"
+        fadeDistance={60}
+        fadeStrength={1}
+        infiniteGrid
       />
       <StepGate />
       <CameraController />
