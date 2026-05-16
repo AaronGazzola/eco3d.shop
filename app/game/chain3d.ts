@@ -144,7 +144,7 @@ export class Chain3D {
       let parentAngle: number
       if (i - 2 >= 0) {
         const before = this.joints[i - 2]
-        parentAngle = Math.atan2(prev.z - before.z, prev.x - before.x)
+        parentAngle = Math.atan2(before.z - prev.z, before.x - prev.x)
       } else {
         parentAngle = this.angles[i - 1] ?? 0
       }

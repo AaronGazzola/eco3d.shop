@@ -8,6 +8,7 @@ import { Chain3D } from './chain3d'
 import { Solver, LimbState, IntentState } from './animations/solver'
 import { Director } from './animations/director'
 import { createDragonBehaviors } from './animations/dragon'
+import { registerTelemetrySolver } from './animations/telemetry'
 
 export type { LimbState, IntentState } from './animations/solver'
 
@@ -34,6 +35,10 @@ export function useCreature(
     chainRef.current = solver.chain
     limbStatesRef.current = solver.limbs
     intentRef.current = solver.intent
+    registerTelemetrySolver(solver)
+    return () => {
+      registerTelemetrySolver(null)
+    }
   }, [
     enabled,
     config.segmentCount,

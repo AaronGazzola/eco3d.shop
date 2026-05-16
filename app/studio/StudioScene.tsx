@@ -279,7 +279,7 @@ function AnimateContent() {
     [baseCreatureConfig, animationConfig, headXZ?.x, headXZ?.z, initialJoints]
   )
 
-  const { chainRef, limbStatesRef } = useCreature(creatureConfig, targetRef)
+  const { chainRef, limbStatesRef, intentRef } = useCreature(creatureConfig, targetRef)
 
   if (groups.length === 0 || segments.length === 0) return null
 
@@ -308,6 +308,7 @@ function AnimateContent() {
       <AnimationDebugOverlay
         chainRef={chainRef}
         limbStatesRef={limbStatesRef}
+        intentRef={intentRef}
       />
     </>
   )

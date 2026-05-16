@@ -4,7 +4,8 @@ import { useEffect, useRef, MutableRefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Chain3D } from '../game/chain3d'
-import { LimbState } from '../game/useCreature'
+import { LimbState, IntentState } from '../game/useCreature'
+import { useStudioStore } from './page.stores'
 
 const MAX_JOINTS = 64
 const MAX_LIMBS = 16
@@ -13,26 +14,34 @@ const JOINT_COLOR = '#22d3ee'
 const BONE_COLOR = '#22d3ee'
 const HIP_COLOR = '#f472b6'
 const FOOT_COLOR = '#34d399'
+const INTENT_COLOR = '#fbbf24'
 
 const JOINT_RADIUS = 0.12
 const HIP_RADIUS = 0.14
 const FOOT_RADIUS = 0.14
-
-const _dummy = new THREE.Object3D()
+const INTENT_RADIUS = 0.18
+const INTENT_ARROW_LENGTH = 1.2
 
 export function AnimationDebugOverlay({
   chainRef,
   limbStatesRef,
+  intentRef,
 }: {
   chainRef: MutableRefObject<Chain3D | null>
   limbStatesRef: MutableRefObject<LimbState[]>
+  intentRef?: MutableRefObject<IntentState | null>
 }) {
+  const showIntent = useStudioStore((s) => s.overlayToggles.intent)
+  const _dummy = useRef(new THREE.Object3D()).current
   const { scene } = useThree()
 
   const jointsMeshRef = useRef<THREE.InstancedMesh | null>(null)
   const bonesGeomRef = useRef<THREE.BufferGeometry | null>(null)
   const hipsMeshRef = useRef<THREE.InstancedMesh | null>(null)
   const footsMeshRef = useRef<THREE.InstancedMesh | null>(null)
+  const intentMeshRef = useRef<THREE.Mesh | null>(null)
+  const intentArrowGeomRef = useRef<THREE.BufferGeometry | null>(null)
+  const intentArrowLineRef = useRef<THREE.Line | null>(null)
 
   useEffect(() => {
     const ignoreRaycast = () => null
@@ -83,11 +92,36 @@ export function AnimationDebugOverlay({
     scene.add(footsMesh)
     footsMeshRef.current = footsMesh
 
+    const intentGeom = new THREE.SphereGeometry(INTENT_RADIUS, 12, 10)
+    const intentMat = new THREE.MeshBasicMaterial({ color: INTENT_COLOR })
+    overlayDepth(intentMat)
+    const intentMesh = new THREE.Mesh(intentGeom, intentMat)
+    intentMesh.renderOrder = 1000
+    intentMesh.raycast = ignoreRaycast
+    intentMesh.visible = false
+    scene.add(intentMesh)
+    intentMeshRef.current = intentMesh
+
+    const arrowGeom = new THREE.BufferGeometry()
+    arrowGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3))
+    const arrowMat = new THREE.LineBasicMaterial({ color: INTENT_COLOR, linewidth: 2 })
+    overlayDepth(arrowMat)
+    const arrowLine = new THREE.Line(arrowGeom, arrowMat)
+    arrowLine.renderOrder = 1000
+    arrowLine.frustumCulled = false
+    arrowLine.raycast = ignoreRaycast
+    arrowLine.visible = false
+    scene.add(arrowLine)
+    intentArrowGeomRef.current = arrowGeom
+    intentArrowLineRef.current = arrowLine
+
     return () => {
       scene.remove(jointsMesh)
       scene.remove(bonesLine)
       scene.remove(hipsMesh)
       scene.remove(footsMesh)
+      scene.remove(intentMesh)
+      scene.remove(arrowLine)
       jointGeom.dispose()
       jointMat.dispose()
       bonesGeom.dispose()
@@ -96,6 +130,10 @@ export function AnimationDebugOverlay({
       hipMat.dispose()
       footGeom.dispose()
       footMat.dispose()
+      intentGeom.dispose()
+      intentMat.dispose()
+      arrowGeom.dispose()
+      arrowMat.dispose()
     }
   }, [scene])
 
@@ -165,6 +203,33 @@ export function AnimationDebugOverlay({
         footsMesh.setMatrixAt(i, _dummy.matrix)
       }
       footsMesh.instanceMatrix.needsUpdate = true
+    }
+
+    const intent = intentRef?.current ?? null
+    const intentMesh = intentMeshRef.current
+    const arrowLine = intentArrowLineRef.current
+    const arrowGeom = intentArrowGeomRef.current
+    if (intentMesh && arrowLine) {
+      const visible = showIntent && intent !== null
+      intentMesh.visible = visible
+      arrowLine.visible = visible
+      if (visible && intent && arrowGeom) {
+        intentMesh.position.copy(intent.position)
+        const hx = intent.heading.x
+        const hz = intent.heading.z
+        const len = Math.hypot(hx, hz) || 1
+        const dx = (hx / len) * INTENT_ARROW_LENGTH
+        const dz = (hz / len) * INTENT_ARROW_LENGTH
+        const pos = arrowGeom.getAttribute('position') as THREE.BufferAttribute
+        const arr = pos.array as Float32Array
+        arr[0] = intent.position.x
+        arr[1] = intent.position.y
+        arr[2] = intent.position.z
+        arr[3] = intent.position.x + dx
+        arr[4] = intent.position.y
+        arr[5] = intent.position.z + dz
+        pos.needsUpdate = true
+      }
     }
   })
 
