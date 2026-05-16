@@ -9,6 +9,7 @@ export interface LimbNode {
   hipOffset?: { x: number; y: number; z: number }
   parentRestAngle?: number
   footRestY?: number
+  restFootOffset?: { x: number; y: number; z: number }
 }
 
 export interface CreatureConfig {
@@ -21,13 +22,21 @@ export interface CreatureConfig {
   limbSegmentLength: number
   limbReach: number
   bodyHalfWidth: number
-  limbAngleOffset: number
   stepThreshold: number
-  stepSmoothing: number
   wanderRadius: number
   wanderSpeed: number
   maxSpeed: number
-  followDistance: number
+  arrivalRadius: number
+  intentDamping: number
+  idleDriftAmplitude: number
+  idleDriftFrequency: number
+  swingDuration: number
+  liftHeight: number
+  predictionGain: number
+  bodyHeight: number
+  groundY: number
+  hipJointFrontIndex?: number
+  hipJointBackIndex?: number
   chainOrigin?: { x: number; y?: number; z: number }
   initialJoints?: { x: number; y?: number; z: number }[]
 }

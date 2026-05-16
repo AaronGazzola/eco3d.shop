@@ -46,18 +46,15 @@ Nothing about the mesh shape is sent to the simulation — only those derived di
 
 ## Runtime: skeleton math
 
-`useCreature` (`app/game/useCreature.ts`) constructs a `Chain3D` with `segmentCount` joints linked by the bone lengths derived above. Per frame:
+`useCreature` (`app/game/useCreature.ts`) constructs a `Chain3D` with `segmentCount` joints linked by the bone lengths derived above. Each frame, the animator updates joint world positions and limb anchors/targets according to the foot-anchored procedural model documented in `animation_design.md` § 6 (Slice 1). At a high level:
 
-1. Read `targetRef.current` (world point to walk to).
-2. Pick a heading angle for the head joint, constrained by `angleConstraint`.
-3. Move the head joint a tiny `step` toward the target.
-4. `chain.resolve()` walks down the chain: each subsequent joint is placed *exactly* `segmentLengths[i]` away from its parent, at an angle that may differ from the parent angle by at most `angleConstraint`. This produces the snake-like wiggle.
+1. **Intent** steers toward `targetRef.current` (the attractor), producing the body's desired position, heading, and velocity.
+2. **Per-foot state machines** advance — each foot either holds its plant point or interpolates along a swing arc toward a new plant point, depending on its drift from its desired position relative to intent.
+3. **Hip joints** in the spine are positioned from the midpoints of their respective feet, lifted by `bodyHeight`. The hip joint position *is* the corresponding `limb.anchor`.
+4. **Spine** resolves in three sections: dual-anchor FABRIK between the two hip joints (mid-spine), one-anchored FABRIK from the front hip outward with the head joint biased to gaze at the attractor (head section), one-anchored chain resolve trailing off the rear hip (tail section). Every joint respects `segmentLengths[i]` and the per-joint `angleConstraint`.
+5. **Leg FABRIK** resolves each 3-joint leg between `limb.anchor` and `limb.currentTarget`.
 
-For each leg:
-
-- The hip's world position is recomputed: `parentRot = parentRestAngle + π − boneAngle`; the rest `hipOffset` is rotated by `parentRot` and added to the spine joint's position. This locks the hip to the body wherever the studio user placed it.
-- The foot's *desired* world target = `spineJoint + limbReach × (heading + limbAngleOffset × side)`. It only updates when the foot would have to move farther than `stepThreshold`, then is smoothed via lerp — that's why feet "step" instead of slide.
-- FABRIK resolves the 3-joint leg (hip → knee → foot) so it lands at `currentTarget`.
+The renderer downstream reads `chain.joints[i]`, `limb.anchor`, and `limb.currentTarget` — nothing else.
 
 ## Rendering: model locked to skeleton
 
@@ -115,15 +112,16 @@ The renderer's `restAngles + π − boneAngle` math is derived per-model from th
 
 The simulation parameters that drive the math (`segmentLengths`, `hipOffset`, `bodyHalfWidth`, `limbReach`, `parentRestAngle`) are all derived per-model. When you swap dragons, the simulation auto-tunes its bone lengths and limb geometry to that dragon. Your animation logic doesn't need to know which dragon is loaded.
 
-## What `useCreature` provides for free
+## What `useCreature` provides
 
-If you bypass `useCreature` entirely, you lose these (you'd need to reproduce them or accept their absence):
+If a new animator bypasses `useCreature` entirely, it has to reproduce these or accept their absence:
 
-- **Rigid bone lengths** via `chain.resolve()` (rule #1 above).
-- **Hips welded to spine** via the `parentRot` rotation of `hipOffset` against the live spine angle.
-- **Stepped feet** via `stepThreshold` + `stepSmoothing` — the discrete step-then-glide foot motion.
+- **Rigid bone lengths** via `chain.resolve()` and `chain.resolveDualAnchor()` (rule #1 above).
+- **Hips anchored to the body** — hip joint positions derived from planted feet plus `bodyHeight`.
+- **Per-foot plant/swing state machine** — discrete step-then-arc foot motion, world-anchored plant points.
+- **Three-section spine solve** — dual-anchor for the mid-spine, one-anchored for head and tail sections.
 
-The cleanest path for a new animation is usually: keep `Chain3D.resolve()` (it handles the bone-length constraint perfectly), keep the leg `anchor` math from `useCreature`, and only replace the *target-picker* that decides where the chain head goes each frame.
+For most extensions, the cleanest path is to add behavior inside the existing pipeline (intent steering, foot rules, constraint kinds) rather than replacing the pipeline.
 
 ## Bottom line
 
@@ -134,7 +132,7 @@ Model rendering is a pure function of `(joints, limb anchors, limb targets)` plu
 - `app/studio/NodeOverlay.tsx` — places and edits node positions in studio
 - `app/studio/page.types.ts` — `BodyGroup`, `NodeType`, `ModelConfigRow` definitions
 - `app/game/modelConfigToCreatureConfig.ts` — converts saved nodes into simulation parameters
-- `app/game/chain3d.ts` — `Chain3D.resolve()` (rigid-length spine solver)
+- `app/game/chain3d.ts` — `Chain3D.resolve()` (one-anchored) and `Chain3D.resolveDualAnchor()` (two-anchored) spine solvers
 - `app/game/fabrik3d.ts` — leg IK (3-joint resolve)
-- `app/game/useCreature.ts` — current animation source: target-following + chain + leg stepping
+- `app/game/useCreature.ts` — animation source: intent → feet → hips → spine → legs pipeline
 - `app/game/AnimatedModel.tsx` — renderer; locks each BodyGroup to a joint pair (spine) or anchor/target pair (leg)

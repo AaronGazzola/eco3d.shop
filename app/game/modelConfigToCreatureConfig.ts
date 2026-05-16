@@ -113,6 +113,14 @@ export function modelConfigToCreatureConfig(
 
       const footRestY = g.nodeFoot?.y ?? 0
 
+      const restFootOffset = (hipNode && g.nodeFoot)
+        ? {
+            x: g.nodeFoot.x - hipNode.x,
+            y: (g.nodeFoot.y ?? 0) - (hipNode.y ?? 0),
+            z: g.nodeFoot.z - hipNode.z,
+          }
+        : undefined
+
       return [
         {
           index: idx,
@@ -123,9 +131,14 @@ export function modelConfigToCreatureConfig(
           hipOffset,
           parentRestAngle,
           footRestY,
+          restFootOffset,
         },
       ]
     })
+
+  const hipIndicesAsc = Array.from(new Set(limbNodes.map((l) => l.index))).sort((a, b) => a - b)
+  const hipJointFrontIndex = hipIndicesAsc[0]
+  const hipJointBackIndex = hipIndicesAsc[hipIndicesAsc.length - 1]
 
   return {
     ...defaults,
@@ -136,5 +149,7 @@ export function modelConfigToCreatureConfig(
     limbSegmentLength: defaults.limbSegmentLength,
     limbReach: defaults.limbReach,
     bodyHalfWidth: defaults.bodyHalfWidth,
+    hipJointFrontIndex,
+    hipJointBackIndex,
   }
 }

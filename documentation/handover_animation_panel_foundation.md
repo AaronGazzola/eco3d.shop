@@ -4,6 +4,8 @@
 **Date:** 2026-05-12.
 **Status:** Implementation complete, type-check clean, **browser verification pending**.
 
+> **Update (2026-05-16):** Slice 0 (this handover) still applies as written — the panel-foundation work is unchanged. **Slices 1 and beyond have been redefined.** What used to be "Slice 1 — Foot stepping rework" and "Slice 2 — Attractor + head behavior rework" are now folded into a single foundational inversion: **Slice 1 — Invert the locomotion model (foot-anchored body)**. The new Slice 1 introduces an `intent` state, per-foot world-anchored plant points, hip joints derived from feet, dual-anchor FABRIK for the mid-spine, and gaze-only head joint behavior. See `documentation/animation_design.md` § 7 for the rewritten roadmap and `openspec/changes/invert-locomotion-foot-anchored/` for the OpenSpec change implementing it.
+
 ## TL;DR
 
 A foundational rebuild of the studio Animate step (`/studio` step 3) landed. The dragon animates identically to before, but the viewport now draws a toggleable debug overlay (joints / bones / hips / foot targets / head-target arrow) over the translucent dragon, and the panel was restructured into an `Intrinsic` / `Extrinsic` tab pair with the existing controls relocated under the right tab. Two pre-existing perf bugs (solver rebuild storm on every slider tick, plus whole-store subscriptions in the scene components) were fixed as part of the same slice.
@@ -16,8 +18,6 @@ This is the **prerequisite slice** the canonical animation design (`documentatio
 2. `documentation/skeleton_to_model_mapping.md` — the renderer ↔ skeleton contract. The overlay reads the same refs the renderer reads; understanding this is one paragraph and saves confusion.
 3. `documentation/handover_studio_animate_step.md` — engineering history of how step 3 was originally wired in, plus the perf-investigation notes that this slice acted on (Suspect 2 is now fully fixed; Suspect 3 — per-segment materials — still pending).
 4. `openspec/changes/rebuild-animation-panel-foundation/` — the OpenSpec change for this slice. `proposal.md` for what + why, `design.md` for the decisions, `tasks.md` for the checklist (with browser verification still unchecked), `specs/dragon-animation/spec.md` for the spec delta.
-
-Optional context (deprecated, kept for history): `documentation/motion_composer_design.md`, `documentation/handover_studio_live_tuning_panel.md`. Both describe a paradigm (additive wiggle layers) that was abandoned in favor of constraint-based procedural.
 
 ## What landed in this session
 

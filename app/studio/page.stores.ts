@@ -7,13 +7,19 @@ import { CREATURE_DEFAULTS } from '../page.constants'
 
 const ANIMATION_DEFAULTS: AnimationConfig = {
   angleConstraint: CREATURE_DEFAULTS.lizard.angleConstraint,
-  limbAngleOffset: CREATURE_DEFAULTS.lizard.limbAngleOffset,
   stepThreshold: CREATURE_DEFAULTS.lizard.stepThreshold,
-  stepSmoothing: CREATURE_DEFAULTS.lizard.stepSmoothing,
   wanderRadius: CREATURE_DEFAULTS.lizard.wanderRadius,
   wanderSpeed: CREATURE_DEFAULTS.lizard.wanderSpeed,
   maxSpeed: CREATURE_DEFAULTS.lizard.maxSpeed,
-  followDistance: CREATURE_DEFAULTS.lizard.followDistance,
+  arrivalRadius: CREATURE_DEFAULTS.lizard.arrivalRadius,
+  intentDamping: CREATURE_DEFAULTS.lizard.intentDamping,
+  idleDriftAmplitude: CREATURE_DEFAULTS.lizard.idleDriftAmplitude,
+  idleDriftFrequency: CREATURE_DEFAULTS.lizard.idleDriftFrequency,
+  swingDuration: CREATURE_DEFAULTS.lizard.swingDuration,
+  liftHeight: CREATURE_DEFAULTS.lizard.liftHeight,
+  predictionGain: CREATURE_DEFAULTS.lizard.predictionGain,
+  bodyHeight: CREATURE_DEFAULTS.lizard.bodyHeight,
+  groundY: CREATURE_DEFAULTS.lizard.groundY,
 }
 
 const OVERLAY_DEFAULTS: OverlayToggles = {
@@ -22,6 +28,11 @@ const OVERLAY_DEFAULTS: OverlayToggles = {
   hips: true,
   footTargets: true,
   headTarget: true,
+  footState: true,
+  stepRing: true,
+  swingArc: true,
+  intent: true,
+  hipDerivation: true,
 }
 
 const SEGMENT_COLORS = [
@@ -49,6 +60,7 @@ interface StudioStore {
   animationConfig: AnimationConfig
   showAttractor: boolean
   overlayToggles: OverlayToggles
+  modelOpacity: number
 
   setStlKey: (key: string) => void
   setConfigId: (id: string | null) => void
@@ -61,6 +73,7 @@ interface StudioStore {
   setAnimationField: (key: keyof AnimationConfig, value: number) => void
   setShowAttractor: (v: boolean) => void
   setOverlayToggle: (key: keyof OverlayToggles, value: boolean) => void
+  setModelOpacity: (v: number) => void
   setCameraPreset: (preset: CameraPreset | null) => void
   rotateModel: (axis: 'x' | 'y' | 'z', delta: number) => void
   togglePendingSegment: (id: string) => void
@@ -97,6 +110,7 @@ export const useStudioStore = create<StudioStore>()(
       animationConfig: ANIMATION_DEFAULTS,
       showAttractor: true,
       overlayToggles: OVERLAY_DEFAULTS,
+      modelOpacity: 1,
 
       setStlKey: (key) => set({ stlKey: key }),
 
@@ -232,6 +246,8 @@ export const useStudioStore = create<StudioStore>()(
       setOverlayToggle: (key, value) =>
         set((state) => ({ overlayToggles: { ...state.overlayToggles, [key]: value } })),
 
+      setModelOpacity: (v) => set({ modelOpacity: v }),
+
       setGroupNode: (groupId, nodeType, x, y, z) =>
         set((state) => ({
           groups: state.groups.map((g) => {
@@ -249,6 +265,7 @@ export const useStudioStore = create<StudioStore>()(
     }),
     {
       name: 'studio-store',
+      version: 2,
       partialize: (state) => ({
         stlKey: state.stlKey,
         configId: state.configId,
@@ -259,7 +276,24 @@ export const useStudioStore = create<StudioStore>()(
         animationConfig: state.animationConfig,
         showAttractor: state.showAttractor,
         overlayToggles: state.overlayToggles,
+        modelOpacity: state.modelOpacity,
       }),
+      migrate: (persisted: unknown, version: number) => {
+        const state = (persisted ?? {}) as Record<string, unknown>
+        if (version < 2) {
+          const ac = (state.animationConfig ?? {}) as Record<string, unknown>
+          if (ac.followDistance !== undefined && ac.arrivalRadius === undefined) {
+            ac.arrivalRadius = ac.followDistance
+          }
+          delete ac.followDistance
+          delete ac.limbAngleOffset
+          delete ac.stepSmoothing
+          state.animationConfig = { ...ANIMATION_DEFAULTS, ...ac }
+          const ov = (state.overlayToggles ?? {}) as Record<string, unknown>
+          state.overlayToggles = { ...OVERLAY_DEFAULTS, ...ov }
+        }
+        return state
+      },
     }
   )
 )

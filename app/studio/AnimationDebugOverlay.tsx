@@ -5,7 +5,6 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Chain3D } from '../game/chain3d'
 import { LimbState } from '../game/useCreature'
-import { useStudioStore } from './page.stores'
 
 const MAX_JOINTS = 64
 const MAX_LIMBS = 16
@@ -13,37 +12,27 @@ const MAX_LIMBS = 16
 const JOINT_COLOR = '#22d3ee'
 const BONE_COLOR = '#22d3ee'
 const HIP_COLOR = '#f472b6'
-const FOOT_CURRENT_COLOR = '#34d399'
-const FOOT_DESIRED_COLOR = '#fbbf24'
-const HEAD_TARGET_COLOR = '#a78bfa'
+const FOOT_COLOR = '#34d399'
 
 const JOINT_RADIUS = 0.12
 const HIP_RADIUS = 0.14
 const FOOT_RADIUS = 0.14
-const FOOT_GHOST_RADIUS = 0.18
 
 const _dummy = new THREE.Object3D()
 
 export function AnimationDebugOverlay({
   chainRef,
   limbStatesRef,
-  targetRef,
 }: {
   chainRef: MutableRefObject<Chain3D | null>
   limbStatesRef: MutableRefObject<LimbState[]>
-  targetRef: MutableRefObject<THREE.Vector3>
 }) {
   const { scene } = useThree()
-  const toggles = useStudioStore((s) => s.overlayToggles)
 
   const jointsMeshRef = useRef<THREE.InstancedMesh | null>(null)
   const bonesGeomRef = useRef<THREE.BufferGeometry | null>(null)
-  const bonesLineRef = useRef<THREE.LineSegments | null>(null)
   const hipsMeshRef = useRef<THREE.InstancedMesh | null>(null)
-  const footCurrentMeshRef = useRef<THREE.InstancedMesh | null>(null)
-  const footDesiredMeshRef = useRef<THREE.InstancedMesh | null>(null)
-  const headArrowGeomRef = useRef<THREE.BufferGeometry | null>(null)
-  const headArrowLineRef = useRef<THREE.Line | null>(null)
+  const footsMeshRef = useRef<THREE.InstancedMesh | null>(null)
 
   useEffect(() => {
     const ignoreRaycast = () => null
@@ -73,7 +62,6 @@ export function AnimationDebugOverlay({
     bonesLine.raycast = ignoreRaycast
     scene.add(bonesLine)
     bonesGeomRef.current = bonesGeom
-    bonesLineRef.current = bonesLine
 
     const hipGeom = new THREE.SphereGeometry(HIP_RADIUS, 8, 8)
     const hipMat = new THREE.MeshBasicMaterial({ color: HIP_COLOR })
@@ -85,84 +73,42 @@ export function AnimationDebugOverlay({
     scene.add(hipsMesh)
     hipsMeshRef.current = hipsMesh
 
-    const footCurrentGeom = new THREE.SphereGeometry(FOOT_RADIUS, 10, 8)
-    const footCurrentMat = new THREE.MeshBasicMaterial({ color: FOOT_CURRENT_COLOR })
-    overlayDepth(footCurrentMat)
-    const footCurrentMesh = new THREE.InstancedMesh(footCurrentGeom, footCurrentMat, MAX_LIMBS)
-    footCurrentMesh.count = 0
-    footCurrentMesh.renderOrder = 999
-    footCurrentMesh.raycast = ignoreRaycast
-    scene.add(footCurrentMesh)
-    footCurrentMeshRef.current = footCurrentMesh
-
-    const footDesiredGeom = new THREE.SphereGeometry(FOOT_GHOST_RADIUS, 10, 8)
-    const footDesiredMat = new THREE.MeshBasicMaterial({ color: FOOT_DESIRED_COLOR, wireframe: true })
-    overlayDepth(footDesiredMat)
-    const footDesiredMesh = new THREE.InstancedMesh(footDesiredGeom, footDesiredMat, MAX_LIMBS)
-    footDesiredMesh.count = 0
-    footDesiredMesh.renderOrder = 999
-    footDesiredMesh.raycast = ignoreRaycast
-    scene.add(footDesiredMesh)
-    footDesiredMeshRef.current = footDesiredMesh
-
-    const headArrowGeom = new THREE.BufferGeometry()
-    headArrowGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(2 * 3), 3))
-    const headArrowMat = new THREE.LineBasicMaterial({ color: HEAD_TARGET_COLOR })
-    overlayDepth(headArrowMat)
-    const headArrowLine = new THREE.Line(headArrowGeom, headArrowMat)
-    headArrowLine.renderOrder = 999
-    headArrowLine.frustumCulled = false
-    headArrowLine.raycast = ignoreRaycast
-    scene.add(headArrowLine)
-    headArrowGeomRef.current = headArrowGeom
-    headArrowLineRef.current = headArrowLine
+    const footGeom = new THREE.SphereGeometry(FOOT_RADIUS, 10, 8)
+    const footMat = new THREE.MeshBasicMaterial({ color: FOOT_COLOR })
+    overlayDepth(footMat)
+    const footsMesh = new THREE.InstancedMesh(footGeom, footMat, MAX_LIMBS)
+    footsMesh.count = 0
+    footsMesh.renderOrder = 999
+    footsMesh.raycast = ignoreRaycast
+    scene.add(footsMesh)
+    footsMeshRef.current = footsMesh
 
     return () => {
       scene.remove(jointsMesh)
       scene.remove(bonesLine)
       scene.remove(hipsMesh)
-      scene.remove(footCurrentMesh)
-      scene.remove(footDesiredMesh)
-      scene.remove(headArrowLine)
+      scene.remove(footsMesh)
       jointGeom.dispose()
       jointMat.dispose()
       bonesGeom.dispose()
       bonesMat.dispose()
       hipGeom.dispose()
       hipMat.dispose()
-      footCurrentGeom.dispose()
-      footCurrentMat.dispose()
-      footDesiredGeom.dispose()
-      footDesiredMat.dispose()
-      headArrowGeom.dispose()
-      headArrowMat.dispose()
+      footGeom.dispose()
+      footMat.dispose()
     }
   }, [scene])
-
-  useEffect(() => {
-    if (jointsMeshRef.current) jointsMeshRef.current.visible = toggles.joints
-    if (bonesLineRef.current) bonesLineRef.current.visible = toggles.bones
-    if (hipsMeshRef.current) hipsMeshRef.current.visible = toggles.hips
-    if (footCurrentMeshRef.current) footCurrentMeshRef.current.visible = toggles.footTargets
-    if (footDesiredMeshRef.current) footDesiredMeshRef.current.visible = toggles.footTargets
-    if (headArrowLineRef.current) headArrowLineRef.current.visible = toggles.headTarget
-  }, [toggles.joints, toggles.bones, toggles.hips, toggles.footTargets, toggles.headTarget])
 
   useFrame(() => {
     const chain = chainRef.current
     const limbs = limbStatesRef.current
-    const jointsMesh = jointsMeshRef.current
-    const bonesGeom = bonesGeomRef.current
-    const hipsMesh = hipsMeshRef.current
-    const footCurrentMesh = footCurrentMeshRef.current
-    const footDesiredMesh = footDesiredMeshRef.current
-    const headArrowGeom = headArrowGeomRef.current
-
-    if (!chain || !jointsMesh || !bonesGeom || !hipsMesh || !footCurrentMesh || !footDesiredMesh || !headArrowGeom) return
+    if (!chain) return
 
     const n = chain.joints.length
+    const limbCount = Math.min(limbs.length, MAX_LIMBS)
 
-    if (toggles.joints) {
+    const jointsMesh = jointsMeshRef.current
+    if (jointsMesh) {
       const count = Math.min(n, MAX_JOINTS)
       jointsMesh.count = count
       for (let i = 0; i < count; i++) {
@@ -175,7 +121,8 @@ export function AnimationDebugOverlay({
       jointsMesh.instanceMatrix.needsUpdate = true
     }
 
-    if (toggles.bones && n >= 2) {
+    const bonesGeom = bonesGeomRef.current
+    if (bonesGeom && n >= 2) {
       const segCount = Math.min(n - 1, MAX_JOINTS - 1)
       const pos = bonesGeom.getAttribute('position') as THREE.BufferAttribute
       const arr = pos.array as Float32Array
@@ -194,9 +141,8 @@ export function AnimationDebugOverlay({
       bonesGeom.setDrawRange(0, segCount * 2)
     }
 
-    const limbCount = Math.min(limbs.length, MAX_LIMBS)
-
-    if (toggles.hips) {
+    const hipsMesh = hipsMeshRef.current
+    if (hipsMesh) {
       hipsMesh.count = limbCount
       for (let i = 0; i < limbCount; i++) {
         _dummy.position.copy(limbs[i].anchor)
@@ -208,36 +154,17 @@ export function AnimationDebugOverlay({
       hipsMesh.instanceMatrix.needsUpdate = true
     }
 
-    if (toggles.footTargets) {
-      footCurrentMesh.count = limbCount
-      footDesiredMesh.count = limbCount
+    const footsMesh = footsMeshRef.current
+    if (footsMesh) {
+      footsMesh.count = limbCount
       for (let i = 0; i < limbCount; i++) {
         _dummy.position.copy(limbs[i].currentTarget)
         _dummy.rotation.set(0, 0, 0)
         _dummy.scale.setScalar(1)
         _dummy.updateMatrix()
-        footCurrentMesh.setMatrixAt(i, _dummy.matrix)
-
-        _dummy.position.copy(limbs[i].desiredTarget)
-        _dummy.updateMatrix()
-        footDesiredMesh.setMatrixAt(i, _dummy.matrix)
+        footsMesh.setMatrixAt(i, _dummy.matrix)
       }
-      footCurrentMesh.instanceMatrix.needsUpdate = true
-      footDesiredMesh.instanceMatrix.needsUpdate = true
-    }
-
-    if (toggles.headTarget) {
-      const head = chain.joints[0]
-      const tgt = targetRef.current
-      const pos = headArrowGeom.getAttribute('position') as THREE.BufferAttribute
-      const arr = pos.array as Float32Array
-      arr[0] = head.x
-      arr[1] = head.y
-      arr[2] = head.z
-      arr[3] = tgt.x
-      arr[4] = tgt.y
-      arr[5] = tgt.z
-      pos.needsUpdate = true
+      footsMesh.instanceMatrix.needsUpdate = true
     }
   })
 

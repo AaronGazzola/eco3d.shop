@@ -177,14 +177,14 @@ function SegmentMesh({
   offsetX,
   offsetY,
   offsetZ,
-  transparent,
+  opacity,
 }: {
   positions: Float32Array
   color: string
   offsetX: number
   offsetY: number
   offsetZ: number
-  transparent: boolean
+  opacity: number
 }) {
   const geometry = useMemo(() => {
     const arr = positions.slice()
@@ -199,15 +199,21 @@ function SegmentMesh({
     return geo
   }, [positions, offsetX, offsetY, offsetZ])
 
+  const isTransparent = opacity < 1
+  const isHidden = opacity <= 0.001
+
+  if (isHidden) return null
+
   return (
     <mesh geometry={geometry}>
       <meshStandardMaterial
-        key={transparent ? 'transparent' : 'opaque'}
+        key={isTransparent ? 'transparent' : 'opaque'}
         color={color}
         roughness={0.5}
         metalness={0.05}
-        transparent={transparent}
-        opacity={transparent ? 0.18 : 1}
+        transparent={isTransparent}
+        opacity={opacity}
+        depthWrite={!isTransparent}
       />
     </mesh>
   )
@@ -221,6 +227,7 @@ export function AnimatedModel({
   showSkeleton,
   chainRef: externalChainRef,
   limbStatesRef: externalLimbStatesRef,
+  opacity = 1,
 }: {
   creatureConfig: CreatureConfig
   modelConfig: ModelConfigRow
@@ -229,6 +236,7 @@ export function AnimatedModel({
   showSkeleton?: boolean
   chainRef?: MutableRefObject<Chain3D | null>
   limbStatesRef?: MutableRefObject<LimbState[]>
+  opacity?: number
 }) {
   const internal = useCreature(creatureConfig, targetRef, !externalChainRef)
   const chainRef = externalChainRef ?? internal.chainRef
@@ -313,6 +321,23 @@ export function AnimatedModel({
     })
   }, [legGroups, modelConfig.groups])
 
+  const legRestPitches = useMemo(() => {
+    return legGroups.map((g) => {
+      const spineGroup = modelConfig.groups.find((sg) => sg.id === g.attachedToSpineId)
+      const hipNode = spineGroup
+        ? (g.type === 'leg-left' ? spineGroup.nodeHipLeft : spineGroup.nodeHipRight)
+        : undefined
+      if (hipNode && g.nodeFoot) {
+        const dx = g.nodeFoot.x - hipNode.x
+        const dz = g.nodeFoot.z - hipNode.z
+        const dy = (g.nodeFoot.y ?? 0) - (hipNode.y ?? 0)
+        const planar = Math.hypot(dx, dz)
+        return Math.atan2(dy, planar)
+      }
+      return 0
+    })
+  }, [legGroups, modelConfig.groups])
+
   const [renderCount, setRenderCount] = useState(0)
 
   useEffect(() => {
@@ -339,7 +364,7 @@ export function AnimatedModel({
         const joint1 = chain.joints[segIdx + 1]
         const boneAngle = Math.atan2(joint1.z - joint0.z, joint1.x - joint0.x)
         obj.position.set(joint0.x, joint0.y, joint0.z)
-        obj.rotation.y = restAngles[segIdx] + Math.PI - boneAngle
+        obj.rotation.set(0, restAngles[segIdx] + Math.PI - boneAngle, 0)
         return
       }
 
@@ -348,12 +373,16 @@ export function AnimatedModel({
       const limb = limbStatesRef.current[limbIdx]
       if (!limb) return
 
-      const worldAngle = Math.atan2(
-        limb.currentTarget.z - limb.anchor.z,
-        limb.currentTarget.x - limb.anchor.x
-      )
+      const dx = limb.currentTarget.x - limb.anchor.x
+      const dy = limb.currentTarget.y - limb.anchor.y
+      const dz = limb.currentTarget.z - limb.anchor.z
+      const planar = Math.hypot(dx, dz)
+      const worldAngle = Math.atan2(dz, dx)
+      const currentPitch = Math.atan2(dy, planar)
+      const pitchDelta = currentPitch - legRestPitches[limbIdx]
       obj.position.set(limb.anchor.x, limb.anchor.y, limb.anchor.z)
-      obj.rotation.y = legRestAngles[limbIdx] - worldAngle
+      obj.rotation.order = 'YXZ'
+      obj.rotation.set(pitchDelta, legRestAngles[limbIdx] - worldAngle, 0, 'YXZ')
     })
   })
 
@@ -382,7 +411,7 @@ export function AnimatedModel({
                   offsetX={-np.x}
                   offsetY={-np.y}
                   offsetZ={-np.z}
-                  transparent={!!showSkeleton}
+                  opacity={showSkeleton ? Math.min(opacity, 0.18) : opacity}
                 />
               )
             })}

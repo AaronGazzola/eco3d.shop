@@ -40,13 +40,19 @@ export interface BodyGroup {
 
 export interface AnimationConfig {
   angleConstraint: number
-  limbAngleOffset: number
   stepThreshold: number
-  stepSmoothing: number
   wanderRadius: number
   wanderSpeed: number
   maxSpeed: number
-  followDistance: number
+  arrivalRadius: number
+  intentDamping: number
+  idleDriftAmplitude: number
+  idleDriftFrequency: number
+  swingDuration: number
+  liftHeight: number
+  predictionGain: number
+  bodyHeight: number
+  groundY: number
 }
 
 export interface OverlayToggles {
@@ -55,4 +61,9 @@ export interface OverlayToggles {
   hips: boolean
   footTargets: boolean
   headTarget: boolean
+  footState: boolean
+  stepRing: boolean
+  swingArc: boolean
+  intent: boolean
+  hipDerivation: boolean
 }

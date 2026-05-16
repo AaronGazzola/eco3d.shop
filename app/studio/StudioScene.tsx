@@ -8,7 +8,6 @@ import { useStudioStore } from './page.stores'
 import { SegmentData, ModelConfigRow, BodyGroup } from './page.types'
 import { NodeOverlay } from './NodeOverlay'
 import { AnimatedModel } from '../game/AnimatedModel'
-import { TargetController } from '../game/TargetController'
 import { modelConfigToCreatureConfig } from '../game/modelConfigToCreatureConfig'
 import { useCreature } from '../game/useCreature'
 import { AnimationDebugOverlay } from './AnimationDebugOverlay'
@@ -241,18 +240,16 @@ function AnimateContent() {
   const configName = useStudioStore((s) => s.configName)
   const modelRotation = useStudioStore((s) => s.modelRotation)
   const animationConfig = useStudioStore((s) => s.animationConfig)
-  const showAttractor = useStudioStore((s) => s.showAttractor)
+  const modelOpacity = useStudioStore((s) => s.modelOpacity)
 
   const initialJoints = useMemo(() => buildChainJoints(groups, segments), [groups, segments])
   const headXZ = initialJoints[0] ?? null
 
   const targetRef = useRef(new THREE.Vector3(headXZ?.x ?? 0, 0, headXZ?.z ?? 0))
-  const userTargetGoalRef = useRef(new THREE.Vector3(headXZ?.x ?? 0, 0, headXZ?.z ?? 0))
 
   useEffect(() => {
     if (!headXZ) return
     targetRef.current.set(headXZ.x, 0, headXZ.z)
-    userTargetGoalRef.current.set(headXZ.x, 0, headXZ.z)
   }, [headXZ?.x, headXZ?.z])
 
   const modelConfig = useMemo<ModelConfigRow>(
@@ -293,18 +290,12 @@ function AnimateContent() {
         position={[0, 0, 0]}
         onPointerDown={(e) => {
           e.stopPropagation()
-          userTargetGoalRef.current.set(e.point.x, 0, e.point.z)
+          targetRef.current.set(e.point.x, 0, e.point.z)
         }}
       >
         <planeGeometry args={[1000, 1000]} />
         <meshBasicMaterial visible={false} side={THREE.DoubleSide} />
       </mesh>
-      <TargetController
-        targetRef={targetRef}
-        userTargetGoalRef={userTargetGoalRef}
-        config={creatureConfig}
-        showAttractor={showAttractor}
-      />
       <AnimatedModel
         creatureConfig={creatureConfig}
         modelConfig={modelConfig}
@@ -312,11 +303,11 @@ function AnimateContent() {
         targetRef={targetRef}
         chainRef={chainRef}
         limbStatesRef={limbStatesRef}
+        opacity={modelOpacity}
       />
       <AnimationDebugOverlay
         chainRef={chainRef}
         limbStatesRef={limbStatesRef}
-        targetRef={targetRef}
       />
     </>
   )
