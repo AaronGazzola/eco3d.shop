@@ -37,33 +37,3 @@ export interface BodyGroup {
   nodeHipRight?: { x: number; y?: number; z: number }
   nodeFoot?: { x: number; y?: number; z: number }
 }
-
-export interface AnimationConfig {
-  angleConstraint: number
-  stepThreshold: number
-  wanderRadius: number
-  wanderSpeed: number
-  maxSpeed: number
-  arrivalRadius: number
-  intentDamping: number
-  idleDriftAmplitude: number
-  idleDriftFrequency: number
-  swingDuration: number
-  liftHeight: number
-  predictionGain: number
-  bodyHeight: number
-  groundY: number
-}
-
-export interface OverlayToggles {
-  joints: boolean
-  bones: boolean
-  hips: boolean
-  footTargets: boolean
-  headTarget: boolean
-  footState: boolean
-  stepRing: boolean
-  swingArc: boolean
-  intent: boolean
-  hipDerivation: boolean
-}

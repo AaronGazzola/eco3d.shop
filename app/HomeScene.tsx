@@ -1,17 +1,13 @@
 'use client'
 
-import { useRef, useEffect, MutableRefObject } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, Grid } from '@react-three/drei'
-import * as THREE from 'three'
 import { useGameStore } from './page.stores'
 import { useEggPairs, useInitEggs } from './page.hooks'
 import { useStlSegments } from './game/useStlSegments'
-import { TargetController } from './game/TargetController'
-import { FloorClickHandler } from './game/FloorClickHandler'
 import { EggMesh } from './EggMesh'
 import { HatchingDragon } from './HatchingDragon'
-import { CREATURE_DEFAULTS, DRAGON_SCALE_FINAL, EMERGE_DURATION_MS } from './page.constants'
+import { EMERGE_DURATION_MS } from './page.constants'
 
 const SHAKE_DURATION_MS = 2000
 const CRACK_DURATION_MS = 600
@@ -47,32 +43,6 @@ function PhaseDriver({ segmentsReady }: { segmentsReady: boolean }) {
   return null
 }
 
-function PreLiveTarget({
-  spawnX,
-  spawnZ,
-  targetRef,
-  userTargetGoalRef,
-}: {
-  spawnX: number
-  spawnZ: number
-  targetRef: MutableRefObject<THREE.Vector3>
-  userTargetGoalRef: MutableRefObject<THREE.Vector3>
-}) {
-  useEffect(() => {
-    targetRef.current.set(spawnX, 0, spawnZ)
-    userTargetGoalRef.current.set(spawnX, 0, spawnZ)
-  }, [spawnX, spawnZ, targetRef, userTargetGoalRef])
-
-  useFrame(() => {
-    const phase = useGameStore.getState().phase
-    if (phase !== 'live') {
-      targetRef.current.set(spawnX, 0, spawnZ)
-    }
-  })
-
-  return null
-}
-
 function SceneContent() {
   useInitEggs()
   const phase = useGameStore((s) => s.phase)
@@ -81,9 +51,6 @@ function SceneContent() {
   const dragon = useGameStore((s) => s.dragon)
   const selectEgg = useGameStore((s) => s.selectEgg)
   const { isLoading: eggsLoading } = useEggPairs()
-
-  const targetRef = useRef(new THREE.Vector3(0, 0, 0))
-  const userTargetGoalRef = useRef(new THREE.Vector3(0, 0, 0))
 
   const stlKeyForLoad =
     phase === 'shaking' || phase === 'cracking' || phase === 'emerging' || phase === 'live'
@@ -118,27 +85,6 @@ function SceneContent() {
         fadeStrength={1.5}
         infiniteGrid
       />
-      <FloorClickHandler
-        userTargetGoalRef={userTargetGoalRef}
-        scale={phase === 'live' ? DRAGON_SCALE_FINAL : 1}
-        origin={{ x: spawnX, z: spawnZ }}
-      />
-      {phase === 'live' && (
-        <TargetController
-          targetRef={targetRef}
-          userTargetGoalRef={userTargetGoalRef}
-          config={CREATURE_DEFAULTS.lizard}
-          showAttractor={false}
-        />
-      )}
-      {phase !== 'live' && (
-        <PreLiveTarget
-          spawnX={spawnX}
-          spawnZ={spawnZ}
-          targetRef={targetRef}
-          userTargetGoalRef={userTargetGoalRef}
-        />
-      )}
       {showEggs && !eggsLoading && eggs.map((egg, i) => (
         <EggMesh
           key={egg.id}
@@ -158,7 +104,6 @@ function SceneContent() {
           segments={dragonSegments}
           spawnX={spawnX}
           spawnZ={spawnZ}
-          targetRef={targetRef}
         />
       )}
       <PhaseDriver segmentsReady={segmentsReady} />

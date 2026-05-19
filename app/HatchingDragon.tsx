@@ -1,12 +1,10 @@
 'use client'
 
-import { useRef, useMemo, MutableRefObject } from 'react'
+import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { ModelConfigRow, SegmentData } from './studio/page.types'
-import { CreatureConfig } from './page.types'
-import { AnimatedModel } from './game/AnimatedModel'
-import { modelConfigToCreatureConfig } from './game/modelConfigToCreatureConfig'
+import { StaticPosedModel } from './game/AnimatedModel'
 import { useGameStore } from './page.stores'
 import { DRAGON_SCALE_INITIAL, DRAGON_SCALE_FINAL, EMERGE_DURATION_MS } from './page.constants'
 
@@ -15,25 +13,10 @@ interface Props {
   segments: SegmentData[]
   spawnX: number
   spawnZ: number
-  targetRef: MutableRefObject<THREE.Vector3>
 }
 
-export function HatchingDragon({
-  modelConfig,
-  segments,
-  spawnX,
-  spawnZ,
-  targetRef,
-}: Props) {
+export function HatchingDragon({ modelConfig, segments, spawnX, spawnZ }: Props) {
   const groupRef = useRef<THREE.Group>(null)
-
-  const creatureConfig: CreatureConfig = useMemo(() => {
-    const base = modelConfigToCreatureConfig(modelConfig, segments)
-    return {
-      ...base,
-      chainOrigin: { x: spawnX, z: spawnZ },
-    }
-  }, [modelConfig, segments, spawnX, spawnZ])
 
   useFrame(() => {
     const g = groupRef.current
@@ -65,12 +48,7 @@ export function HatchingDragon({
 
   return (
     <group ref={groupRef} visible={false}>
-      <AnimatedModel
-        creatureConfig={creatureConfig}
-        modelConfig={modelConfig}
-        segments={segments}
-        targetRef={targetRef}
-      />
+      <StaticPosedModel modelConfig={modelConfig} segments={segments} />
     </group>
   )
 }

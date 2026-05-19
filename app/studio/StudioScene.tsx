@@ -5,44 +5,9 @@ import { Canvas, useThree, useFrame } from '@react-three/fiber'
 import { OrbitControls, Grid, TransformControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { useStudioStore } from './page.stores'
-import { SegmentData, ModelConfigRow, BodyGroup } from './page.types'
+import { SegmentData, ModelConfigRow } from './page.types'
 import { NodeOverlay } from './NodeOverlay'
-import { AnimatedModel } from '../game/AnimatedModel'
-import { modelConfigToCreatureConfig } from '../game/modelConfigToCreatureConfig'
-import { useCreature } from '../game/useCreature'
-import { AnimationDebugOverlay } from './AnimationDebugOverlay'
-
-function groupCentroidXZ(group: BodyGroup, segmentMap: Map<string, SegmentData>): { x: number; z: number } {
-  let sumX = 0, sumZ = 0, count = 0
-  for (const sid of group.segmentIds) {
-    const seg = segmentMap.get(sid)
-    if (!seg) continue
-    for (let i = 0; i < seg.positions.length; i += 3) {
-      sumX += seg.positions[i]
-      sumZ += seg.positions[i + 2]
-      count++
-    }
-  }
-  return count > 0 ? { x: sumX / count, z: sumZ / count } : { x: 0, z: 0 }
-}
-
-function buildChainJoints(groups: BodyGroup[], segments: SegmentData[]): { x: number; y?: number; z: number }[] {
-  const head = groups.find((g) => g.type === 'head')
-  const tail = groups.find((g) => g.type === 'tail')
-  const spines = groups.filter((g) => g.type === 'spine')
-  const chain: BodyGroup[] = [...(head ? [head] : []), ...spines, ...(tail ? [tail] : [])]
-  if (chain.length === 0) return []
-  const segmentMap = new Map(segments.map((s) => [s.id, s]))
-  const joints: { x: number; y?: number; z: number }[] = []
-  const front0Node = chain[0].nodeFront
-  const front0 = front0Node ?? groupCentroidXZ(chain[0], segmentMap)
-  joints.push({ x: front0.x, y: front0Node?.y, z: front0.z })
-  for (const g of chain) {
-    const back = g.nodeBack ?? groupCentroidXZ(g, segmentMap)
-    joints.push({ x: back.x, y: g.nodeBack?.y, z: back.z })
-  }
-  return joints
-}
+import { StaticPosedModel } from '../game/AnimatedModel'
 
 const CAMERA_PRESETS = {
   reset: { pos: [0, 8, 16]    as [number, number, number], target: [0, 3, 0] as [number, number, number] },
@@ -239,18 +204,6 @@ function AnimateContent() {
   const configId = useStudioStore((s) => s.configId)
   const configName = useStudioStore((s) => s.configName)
   const modelRotation = useStudioStore((s) => s.modelRotation)
-  const animationConfig = useStudioStore((s) => s.animationConfig)
-  const modelOpacity = useStudioStore((s) => s.modelOpacity)
-
-  const initialJoints = useMemo(() => buildChainJoints(groups, segments), [groups, segments])
-  const headXZ = initialJoints[0] ?? null
-
-  const targetRef = useRef(new THREE.Vector3(headXZ?.x ?? 0, 0, headXZ?.z ?? 0))
-
-  useEffect(() => {
-    if (!headXZ) return
-    targetRef.current.set(headXZ.x, 0, headXZ.z)
-  }, [headXZ?.x, headXZ?.z])
 
   const modelConfig = useMemo<ModelConfigRow>(
     () => ({
@@ -264,53 +217,12 @@ function AnimateContent() {
     [configId, stlKey, configName, groups, modelRotation]
   )
 
-  const baseCreatureConfig = useMemo(
-    () => modelConfigToCreatureConfig(modelConfig, segments),
-    [modelConfig, segments]
-  )
-
-  const creatureConfig = useMemo(
-    () => ({
-      ...baseCreatureConfig,
-      ...animationConfig,
-      chainOrigin: headXZ ?? undefined,
-      initialJoints: initialJoints.length > 0 ? initialJoints : undefined,
-    }),
-    [baseCreatureConfig, animationConfig, headXZ?.x, headXZ?.z, initialJoints]
-  )
-
-  const { chainRef, limbStatesRef, intentRef } = useCreature(creatureConfig, targetRef)
-
   if (groups.length === 0 || segments.length === 0) return null
 
   return (
-    <>
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, 0, 0]}
-        onPointerDown={(e) => {
-          e.stopPropagation()
-          targetRef.current.set(e.point.x, 0, e.point.z)
-        }}
-      >
-        <planeGeometry args={[1000, 1000]} />
-        <meshBasicMaterial visible={false} side={THREE.DoubleSide} />
-      </mesh>
-      <AnimatedModel
-        creatureConfig={creatureConfig}
-        modelConfig={modelConfig}
-        segments={segments}
-        targetRef={targetRef}
-        chainRef={chainRef}
-        limbStatesRef={limbStatesRef}
-        opacity={modelOpacity}
-      />
-      <AnimationDebugOverlay
-        chainRef={chainRef}
-        limbStatesRef={limbStatesRef}
-        intentRef={intentRef}
-      />
-    </>
+    <group rotation={modelRotation}>
+      <StaticPosedModel modelConfig={modelConfig} segments={segments} showNodes />
+    </group>
   )
 }
 

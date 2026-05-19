@@ -2,38 +2,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { SegmentData, BodyGroup, BodyGroupType, ModelConfigRow, NodeType, AnimationConfig, OverlayToggles } from './page.types'
-import { CREATURE_DEFAULTS } from '../page.constants'
-
-const ANIMATION_DEFAULTS: AnimationConfig = {
-  angleConstraint: CREATURE_DEFAULTS.lizard.angleConstraint,
-  stepThreshold: CREATURE_DEFAULTS.lizard.stepThreshold,
-  wanderRadius: CREATURE_DEFAULTS.lizard.wanderRadius,
-  wanderSpeed: CREATURE_DEFAULTS.lizard.wanderSpeed,
-  maxSpeed: CREATURE_DEFAULTS.lizard.maxSpeed,
-  arrivalRadius: CREATURE_DEFAULTS.lizard.arrivalRadius,
-  intentDamping: CREATURE_DEFAULTS.lizard.intentDamping,
-  idleDriftAmplitude: CREATURE_DEFAULTS.lizard.idleDriftAmplitude,
-  idleDriftFrequency: CREATURE_DEFAULTS.lizard.idleDriftFrequency,
-  swingDuration: CREATURE_DEFAULTS.lizard.swingDuration,
-  liftHeight: CREATURE_DEFAULTS.lizard.liftHeight,
-  predictionGain: CREATURE_DEFAULTS.lizard.predictionGain,
-  bodyHeight: CREATURE_DEFAULTS.lizard.bodyHeight,
-  groundY: CREATURE_DEFAULTS.lizard.groundY,
-}
-
-const OVERLAY_DEFAULTS: OverlayToggles = {
-  joints: true,
-  bones: true,
-  hips: true,
-  footTargets: true,
-  headTarget: true,
-  footState: true,
-  stepRing: true,
-  swingArc: true,
-  intent: true,
-  hipDerivation: true,
-}
+import { SegmentData, BodyGroup, BodyGroupType, ModelConfigRow, NodeType } from './page.types'
 
 const SEGMENT_COLORS = [
   '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
@@ -57,10 +26,6 @@ interface StudioStore {
   selectionMode: 'click' | 'sphere' | 'node'
   sphere: { x: number; y: number; z: number; radius: number } | null
   selectedNodeId: { groupId: string; nodeType: NodeType } | null
-  animationConfig: AnimationConfig
-  showAttractor: boolean
-  overlayToggles: OverlayToggles
-  modelOpacity: number
 
   setStlKey: (key: string) => void
   setConfigId: (id: string | null) => void
@@ -70,10 +35,6 @@ interface StudioStore {
   restoreSegments: (segments: SegmentData[]) => void
   setSelectedSegmentId: (id: string | null) => void
   setStep: (step: 1 | 2 | 3) => void
-  setAnimationField: (key: keyof AnimationConfig, value: number) => void
-  setShowAttractor: (v: boolean) => void
-  setOverlayToggle: (key: keyof OverlayToggles, value: boolean) => void
-  setModelOpacity: (v: number) => void
   setCameraPreset: (preset: CameraPreset | null) => void
   rotateModel: (axis: 'x' | 'y' | 'z', delta: number) => void
   togglePendingSegment: (id: string) => void
@@ -107,10 +68,6 @@ export const useStudioStore = create<StudioStore>()(
       selectionMode: 'click',
       sphere: null,
       selectedNodeId: null,
-      animationConfig: ANIMATION_DEFAULTS,
-      showAttractor: true,
-      overlayToggles: OVERLAY_DEFAULTS,
-      modelOpacity: 1,
 
       setStlKey: (key) => set({ stlKey: key }),
 
@@ -131,7 +88,6 @@ export const useStudioStore = create<StudioStore>()(
           sphere: null,
           selectedNodeId: null,
         }),
-
 
       setSegments: (raw) =>
         set({
@@ -238,16 +194,6 @@ export const useStudioStore = create<StudioStore>()(
 
       setSelectedNodeId: (id) => set({ selectedNodeId: id }),
 
-      setAnimationField: (key, value) =>
-        set((state) => ({ animationConfig: { ...state.animationConfig, [key]: value } })),
-
-      setShowAttractor: (v) => set({ showAttractor: v }),
-
-      setOverlayToggle: (key, value) =>
-        set((state) => ({ overlayToggles: { ...state.overlayToggles, [key]: value } })),
-
-      setModelOpacity: (v) => set({ modelOpacity: v }),
-
       setGroupNode: (groupId, nodeType, x, y, z) =>
         set((state) => ({
           groups: state.groups.map((g) => {
@@ -265,7 +211,7 @@ export const useStudioStore = create<StudioStore>()(
     }),
     {
       name: 'studio-store',
-      version: 2,
+      version: 3,
       partialize: (state) => ({
         stlKey: state.stlKey,
         configId: state.configId,
@@ -273,24 +219,14 @@ export const useStudioStore = create<StudioStore>()(
         groups: state.groups,
         step: state.step,
         modelRotation: state.modelRotation,
-        animationConfig: state.animationConfig,
-        showAttractor: state.showAttractor,
-        overlayToggles: state.overlayToggles,
-        modelOpacity: state.modelOpacity,
       }),
       migrate: (persisted: unknown, version: number) => {
         const state = (persisted ?? {}) as Record<string, unknown>
-        if (version < 2) {
-          const ac = (state.animationConfig ?? {}) as Record<string, unknown>
-          if (ac.followDistance !== undefined && ac.arrivalRadius === undefined) {
-            ac.arrivalRadius = ac.followDistance
-          }
-          delete ac.followDistance
-          delete ac.limbAngleOffset
-          delete ac.stepSmoothing
-          state.animationConfig = { ...ANIMATION_DEFAULTS, ...ac }
-          const ov = (state.overlayToggles ?? {}) as Record<string, unknown>
-          state.overlayToggles = { ...OVERLAY_DEFAULTS, ...ov }
+        if (version < 3) {
+          delete state.animationConfig
+          delete state.overlayToggles
+          delete state.modelOpacity
+          delete state.showAttractor
         }
         return state
       },
