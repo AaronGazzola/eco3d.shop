@@ -4,6 +4,17 @@ Canonical design doc for the creature animation system. Audience: Aaron and futu
 
 ---
 
+## Current status (2026-05-20)
+
+- **Step 5 — front feet step**: implementation wired, not yet visually verified in-browser.
+- **Done**: Steps 1–4 (attractor, head gaze, cascade through pre-hip spines, foot strain).
+- **What Step 5 does in code**: front hip now joins the cascade chain (gets a pivot). Each front foot tracks a planted world position + swing phase. When `computeStrain` exceeds `STRAIN_THRESHOLD`, the inside-of-turn foot (sign of `wantedYaw − plantedYaw`) lifts, arcs to its rest offset rotated by the wanted hip yaw, and replants. Hip's applied yaw eases from `plantedYaw` to `targetYaw` during the swing, then commits.
+- **Visual gap**: foot markers (green = left, violet = right) move correctly, but leg meshes still render at their model-local rest positions — they don't track the planted foot. Leg IK is Step 6's job.
+- **Pick up here**: open `/studio` step 3, place an attractor far to one side, confirm one foot lifts and replants and that the S-curve persists after the step. Then start Step 6 (rear hip + back legs, plus single-bone leg IK so the front legs track their feet).
+- **Key files**: `app/game/locomotion/{foot,chain,cascade,legs,headGaze,useLocomotion}.ts`, `app/game/AnimatedModel.tsx`, `app/studio/StepAnimate.tsx`.
+
+---
+
 ## 1. The five invariants
 
 These hold at every step, in every pose. They are structural rules, not preferences. An animation that violates one is broken.

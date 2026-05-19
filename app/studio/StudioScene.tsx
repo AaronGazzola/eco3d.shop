@@ -7,7 +7,7 @@ import * as THREE from 'three'
 import { useStudioStore } from './page.stores'
 import { SegmentData, ModelConfigRow } from './page.types'
 import { NodeOverlay } from './NodeOverlay'
-import { StaticPosedModel } from '../game/AnimatedModel'
+import { StaticPosedModel, AnimatedModel } from '../game/AnimatedModel'
 
 const CAMERA_PRESETS = {
   reset: { pos: [0, 8, 16]    as [number, number, number], target: [0, 3, 0] as [number, number, number] },
@@ -197,6 +197,21 @@ function SegmentMesh({
 
 const BATCH_SIZE = 10
 
+function AttractorMarker({ x, y, z }: { x: number; y: number; z: number }) {
+  return (
+    <group position={[x, y + 0.02, z]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.35, 0.5, 32]} />
+        <meshBasicMaterial color="#22d3ee" transparent opacity={0.9} depthTest={false} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.08, 16]} />
+        <meshBasicMaterial color="#22d3ee" depthTest={false} />
+      </mesh>
+    </group>
+  )
+}
+
 function AnimateContent() {
   const segments = useStudioStore((s) => s.segments)
   const groups = useStudioStore((s) => s.groups)
@@ -204,6 +219,8 @@ function AnimateContent() {
   const configId = useStudioStore((s) => s.configId)
   const configName = useStudioStore((s) => s.configName)
   const modelRotation = useStudioStore((s) => s.modelRotation)
+  const attractor = useStudioStore((s) => s.attractor)
+  const setAttractor = useStudioStore((s) => s.setAttractor)
 
   const modelConfig = useMemo<ModelConfigRow>(
     () => ({
@@ -220,9 +237,23 @@ function AnimateContent() {
   if (groups.length === 0 || segments.length === 0) return null
 
   return (
-    <group rotation={modelRotation}>
-      <StaticPosedModel modelConfig={modelConfig} segments={segments} showNodes />
-    </group>
+    <>
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, 0, 0]}
+        onClick={(e) => {
+          e.stopPropagation()
+          setAttractor({ x: e.point.x, y: 0, z: e.point.z })
+        }}
+      >
+        <planeGeometry args={[1000, 1000]} />
+        <meshBasicMaterial visible={false} side={THREE.DoubleSide} />
+      </mesh>
+      <group rotation={modelRotation}>
+        <AnimatedModel modelConfig={modelConfig} segments={segments} showNodes />
+      </group>
+      {attractor && <AttractorMarker x={attractor.x} y={attractor.y} z={attractor.z} />}
+    </>
   )
 }
 

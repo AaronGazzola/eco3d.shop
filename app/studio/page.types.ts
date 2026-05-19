@@ -36,4 +36,5 @@ export interface BodyGroup {
   nodeHipLeft?: { x: number; y?: number; z: number }
   nodeHipRight?: { x: number; y?: number; z: number }
   nodeFoot?: { x: number; y?: number; z: number }
+  angleCap?: number
 }

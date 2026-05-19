@@ -1,8 +1,11 @@
 'use client'
 
-import { useMemo } from 'react'
+import { RefObject, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { ModelConfigRow, SegmentData, BodyGroup } from '../studio/page.types'
+import { useLocomotion } from './locomotion/useLocomotion'
+import { buildCascadeChain } from './locomotion/chain'
+import { findFrontHip, findLegsForHip } from './locomotion/legs'
 
 function SegmentMesh({
   positions,
@@ -86,6 +89,168 @@ export function StaticPosedModel({
           <meshBasicMaterial color={n.color} depthTest={false} transparent opacity={0.95} />
         </mesh>
       ))}
+    </group>
+  )
+}
+
+function GroupNodeSpheres({ group }: { group: BodyGroup }) {
+  const nodes = useMemo(() => collectNodes([group]), [group])
+  return (
+    <>
+      {nodes.map((n, i) => (
+        <mesh key={i} position={n.pos}>
+          <sphereGeometry args={[0.1, 12, 8]} />
+          <meshBasicMaterial color={n.color} depthTest={false} transparent opacity={0.95} />
+        </mesh>
+      ))}
+    </>
+  )
+}
+
+function GroupBody({
+  group,
+  segmentMap,
+  showNodes,
+}: {
+  group: BodyGroup
+  segmentMap: Map<string, SegmentData>
+  showNodes: boolean
+}) {
+  return (
+    <>
+      {group.segmentIds.map((sid) => {
+        const seg = segmentMap.get(sid)
+        if (!seg) return null
+        return <SegmentMesh key={sid} positions={seg.positions} color={group.color} opacity={1} />
+      })}
+      {showNodes && <GroupNodeSpheres group={group} />}
+    </>
+  )
+}
+
+function ChainBoneTree({
+  chain,
+  index,
+  segmentMap,
+  showNodes,
+  pivotsRef,
+}: {
+  chain: BodyGroup[]
+  index: number
+  segmentMap: Map<string, SegmentData>
+  showNodes: boolean
+  pivotsRef: RefObject<Map<string, THREE.Group>>
+}) {
+  const g = chain[index]
+  const next =
+    index > 0 ? (
+      <ChainBoneTree
+        chain={chain}
+        index={index - 1}
+        segmentMap={segmentMap}
+        showNodes={showNodes}
+        pivotsRef={pivotsRef}
+      />
+    ) : null
+
+  if (!g.nodeBack) {
+    return (
+      <group>
+        <GroupBody group={g} segmentMap={segmentMap} showNodes={showNodes} />
+        {next}
+      </group>
+    )
+  }
+
+  const back = g.nodeBack
+  const bx = back.x
+  const by = back.y ?? 0
+  const bz = back.z
+
+  return (
+    <group position={[bx, by, bz]}>
+      <group
+        ref={(node) => {
+          const m = pivotsRef.current
+          if (!m) return
+          if (node) m.set(g.id, node)
+          else m.delete(g.id)
+        }}
+      >
+        <group position={[-bx, -by, -bz]}>
+          <GroupBody group={g} segmentMap={segmentMap} showNodes={showNodes} />
+          {next}
+        </group>
+      </group>
+    </group>
+  )
+}
+
+function FootMarker({ markerRef, color }: { markerRef: RefObject<THREE.Group | null>; color: string }) {
+  return (
+    <group ref={markerRef}>
+      <mesh>
+        <sphereGeometry args={[0.18, 16, 12]} />
+        <meshBasicMaterial color={color} depthTest={false} transparent opacity={0.9} />
+      </mesh>
+    </group>
+  )
+}
+
+export function AnimatedModel({
+  modelConfig,
+  segments,
+  showNodes = false,
+}: {
+  modelConfig: ModelConfigRow
+  segments: SegmentData[]
+  showNodes?: boolean
+}) {
+  const segmentMap = useMemo(() => new Map(segments.map((s) => [s.id, s])), [segments])
+  const pivotsRef = useRef<Map<string, THREE.Group>>(new Map())
+  const leftFootMarkerRef = useRef<THREE.Group | null>(null)
+  const rightFootMarkerRef = useRef<THREE.Group | null>(null)
+
+  useLocomotion(pivotsRef, modelConfig.groups, modelConfig.model_rotation, {
+    left: leftFootMarkerRef,
+    right: rightFootMarkerRef,
+  })
+
+  const chain = useMemo(() => buildCascadeChain(modelConfig.groups), [modelConfig.groups])
+  const chainIds = useMemo(() => new Set(chain.map((g) => g.id)), [chain])
+
+  const hasFrontLegs = useMemo(() => {
+    const frontHip = findFrontHip(modelConfig.groups)
+    if (!frontHip) return false
+    const { left, right } = findLegsForHip(modelConfig.groups, frontHip.id)
+    return !!(left?.nodeFoot && right?.nodeFoot)
+  }, [modelConfig.groups])
+
+  return (
+    <group>
+      {modelConfig.groups.map((g) => {
+        if (chainIds.has(g.id)) return null
+        return (
+          <group key={g.id}>
+            <GroupBody group={g} segmentMap={segmentMap} showNodes={showNodes} />
+          </group>
+        )
+      })}
+      {chain.length > 0 && (
+        <ChainBoneTree
+          chain={chain}
+          index={chain.length - 1}
+          segmentMap={segmentMap}
+          showNodes={showNodes}
+          pivotsRef={pivotsRef}
+        />
+      )}
+      {hasFrontLegs && (
+        <>
+          <FootMarker markerRef={leftFootMarkerRef} color="#4ade80" />
+          <FootMarker markerRef={rightFootMarkerRef} color="#a78bfa" />
+        </>
+      )}
     </group>
   )
 }
