@@ -27,8 +27,6 @@ interface StudioStore {
   sphere: { x: number; y: number; z: number; radius: number } | null
   selectedNodeId: { groupId: string; nodeType: NodeType } | null
   attractor: { x: number; y: number; z: number } | null
-  strains: { leftFront: number; rightFront: number }
-  footPhases: { leftFront: 'planted' | 'stepping'; rightFront: 'planted' | 'stepping' }
 
   setStlKey: (key: string) => void
   setConfigId: (id: string | null) => void
@@ -54,8 +52,6 @@ interface StudioStore {
   setSelectedNodeId: (id: { groupId: string; nodeType: NodeType } | null) => void
   setGroupNode: (groupId: string, nodeType: NodeType, x: number, y: number, z: number) => void
   setAttractor: (a: { x: number; y: number; z: number } | null) => void
-  setStrains: (s: { leftFront: number; rightFront: number }) => void
-  setFootPhases: (p: { leftFront: 'planted' | 'stepping'; rightFront: 'planted' | 'stepping' }) => void
 }
 
 export const useStudioStore = create<StudioStore>()(
@@ -75,8 +71,6 @@ export const useStudioStore = create<StudioStore>()(
       sphere: null,
       selectedNodeId: null,
       attractor: null,
-      strains: { leftFront: 0, rightFront: 0 },
-      footPhases: { leftFront: 'planted', rightFront: 'planted' },
 
       setStlKey: (key) => set({ stlKey: key }),
 
@@ -204,10 +198,6 @@ export const useStudioStore = create<StudioStore>()(
       setSelectedNodeId: (id) => set({ selectedNodeId: id }),
 
       setAttractor: (a) => set({ attractor: a }),
-
-      setStrains: (s) => set({ strains: s }),
-
-      setFootPhases: (p) => set({ footPhases: p }),
 
       setGroupNode: (groupId, nodeType, x, y, z) =>
         set((state) => ({

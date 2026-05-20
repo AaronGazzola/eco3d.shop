@@ -6,12 +6,15 @@ Canonical design doc for the creature animation system. Audience: Aaron and futu
 
 ## Current status (2026-05-20)
 
-- **Step 5 — front feet step**: implementation wired, not yet visually verified in-browser.
-- **Done**: Steps 1–4 (attractor, head gaze, cascade through pre-hip spines, foot strain).
-- **What Step 5 does in code**: front hip now joins the cascade chain (gets a pivot). Each front foot tracks a planted world position + swing phase. When `computeStrain` exceeds `STRAIN_THRESHOLD`, the inside-of-turn foot (sign of `wantedYaw − plantedYaw`) lifts, arcs to its rest offset rotated by the wanted hip yaw, and replants. Hip's applied yaw eases from `plantedYaw` to `targetYaw` during the swing, then commits.
-- **Visual gap**: foot markers (green = left, violet = right) move correctly, but leg meshes still render at their model-local rest positions — they don't track the planted foot. Leg IK is Step 6's job.
-- **Pick up here**: open `/studio` step 3, place an attractor far to one side, confirm one foot lifts and replants and that the S-curve persists after the step. Then start Step 6 (rear hip + back legs, plus single-bone leg IK so the front legs track their feet).
-- **Key files**: `app/game/locomotion/{foot,chain,cascade,legs,headGaze,useLocomotion}.ts`, `app/game/AnimatedModel.tsx`, `app/studio/StepAnimate.tsx`.
+- **Step 5 — front feet step**: visually verified in-browser. Body cascades, feet step, front legs swing around the hip to track their foot.
+- **Done**: Steps 1–5 (attractor, head gaze, cascade through pre-hip spines, foot strain, front feet stepping + single-bone leg pose).
+- **What Step 5 does in code**: front hip joins the cascade chain (gets a pivot). Each front foot tracks a planted world position + swing phase. When `computeStrain` exceeds `STRAIN_THRESHOLD`, the inside-of-turn foot (sign of `wantedYaw − plantedYaw`) lifts, arcs to its rest offset rotated by the wanted hip yaw, and replants. Hip's applied yaw eases from `plantedYaw` to `targetYaw` during the swing, then commits. Each front leg group's transform is now derived entirely from two skeleton nodes — its hip end (read from `spine-2.nodeHipLeft/Right` and transported through the front-hip pivot's quaternion) and its foot end (the foot marker). The leg rotates rigidly around the hip to point at the foot; bone length preserved (rule §1.1), hip end welded to the hip socket (rule §1.2).
+- **Bugs fixed during Step 5 verification**:
+  - `footTargetAt` was using the standard 2D CCW rotation matrix `[c,-s;s,c]` instead of three.js's Y-axis rotation `[c,s;-s,c]`, so the foot target rotated opposite to the body. Diagnosed by recording per-frame snapshots in the studio sidebar (see "Diagnostics tooling" below) and comparing the spine pivot's `appliedEulerY` against the foot target direction.
+  - Front leg meshes were initially translated rigidly to follow the marker, which broke the hip-socket weld. Replaced with a rotation-around-hip transform driven only by the two skeleton nodes — restoring rule §1.5 (nodes are the only authoring surface).
+- **Diagnostics tooling**: Step 3 sidebar (`app/studio/StepAnimate.tsx`) now exposes Clear attractor, Copy snapshot (current frame state), Start/Stop recording, Copy recording, Clear recording buffer. Recording samples at ~10 Hz from `app/game/locomotion/diagnostics.ts`; payload captures rig config plus per-frame attractor, desired head yaw, chain ids, caps, cascade output, hip state, both feet's planted/swing/rest/strain, and each chain pivot's requested yaw + applied quaternion + euler.y + world position. This is the channel for diagnosing future visual issues — copy a recording, paste it back into the conversation.
+- **Pick up here**: start Step 6 (rear hip + back legs + proper leg IK so the foot end lands exactly on the marker during the swing's lift phase, plus diagonal-couplet coordination).
+- **Key files**: `app/game/locomotion/{foot,chain,cascade,legs,headGaze,diagnostics,useLocomotion}.ts`, `app/game/AnimatedModel.tsx`, `app/studio/StepAnimate.tsx`.
 
 ---
 

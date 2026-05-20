@@ -210,28 +210,40 @@ export function AnimatedModel({
   const pivotsRef = useRef<Map<string, THREE.Group>>(new Map())
   const leftFootMarkerRef = useRef<THREE.Group | null>(null)
   const rightFootMarkerRef = useRef<THREE.Group | null>(null)
+  const leftLegRef = useRef<THREE.Group | null>(null)
+  const rightLegRef = useRef<THREE.Group | null>(null)
 
   useLocomotion(pivotsRef, modelConfig.groups, modelConfig.model_rotation, {
     left: leftFootMarkerRef,
     right: rightFootMarkerRef,
+    leftLeg: leftLegRef,
+    rightLeg: rightLegRef,
   })
 
   const chain = useMemo(() => buildCascadeChain(modelConfig.groups), [modelConfig.groups])
   const chainIds = useMemo(() => new Set(chain.map((g) => g.id)), [chain])
 
-  const hasFrontLegs = useMemo(() => {
+  const frontLegIds = useMemo(() => {
     const frontHip = findFrontHip(modelConfig.groups)
-    if (!frontHip) return false
+    if (!frontHip) return { left: null as string | null, right: null as string | null }
     const { left, right } = findLegsForHip(modelConfig.groups, frontHip.id)
-    return !!(left?.nodeFoot && right?.nodeFoot)
+    return { left: left?.id ?? null, right: right?.id ?? null }
   }, [modelConfig.groups])
+
+  const hasFrontLegs = !!(frontLegIds.left && frontLegIds.right)
 
   return (
     <group>
       {modelConfig.groups.map((g) => {
         if (chainIds.has(g.id)) return null
+        const ref =
+          g.id === frontLegIds.left
+            ? leftLegRef
+            : g.id === frontLegIds.right
+              ? rightLegRef
+              : undefined
         return (
-          <group key={g.id}>
+          <group key={g.id} ref={ref}>
             <GroupBody group={g} segmentMap={segmentMap} showNodes={showNodes} />
           </group>
         )

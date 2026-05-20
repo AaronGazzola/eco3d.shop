@@ -50,8 +50,8 @@ export function footTargetAt(
   const c = Math.cos(yaw)
   const s = Math.sin(yaw)
   return {
-    x: hipBackX + foot.restOffsetX * c - foot.restOffsetZ * s,
-    z: hipBackZ + foot.restOffsetX * s + foot.restOffsetZ * c,
+    x: hipBackX + foot.restOffsetX * c + foot.restOffsetZ * s,
+    z: hipBackZ - foot.restOffsetX * s + foot.restOffsetZ * c,
   }
 }
 

@@ -11,7 +11,6 @@ import { computeCascadeRotations, DEFAULT_SPINE_CAP } from './cascade'
 import { findFrontHip, findLegsForHip } from './legs'
 import {
   FootState,
-  FootPhase,
   DEFAULT_HIP_CAP,
   STEP_DURATION,
   LIFT_HEIGHT,
@@ -21,10 +20,10 @@ import {
   computeStrain,
   easeInOut,
 } from './foot'
+import { recordFrame, FootSnapshot, PivotSnapshot, FrameSnapshot } from './diagnostics'
 
 const SLERP_RATE = 12
 const Y_AXIS = new THREE.Vector3(0, 1, 0)
-const STORE_THROTTLE_MS = 100
 
 function capFor(g: BodyGroup): number {
   if (typeof g.angleCap === 'number') return g.angleCap
@@ -41,6 +40,8 @@ interface HipState {
 export interface FootMarkerRefs {
   left: RefObject<THREE.Group | null>
   right: RefObject<THREE.Group | null>
+  leftLeg?: RefObject<THREE.Group | null>
+  rightLeg?: RefObject<THREE.Group | null>
 }
 
 export function useLocomotion(
@@ -53,13 +54,6 @@ export function useLocomotion(
   const hipStateRef = useRef<HipState>({ plantedYaw: 0, targetYaw: 0 })
   const feetRef = useRef<{ left: FootState | null; right: FootState | null }>({ left: null, right: null })
   const initIdRef = useRef<string | null>(null)
-  const lastStoreWriteRef = useRef(0)
-  const lastStorePayloadRef = useRef({
-    leftFront: 0,
-    rightFront: 0,
-    leftPhase: 'planted' as FootPhase,
-    rightPhase: 'planted' as FootPhase,
-  })
 
   useFrame((_, dt) => {
     const pivots = pivotsRef.current
@@ -87,8 +81,6 @@ export function useLocomotion(
     let appliedHipYaw = 0
     let leftStrain = 0
     let rightStrain = 0
-    let leftPhase: FootPhase = 'planted'
-    let rightPhase: FootPhase = 'planted'
     let leftFoot: FootState | null = null
     let rightFoot: FootState | null = null
 
@@ -187,65 +179,150 @@ export function useLocomotion(
           leftStrain = computeStrain(leftFoot, hipBackX, hipBackZ, wantedHipYaw)
           rightStrain = computeStrain(rightFoot, hipBackX, hipBackZ, wantedHipYaw)
         }
-
-        leftPhase = leftFoot.phase
-        rightPhase = rightFoot.phase
       }
     }
 
     const alpha = 1 - Math.exp(-SLERP_RATE * dt)
+    const pivotSnapshots: PivotSnapshot[] = []
     for (let i = 0; i < chain.length; i++) {
       const pivot = pivots.get(chain[i].id)
       if (!pivot) continue
       const r = i === hipIdx && hipInChain ? appliedHipYaw : cascadeOut[i]
       targetQuat.current.setFromAxisAngle(Y_AXIS, r)
       pivot.quaternion.slerp(targetQuat.current, alpha)
+      const q = pivot.quaternion
+      const sinY = 2 * (q.w * q.y - q.z * q.x)
+      const cosY = 1 - 2 * (q.y * q.y + q.x * q.x)
+      const eulerY = Math.atan2(sinY, cosY)
+      const wp = new THREE.Vector3()
+      pivot.getWorldPosition(wp)
+      pivotSnapshots.push({
+        id: chain[i].id,
+        name: chain[i].name,
+        type: chain[i].type,
+        requestedYaw: r,
+        appliedQuat: [q.x, q.y, q.z, q.w],
+        appliedEulerY: eulerY,
+        worldPos: [wp.x, wp.y, wp.z],
+      })
+    }
+
+    const footWorldPos = (foot: FootState): { x: number; y: number; z: number } => {
+      if (foot.phase === 'planted') {
+        return { x: foot.plantedX, y: foot.restY, z: foot.plantedZ }
+      }
+      const t = easeInOut(foot.swingT)
+      const x = foot.swingStartX + (foot.swingTargetX - foot.swingStartX) * t
+      const z = foot.swingStartZ + (foot.swingTargetZ - foot.swingStartZ) * t
+      const lift = Math.sin(foot.swingT * Math.PI) * LIFT_HEIGHT
+      return { x, y: foot.restY + lift, z }
     }
 
     if (footMarkers && leftFoot && rightFoot) {
       const leftMarker = footMarkers.left.current
       if (leftMarker) {
-        if (leftFoot.phase === 'planted') {
-          leftMarker.position.set(leftFoot.plantedX, leftFoot.restY, leftFoot.plantedZ)
-        } else {
-          const t = easeInOut(leftFoot.swingT)
-          const x = leftFoot.swingStartX + (leftFoot.swingTargetX - leftFoot.swingStartX) * t
-          const z = leftFoot.swingStartZ + (leftFoot.swingTargetZ - leftFoot.swingStartZ) * t
-          const lift = Math.sin(leftFoot.swingT * Math.PI) * LIFT_HEIGHT
-          leftMarker.position.set(x, leftFoot.restY + lift, z)
-        }
+        const p = footWorldPos(leftFoot)
+        leftMarker.position.set(p.x, p.y, p.z)
       }
       const rightMarker = footMarkers.right.current
       if (rightMarker) {
-        if (rightFoot.phase === 'planted') {
-          rightMarker.position.set(rightFoot.plantedX, rightFoot.restY, rightFoot.plantedZ)
-        } else {
-          const t = easeInOut(rightFoot.swingT)
-          const x = rightFoot.swingStartX + (rightFoot.swingTargetX - rightFoot.swingStartX) * t
-          const z = rightFoot.swingStartZ + (rightFoot.swingTargetZ - rightFoot.swingStartZ) * t
-          const lift = Math.sin(rightFoot.swingT * Math.PI) * LIFT_HEIGHT
-          rightMarker.position.set(x, rightFoot.restY + lift, z)
+        const p = footWorldPos(rightFoot)
+        rightMarker.position.set(p.x, p.y, p.z)
+      }
+
+      if (hipInChain && frontHip && frontHip.nodeBack) {
+        const hipPivot = pivots.get(frontHip.id)
+        const { left: leftLegGroup, right: rightLegGroup } = findLegsForHip(groups, frontHip.id)
+        if (hipPivot) {
+          const hipBackVec = new THREE.Vector3(
+            frontHip.nodeBack.x,
+            frontHip.nodeBack.y ?? 0,
+            frontHip.nodeBack.z
+          )
+
+          const applyLegBone = (
+            mesh: THREE.Group | null,
+            leg: { nodeFoot?: { x: number; y?: number; z: number } } | null,
+            hipNode: { x: number; y?: number; z: number } | undefined,
+            foot: FootState
+          ) => {
+            if (!mesh || !leg?.nodeFoot || !hipNode) return
+            const hRest = new THREE.Vector3(hipNode.x, hipNode.y ?? 0, hipNode.z)
+            const fRest = new THREE.Vector3(leg.nodeFoot.x, leg.nodeFoot.y ?? 0, leg.nodeFoot.z)
+            const hNow = hRest.clone().sub(hipBackVec).applyQuaternion(hipPivot.quaternion).add(hipBackVec)
+            const p = footWorldPos(foot)
+            const fNow = new THREE.Vector3(p.x, p.y, p.z)
+            const dRest = new THREE.Vector3().subVectors(fRest, hRest)
+            const dNow = new THREE.Vector3().subVectors(fNow, hNow)
+            if (dRest.lengthSq() < 1e-10 || dNow.lengthSq() < 1e-10) return
+            dRest.normalize()
+            dNow.normalize()
+            const qLeg = new THREE.Quaternion().setFromUnitVectors(dRest, dNow)
+            mesh.quaternion.copy(qLeg)
+            mesh.position.copy(hNow).sub(hRest.clone().applyQuaternion(qLeg))
+          }
+
+          applyLegBone(
+            footMarkers.leftLeg?.current ?? null,
+            leftLegGroup,
+            frontHip.nodeHipLeft,
+            leftFoot
+          )
+          applyLegBone(
+            footMarkers.rightLeg?.current ?? null,
+            rightLegGroup,
+            frontHip.nodeHipRight,
+            rightFoot
+          )
         }
       }
     }
 
-    const now = performance.now()
-    if (now - lastStoreWriteRef.current >= STORE_THROTTLE_MS) {
-      const prev = lastStorePayloadRef.current
-      const phaseChanged = prev.leftPhase !== leftPhase || prev.rightPhase !== rightPhase
-      const strainChanged =
-        Math.abs(prev.leftFront - leftStrain) > 1e-4 || Math.abs(prev.rightFront - rightStrain) > 1e-4
-      if (phaseChanged || strainChanged) {
-        lastStorePayloadRef.current = {
-          leftFront: leftStrain,
-          rightFront: rightStrain,
-          leftPhase,
-          rightPhase,
-        }
-        useStudioStore.getState().setStrains({ leftFront: leftStrain, rightFront: rightStrain })
-        useStudioStore.getState().setFootPhases({ leftFront: leftPhase, rightFront: rightPhase })
-      }
-      lastStoreWriteRef.current = now
+    const footSnap = (f: FootState | null, strain: number): FootSnapshot | null =>
+      f
+        ? {
+            phase: f.phase,
+            plantedX: f.plantedX,
+            plantedZ: f.plantedZ,
+            swingStartX: f.swingStartX,
+            swingStartZ: f.swingStartZ,
+            swingTargetX: f.swingTargetX,
+            swingTargetZ: f.swingTargetZ,
+            swingT: f.swingT,
+            restOffsetX: f.restOffsetX,
+            restOffsetZ: f.restOffsetZ,
+            restY: f.restY,
+            strain,
+          }
+        : null
+
+    const wantedHipYaw = hipInChain ? cascadeOut[hipIdx] : 0
+    const hipBackSnap =
+      hipInChain && frontHip && frontHip.nodeBack
+        ? { x: frontHip.nodeBack.x, z: frontHip.nodeBack.z }
+        : null
+
+    const snapshot: FrameSnapshot = {
+      t: performance.now(),
+      attractor: attractor ? { x: attractor.x, y: attractor.y, z: attractor.z } : null,
+      modelRotation: [modelRotation[0], modelRotation[1], modelRotation[2]],
+      desiredHeadYaw: desired,
+      chain: chain.map((g) => ({ id: g.id, name: g.name, type: g.type })),
+      caps,
+      cascadeOut,
+      hipInChain,
+      frontHipId: frontHip?.id ?? null,
+      hipBack: hipBackSnap,
+      wantedHipYaw,
+      appliedHipYaw,
+      hipState: {
+        plantedYaw: hipStateRef.current.plantedYaw,
+        targetYaw: hipStateRef.current.targetYaw,
+      },
+      leftFoot: footSnap(leftFoot, leftStrain),
+      rightFoot: footSnap(rightFoot, rightStrain),
+      pivots: pivotSnapshots,
     }
+    recordFrame(snapshot)
   })
 }

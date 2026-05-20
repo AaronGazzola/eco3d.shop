@@ -76,6 +76,7 @@ We do not implement any of these. They explain why a constraint solver with hip-
 
 - *Science*, 315(5817):1416–1420
 - https://pubmed.ncbi.nlm.nih.gov/17347441/
+- TED talk by Auke Ijspeert, "A robot that runs and swims like a salamander": https://www.youtube.com/watch?v=K926HAKRFvw
 
 **What it is.** A central-pattern-generator robot that produces swimming, slithering, and walking with one architecture and a single drive parameter.
 
