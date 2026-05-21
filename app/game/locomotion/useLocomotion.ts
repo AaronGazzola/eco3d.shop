@@ -8,7 +8,7 @@ import { useAnimateStore } from '@/app/admin/animate/animateStore'
 import { computeDesiredHeadYaw } from './headGaze'
 import { buildCascadeChain, buildSkeletonTree, flattenSkeleton, effectiveAngleCaps } from './chain'
 import { computeCascadeRotations } from './cascade'
-import { findFrontHip, findLegsForHip } from './legs'
+import { findFrontHip, findRearHip, findLegsForHip } from './legs'
 import {
   FootState,
   STEP_DURATION,
@@ -19,7 +19,14 @@ import {
   computeStrain,
   easeInOut,
 } from './foot'
-import { recordFrame, isRecording, FootSnapshot, PivotSnapshot, FrameSnapshot } from './diagnostics'
+import {
+  recordFrame,
+  isRecording,
+  FootSnapshot,
+  HipSnapshot,
+  PivotSnapshot,
+  FrameSnapshot,
+} from './diagnostics'
 
 const SLERP_RATE = 12
 const Y_AXIS = new THREE.Vector3(0, 1, 0)
@@ -122,12 +129,181 @@ interface HipState {
   targetYaw: number
 }
 
-export interface FootMarkerRefs {
+interface FootPair {
+  left: FootState | null
+  right: FootState | null
+}
+
+interface HipRuntime {
+  state: HipState
+  feet: FootPair
+  initId: string | null
+}
+
+interface HipStepResult {
+  appliedYaw: number
+  leftStrain: number
+  rightStrain: number
+}
+
+export interface FootMarkerPairRefs {
   left: RefObject<THREE.Group | null>
   right: RefObject<THREE.Group | null>
 }
 
+export interface FootMarkerRefs {
+  front: FootMarkerPairRefs | null
+  rear: FootMarkerPairRefs | null
+}
+
 const SNAPSHOT_INTERVAL_MS = 500
+
+function makeHipRuntime(): HipRuntime {
+  return {
+    state: { plantedYaw: 0, targetYaw: 0 },
+    feet: { left: null, right: null },
+    initId: null,
+  }
+}
+
+function ensureHipInit(
+  runtime: HipRuntime,
+  hipGroup: BodyGroup,
+  legs: { left: BodyGroup | null; right: BodyGroup | null }
+): void {
+  if (runtime.initId === hipGroup.id) return
+  if (!hipGroup.nodeBack) return
+  const leftLeg = legs.left
+  const rightLeg = legs.right
+  if (!leftLeg?.nodeFoot || !rightLeg?.nodeFoot) return
+  const hipBackX = hipGroup.nodeBack.x
+  const hipBackZ = hipGroup.nodeBack.z
+  runtime.feet.left = makeFootState(
+    leftLeg.nodeFoot.x,
+    leftLeg.nodeFoot.y ?? 0,
+    leftLeg.nodeFoot.z,
+    hipBackX,
+    hipBackZ
+  )
+  runtime.feet.right = makeFootState(
+    rightLeg.nodeFoot.x,
+    rightLeg.nodeFoot.y ?? 0,
+    rightLeg.nodeFoot.z,
+    hipBackX,
+    hipBackZ
+  )
+  runtime.state.plantedYaw = 0
+  runtime.state.targetYaw = 0
+  runtime.initId = hipGroup.id
+}
+
+function runHipStep(
+  runtime: HipRuntime,
+  hipGroup: BodyGroup,
+  wantedYaw: number,
+  dt: number
+): HipStepResult {
+  const leftFoot = runtime.feet.left
+  const rightFoot = runtime.feet.right
+  if (!leftFoot || !rightFoot || !hipGroup.nodeBack) {
+    return { appliedYaw: 0, leftStrain: 0, rightStrain: 0 }
+  }
+  const hipBackX = hipGroup.nodeBack.x
+  const hipBackZ = hipGroup.nodeBack.z
+
+  if (leftFoot.phase === 'stepping') {
+    leftFoot.swingT = Math.min(1, leftFoot.swingT + dt / STEP_DURATION)
+    if (leftFoot.swingT >= 1) {
+      leftFoot.plantedX = leftFoot.swingTargetX
+      leftFoot.plantedZ = leftFoot.swingTargetZ
+      leftFoot.phase = 'planted'
+      runtime.state.plantedYaw = runtime.state.targetYaw
+    }
+  }
+  if (rightFoot.phase === 'stepping') {
+    rightFoot.swingT = Math.min(1, rightFoot.swingT + dt / STEP_DURATION)
+    if (rightFoot.swingT >= 1) {
+      rightFoot.plantedX = rightFoot.swingTargetX
+      rightFoot.plantedZ = rightFoot.swingTargetZ
+      rightFoot.phase = 'planted'
+      runtime.state.plantedYaw = runtime.state.targetYaw
+    }
+  }
+
+  const stepping =
+    leftFoot.phase === 'stepping'
+      ? leftFoot
+      : rightFoot.phase === 'stepping'
+        ? rightFoot
+        : null
+
+  let appliedYaw: number
+  let leftStrain = 0
+  let rightStrain = 0
+
+  if (stepping) {
+    appliedYaw =
+      runtime.state.plantedYaw +
+      (runtime.state.targetYaw - runtime.state.plantedYaw) * easeInOut(stepping.swingT)
+    leftStrain = computeStrain(leftFoot, hipBackX, hipBackZ, wantedYaw)
+    rightStrain = computeStrain(rightFoot, hipBackX, hipBackZ, wantedYaw)
+  } else {
+    appliedYaw = runtime.state.plantedYaw
+    leftStrain = computeStrain(leftFoot, hipBackX, hipBackZ, wantedYaw)
+    rightStrain = computeStrain(rightFoot, hipBackX, hipBackZ, wantedYaw)
+
+    const leftStrained = leftStrain > STRAIN_THRESHOLD
+    const rightStrained = rightStrain > STRAIN_THRESHOLD
+    const yawDelta = wantedYaw - runtime.state.plantedYaw
+
+    let stepFoot: FootState | null = null
+    if (leftStrained && rightStrained) {
+      stepFoot = yawDelta > 0 ? leftFoot : rightFoot
+    } else if (leftStrained) {
+      stepFoot = leftFoot
+    } else if (rightStrained) {
+      stepFoot = rightFoot
+    }
+
+    if (stepFoot) {
+      const target = footTargetAt(stepFoot, hipBackX, hipBackZ, wantedYaw)
+      stepFoot.swingStartX = stepFoot.plantedX
+      stepFoot.swingStartZ = stepFoot.plantedZ
+      stepFoot.swingTargetX = target.x
+      stepFoot.swingTargetZ = target.z
+      stepFoot.swingT = 0
+      stepFoot.phase = 'stepping'
+      runtime.state.targetYaw = wantedYaw
+    }
+  }
+
+  return { appliedYaw, leftStrain, rightStrain }
+}
+
+function applyHipLegs(
+  scratch: Scratch,
+  pivots: Map<string, THREE.Group>,
+  hipGroup: BodyGroup,
+  legs: { left: BodyGroup | null; right: BodyGroup | null },
+  runtime: HipRuntime,
+  markers: FootMarkerPairRefs | null
+): void {
+  if (!hipGroup.nodeBack) return
+  const leftFoot = runtime.feet.left
+  const rightFoot = runtime.feet.right
+  if (!leftFoot || !rightFoot) return
+  const hipPivot = pivots.get(hipGroup.id)
+  if (!hipPivot) return
+  const hbx = hipGroup.nodeBack.x
+  const hby = hipGroup.nodeBack.y ?? 0
+  const hbz = hipGroup.nodeBack.z
+  applyLegBone(scratch, pivots, hipPivot, hbx, hby, hbz, legs.left, hipGroup.nodeHipLeft, leftFoot)
+  applyLegBone(scratch, pivots, hipPivot, hbx, hby, hbz, legs.right, hipGroup.nodeHipRight, rightFoot)
+  if (markers) {
+    writeMarker(markers.left.current, leftFoot)
+    writeMarker(markers.right.current, rightFoot)
+  }
+}
 
 export function useLocomotion(
   pivotsRef: RefObject<Map<string, THREE.Group>>,
@@ -136,9 +312,8 @@ export function useLocomotion(
   footMarkers?: FootMarkerRefs
 ) {
   const targetQuat = useRef(new THREE.Quaternion())
-  const hipStateRef = useRef<HipState>({ plantedYaw: 0, targetYaw: 0 })
-  const feetRef = useRef<{ left: FootState | null; right: FootState | null }>({ left: null, right: null })
-  const initIdRef = useRef<string | null>(null)
+  const frontRuntimeRef = useRef<HipRuntime>(makeHipRuntime())
+  const rearRuntimeRef = useRef<HipRuntime>(makeHipRuntime())
   const lastSnapshotAtRef = useRef(0)
 
   const scratchRef = useRef({
@@ -167,9 +342,14 @@ export function useLocomotion(
     [groups]
   )
   const frontHip = useMemo(() => findFrontHip(groups), [groups])
+  const rearHip = useMemo(() => findRearHip(groups), [groups])
   const frontLegs = useMemo(
     () => (frontHip ? findLegsForHip(groups, frontHip.id) : { left: null, right: null }),
     [groups, frontHip]
+  )
+  const rearLegs = useMemo(
+    () => (rearHip ? findLegsForHip(groups, rearHip.id) : { left: null, right: null }),
+    [groups, rearHip]
   )
   const caps = useMemo(() => chain.map(yawCapFor), [chain, groups])
 
@@ -196,111 +376,22 @@ export function useLocomotion(
 
     const cascadeOut = computeCascadeRotations(caps, desired)
 
-    const hipIdx = chain.length - 1
-    const hipInChain = !!(frontHip && chain[hipIdx].id === frontHip.id)
+    const frontHipIdx = frontHip ? (cascadeIdxFor.get(frontHip.id) ?? -1) : -1
+    const rearHipIdx = rearHip ? (cascadeIdxFor.get(rearHip.id) ?? -1) : -1
+    const frontInChain = frontHipIdx !== -1
+    const rearInChain = rearHipIdx !== -1
 
-    let appliedHipYaw = 0
-    let leftStrain = 0
-    let rightStrain = 0
-    let leftFoot: FootState | null = null
-    let rightFoot: FootState | null = null
+    let frontResult: HipStepResult | null = null
+    let rearResult: HipStepResult | null = null
 
-    if (hipInChain && frontHip && frontHip.nodeBack && !calibrating) {
-      const hipBackX = frontHip.nodeBack.x
-      const hipBackZ = frontHip.nodeBack.z
-      const { left: leftLeg, right: rightLeg } = frontLegs
+    if (!calibrating && frontInChain && frontHip) {
+      ensureHipInit(frontRuntimeRef.current, frontHip, frontLegs)
+      frontResult = runHipStep(frontRuntimeRef.current, frontHip, cascadeOut[frontHipIdx], dt)
+    }
 
-      if (initIdRef.current !== frontHip.id) {
-        if (leftLeg?.nodeFoot && rightLeg?.nodeFoot) {
-          feetRef.current.left = makeFootState(
-            leftLeg.nodeFoot.x,
-            leftLeg.nodeFoot.y ?? 0,
-            leftLeg.nodeFoot.z,
-            hipBackX,
-            hipBackZ
-          )
-          feetRef.current.right = makeFootState(
-            rightLeg.nodeFoot.x,
-            rightLeg.nodeFoot.y ?? 0,
-            rightLeg.nodeFoot.z,
-            hipBackX,
-            hipBackZ
-          )
-          hipStateRef.current.plantedYaw = 0
-          hipStateRef.current.targetYaw = 0
-          initIdRef.current = frontHip.id
-        }
-      }
-
-      leftFoot = feetRef.current.left
-      rightFoot = feetRef.current.right
-
-      if (leftFoot && rightFoot) {
-        const wantedHipYaw = cascadeOut[hipIdx]
-
-        if (leftFoot.phase === 'stepping') {
-          leftFoot.swingT = Math.min(1, leftFoot.swingT + dt / STEP_DURATION)
-          if (leftFoot.swingT >= 1) {
-            leftFoot.plantedX = leftFoot.swingTargetX
-            leftFoot.plantedZ = leftFoot.swingTargetZ
-            leftFoot.phase = 'planted'
-            hipStateRef.current.plantedYaw = hipStateRef.current.targetYaw
-          }
-        }
-        if (rightFoot.phase === 'stepping') {
-          rightFoot.swingT = Math.min(1, rightFoot.swingT + dt / STEP_DURATION)
-          if (rightFoot.swingT >= 1) {
-            rightFoot.plantedX = rightFoot.swingTargetX
-            rightFoot.plantedZ = rightFoot.swingTargetZ
-            rightFoot.phase = 'planted'
-            hipStateRef.current.plantedYaw = hipStateRef.current.targetYaw
-          }
-        }
-
-        const stepping =
-          leftFoot.phase === 'stepping' ? leftFoot : rightFoot.phase === 'stepping' ? rightFoot : null
-
-        if (stepping) {
-          appliedHipYaw =
-            hipStateRef.current.plantedYaw +
-            (hipStateRef.current.targetYaw - hipStateRef.current.plantedYaw) *
-              easeInOut(stepping.swingT)
-        } else {
-          appliedHipYaw = hipStateRef.current.plantedYaw
-
-          leftStrain = computeStrain(leftFoot, hipBackX, hipBackZ, wantedHipYaw)
-          rightStrain = computeStrain(rightFoot, hipBackX, hipBackZ, wantedHipYaw)
-
-          const leftStrained = leftStrain > STRAIN_THRESHOLD
-          const rightStrained = rightStrain > STRAIN_THRESHOLD
-          const yawDelta = wantedHipYaw - hipStateRef.current.plantedYaw
-
-          let stepFoot: FootState | null = null
-          if (leftStrained && rightStrained) {
-            stepFoot = yawDelta > 0 ? leftFoot : rightFoot
-          } else if (leftStrained) {
-            stepFoot = leftFoot
-          } else if (rightStrained) {
-            stepFoot = rightFoot
-          }
-
-          if (stepFoot) {
-            const target = footTargetAt(stepFoot, hipBackX, hipBackZ, wantedHipYaw)
-            stepFoot.swingStartX = stepFoot.plantedX
-            stepFoot.swingStartZ = stepFoot.plantedZ
-            stepFoot.swingTargetX = target.x
-            stepFoot.swingTargetZ = target.z
-            stepFoot.swingT = 0
-            stepFoot.phase = 'stepping'
-            hipStateRef.current.targetYaw = wantedHipYaw
-          }
-        }
-
-        if (stepping) {
-          leftStrain = computeStrain(leftFoot, hipBackX, hipBackZ, wantedHipYaw)
-          rightStrain = computeStrain(rightFoot, hipBackX, hipBackZ, wantedHipYaw)
-        }
-      }
+    if (!calibrating && rearInChain && rearHip) {
+      ensureHipInit(rearRuntimeRef.current, rearHip, rearLegs)
+      rearResult = runHipStep(rearRuntimeRef.current, rearHip, cascadeOut[rearHipIdx], dt)
     }
 
     const alpha = 1 - Math.exp(-SLERP_RATE * dt)
@@ -322,7 +413,10 @@ export function useLocomotion(
         requestedYaw = calibratingYaw
       } else if (!calibrating && cascadeIds.has(sg.id)) {
         const i = cascadeIdxFor.get(sg.id)!
-        const r = i === hipIdx && hipInChain ? appliedHipYaw : cascadeOut[i]
+        let r: number
+        if (i === frontHipIdx && frontResult) r = frontResult.appliedYaw
+        else if (i === rearHipIdx && rearResult) r = rearResult.appliedYaw
+        else r = cascadeOut[i]
         targetQuat.current.setFromAxisAngle(Y_AXIS, r)
         requestedYaw = r
       } else {
@@ -380,29 +474,30 @@ export function useLocomotion(
       }
     }
 
-    if (!calibrating && footMarkers && leftFoot && rightFoot) {
-      writeMarker(footMarkers.left.current, leftFoot)
-      writeMarker(footMarkers.right.current, rightFoot)
-
-      if (hipInChain && frontHip && frontHip.nodeBack) {
-        const hipPivot = pivots.get(frontHip.id)
-        if (hipPivot) {
-          const hbx = frontHip.nodeBack.x
-          const hby = frontHip.nodeBack.y ?? 0
-          const hbz = frontHip.nodeBack.z
-          applyLegBone(scratch, pivots, hipPivot, hbx, hby, hbz, frontLegs.left, frontHip.nodeHipLeft, leftFoot)
-          applyLegBone(scratch, pivots, hipPivot, hbx, hby, hbz, frontLegs.right, frontHip.nodeHipRight, rightFoot)
-        }
+    if (!calibrating) {
+      if (frontInChain && frontHip) {
+        applyHipLegs(
+          scratch,
+          pivots,
+          frontHip,
+          frontLegs,
+          frontRuntimeRef.current,
+          footMarkers?.front ?? null
+        )
+      }
+      if (rearInChain && rearHip) {
+        applyHipLegs(
+          scratch,
+          pivots,
+          rearHip,
+          rearLegs,
+          rearRuntimeRef.current,
+          footMarkers?.rear ?? null
+        )
       }
     }
 
     if (shouldSnapshot && pivotSnapshots) {
-      const wantedHipYaw = hipInChain ? cascadeOut[hipIdx] : 0
-      const hipBackSnap =
-        hipInChain && frontHip && frontHip.nodeBack
-          ? { x: frontHip.nodeBack.x, z: frontHip.nodeBack.z }
-          : null
-
       const snapshot: FrameSnapshot = {
         t: nowMs,
         attractor: attractor ? { x: attractor.x, y: attractor.y, z: attractor.z } : null,
@@ -411,23 +506,38 @@ export function useLocomotion(
         chain: chain.map((g) => ({ id: g.id, name: g.name, type: g.type })),
         caps,
         cascadeOut,
-        hipInChain,
-        frontHipId: frontHip?.id ?? null,
-        hipBack: hipBackSnap,
-        wantedHipYaw,
-        appliedHipYaw,
-        hipState: {
-          plantedYaw: hipStateRef.current.plantedYaw,
-          targetYaw: hipStateRef.current.targetYaw,
-        },
-        leftFoot: footSnap(leftFoot, leftStrain),
-        rightFoot: footSnap(rightFoot, rightStrain),
+        frontHip: buildHipSnapshot(frontHip, frontHipIdx, frontRuntimeRef.current, frontResult, cascadeOut),
+        rearHip: buildHipSnapshot(rearHip, rearHipIdx, rearRuntimeRef.current, rearResult, cascadeOut),
         pivots: pivotSnapshots,
       }
       recordFrame(snapshot)
       lastSnapshotAtRef.current = nowMs
     }
   })
+}
+
+function buildHipSnapshot(
+  hipGroup: BodyGroup | null,
+  cascadeIndex: number,
+  runtime: HipRuntime,
+  result: HipStepResult | null,
+  cascadeOut: number[]
+): HipSnapshot | null {
+  if (!hipGroup || cascadeIndex === -1 || !result) return null
+  const hipBack = hipGroup.nodeBack
+    ? { x: hipGroup.nodeBack.x, z: hipGroup.nodeBack.z }
+    : null
+  return {
+    id: hipGroup.id,
+    hipBack,
+    cascadeIndex,
+    wantedYaw: cascadeOut[cascadeIndex],
+    appliedYaw: result.appliedYaw,
+    plantedYaw: runtime.state.plantedYaw,
+    targetYaw: runtime.state.targetYaw,
+    leftFoot: footSnap(runtime.feet.left, result.leftStrain),
+    rightFoot: footSnap(runtime.feet.right, result.rightStrain),
+  }
 }
 
 function footSnap(f: FootState | null, strain: number): FootSnapshot | null {

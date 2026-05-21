@@ -5,10 +5,14 @@ export function buildCascadeChain(groups: BodyGroup[]): BodyGroup[] {
   if (!head) return []
 
   const spines = groups.filter((g) => g.type === 'spine')
-  const frontHipIdx = spines.findIndex((g) => !!(g.nodeHipLeft || g.nodeHipRight))
-  if (frontHipIdx === -1) return [head, ...spines]
+  const hipIndices: number[] = []
+  for (let i = 0; i < spines.length; i++) {
+    if (spines[i].nodeHipLeft || spines[i].nodeHipRight) hipIndices.push(i)
+  }
+  if (hipIndices.length === 0) return [head, ...spines]
 
-  return [head, ...spines.slice(0, frontHipIdx + 1)]
+  const lastHipIdx = hipIndices.length >= 2 ? hipIndices[1] : hipIndices[0]
+  return [head, ...spines.slice(0, lastHipIdx + 1)]
 }
 
 export interface SkeletonNode {

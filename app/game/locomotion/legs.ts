@@ -5,6 +5,12 @@ export function findFrontHip(groups: BodyGroup[]): BodyGroup | null {
   return spines.find((g) => !!(g.nodeHipLeft || g.nodeHipRight)) ?? null
 }
 
+export function findRearHip(groups: BodyGroup[]): BodyGroup | null {
+  const spines = groups.filter((g) => g.type === 'spine')
+  const hips = spines.filter((g) => !!(g.nodeHipLeft || g.nodeHipRight))
+  return hips[1] ?? null
+}
+
 export function findLegsForHip(
   groups: BodyGroup[],
   hipId: string

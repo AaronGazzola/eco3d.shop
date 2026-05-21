@@ -5,7 +5,7 @@ import * as THREE from 'three'
 import { ModelConfigRow, SegmentData, BodyGroup } from '../admin/_lib/types'
 import { useLocomotion } from './locomotion/useLocomotion'
 import { buildSkeletonTree, flattenSkeleton, SkeletonNode } from './locomotion/chain'
-import { findFrontHip, findLegsForHip } from './locomotion/legs'
+import { findFrontHip, findRearHip, findLegsForHip } from './locomotion/legs'
 
 function SegmentMesh({
   positions,
@@ -205,13 +205,10 @@ export function AnimatedModel({
 }) {
   const segmentMap = useMemo(() => new Map(segments.map((s) => [s.id, s])), [segments])
   const pivotsRef = useRef<Map<string, THREE.Group>>(new Map())
-  const leftFootMarkerRef = useRef<THREE.Group | null>(null)
-  const rightFootMarkerRef = useRef<THREE.Group | null>(null)
-
-  useLocomotion(pivotsRef, modelConfig.groups, modelConfig.model_rotation, {
-    left: leftFootMarkerRef,
-    right: rightFootMarkerRef,
-  })
+  const frontLeftFootMarkerRef = useRef<THREE.Group | null>(null)
+  const frontRightFootMarkerRef = useRef<THREE.Group | null>(null)
+  const rearLeftFootMarkerRef = useRef<THREE.Group | null>(null)
+  const rearRightFootMarkerRef = useRef<THREE.Group | null>(null)
 
   const skeletonTree = useMemo(() => buildSkeletonTree(modelConfig.groups), [modelConfig.groups])
   const skeletonGroups = useMemo(() => flattenSkeleton(skeletonTree), [skeletonTree])
@@ -223,6 +220,22 @@ export function AnimatedModel({
     const { left, right } = findLegsForHip(modelConfig.groups, frontHip.id)
     return !!(left?.nodeFoot && right?.nodeFoot)
   }, [modelConfig.groups])
+
+  const hasRearLegs = useMemo(() => {
+    const rearHip = findRearHip(modelConfig.groups)
+    if (!rearHip) return false
+    const { left, right } = findLegsForHip(modelConfig.groups, rearHip.id)
+    return !!(left?.nodeFoot && right?.nodeFoot)
+  }, [modelConfig.groups])
+
+  useLocomotion(pivotsRef, modelConfig.groups, modelConfig.model_rotation, {
+    front: hasFrontLegs
+      ? { left: frontLeftFootMarkerRef, right: frontRightFootMarkerRef }
+      : null,
+    rear: hasRearLegs
+      ? { left: rearLeftFootMarkerRef, right: rearRightFootMarkerRef }
+      : null,
+  })
 
   return (
     <group>
@@ -259,8 +272,14 @@ export function AnimatedModel({
       )}
       {hasFrontLegs && (
         <>
-          <FootMarker markerRef={leftFootMarkerRef} color="#4ade80" />
-          <FootMarker markerRef={rightFootMarkerRef} color="#a78bfa" />
+          <FootMarker markerRef={frontLeftFootMarkerRef} color="#4ade80" />
+          <FootMarker markerRef={frontRightFootMarkerRef} color="#a78bfa" />
+        </>
+      )}
+      {hasRearLegs && (
+        <>
+          <FootMarker markerRef={rearLeftFootMarkerRef} color="#facc15" />
+          <FootMarker markerRef={rearRightFootMarkerRef} color="#38bdf8" />
         </>
       )}
     </group>

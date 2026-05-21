@@ -25,6 +25,18 @@ export interface PivotSnapshot {
   worldPos: [number, number, number]
 }
 
+export interface HipSnapshot {
+  id: string
+  hipBack: { x: number; z: number } | null
+  cascadeIndex: number
+  wantedYaw: number
+  appliedYaw: number
+  plantedYaw: number
+  targetYaw: number
+  leftFoot: FootSnapshot | null
+  rightFoot: FootSnapshot | null
+}
+
 export interface FrameSnapshot {
   t: number
   attractor: { x: number; y: number; z: number } | null
@@ -33,14 +45,8 @@ export interface FrameSnapshot {
   chain: { id: string; name: string; type: string }[]
   caps: number[]
   cascadeOut: number[]
-  hipInChain: boolean
-  frontHipId: string | null
-  hipBack: { x: number; z: number } | null
-  wantedHipYaw: number
-  appliedHipYaw: number
-  hipState: { plantedYaw: number; targetYaw: number }
-  leftFoot: FootSnapshot | null
-  rightFoot: FootSnapshot | null
+  frontHip: HipSnapshot | null
+  rearHip: HipSnapshot | null
   pivots: PivotSnapshot[]
 }
 
