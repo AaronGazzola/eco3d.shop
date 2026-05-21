@@ -4,7 +4,7 @@ A game built around 3D-printable creatures. Each creature is a 3D model brought 
 
 ## What's in the repo right now
 
-- **Studio** (`app/studio/`) — an authoring workflow that turns a raw 3D model into an animation-ready rig. Currently exposed to anyone; **will be gated to admin only** once the gameplay surface lands. The studio is *not* a player-facing tool.
+- **Admin / studio** (`app/admin/`) — an authoring workflow that turns a raw 3D model into an animation-ready rig. Gated to admin users (login required at `/admin`). The studio is *not* a player-facing tool.
 - **Animation runtime** (`app/game/`) — the constraint-based procedural animation system that drives any rig authored in the studio. Renderer-contract is fixed; the animator can be swapped without touching the renderer.
 - **Home page** (`app/page.tsx`) — a single dragon animating against the same runtime. Today this stands in for "the game."
 
@@ -53,7 +53,7 @@ Next.js 15 (App Router), TypeScript, TailwindCSS v4, Shadcn/ui, Supabase (remote
 npm run dev
 ```
 
-Then open [http://localhost:3000](http://localhost:3000) for the home page or `/studio` for the authoring workflow.
+Then open [http://localhost:3000](http://localhost:3000) for the home page or `/admin` for the authoring workflow.
 
 ## Briefing a fresh AI on this project
 

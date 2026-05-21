@@ -1,36 +1,39 @@
 'use client'
 
-import { useEffect } from 'react'
+import { ReactNode, useEffect } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { StepPick } from './StepPick'
-import { StepGroup } from './StepGroup'
-import { StepAnimate } from './StepAnimate'
-import { useStudioStore } from './page.stores'
-import { useStlLoader } from './page.hooks'
+import { useSharedStore } from './sharedStore'
+import { useEnsureStlLoaded } from './hooks'
 
 const STEPS = [
-  { n: 1 as const, label: 'Pick Model' },
-  { n: 2 as const, label: 'Group Segments' },
-  { n: 3 as const, label: 'Animate' },
+  { n: 1 as const, label: 'Pick Model', path: '/admin/pick' },
+  { n: 2 as const, label: 'Group Segments', path: '/admin/group' },
+  { n: 3 as const, label: 'Animate', path: '/admin/animate' },
 ]
 
-export function StudioSidebar() {
-  const { step, setStep, segments, groups } = useStudioStore()
-  const { loadStl } = useStlLoader()
+function pathToStep(pathname: string | null): 1 | 2 | 3 {
+  if (pathname?.startsWith('/admin/group')) return 2
+  if (pathname?.startsWith('/admin/animate')) return 3
+  return 1
+}
+
+export function SidebarShell({ children }: { children: ReactNode }) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const segments = useSharedStore((s) => s.segments)
+  const groups = useSharedStore((s) => s.groups)
+  const ensureStlLoaded = useEnsureStlLoaded()
+  const step = pathToStep(pathname)
 
   useEffect(() => {
-    const tryLoad = () => {
-      const { stlKey, segments } = useStudioStore.getState()
-      if (stlKey && segments.length === 0) loadStl(stlKey, true)
-    }
-
-    if (useStudioStore.persist.hasHydrated()) {
-      tryLoad()
+    if (useSharedStore.persist.hasHydrated()) {
+      ensureStlLoaded()
     } else {
-      return useStudioStore.persist.onFinishHydration(tryLoad)
+      return useSharedStore.persist.onFinishHydration(() => ensureStlLoaded())
     }
-  }, [])
+  }, [ensureStlLoaded])
 
   const canEnterStep = (n: 1 | 2 | 3) => {
     if (n === 1) return true
@@ -41,11 +44,17 @@ export function StudioSidebar() {
   const canGoBack = step > 1
   const canGoForward = step < 3 && canEnterStep((step + 1) as 1 | 2 | 3)
 
+  const goToStep = (n: 1 | 2 | 3) => {
+    if (!canEnterStep(n)) return
+    const target = STEPS.find((s) => s.n === n)
+    if (target) router.push(target.path)
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-white/8 shrink-0">
         <button
-          onClick={() => setStep((step - 1) as 1 | 2 | 3)}
+          onClick={() => goToStep((step - 1) as 1 | 2 | 3)}
           disabled={!canGoBack}
           className="text-white/30 hover:text-white/70 disabled:opacity-0 disabled:pointer-events-none transition-opacity"
         >
@@ -58,7 +67,7 @@ export function StudioSidebar() {
               <div key={s.n} className="flex items-center gap-2">
                 {i > 0 && <div className="w-4 h-px bg-white/15" />}
                 <button
-                  onClick={() => enabled && setStep(s.n)}
+                  onClick={() => goToStep(s.n)}
                   disabled={!enabled}
                   className={
                     s.n === step
@@ -76,7 +85,7 @@ export function StudioSidebar() {
           })}
         </div>
         <button
-          onClick={() => setStep((step + 1) as 1 | 2 | 3)}
+          onClick={() => goToStep((step + 1) as 1 | 2 | 3)}
           disabled={!canGoForward}
           className="text-white/30 hover:text-white/70 disabled:opacity-0 disabled:pointer-events-none transition-opacity"
         >
@@ -84,11 +93,7 @@ export function StudioSidebar() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {step === 1 && <StepPick />}
-        {step === 2 && <StepGroup />}
-        {step === 3 && <StepAnimate />}
-      </div>
+      <div className="flex-1 overflow-y-auto">{children}</div>
 
       <div className="flex flex-col items-center gap-2 py-4 border-t border-white/8 shrink-0">
         <Image

@@ -1,41 +1,18 @@
 'use client'
 
 import { useMemo, useEffect, useRef, useLayoutEffect, useCallback, useState } from 'react'
-import { Canvas, useThree, useFrame } from '@react-three/fiber'
-import { OrbitControls, Grid, TransformControls } from '@react-three/drei'
+import { useThree, useFrame } from '@react-three/fiber'
+import { TransformControls } from '@react-three/drei'
 import * as THREE from 'three'
-import { useStudioStore } from './page.stores'
-import { SegmentData, ModelConfigRow } from './page.types'
+import { useSharedStore } from '../_lib/sharedStore'
+import { useGroupStore } from './groupStore'
+import { CameraController, StudioCanvas } from '../_lib/StudioCanvas'
+import { SegmentData } from '../_lib/types'
 import { NodeOverlay } from './NodeOverlay'
-import { StaticPosedModel, AnimatedModel } from '../game/AnimatedModel'
-
-const CAMERA_PRESETS = {
-  reset: { pos: [0, 8, 16]    as [number, number, number], target: [0, 3, 0] as [number, number, number] },
-  front: { pos: [0, 4, 22]    as [number, number, number], target: [0, 4, 0] as [number, number, number] },
-  top:   { pos: [0, 30, 0.01] as [number, number, number], target: [0, 0, 0] as [number, number, number] },
-  side:  { pos: [22, 4, 0]    as [number, number, number], target: [0, 4, 0] as [number, number, number] },
-}
-
-function CameraController() {
-  const cameraPreset = useStudioStore((s) => s.cameraPreset)
-  const setCameraPreset = useStudioStore((s) => s.setCameraPreset)
-  const { camera, controls } = useThree()
-
-  useEffect(() => {
-    if (!cameraPreset || !controls) return
-    const oc = controls as unknown as { target: THREE.Vector3; update: () => void }
-    const p = CAMERA_PRESETS[cameraPreset]
-    camera.position.set(...p.pos)
-    oc.target.set(...p.target)
-    oc.update()
-    setCameraPreset(null)
-  }, [cameraPreset, camera, controls, setCameraPreset])
-
-  return null
-}
 
 function SphereSelector() {
-  const { sphere, setSphere } = useStudioStore()
+  const sphere = useGroupStore((s) => s.sphere)
+  const setSphere = useGroupStore((s) => s.setSphere)
   const groupRef = useRef<THREE.Group>(null!)
   const isDragging = useRef(false)
   const lastIdsKey = useRef('')
@@ -48,15 +25,15 @@ function SphereSelector() {
 
   useFrame(() => {
     if (!groupRef.current) return
-    const s = useStudioStore.getState().sphere
+    const s = useGroupStore.getState().sphere
     if (!s) return
-    const { segments: segs, modelRotation: mr } = useStudioStore.getState()
-    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(...mr)).invert()
+    const { segments, modelRotation } = useSharedStore.getState()
+    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(...modelRotation)).invert()
     const { x, y, z } = groupRef.current.position
     const localCenter = new THREE.Vector3(x, y, z).applyQuaternion(q)
     const r2 = s.radius * s.radius
     const matchingIds: string[] = []
-    for (const seg of segs) {
+    for (const seg of segments) {
       let hit = false
       for (let i = 0; i < seg.positions.length; i += 3) {
         const dx = seg.positions[i] - localCenter.x
@@ -69,7 +46,7 @@ function SphereSelector() {
     const newKey = matchingIds.join(',')
     if (newKey !== lastIdsKey.current) {
       lastIdsKey.current = newKey
-      useStudioStore.getState().setPendingSegmentIds(matchingIds)
+      useGroupStore.getState().setPendingSegmentIds(matchingIds)
     }
   })
 
@@ -83,7 +60,7 @@ function SphereSelector() {
     if (controls) (controls as unknown as { enabled: boolean }).enabled = true
     if (!groupRef.current) return
     const { x, y, z } = groupRef.current.position
-    const s = useStudioStore.getState().sphere
+    const s = useGroupStore.getState().sphere
     if (!s) return
     setSphere({ x, y, z, radius: s.radius })
   }, [controls, setSphere])
@@ -123,7 +100,9 @@ function SegmentMesh({
   translucent: boolean
   onClick: () => void
 }) {
-  const { selectionMode, sphere, setSphere } = useStudioStore()
+  const selectionMode = useGroupStore((s) => s.selectionMode)
+  const sphere = useGroupStore((s) => s.sphere)
+  const setSphere = useGroupStore((s) => s.setSphere)
 
   const geom = useMemo(() => {
     const g = new THREE.BufferGeometry()
@@ -197,77 +176,16 @@ function SegmentMesh({
 
 const BATCH_SIZE = 10
 
-function AttractorMarker({ x, y, z }: { x: number; y: number; z: number }) {
-  return (
-    <group position={[x, y + 0.02, z]}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.35, 0.5, 32]} />
-        <meshBasicMaterial color="#22d3ee" transparent opacity={0.9} depthTest={false} />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[0.08, 16]} />
-        <meshBasicMaterial color="#22d3ee" depthTest={false} />
-      </mesh>
-    </group>
-  )
-}
-
-function AnimateContent() {
-  const segments = useStudioStore((s) => s.segments)
-  const groups = useStudioStore((s) => s.groups)
-  const stlKey = useStudioStore((s) => s.stlKey)
-  const configId = useStudioStore((s) => s.configId)
-  const configName = useStudioStore((s) => s.configName)
-  const modelRotation = useStudioStore((s) => s.modelRotation)
-  const attractor = useStudioStore((s) => s.attractor)
-  const setAttractor = useStudioStore((s) => s.setAttractor)
-
-  const modelConfig = useMemo<ModelConfigRow>(
-    () => ({
-      id: configId ?? 'studio-preview',
-      stl_key: stlKey ?? '',
-      name: configName || 'preview',
-      groups,
-      model_rotation: modelRotation,
-      created_at: new Date().toISOString(),
-    }),
-    [configId, stlKey, configName, groups, modelRotation]
-  )
-
-  if (groups.length === 0 || segments.length === 0) return null
-
-  return (
-    <>
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, 0, 0]}
-        onClick={(e) => {
-          e.stopPropagation()
-          setAttractor({ x: e.point.x, y: 0, z: e.point.z })
-        }}
-      >
-        <planeGeometry args={[1000, 1000]} />
-        <meshBasicMaterial visible={false} side={THREE.DoubleSide} />
-      </mesh>
-      <group rotation={modelRotation}>
-        <AnimatedModel modelConfig={modelConfig} segments={segments} showNodes />
-      </group>
-      {attractor && <AttractorMarker x={attractor.x} y={attractor.y} z={attractor.z} />}
-    </>
-  )
-}
-
 function SceneContent() {
-  const segments = useStudioStore((s) => s.segments)
-  const pendingSegmentIds = useStudioStore((s) => s.pendingSegmentIds)
-  const groups = useStudioStore((s) => s.groups)
-  const togglePendingSegment = useStudioStore((s) => s.togglePendingSegment)
-  const modelRotation = useStudioStore((s) => s.modelRotation)
-  const selectionMode = useStudioStore((s) => s.selectionMode)
-  const sphere = useStudioStore((s) => s.sphere)
-  const setSphere = useStudioStore((s) => s.setSphere)
-  const step = useStudioStore((s) => s.step)
-  const translucent = step === 2 && selectionMode === 'node'
+  const segments = useSharedStore((s) => s.segments)
+  const groups = useSharedStore((s) => s.groups)
+  const modelRotation = useSharedStore((s) => s.modelRotation)
+  const pendingSegmentIds = useGroupStore((s) => s.pendingSegmentIds)
+  const togglePendingSegment = useGroupStore((s) => s.togglePendingSegment)
+  const selectionMode = useGroupStore((s) => s.selectionMode)
+  const sphere = useGroupStore((s) => s.sphere)
+  const setSphere = useGroupStore((s) => s.setSphere)
+  const translucent = selectionMode === 'node'
 
   const [renderCount, setRenderCount] = useState(0)
 
@@ -332,41 +250,14 @@ function SceneContent() {
   )
 }
 
-function StepGate() {
-  const step = useStudioStore((s) => s.step)
-  return step === 3 ? <AnimateContent /> : <SceneContent />
-}
+export function GroupScene() {
+  const cameraPreset = useGroupStore((s) => s.cameraPreset)
+  const setCameraPreset = useGroupStore((s) => s.setCameraPreset)
 
-export function StudioScene() {
   return (
-    <Canvas
-      camera={{ position: [0, 8, 16], fov: 50 }}
-      style={{ background: '#4a4a4a', width: '100%', height: '100%' }}
-    >
-      <ambientLight intensity={1.2} />
-      <directionalLight position={[5, 12, 8]} intensity={1.8} />
-      <directionalLight position={[-5, 6, -8]} intensity={0.6} />
-      <OrbitControls
-        makeDefault
-        mouseButtons={{
-          LEFT: THREE.MOUSE.PAN,
-          MIDDLE: THREE.MOUSE.ROTATE,
-          RIGHT: THREE.MOUSE.ROTATE,
-        }}
-      />
-      <Grid
-        position={[0, 0.001, 0]}
-        args={[100, 100]}
-        cellSize={1}
-        cellColor="#888888"
-        sectionSize={5}
-        sectionColor="#aaaaaa"
-        fadeDistance={60}
-        fadeStrength={1}
-        infiniteGrid
-      />
-      <StepGate />
-      <CameraController />
-    </Canvas>
+    <StudioCanvas>
+      <SceneContent />
+      <CameraController preset={cameraPreset} onConsumed={() => setCameraPreset(null)} />
+    </StudioCanvas>
   )
 }

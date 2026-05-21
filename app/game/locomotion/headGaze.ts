@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { BodyGroup } from '@/app/studio/page.types'
+import { BodyGroup } from '@/app/admin/_lib/types'
 
 export const DEFAULT_HEAD_CAP = Math.PI / 3
 

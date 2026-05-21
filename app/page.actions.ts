@@ -2,7 +2,7 @@
 
 import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3'
 import { createClient } from '@/supabase/server-client'
-import { ModelConfigRow, BodyGroup } from './studio/page.types'
+import { ModelConfigRow, BodyGroup } from './admin/_lib/types'
 import { EggPair } from './page.types'
 
 const s3 = new S3Client({

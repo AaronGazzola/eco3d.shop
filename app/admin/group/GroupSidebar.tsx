@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { useStudioStore } from './page.stores'
-import { BodyGroup, BodyGroupType, NodeType } from './page.types'
-import { useSaveConfig } from './page.hooks'
+import { useRouter } from 'next/navigation'
+import { useSharedStore } from '../_lib/sharedStore'
+import { useGroupStore } from './groupStore'
+import { BodyGroup, BodyGroupType, NodeType } from '../_lib/types'
+import { useSaveConfig } from '../_lib/hooks'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,7 +17,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
-
 
 const GROUP_NODE_TYPES: Partial<Record<BodyGroup['type'], NodeType[]>> = {
   head: ['front', 'back'],
@@ -122,24 +123,24 @@ function GroupRow({
   )
 }
 
-export function StepGroup() {
-  const {
-    pendingSegmentIds,
-    groups,
-    stlKey,
-    configName,
-    setConfigName,
-    clearPending,
-    createGroup,
-    addToGroup,
-    deleteGroup,
-    reorderSpineGroups,
-    selectionMode,
-    setSelectionMode,
-    selectedNodeId,
-    setSelectedNodeId,
-    setStep,
-  } = useStudioStore()
+export function GroupSidebar() {
+  const router = useRouter()
+  const groups = useSharedStore((s) => s.groups)
+  const stlKey = useSharedStore((s) => s.stlKey)
+  const configName = useSharedStore((s) => s.configName)
+  const setConfigName = useSharedStore((s) => s.setConfigName)
+  const createGroup = useSharedStore((s) => s.createGroup)
+  const addToGroup = useSharedStore((s) => s.addToGroup)
+  const deleteGroup = useSharedStore((s) => s.deleteGroup)
+  const reorderSpineGroups = useSharedStore((s) => s.reorderSpineGroups)
+
+  const pendingSegmentIds = useGroupStore((s) => s.pendingSegmentIds)
+  const clearPending = useGroupStore((s) => s.clearPending)
+  const selectionMode = useGroupStore((s) => s.selectionMode)
+  const setSelectionMode = useGroupStore((s) => s.setSelectionMode)
+  const selectedNodeId = useGroupStore((s) => s.selectedNodeId)
+  const setSelectedNodeId = useGroupStore((s) => s.setSelectedNodeId)
+  const setPendingSegmentIds = useGroupStore((s) => s.setPendingSegmentIds)
 
   const { mutate: saveConfig, isPending: saving } = useSaveConfig()
 
@@ -155,7 +156,13 @@ export function StepGroup() {
     if (pendingSegmentIds.length === 0) return
     const sameType = groups.filter((g) => g.type === type).length
     const autoName = sameType > 0 ? `${type}-${sameType + 1}` : type
-    createGroup(autoName, type, isLeg && attachedToSpineId ? attachedToSpineId : undefined)
+    createGroup(autoName, type, pendingSegmentIds, isLeg && attachedToSpineId ? attachedToSpineId : undefined)
+    setPendingSegmentIds([])
+  }
+
+  function handleAddToGroup(id: string) {
+    addToGroup(id, pendingSegmentIds)
+    setPendingSegmentIds([])
   }
 
   function moveSpine(id: string, dir: -1 | 1) {
@@ -316,7 +323,7 @@ export function StepGroup() {
             <GroupRow
               group={headGroup}
               hasSelection={pendingSegmentIds.length > 0}
-              onAddSelected={() => addToGroup(headGroup.id)}
+              onAddSelected={() => handleAddToGroup(headGroup.id)}
               onDelete={() => deleteGroup(headGroup.id)}
               inNodeMode={inNodeMode}
               isNodeSelected={(nt) => isNodeSelected(headGroup.id, nt)}
@@ -332,7 +339,7 @@ export function StepGroup() {
                 <GroupRow
                   group={sg}
                   hasSelection={pendingSegmentIds.length > 0}
-                  onAddSelected={() => addToGroup(sg.id)}
+                  onAddSelected={() => handleAddToGroup(sg.id)}
                   onDelete={() => deleteGroup(sg.id)}
                   onMoveUp={() => moveSpine(sg.id, -1)}
                   onMoveDown={() => moveSpine(sg.id, 1)}
@@ -347,7 +354,7 @@ export function StepGroup() {
                     key={leg.id}
                     group={leg}
                     hasSelection={pendingSegmentIds.length > 0}
-                    onAddSelected={() => addToGroup(leg.id)}
+                    onAddSelected={() => handleAddToGroup(leg.id)}
                     onDelete={() => deleteGroup(leg.id)}
                     nested
                     inNodeMode={inNodeMode}
@@ -368,7 +375,7 @@ export function StepGroup() {
                 key={leg.id}
                 group={leg}
                 hasSelection={pendingSegmentIds.length > 0}
-                onAddSelected={() => addToGroup(leg.id)}
+                onAddSelected={() => handleAddToGroup(leg.id)}
                 onDelete={() => deleteGroup(leg.id)}
                 inNodeMode={inNodeMode}
                 isNodeSelected={(nt) => isNodeSelected(leg.id, nt)}
@@ -379,7 +386,7 @@ export function StepGroup() {
             <GroupRow
               group={tailGroup}
               hasSelection={pendingSegmentIds.length > 0}
-              onAddSelected={() => addToGroup(tailGroup.id)}
+              onAddSelected={() => handleAddToGroup(tailGroup.id)}
               onDelete={() => deleteGroup(tailGroup.id)}
               inNodeMode={inNodeMode}
               isNodeSelected={(nt) => isNodeSelected(tailGroup.id, nt)}
@@ -418,7 +425,7 @@ export function StepGroup() {
         <Button
           size="sm"
           className="h-8 text-xs bg-violet-600 hover:bg-violet-500 text-white"
-          onClick={() => setStep(3)}
+          onClick={() => router.push('/admin/animate')}
         >
           Animate →
         </Button>

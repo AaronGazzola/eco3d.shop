@@ -2,9 +2,9 @@
 
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import { useR2Files, useStlLoader, useModelConfigs, useLoadConfig } from './page.hooks'
-import { useStudioStore } from './page.stores'
-import { R2FileNode, ModelConfigRow } from './page.types'
+import { useR2Files, useStlLoader, useModelConfigs, useLoadConfig } from '../_lib/hooks'
+import { useSharedStore } from '../_lib/sharedStore'
+import { R2FileNode, ModelConfigRow } from '../_lib/types'
 
 function FileNode({
   node,
@@ -86,8 +86,9 @@ function ConfigRow({
   )
 }
 
-export function StepPick() {
-  const { stlKey, setStlKey } = useStudioStore()
+export function PickSidebar() {
+  const stlKey = useSharedStore((s) => s.stlKey)
+  const setStlKey = useSharedStore((s) => s.setStlKey)
   const [tab, setTab] = useState<'new' | 'load'>('new')
 
   const { data: files, isLoading: filesLoading } = useR2Files()

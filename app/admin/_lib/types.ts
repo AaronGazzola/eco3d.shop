@@ -15,6 +15,13 @@ export type BodyGroupType = 'head' | 'spine' | 'tail' | 'leg-left' | 'leg-right'
 
 export type NodeType = 'front' | 'back' | 'hipLeft' | 'hipRight' | 'hip' | 'foot'
 
+export interface AngleCaps {
+  yaw: number
+  yawBack?: number
+  pitchUp: number
+  pitchDown: number
+}
+
 export interface ModelConfigRow {
   id: string
   stl_key: string
@@ -36,5 +43,7 @@ export interface BodyGroup {
   nodeHipLeft?: { x: number; y?: number; z: number }
   nodeHipRight?: { x: number; y?: number; z: number }
   nodeFoot?: { x: number; y?: number; z: number }
-  angleCap?: number
+  angleCaps?: AngleCaps
 }
+
+export type CameraPreset = 'reset' | 'front' | 'top' | 'side'

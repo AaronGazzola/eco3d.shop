@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
-import { SegmentData } from '../studio/page.types'
+import { SegmentData } from '../admin/_lib/types'
 
 async function fetchAndSegment(stlKey: string): Promise<SegmentData[]> {
   const r = await fetch(`/api/r2?key=${encodeURIComponent(stlKey)}`)
@@ -19,7 +19,7 @@ async function fetchAndSegment(stlKey: string): Promise<SegmentData[]> {
   const positions = geometry.attributes.position.array as Float32Array
 
   return new Promise((resolve, reject) => {
-    const worker = new Worker(new URL('../studio/segmentDetector.worker.ts', import.meta.url))
+    const worker = new Worker(new URL('../admin/segmentDetector.worker.ts', import.meta.url))
     const copy = positions.slice()
     worker.onmessage = (e: MessageEvent<{ arrays: ArrayBuffer[] }>) => {
       worker.terminate()

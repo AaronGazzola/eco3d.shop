@@ -2,9 +2,9 @@
 
 import { RefObject, useMemo, useRef } from 'react'
 import * as THREE from 'three'
-import { ModelConfigRow, SegmentData, BodyGroup } from '../studio/page.types'
+import { ModelConfigRow, SegmentData, BodyGroup } from '../admin/_lib/types'
 import { useLocomotion } from './locomotion/useLocomotion'
-import { buildCascadeChain } from './locomotion/chain'
+import { buildSkeletonTree, flattenSkeleton, SkeletonNode } from './locomotion/chain'
 import { findFrontHip, findLegsForHip } from './locomotion/legs'
 
 function SegmentMesh({
@@ -128,36 +128,33 @@ function GroupBody({
   )
 }
 
-function ChainBoneTree({
-  chain,
-  index,
+function ChainNode({
+  node,
   segmentMap,
   showNodes,
   pivotsRef,
 }: {
-  chain: BodyGroup[]
-  index: number
+  node: SkeletonNode
   segmentMap: Map<string, SegmentData>
   showNodes: boolean
   pivotsRef: RefObject<Map<string, THREE.Group>>
 }) {
-  const g = chain[index]
-  const next =
-    index > 0 ? (
-      <ChainBoneTree
-        chain={chain}
-        index={index - 1}
-        segmentMap={segmentMap}
-        showNodes={showNodes}
-        pivotsRef={pivotsRef}
-      />
-    ) : null
+  const g = node.group
+  const children = node.children.map((child) => (
+    <ChainNode
+      key={child.group.id}
+      node={child}
+      segmentMap={segmentMap}
+      showNodes={showNodes}
+      pivotsRef={pivotsRef}
+    />
+  ))
 
   if (!g.nodeBack) {
     return (
       <group>
         <GroupBody group={g} segmentMap={segmentMap} showNodes={showNodes} />
-        {next}
+        {children}
       </group>
     )
   }
@@ -179,7 +176,7 @@ function ChainBoneTree({
       >
         <group position={[-bx, -by, -bz]}>
           <GroupBody group={g} segmentMap={segmentMap} showNodes={showNodes} />
-          {next}
+          {children}
         </group>
       </group>
     </group>
@@ -210,48 +207,51 @@ export function AnimatedModel({
   const pivotsRef = useRef<Map<string, THREE.Group>>(new Map())
   const leftFootMarkerRef = useRef<THREE.Group | null>(null)
   const rightFootMarkerRef = useRef<THREE.Group | null>(null)
-  const leftLegRef = useRef<THREE.Group | null>(null)
-  const rightLegRef = useRef<THREE.Group | null>(null)
 
   useLocomotion(pivotsRef, modelConfig.groups, modelConfig.model_rotation, {
     left: leftFootMarkerRef,
     right: rightFootMarkerRef,
-    leftLeg: leftLegRef,
-    rightLeg: rightLegRef,
   })
 
-  const chain = useMemo(() => buildCascadeChain(modelConfig.groups), [modelConfig.groups])
-  const chainIds = useMemo(() => new Set(chain.map((g) => g.id)), [chain])
+  const skeletonTree = useMemo(() => buildSkeletonTree(modelConfig.groups), [modelConfig.groups])
+  const skeletonGroups = useMemo(() => flattenSkeleton(skeletonTree), [skeletonTree])
+  const chainIds = useMemo(() => new Set(skeletonGroups.map((g) => g.id)), [skeletonGroups])
 
-  const frontLegIds = useMemo(() => {
+  const hasFrontLegs = useMemo(() => {
     const frontHip = findFrontHip(modelConfig.groups)
-    if (!frontHip) return { left: null as string | null, right: null as string | null }
+    if (!frontHip) return false
     const { left, right } = findLegsForHip(modelConfig.groups, frontHip.id)
-    return { left: left?.id ?? null, right: right?.id ?? null }
+    return !!(left?.nodeFoot && right?.nodeFoot)
   }, [modelConfig.groups])
-
-  const hasFrontLegs = !!(frontLegIds.left && frontLegIds.right)
 
   return (
     <group>
       {modelConfig.groups.map((g) => {
         if (chainIds.has(g.id)) return null
-        const ref =
-          g.id === frontLegIds.left
-            ? leftLegRef
-            : g.id === frontLegIds.right
-              ? rightLegRef
-              : undefined
+        if (g.type === 'leg-left' || g.type === 'leg-right') {
+          return (
+            <group
+              key={g.id}
+              ref={(node) => {
+                const m = pivotsRef.current
+                if (!m) return
+                if (node) m.set(g.id, node)
+                else m.delete(g.id)
+              }}
+            >
+              <GroupBody group={g} segmentMap={segmentMap} showNodes={showNodes} />
+            </group>
+          )
+        }
         return (
-          <group key={g.id} ref={ref}>
+          <group key={g.id}>
             <GroupBody group={g} segmentMap={segmentMap} showNodes={showNodes} />
           </group>
         )
       })}
-      {chain.length > 0 && (
-        <ChainBoneTree
-          chain={chain}
-          index={chain.length - 1}
+      {skeletonTree && (
+        <ChainNode
+          node={skeletonTree}
           segmentMap={segmentMap}
           showNodes={showNodes}
           pivotsRef={pivotsRef}

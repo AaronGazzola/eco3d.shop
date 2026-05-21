@@ -1,9 +1,29 @@
 'use client'
 
+import Link from 'next/link'
+import { Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useGameStore } from './page.stores'
 import { useDragonConfigs, useHatchDragon } from './page.hooks'
+import { useAuth } from './layout.hooks'
+import { useAuthStore } from './layout.stores'
 import { HomeScene } from './HomeScene'
+
+function AdminLink() {
+  const profile = useAuthStore((s) => s.profile)
+  const user = useAuthStore((s) => s.user)
+  if (!user || profile?.role !== 'admin') return null
+  return (
+    <Link
+      href="/admin"
+      aria-label="Open admin"
+      className="flex items-center gap-2 rounded-md border border-white/15 bg-black/40 px-3 py-2 text-xs uppercase tracking-widest text-white/70 backdrop-blur transition-colors hover:bg-white/10 hover:text-white"
+    >
+      <Wrench className="h-4 w-4" />
+      Admin
+    </Link>
+  )
+}
 
 function ChoosePrompt() {
   const phase = useGameStore((s) => s.phase)
@@ -79,7 +99,7 @@ function LiveHint() {
   const reset = useGameStore((s) => s.reset)
   if (phase !== 'live') return null
   return (
-    <div className="absolute right-4 bottom-4 flex flex-col items-end gap-2">
+    <>
       <p className="text-[10px] uppercase tracking-widest text-white/30">
         click the floor to direct your dragon
       </p>
@@ -89,18 +109,22 @@ function LiveHint() {
       >
         New eggs
       </button>
-    </div>
+    </>
   )
 }
 
 export default function HomePage() {
+  useAuth()
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-[#080808]">
       <HomeScene />
       <ChoosePrompt />
       <ConfirmDialog />
       <HatchingHint />
-      <LiveHint />
+      <div className="absolute bottom-4 right-4 z-10 flex flex-col items-end gap-2">
+        <LiveHint />
+        <AdminLink />
+      </div>
     </div>
   )
 }

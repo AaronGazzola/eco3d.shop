@@ -2,7 +2,7 @@
 
 import { create } from 'zustand'
 import { EggSlot, GamePhase } from './page.types'
-import { ModelConfigRow } from './studio/page.types'
+import { ModelConfigRow } from './admin/_lib/types'
 
 interface GameStore {
   phase: GamePhase

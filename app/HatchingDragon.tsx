@@ -3,7 +3,7 @@
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { ModelConfigRow, SegmentData } from './studio/page.types'
+import { ModelConfigRow, SegmentData } from './admin/_lib/types'
 import { StaticPosedModel } from './game/AnimatedModel'
 import { useGameStore } from './page.stores'
 import { DRAGON_SCALE_INITIAL, DRAGON_SCALE_FINAL, EMERGE_DURATION_MS } from './page.constants'

@@ -4,8 +4,9 @@ import { useEffect, useRef, useLayoutEffect, useCallback, useMemo } from 'react'
 import * as THREE from 'three'
 import { useThree } from '@react-three/fiber'
 import { TransformControls } from '@react-three/drei'
-import { useStudioStore } from './page.stores'
-import { SegmentData, BodyGroup, NodeType } from './page.types'
+import { useSharedStore } from '../_lib/sharedStore'
+import { useGroupStore } from './groupStore'
+import { SegmentData, BodyGroup, NodeType } from '../_lib/types'
 
 function computeCentroid(segmentIds: string[], segmentMap: Map<string, SegmentData>): THREE.Vector3 {
   let sumX = 0, sumZ = 0, count = 0
@@ -59,13 +60,6 @@ function buildSpineChain(groups: BodyGroup[]): BodyGroup[] {
   return [...(head ? [head] : []), ...spines, ...(tail ? [tail] : [])]
 }
 
-/**
- * Returns canonical node entries — no duplicates.
- * - chain[0].nodeFront = joint[0] (independent)
- * - chain[i].nodeBack  = joint[i+1] (shared with chain[i+1].front)
- * - spine.nodeHipLeft/Right = shared with attached leg's hip
- * - leg.nodeFoot = foot joint (owned by leg)
- */
 function getCanonicalNodes(
   groups: BodyGroup[],
   segmentMap: Map<string, SegmentData>
@@ -161,7 +155,9 @@ function buildLines(
 function InteractiveNode({ entry }: { entry: NodeEntry }) {
   const groupRef = useRef<THREE.Group>(null!)
   const { controls } = useThree()
-  const { selectedNodeId, setSelectedNodeId, setGroupNode } = useStudioStore()
+  const selectedNodeId = useGroupStore((s) => s.selectedNodeId)
+  const setSelectedNodeId = useGroupStore((s) => s.setSelectedNodeId)
+  const setGroupNode = useSharedStore((s) => s.setGroupNode)
 
   const isSelected =
     selectedNodeId?.groupId === entry.groupId && selectedNodeId?.nodeType === entry.nodeType
@@ -281,7 +277,9 @@ function StaticNodeOverlay({ groups, segments }: { groups: BodyGroup[]; segments
 }
 
 export function NodeOverlay() {
-  const { segments, groups, selectionMode } = useStudioStore()
+  const segments = useSharedStore((s) => s.segments)
+  const groups = useSharedStore((s) => s.groups)
+  const selectionMode = useGroupStore((s) => s.selectionMode)
 
   const segmentMap = useMemo(() => new Map(segments.map((s) => [s.id, s])), [segments])
 

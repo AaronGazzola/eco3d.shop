@@ -1,8 +1,55 @@
 'use client'
 
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import { SegmentData, BodyGroup, BodyGroupType, ModelConfigRow, NodeType } from './page.types'
+import { persist, createJSONStorage, StateStorage } from 'zustand/middleware'
+import { SegmentData, BodyGroup, BodyGroupType, ModelConfigRow, NodeType, AngleCaps } from './types'
+
+const PERSIST_DEBOUNCE_MS = 400
+
+const debouncedLocalStorage: StateStorage = (() => {
+  let timer: ReturnType<typeof setTimeout> | null = null
+  let pendingKey: string | null = null
+  let pendingValue: string | null = null
+  const flush = () => {
+    if (typeof window === 'undefined') return
+    if (pendingKey !== null && pendingValue !== null) {
+      try {
+        window.localStorage.setItem(pendingKey, pendingValue)
+      } catch (err) {
+        console.error(err)
+      }
+    }
+    pendingKey = null
+    pendingValue = null
+    timer = null
+  }
+  if (typeof window !== 'undefined') {
+    window.addEventListener('beforeunload', flush)
+  }
+  return {
+    getItem: (name) => {
+      if (typeof window === 'undefined') return null
+      return window.localStorage.getItem(name)
+    },
+    setItem: (name, value) => {
+      if (typeof window === 'undefined') return
+      pendingKey = name
+      pendingValue = value
+      if (timer !== null) clearTimeout(timer)
+      timer = setTimeout(flush, PERSIST_DEBOUNCE_MS)
+    },
+    removeItem: (name) => {
+      if (typeof window === 'undefined') return
+      pendingKey = null
+      pendingValue = null
+      if (timer !== null) {
+        clearTimeout(timer)
+        timer = null
+      }
+      window.localStorage.removeItem(name)
+    },
+  }
+})()
 
 const SEGMENT_COLORS = [
   '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
@@ -10,23 +57,13 @@ const SEGMENT_COLORS = [
   '#14b8a6', '#f43f5e', '#a855f7', '#22c55e', '#eab308',
 ]
 
-export type CameraPreset = 'reset' | 'front' | 'top' | 'side'
-
-interface StudioStore {
+interface SharedStore {
   stlKey: string | null
   configId: string | null
   configName: string
   segments: SegmentData[]
-  selectedSegmentId: string | null
-  pendingSegmentIds: string[]
   groups: BodyGroup[]
-  step: 1 | 2 | 3
-  cameraPreset: CameraPreset | null
   modelRotation: [number, number, number]
-  selectionMode: 'click' | 'sphere' | 'node'
-  sphere: { x: number; y: number; z: number; radius: number } | null
-  selectedNodeId: { groupId: string; nodeType: NodeType } | null
-  attractor: { x: number; y: number; z: number } | null
 
   setStlKey: (key: string) => void
   setConfigId: (id: string | null) => void
@@ -34,43 +71,25 @@ interface StudioStore {
   loadConfig: (config: ModelConfigRow) => void
   setSegments: (segments: SegmentData[]) => void
   restoreSegments: (segments: SegmentData[]) => void
-  setSelectedSegmentId: (id: string | null) => void
-  setStep: (step: 1 | 2 | 3) => void
-  setCameraPreset: (preset: CameraPreset | null) => void
   rotateModel: (axis: 'x' | 'y' | 'z', delta: number) => void
-  togglePendingSegment: (id: string) => void
-  clearPending: () => void
-  createGroup: (name: string, type: BodyGroupType, attachedToSpineId?: string) => void
-  addToGroup: (id: string) => void
+  createGroup: (name: string, type: BodyGroupType, pendingSegmentIds: string[], attachedToSpineId?: string) => void
+  addToGroup: (id: string, pendingSegmentIds: string[]) => void
   deleteGroup: (id: string) => void
   reorderSpineGroups: (newOrderIds: string[]) => void
   setGroupAttachment: (groupId: string, spineGroupId: string) => void
-  setSelectionMode: (mode: 'click' | 'sphere' | 'node') => void
-  setSphere: (sphere: { x: number; y: number; z: number; radius: number } | null) => void
-  setSphereRadius: (radius: number) => void
-  setPendingSegmentIds: (ids: string[]) => void
-  setSelectedNodeId: (id: { groupId: string; nodeType: NodeType } | null) => void
   setGroupNode: (groupId: string, nodeType: NodeType, x: number, y: number, z: number) => void
-  setAttractor: (a: { x: number; y: number; z: number } | null) => void
+  setGroupAngleCaps: (groupId: string, caps: AngleCaps) => void
 }
 
-export const useStudioStore = create<StudioStore>()(
+export const useSharedStore = create<SharedStore>()(
   persist(
     (set, get) => ({
       stlKey: null,
       configId: null,
       configName: '',
       segments: [],
-      selectedSegmentId: null,
-      pendingSegmentIds: [],
       groups: [],
-      step: 1,
-      cameraPreset: null,
       modelRotation: [0, 0, 0],
-      selectionMode: 'click',
-      sphere: null,
-      selectedNodeId: null,
-      attractor: null,
 
       setStlKey: (key) => set({ stlKey: key }),
 
@@ -85,37 +104,19 @@ export const useStudioStore = create<StudioStore>()(
           configName: config.name,
           groups: config.groups,
           modelRotation: config.model_rotation,
-          step: 2,
-          pendingSegmentIds: [],
-          selectionMode: 'click',
-          sphere: null,
-          selectedNodeId: null,
         }),
 
       setSegments: (raw) =>
         set({
           segments: raw.map((s, i) => ({ ...s, color: SEGMENT_COLORS[i % SEGMENT_COLORS.length] })),
-          selectedSegmentId: null,
-          pendingSegmentIds: [],
           groups: [],
-          step: 2,
           modelRotation: [0, 0, 0],
-          selectionMode: 'click',
-          sphere: null,
         }),
 
       restoreSegments: (raw) =>
         set({
           segments: raw.map((s, i) => ({ ...s, color: SEGMENT_COLORS[i % SEGMENT_COLORS.length] })),
-          pendingSegmentIds: [],
-          selectionMode: 'click',
         }),
-
-      setSelectedSegmentId: (id) => set({ selectedSegmentId: id }),
-
-      setStep: (step) => set({ step }),
-
-      setCameraPreset: (preset) => set({ cameraPreset: preset }),
 
       rotateModel: (axis, delta) =>
         set((state) => {
@@ -126,18 +127,9 @@ export const useStudioStore = create<StudioStore>()(
           return { modelRotation: r }
         }),
 
-      togglePendingSegment: (id) =>
-        set((state) => ({
-          pendingSegmentIds: state.pendingSegmentIds.includes(id)
-            ? state.pendingSegmentIds.filter((s) => s !== id)
-            : [...state.pendingSegmentIds, id],
-        })),
-
-      clearPending: () => set({ pendingSegmentIds: [] }),
-
-      createGroup: (name, type, attachedToSpineId) => {
-        const { pendingSegmentIds, groups } = get()
+      createGroup: (name, type, pendingSegmentIds, attachedToSpineId) => {
         if (pendingSegmentIds.length === 0) return
+        const { groups } = get()
         const color = SEGMENT_COLORS[groups.length % SEGMENT_COLORS.length]
         const newGroup: BodyGroup = {
           id: `group-${Date.now()}`,
@@ -147,12 +139,11 @@ export const useStudioStore = create<StudioStore>()(
           type,
           attachedToSpineId,
         }
-        set({ groups: [...groups, newGroup], pendingSegmentIds: [] })
+        set({ groups: [...groups, newGroup] })
       },
 
-      addToGroup: (id) =>
+      addToGroup: (id, pendingSegmentIds) =>
         set((state) => {
-          const { pendingSegmentIds } = state
           if (pendingSegmentIds.length === 0) return state
           return {
             groups: state.groups.map((g) =>
@@ -160,7 +151,6 @@ export const useStudioStore = create<StudioStore>()(
                 ? { ...g, segmentIds: [...new Set([...g.segmentIds, ...pendingSegmentIds])] }
                 : g
             ),
-            pendingSegmentIds: [],
           }
         }),
 
@@ -182,23 +172,6 @@ export const useStudioStore = create<StudioStore>()(
           ),
         })),
 
-      setSelectionMode: (mode) => {
-        if (mode === 'click') set({ selectionMode: mode, sphere: null, selectedNodeId: null })
-        else if (mode === 'sphere') set({ selectionMode: mode, selectedNodeId: null })
-        else set({ selectionMode: mode, sphere: null, pendingSegmentIds: [] })
-      },
-
-      setSphere: (sphere) => set({ sphere }),
-
-      setSphereRadius: (radius) =>
-        set((state) => ({ sphere: state.sphere ? { ...state.sphere, radius } : null })),
-
-      setPendingSegmentIds: (ids) => set({ pendingSegmentIds: ids }),
-
-      setSelectedNodeId: (id) => set({ selectedNodeId: id }),
-
-      setAttractor: (a) => set({ attractor: a }),
-
       setGroupNode: (groupId, nodeType, x, y, z) =>
         set((state) => ({
           groups: state.groups.map((g) => {
@@ -213,16 +186,21 @@ export const useStudioStore = create<StudioStore>()(
             }
           }),
         })),
+
+      setGroupAngleCaps: (groupId, caps) =>
+        set((state) => ({
+          groups: state.groups.map((g) => (g.id === groupId ? { ...g, angleCaps: caps } : g)),
+        })),
     }),
     {
       name: 'studio-store',
-      version: 3,
+      version: 5,
+      storage: createJSONStorage(() => debouncedLocalStorage),
       partialize: (state) => ({
         stlKey: state.stlKey,
         configId: state.configId,
         configName: state.configName,
         groups: state.groups,
-        step: state.step,
         modelRotation: state.modelRotation,
       }),
       migrate: (persisted: unknown, version: number) => {
@@ -232,6 +210,19 @@ export const useStudioStore = create<StudioStore>()(
           delete state.overlayToggles
           delete state.modelOpacity
           delete state.showAttractor
+        }
+        if (version < 4) {
+          const groups = state.groups
+          if (Array.isArray(groups)) {
+            state.groups = groups.map((g: Record<string, unknown>) => {
+              const next = { ...g }
+              if ('angleCap' in next) delete next.angleCap
+              return next
+            })
+          }
+        }
+        if (version < 5) {
+          delete state.step
         }
         return state
       },

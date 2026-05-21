@@ -3,7 +3,7 @@
 import { S3Client, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { createClient } from '@/supabase/server-client'
-import { R2FileNode, BodyGroup, ModelConfigRow } from './page.types'
+import { R2FileNode, BodyGroup, ModelConfigRow } from './types'
 
 const s3 = new S3Client({
   region: 'auto',

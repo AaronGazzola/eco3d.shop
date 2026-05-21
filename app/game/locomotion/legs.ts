@@ -1,4 +1,4 @@
-import { BodyGroup } from '@/app/studio/page.types'
+import { BodyGroup } from '@/app/admin/_lib/types'
 
 export function findFrontHip(groups: BodyGroup[]): BodyGroup | null {
   const spines = groups.filter((g) => g.type === 'spine')
