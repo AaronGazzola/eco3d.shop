@@ -40,6 +40,9 @@ interface Scratch {
   qYaw: THREE.Quaternion
   qPitch: THREE.Quaternion
   qLeg: THREE.Quaternion
+  qWorld: THREE.Quaternion
+  qWorldInv: THREE.Quaternion
+  qMesh: THREE.Quaternion
   v1: THREE.Vector3
   v2: THREE.Vector3
   v3: THREE.Vector3
@@ -66,9 +69,20 @@ function footWorldY(foot: FootState): number {
   return foot.restY + Math.sin(foot.swingT * Math.PI) * LIFT_HEIGHT
 }
 
-function writeMarker(marker: THREE.Group | null, foot: FootState) {
+function writeMarker(
+  marker: THREE.Group | null,
+  foot: FootState,
+  hipBackX: number,
+  hipBackY: number,
+  hipBackZ: number,
+  parentMatrix: THREE.Matrix4,
+  scratchVec: THREE.Vector3
+) {
   if (!marker) return
-  marker.position.set(footWorldX(foot), footWorldY(foot), footWorldZ(foot))
+  scratchVec
+    .set(footWorldX(foot) - hipBackX, footWorldY(foot) - hipBackY, footWorldZ(foot) - hipBackZ)
+    .applyMatrix4(parentMatrix)
+  marker.position.copy(scratchVec)
 }
 
 function applyLegBone(
@@ -85,42 +99,52 @@ function applyLegBone(
   if (!leg?.nodeFoot || !hipNode) return
   const mesh = pivots.get(leg.id)
   if (!mesh) return
+
+  hipPivot.updateWorldMatrix(true, false)
+  hipPivot.getWorldQuaternion(scratch.qWorld)
+  scratch.qWorldInv.copy(scratch.qWorld).invert()
+
+  const parentMatrix = hipPivot.parent?.matrixWorld
+  if (!parentMatrix) return
+
   const hRest = scratch.v2.set(hipNode.x, hipNode.y ?? 0, hipNode.z)
   const fRest = scratch.v3.set(leg.nodeFoot.x, leg.nodeFoot.y ?? 0, leg.nodeFoot.z)
+
   const hNow = scratch.v4
     .set(hRest.x - hipBackX, hRest.y - hipBackY, hRest.z - hipBackZ)
-    .applyQuaternion(hipPivot.quaternion)
-  hNow.x += hipBackX
-  hNow.y += hipBackY
-  hNow.z += hipBackZ
-  const fNow = scratch.v5.set(footWorldX(foot), footWorldY(foot), footWorldZ(foot))
+    .applyMatrix4(hipPivot.matrixWorld)
+  const fNow = scratch.v5
+    .set(footWorldX(foot) - hipBackX, footWorldY(foot) - hipBackY, footWorldZ(foot) - hipBackZ)
+    .applyMatrix4(parentMatrix)
+
   const dRest = scratch.v6.subVectors(fRest, hRest)
   if (dRest.lengthSq() < 1e-10) return
   dRest.normalize()
-  const dNow = scratch.v1.subVectors(fNow, hNow)
-  if (dNow.lengthSq() < 1e-10) return
-  dNow.normalize()
+
+  const dNowLocal = scratch.v1.subVectors(fNow, hNow)
+  if (dNowLocal.lengthSq() < 1e-10) return
+  dNowLocal.applyQuaternion(scratch.qWorldInv).normalize()
 
   const legCaps = effectiveAngleCaps(leg)
   const yawForward = legCaps.yaw
   const yawBackward = legCaps.yawBack ?? legCaps.yaw
   const restYaw = Math.atan2(dRest.x, dRest.z)
-  const nowYaw = Math.atan2(dNow.x, dNow.z)
+  const nowYaw = Math.atan2(dNowLocal.x, dNowLocal.z)
   let yawDelta = nowYaw - restYaw
   while (yawDelta > Math.PI) yawDelta -= 2 * Math.PI
   while (yawDelta < -Math.PI) yawDelta += 2 * Math.PI
   if (yawDelta > yawForward) yawDelta = yawForward
   else if (yawDelta < -yawBackward) yawDelta = -yawBackward
   const clampedYaw = restYaw + yawDelta
-  const xzMag = Math.sqrt(dNow.x * dNow.x + dNow.z * dNow.z)
-  const dNowClamped = scratch.v1
-  dNowClamped.set(xzMag * Math.sin(clampedYaw), dNow.y, xzMag * Math.cos(clampedYaw))
-  if (dNowClamped.lengthSq() < 1e-10) return
-  dNowClamped.normalize()
+  const xzMag = Math.sqrt(dNowLocal.x * dNowLocal.x + dNowLocal.z * dNowLocal.z)
+  dNowLocal.set(xzMag * Math.sin(clampedYaw), dNowLocal.y, xzMag * Math.cos(clampedYaw))
+  if (dNowLocal.lengthSq() < 1e-10) return
+  dNowLocal.normalize()
 
-  scratch.qLeg.setFromUnitVectors(dRest, dNowClamped)
-  mesh.quaternion.copy(scratch.qLeg)
-  scratch.v3.copy(hRest).applyQuaternion(scratch.qLeg)
+  scratch.qLeg.setFromUnitVectors(dRest, dNowLocal)
+  scratch.qMesh.copy(scratch.qWorld).multiply(scratch.qLeg)
+  mesh.quaternion.copy(scratch.qMesh)
+  scratch.v3.copy(hRest).applyQuaternion(scratch.qMesh)
   mesh.position.copy(hNow).sub(scratch.v3)
 }
 
@@ -300,8 +324,12 @@ function applyHipLegs(
   applyLegBone(scratch, pivots, hipPivot, hbx, hby, hbz, legs.left, hipGroup.nodeHipLeft, leftFoot)
   applyLegBone(scratch, pivots, hipPivot, hbx, hby, hbz, legs.right, hipGroup.nodeHipRight, rightFoot)
   if (markers) {
-    writeMarker(markers.left.current, leftFoot)
-    writeMarker(markers.right.current, rightFoot)
+    hipPivot.updateWorldMatrix(true, false)
+    const parentMatrix = hipPivot.parent?.matrixWorld
+    if (parentMatrix) {
+      writeMarker(markers.left.current, leftFoot, hbx, hby, hbz, parentMatrix, scratch.v1)
+      writeMarker(markers.right.current, rightFoot, hbx, hby, hbz, parentMatrix, scratch.v1)
+    }
   }
 }
 
@@ -320,6 +348,9 @@ export function useLocomotion(
     qYaw: new THREE.Quaternion(),
     qPitch: new THREE.Quaternion(),
     qLeg: new THREE.Quaternion(),
+    qWorld: new THREE.Quaternion(),
+    qWorldInv: new THREE.Quaternion(),
+    qMesh: new THREE.Quaternion(),
     v1: new THREE.Vector3(),
     v2: new THREE.Vector3(),
     v3: new THREE.Vector3(),
