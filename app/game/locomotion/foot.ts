@@ -1,3 +1,5 @@
+import * as THREE from 'three'
+
 export type FootPhase = 'planted' | 'stepping'
 
 export interface FootState {
@@ -24,46 +26,53 @@ export function makeFootState(
   footY: number,
   footZ: number,
   hipBackX: number,
-  hipBackZ: number
+  hipBackZ: number,
+  parentMatrix: THREE.Matrix4,
+  scratchVec: THREE.Vector3
 ): FootState {
+  const offsetX = footX - hipBackX
+  const offsetZ = footZ - hipBackZ
+  scratchVec.set(offsetX, 0, offsetZ).applyMatrix4(parentMatrix)
   return {
     phase: 'planted',
-    plantedX: footX,
-    plantedZ: footZ,
-    swingStartX: footX,
-    swingStartZ: footZ,
-    swingTargetX: footX,
-    swingTargetZ: footZ,
+    plantedX: scratchVec.x,
+    plantedZ: scratchVec.z,
+    swingStartX: scratchVec.x,
+    swingStartZ: scratchVec.z,
+    swingTargetX: scratchVec.x,
+    swingTargetZ: scratchVec.z,
     swingT: 0,
-    restOffsetX: footX - hipBackX,
-    restOffsetZ: footZ - hipBackZ,
+    restOffsetX: offsetX,
+    restOffsetZ: offsetZ,
     restY: footY,
   }
 }
 
-export function footTargetAt(
+export function footTargetWorld(
   foot: FootState,
-  hipBackX: number,
-  hipBackZ: number,
-  yaw: number
-): { x: number; z: number } {
+  yaw: number,
+  parentMatrix: THREE.Matrix4,
+  out: THREE.Vector3
+): THREE.Vector3 {
   const c = Math.cos(yaw)
   const s = Math.sin(yaw)
-  return {
-    x: hipBackX + foot.restOffsetX * c + foot.restOffsetZ * s,
-    z: hipBackZ - foot.restOffsetX * s + foot.restOffsetZ * c,
-  }
+  out.set(
+    foot.restOffsetX * c + foot.restOffsetZ * s,
+    0,
+    -foot.restOffsetX * s + foot.restOffsetZ * c
+  )
+  return out.applyMatrix4(parentMatrix)
 }
 
 export function computeStrain(
   foot: FootState,
-  hipBackX: number,
-  hipBackZ: number,
-  wantedYaw: number
+  wantedYaw: number,
+  parentMatrix: THREE.Matrix4,
+  scratchVec: THREE.Vector3
 ): number {
-  const target = footTargetAt(foot, hipBackX, hipBackZ, wantedYaw)
-  const dx = target.x - foot.plantedX
-  const dz = target.z - foot.plantedZ
+  footTargetWorld(foot, wantedYaw, parentMatrix, scratchVec)
+  const dx = scratchVec.x - foot.plantedX
+  const dz = scratchVec.z - foot.plantedZ
   return Math.sqrt(dx * dx + dz * dz)
 }
 

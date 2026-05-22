@@ -55,6 +55,25 @@ npm run dev
 
 Then open [http://localhost:3000](http://localhost:3000) for the home page or `/admin` for the authoring workflow.
 
+### Dev-mode performance — use the prod build for animation work
+
+`/admin/animate` is essentially unusable in `next dev`. The cost is **not** a bug in the animation runtime — the prod build runs the same code fast. The dev-mode tax comes from r3f Fiber reconciliation amplified by React Strict Mode, Next.js Turbopack's per-module runtime proxy, non-minified bundles, and the dev overlay. A Firefox Performance trace of the dev freeze shows 65–70% of samples inside the r3f reconciler stack (`performWorkUntilDeadline → Xl → Di → Wa → Ap → Lf → yh → Hf → _h → el → Eh → lh → wr → ...`); the same stack is fast in prod where StrictMode and HMR aren't running.
+
+There are two costs in dev:
+
+1. **Mount freeze on first load** — several seconds while r3f reconciles the rig.
+2. **Ongoing per-frame overhead** — the animation continues to feel sluggish after mount, because every `useFrame` tick pays Turbopack's runtime cost on every helper call.
+
+Both go away in prod. The recommended workflow when working on the animation is therefore to **rebuild and run the prod build between code changes**:
+
+```bash
+npm run prod
+```
+
+That runs `doppler run -- next build && doppler run -- next start`. It's slow per-edit (a few seconds to rebuild) but the resulting app is honest about runtime perf. Use `npm run dev` for non-animation work where HMR is more valuable than runtime fidelity.
+
+If you record a profile during a real perf investigation, do it against the prod build. The flame graph is non-minified (readable function names, no double-mount noise) and only there does CPU time reflect what real users see.
+
 ## Briefing a fresh AI on this project
 
 Have it read, in this order:

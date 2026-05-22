@@ -1,5 +1,7 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import Link from 'next/link'
 import { Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'

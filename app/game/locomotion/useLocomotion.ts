@@ -7,7 +7,12 @@ import { BodyGroup } from '@/app/admin/_lib/types'
 import { useAnimateStore } from '@/app/admin/animate/animateStore'
 import { computeDesiredHeadYaw } from './headGaze'
 import { buildCascadeChain, buildSkeletonTree, flattenSkeleton, effectiveAngleCaps } from './chain'
-import { computeCascadeRotations } from './cascade'
+import {
+  computeCascadeRotations,
+  projectLegConstraints,
+  CascadeSegment,
+  LegConstraint,
+} from './cascade'
 import { findFrontHip, findRearHip, findLegsForHip } from './legs'
 import {
   FootState,
@@ -15,7 +20,7 @@ import {
   LIFT_HEIGHT,
   STRAIN_THRESHOLD,
   makeFootState,
-  footTargetAt,
+  footTargetWorld,
   computeStrain,
   easeInOut,
 } from './foot'
@@ -69,20 +74,9 @@ function footWorldY(foot: FootState): number {
   return foot.restY + Math.sin(foot.swingT * Math.PI) * LIFT_HEIGHT
 }
 
-function writeMarker(
-  marker: THREE.Group | null,
-  foot: FootState,
-  hipBackX: number,
-  hipBackY: number,
-  hipBackZ: number,
-  parentMatrix: THREE.Matrix4,
-  scratchVec: THREE.Vector3
-) {
+function writeMarker(marker: THREE.Group | null, foot: FootState) {
   if (!marker) return
-  scratchVec
-    .set(footWorldX(foot) - hipBackX, footWorldY(foot) - hipBackY, footWorldZ(foot) - hipBackZ)
-    .applyMatrix4(parentMatrix)
-  marker.position.copy(scratchVec)
+  marker.position.set(footWorldX(foot), footWorldY(foot), footWorldZ(foot))
 }
 
 function applyLegBone(
@@ -104,18 +98,13 @@ function applyLegBone(
   hipPivot.getWorldQuaternion(scratch.qWorld)
   scratch.qWorldInv.copy(scratch.qWorld).invert()
 
-  const parentMatrix = hipPivot.parent?.matrixWorld
-  if (!parentMatrix) return
-
   const hRest = scratch.v2.set(hipNode.x, hipNode.y ?? 0, hipNode.z)
   const fRest = scratch.v3.set(leg.nodeFoot.x, leg.nodeFoot.y ?? 0, leg.nodeFoot.z)
 
   const hNow = scratch.v4
     .set(hRest.x - hipBackX, hRest.y - hipBackY, hRest.z - hipBackZ)
     .applyMatrix4(hipPivot.matrixWorld)
-  const fNow = scratch.v5
-    .set(footWorldX(foot) - hipBackX, footWorldY(foot) - hipBackY, footWorldZ(foot) - hipBackZ)
-    .applyMatrix4(parentMatrix)
+  const fNow = scratch.v5.set(footWorldX(foot), footWorldY(foot), footWorldZ(foot))
 
   const dRest = scratch.v6.subVectors(fRest, hRest)
   if (dRest.lengthSq() < 1e-10) return
@@ -193,7 +182,9 @@ function makeHipRuntime(): HipRuntime {
 function ensureHipInit(
   runtime: HipRuntime,
   hipGroup: BodyGroup,
-  legs: { left: BodyGroup | null; right: BodyGroup | null }
+  legs: { left: BodyGroup | null; right: BodyGroup | null },
+  parentMatrix: THREE.Matrix4,
+  scratchVec: THREE.Vector3
 ): void {
   if (runtime.initId === hipGroup.id) return
   if (!hipGroup.nodeBack) return
@@ -207,14 +198,18 @@ function ensureHipInit(
     leftLeg.nodeFoot.y ?? 0,
     leftLeg.nodeFoot.z,
     hipBackX,
-    hipBackZ
+    hipBackZ,
+    parentMatrix,
+    scratchVec
   )
   runtime.feet.right = makeFootState(
     rightLeg.nodeFoot.x,
     rightLeg.nodeFoot.y ?? 0,
     rightLeg.nodeFoot.z,
     hipBackX,
-    hipBackZ
+    hipBackZ,
+    parentMatrix,
+    scratchVec
   )
   runtime.state.plantedYaw = 0
   runtime.state.targetYaw = 0
@@ -225,15 +220,15 @@ function runHipStep(
   runtime: HipRuntime,
   hipGroup: BodyGroup,
   wantedYaw: number,
-  dt: number
+  dt: number,
+  parentMatrix: THREE.Matrix4,
+  scratchVec: THREE.Vector3
 ): HipStepResult {
   const leftFoot = runtime.feet.left
   const rightFoot = runtime.feet.right
   if (!leftFoot || !rightFoot || !hipGroup.nodeBack) {
     return { appliedYaw: 0, leftStrain: 0, rightStrain: 0 }
   }
-  const hipBackX = hipGroup.nodeBack.x
-  const hipBackZ = hipGroup.nodeBack.z
 
   if (leftFoot.phase === 'stepping') {
     leftFoot.swingT = Math.min(1, leftFoot.swingT + dt / STEP_DURATION)
@@ -269,12 +264,12 @@ function runHipStep(
     appliedYaw =
       runtime.state.plantedYaw +
       (runtime.state.targetYaw - runtime.state.plantedYaw) * easeInOut(stepping.swingT)
-    leftStrain = computeStrain(leftFoot, hipBackX, hipBackZ, wantedYaw)
-    rightStrain = computeStrain(rightFoot, hipBackX, hipBackZ, wantedYaw)
+    leftStrain = computeStrain(leftFoot, wantedYaw, parentMatrix, scratchVec)
+    rightStrain = computeStrain(rightFoot, wantedYaw, parentMatrix, scratchVec)
   } else {
     appliedYaw = runtime.state.plantedYaw
-    leftStrain = computeStrain(leftFoot, hipBackX, hipBackZ, wantedYaw)
-    rightStrain = computeStrain(rightFoot, hipBackX, hipBackZ, wantedYaw)
+    leftStrain = computeStrain(leftFoot, wantedYaw, parentMatrix, scratchVec)
+    rightStrain = computeStrain(rightFoot, wantedYaw, parentMatrix, scratchVec)
 
     const leftStrained = leftStrain > STRAIN_THRESHOLD
     const rightStrained = rightStrain > STRAIN_THRESHOLD
@@ -290,11 +285,11 @@ function runHipStep(
     }
 
     if (stepFoot) {
-      const target = footTargetAt(stepFoot, hipBackX, hipBackZ, wantedYaw)
+      footTargetWorld(stepFoot, wantedYaw, parentMatrix, scratchVec)
       stepFoot.swingStartX = stepFoot.plantedX
       stepFoot.swingStartZ = stepFoot.plantedZ
-      stepFoot.swingTargetX = target.x
-      stepFoot.swingTargetZ = target.z
+      stepFoot.swingTargetX = scratchVec.x
+      stepFoot.swingTargetZ = scratchVec.z
       stepFoot.swingT = 0
       stepFoot.phase = 'stepping'
       runtime.state.targetYaw = wantedYaw
@@ -324,12 +319,8 @@ function applyHipLegs(
   applyLegBone(scratch, pivots, hipPivot, hbx, hby, hbz, legs.left, hipGroup.nodeHipLeft, leftFoot)
   applyLegBone(scratch, pivots, hipPivot, hbx, hby, hbz, legs.right, hipGroup.nodeHipRight, rightFoot)
   if (markers) {
-    hipPivot.updateWorldMatrix(true, false)
-    const parentMatrix = hipPivot.parent?.matrixWorld
-    if (parentMatrix) {
-      writeMarker(markers.left.current, leftFoot, hbx, hby, hbz, parentMatrix, scratch.v1)
-      writeMarker(markers.right.current, rightFoot, hbx, hby, hbz, parentMatrix, scratch.v1)
-    }
+    writeMarker(markers.left.current, leftFoot)
+    writeMarker(markers.right.current, rightFoot)
   }
 }
 
@@ -343,6 +334,8 @@ export function useLocomotion(
   const frontRuntimeRef = useRef<HipRuntime>(makeHipRuntime())
   const rearRuntimeRef = useRef<HipRuntime>(makeHipRuntime())
   const lastSnapshotAtRef = useRef(0)
+  const projectedYawsRef = useRef<number[]>([])
+  const legConstraintsBufRef = useRef<LegConstraint[]>([])
 
   const scratchRef = useRef({
     qYaw: new THREE.Quaternion(),
@@ -384,6 +377,51 @@ export function useLocomotion(
   )
   const caps = useMemo(() => chain.map(yawCapFor), [chain, groups])
 
+  const cascadeSegments = useMemo<CascadeSegment[]>(
+    () =>
+      chain.map((g) => ({
+        nodeBackX: g.nodeBack?.x ?? 0,
+        nodeBackZ: g.nodeBack?.z ?? 0,
+      })),
+    [chain]
+  )
+
+  const frontLegLengths = useMemo(() => {
+    const leftLen =
+      frontHip?.nodeHipLeft && frontLegs.left?.nodeFoot
+        ? Math.hypot(
+            frontLegs.left.nodeFoot.x - frontHip.nodeHipLeft.x,
+            frontLegs.left.nodeFoot.z - frontHip.nodeHipLeft.z
+          )
+        : 0
+    const rightLen =
+      frontHip?.nodeHipRight && frontLegs.right?.nodeFoot
+        ? Math.hypot(
+            frontLegs.right.nodeFoot.x - frontHip.nodeHipRight.x,
+            frontLegs.right.nodeFoot.z - frontHip.nodeHipRight.z
+          )
+        : 0
+    return { left: leftLen, right: rightLen }
+  }, [frontHip, frontLegs])
+
+  const rearLegLengths = useMemo(() => {
+    const leftLen =
+      rearHip?.nodeHipLeft && rearLegs.left?.nodeFoot
+        ? Math.hypot(
+            rearLegs.left.nodeFoot.x - rearHip.nodeHipLeft.x,
+            rearLegs.left.nodeFoot.z - rearHip.nodeHipLeft.z
+          )
+        : 0
+    const rightLen =
+      rearHip?.nodeHipRight && rearLegs.right?.nodeFoot
+        ? Math.hypot(
+            rearLegs.right.nodeFoot.x - rearHip.nodeHipRight.x,
+            rearLegs.right.nodeFoot.z - rearHip.nodeHipRight.z
+          )
+        : 0
+    return { left: leftLen, right: rightLen }
+  }, [rearHip, rearLegs])
+
   useFrame((_, dt) => {
     const pivots = pivotsRef.current
     if (!pivots) return
@@ -414,19 +452,166 @@ export function useLocomotion(
 
     let frontResult: HipStepResult | null = null
     let rearResult: HipStepResult | null = null
+    const scratch = scratchRef.current
+
+    let frontParent: THREE.Object3D | null = null
+    let rearParent: THREE.Object3D | null = null
 
     if (!calibrating && frontInChain && frontHip) {
-      ensureHipInit(frontRuntimeRef.current, frontHip, frontLegs)
-      frontResult = runHipStep(frontRuntimeRef.current, frontHip, cascadeOut[frontHipIdx], dt)
+      const hipPivot = pivots.get(frontHip.id)
+      const parent = hipPivot?.parent
+      if (parent) {
+        parent.updateWorldMatrix(true, false)
+        ensureHipInit(frontRuntimeRef.current, frontHip, frontLegs, parent.matrixWorld, scratch.v1)
+        frontParent = parent
+      }
     }
 
     if (!calibrating && rearInChain && rearHip) {
-      ensureHipInit(rearRuntimeRef.current, rearHip, rearLegs)
-      rearResult = runHipStep(rearRuntimeRef.current, rearHip, cascadeOut[rearHipIdx], dt)
+      const hipPivot = pivots.get(rearHip.id)
+      const parent = hipPivot?.parent
+      if (parent) {
+        parent.updateWorldMatrix(true, false)
+        ensureHipInit(rearRuntimeRef.current, rearHip, rearLegs, parent.matrixWorld, scratch.v1)
+        rearParent = parent
+      }
+    }
+
+    const legConstraintsBuf = legConstraintsBufRef.current
+    while (legConstraintsBuf.length < 4) {
+      legConstraintsBuf.push({
+        cascadeIndex: 0,
+        hipLocalX: 0,
+        hipLocalZ: 0,
+        legLength: 0,
+        plantedX: 0,
+        plantedZ: 0,
+      })
+    }
+    let constraintCount = 0
+    const pushConstraint = (
+      cIdx: number,
+      hx: number,
+      hz: number,
+      len: number,
+      px: number,
+      pz: number
+    ) => {
+      const c = legConstraintsBuf[constraintCount++]
+      c.cascadeIndex = cIdx
+      c.hipLocalX = hx
+      c.hipLocalZ = hz
+      c.legLength = len
+      c.plantedX = px
+      c.plantedZ = pz
+    }
+
+    if (!calibrating && frontInChain && frontHip) {
+      const runtime = frontRuntimeRef.current
+      if (
+        runtime.feet.left &&
+        runtime.feet.left.phase === 'planted' &&
+        frontHip.nodeHipLeft &&
+        frontLegLengths.left > 0
+      ) {
+        pushConstraint(
+          frontHipIdx,
+          frontHip.nodeHipLeft.x,
+          frontHip.nodeHipLeft.z,
+          frontLegLengths.left,
+          runtime.feet.left.plantedX,
+          runtime.feet.left.plantedZ
+        )
+      }
+      if (
+        runtime.feet.right &&
+        runtime.feet.right.phase === 'planted' &&
+        frontHip.nodeHipRight &&
+        frontLegLengths.right > 0
+      ) {
+        pushConstraint(
+          frontHipIdx,
+          frontHip.nodeHipRight.x,
+          frontHip.nodeHipRight.z,
+          frontLegLengths.right,
+          runtime.feet.right.plantedX,
+          runtime.feet.right.plantedZ
+        )
+      }
+    }
+    if (!calibrating && rearInChain && rearHip) {
+      const runtime = rearRuntimeRef.current
+      if (
+        runtime.feet.left &&
+        runtime.feet.left.phase === 'planted' &&
+        rearHip.nodeHipLeft &&
+        rearLegLengths.left > 0
+      ) {
+        pushConstraint(
+          rearHipIdx,
+          rearHip.nodeHipLeft.x,
+          rearHip.nodeHipLeft.z,
+          rearLegLengths.left,
+          runtime.feet.left.plantedX,
+          runtime.feet.left.plantedZ
+        )
+      }
+      if (
+        runtime.feet.right &&
+        runtime.feet.right.phase === 'planted' &&
+        rearHip.nodeHipRight &&
+        rearLegLengths.right > 0
+      ) {
+        pushConstraint(
+          rearHipIdx,
+          rearHip.nodeHipRight.x,
+          rearHip.nodeHipRight.z,
+          rearLegLengths.right,
+          runtime.feet.right.plantedX,
+          runtime.feet.right.plantedZ
+        )
+      }
+    }
+
+    let projectedCascadeOut: number[] = cascadeOut
+    if (constraintCount > 0 && cascadeSegments.length > 0) {
+      const rootSegment = cascadeSegments[cascadeSegments.length - 1]
+      projectedCascadeOut = projectLegConstraints({
+        caps,
+        candidateYaws: cascadeOut,
+        segments: cascadeSegments,
+        feet: legConstraintsBuf,
+        feetCount: constraintCount,
+        rootX: rootSegment.nodeBackX,
+        rootZ: rootSegment.nodeBackZ,
+        rootYaw: 0,
+        out: projectedYawsRef.current,
+      })
+    }
+
+    if (!calibrating && frontInChain && frontHip && frontParent) {
+      frontResult = runHipStep(
+        frontRuntimeRef.current,
+        frontHip,
+        cascadeOut[frontHipIdx],
+        dt,
+        frontParent.matrixWorld,
+        scratch.v1
+      )
+    }
+
+    if (!calibrating && rearInChain && rearHip && rearParent) {
+      rearResult = runHipStep(
+        rearRuntimeRef.current,
+        rearHip,
+        cascadeOut[rearHipIdx],
+        dt,
+        rearParent.matrixWorld,
+        scratch.v1
+      )
     }
 
     const alpha = 1 - Math.exp(-SLERP_RATE * dt)
-    const scratch = scratchRef.current
     const nowMs = performance.now()
     const recording = isRecording()
     const shouldSnapshot = recording || nowMs - lastSnapshotAtRef.current >= SNAPSHOT_INTERVAL_MS
@@ -444,10 +629,7 @@ export function useLocomotion(
         requestedYaw = calibratingYaw
       } else if (!calibrating && cascadeIds.has(sg.id)) {
         const i = cascadeIdxFor.get(sg.id)!
-        let r: number
-        if (i === frontHipIdx && frontResult) r = frontResult.appliedYaw
-        else if (i === rearHipIdx && rearResult) r = rearResult.appliedYaw
-        else r = cascadeOut[i]
+        const r = projectedCascadeOut[i]
         targetQuat.current.setFromAxisAngle(Y_AXIS, r)
         requestedYaw = r
       } else {
@@ -535,10 +717,25 @@ export function useLocomotion(
         modelRotation: [modelRotation[0], modelRotation[1], modelRotation[2]],
         desiredHeadYaw: desired,
         chain: chain.map((g) => ({ id: g.id, name: g.name, type: g.type })),
-        caps,
-        cascadeOut,
-        frontHip: buildHipSnapshot(frontHip, frontHipIdx, frontRuntimeRef.current, frontResult, cascadeOut),
-        rearHip: buildHipSnapshot(rearHip, rearHipIdx, rearRuntimeRef.current, rearResult, cascadeOut),
+        caps: caps.slice(),
+        cascadeOutRaw: cascadeOut.slice(),
+        cascadeOut: projectedCascadeOut.slice(),
+        frontHip: buildHipSnapshot(
+          frontHip,
+          frontHipIdx,
+          frontRuntimeRef.current,
+          frontResult,
+          cascadeOut,
+          projectedCascadeOut
+        ),
+        rearHip: buildHipSnapshot(
+          rearHip,
+          rearHipIdx,
+          rearRuntimeRef.current,
+          rearResult,
+          cascadeOut,
+          projectedCascadeOut
+        ),
         pivots: pivotSnapshots,
       }
       recordFrame(snapshot)
@@ -552,7 +749,8 @@ function buildHipSnapshot(
   cascadeIndex: number,
   runtime: HipRuntime,
   result: HipStepResult | null,
-  cascadeOut: number[]
+  cascadeOut: number[],
+  projectedCascadeOut: number[]
 ): HipSnapshot | null {
   if (!hipGroup || cascadeIndex === -1 || !result) return null
   const hipBack = hipGroup.nodeBack
@@ -563,7 +761,7 @@ function buildHipSnapshot(
     hipBack,
     cascadeIndex,
     wantedYaw: cascadeOut[cascadeIndex],
-    appliedYaw: result.appliedYaw,
+    appliedYaw: projectedCascadeOut[cascadeIndex],
     plantedYaw: runtime.state.plantedYaw,
     targetYaw: runtime.state.targetYaw,
     leftFoot: footSnap(runtime.feet.left, result.leftStrain),

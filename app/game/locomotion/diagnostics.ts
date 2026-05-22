@@ -44,6 +44,7 @@ export interface FrameSnapshot {
   desiredHeadYaw: number
   chain: { id: string; name: string; type: string }[]
   caps: number[]
+  cascadeOutRaw: number[]
   cascadeOut: number[]
   frontHip: HipSnapshot | null
   rearHip: HipSnapshot | null

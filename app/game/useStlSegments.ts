@@ -19,7 +19,7 @@ async function fetchAndSegment(stlKey: string): Promise<SegmentData[]> {
   const positions = geometry.attributes.position.array as Float32Array
 
   return new Promise((resolve, reject) => {
-    const worker = new Worker(new URL('../admin/segmentDetector.worker.ts', import.meta.url))
+    const worker = new Worker(new URL('../admin/group/segmentDetector.worker.ts', import.meta.url))
     const copy = positions.slice()
     worker.onmessage = (e: MessageEvent<{ arrays: ArrayBuffer[] }>) => {
       worker.terminate()

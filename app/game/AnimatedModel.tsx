@@ -7,24 +7,55 @@ import { useLocomotion } from './locomotion/useLocomotion'
 import { buildSkeletonTree, flattenSkeleton, SkeletonNode } from './locomotion/chain'
 import { findFrontHip, findRearHip, findLegsForHip } from './locomotion/legs'
 
-function SegmentMesh({
-  positions,
+function mergeGroupPositions(segments: SegmentData[]): Float32Array {
+  let totalLen = 0
+  for (const s of segments) totalLen += s.positions.length
+  const merged = new Float32Array(totalLen)
+  let offset = 0
+  for (const s of segments) {
+    merged.set(s.positions, offset)
+    offset += s.positions.length
+  }
+  return merged
+}
+
+function useMergedGeometry(segments: SegmentData[]): THREE.BufferGeometry | null {
+  return useMemo(() => {
+    if (segments.length === 0) return null
+    const merged = mergeGroupPositions(segments)
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.BufferAttribute(merged, 3))
+    geo.computeVertexNormals()
+    return geo
+  }, [segments])
+}
+
+function useGroupSegments(
+  group: BodyGroup,
+  segmentMap: Map<string, SegmentData>
+): SegmentData[] {
+  return useMemo(() => {
+    const out: SegmentData[] = []
+    for (const sid of group.segmentIds) {
+      const s = segmentMap.get(sid)
+      if (s) out.push(s)
+    }
+    return out
+  }, [group.segmentIds, segmentMap])
+}
+
+function MergedGroupMesh({
+  segments,
   color,
   opacity,
 }: {
-  positions: Float32Array
+  segments: SegmentData[]
   color: string
   opacity: number
 }) {
-  const geometry = useMemo(() => {
-    const geo = new THREE.BufferGeometry()
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-    geo.computeVertexNormals()
-    return geo
-  }, [positions])
-
+  const geometry = useMergedGeometry(segments)
   const isTransparent = opacity < 1
-  if (opacity <= 0.001) return null
+  if (opacity <= 0.001 || !geometry) return null
 
   return (
     <mesh geometry={geometry}>
@@ -76,13 +107,9 @@ export function StaticPosedModel({
 
   return (
     <group>
-      {modelConfig.groups.map((g) =>
-        g.segmentIds.map((sid) => {
-          const seg = segmentMap.get(sid)
-          if (!seg) return null
-          return <SegmentMesh key={sid} positions={seg.positions} color={g.color} opacity={opacity} />
-        })
-      )}
+      {modelConfig.groups.map((g) => (
+        <StaticGroupBody key={g.id} group={g} segmentMap={segmentMap} opacity={opacity} />
+      ))}
       {nodes.map((n, i) => (
         <mesh key={i} position={n.pos}>
           <sphereGeometry args={[0.1, 12, 8]} />
@@ -91,6 +118,19 @@ export function StaticPosedModel({
       ))}
     </group>
   )
+}
+
+function StaticGroupBody({
+  group,
+  segmentMap,
+  opacity,
+}: {
+  group: BodyGroup
+  segmentMap: Map<string, SegmentData>
+  opacity: number
+}) {
+  const segments = useGroupSegments(group, segmentMap)
+  return <MergedGroupMesh segments={segments} color={group.color} opacity={opacity} />
 }
 
 function GroupNodeSpheres({ group }: { group: BodyGroup }) {
@@ -116,13 +156,10 @@ function GroupBody({
   segmentMap: Map<string, SegmentData>
   showNodes: boolean
 }) {
+  const segments = useGroupSegments(group, segmentMap)
   return (
     <>
-      {group.segmentIds.map((sid) => {
-        const seg = segmentMap.get(sid)
-        if (!seg) return null
-        return <SegmentMesh key={sid} positions={seg.positions} color={group.color} opacity={1} />
-      })}
+      <MergedGroupMesh segments={segments} color={group.color} opacity={1} />
       {showNodes && <GroupNodeSpheres group={group} />}
     </>
   )
