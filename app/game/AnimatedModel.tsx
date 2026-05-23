@@ -151,15 +151,17 @@ function GroupBody({
   group,
   segmentMap,
   showNodes,
+  opacity,
 }: {
   group: BodyGroup
   segmentMap: Map<string, SegmentData>
   showNodes: boolean
+  opacity: number
 }) {
   const segments = useGroupSegments(group, segmentMap)
   return (
     <>
-      <MergedGroupMesh segments={segments} color={group.color} opacity={1} />
+      <MergedGroupMesh segments={segments} color={group.color} opacity={opacity} />
       {showNodes && <GroupNodeSpheres group={group} />}
     </>
   )
@@ -170,11 +172,13 @@ function ChainNode({
   segmentMap,
   showNodes,
   pivotsRef,
+  opacity,
 }: {
   node: SkeletonNode
   segmentMap: Map<string, SegmentData>
   showNodes: boolean
   pivotsRef: RefObject<Map<string, THREE.Group>>
+  opacity: number
 }) {
   const g = node.group
   const children = node.children.map((child) => (
@@ -184,13 +188,14 @@ function ChainNode({
       segmentMap={segmentMap}
       showNodes={showNodes}
       pivotsRef={pivotsRef}
+      opacity={opacity}
     />
   ))
 
   if (!g.nodeBack) {
     return (
       <group>
-        <GroupBody group={g} segmentMap={segmentMap} showNodes={showNodes} />
+        <GroupBody group={g} segmentMap={segmentMap} showNodes={showNodes} opacity={opacity} />
         {children}
       </group>
     )
@@ -212,7 +217,7 @@ function ChainNode({
         }}
       >
         <group position={[-bx, -by, -bz]}>
-          <GroupBody group={g} segmentMap={segmentMap} showNodes={showNodes} />
+          <GroupBody group={g} segmentMap={segmentMap} showNodes={showNodes} opacity={opacity} />
           {children}
         </group>
       </group>
@@ -235,10 +240,12 @@ export function AnimatedModel({
   modelConfig,
   segments,
   showNodes = false,
+  opacity = 1,
 }: {
   modelConfig: ModelConfigRow
   segments: SegmentData[]
   showNodes?: boolean
+  opacity?: number
 }) {
   const segmentMap = useMemo(() => new Map(segments.map((s) => [s.id, s])), [segments])
   const pivotsRef = useRef<Map<string, THREE.Group>>(new Map())
@@ -289,13 +296,13 @@ export function AnimatedModel({
                 else m.delete(g.id)
               }}
             >
-              <GroupBody group={g} segmentMap={segmentMap} showNodes={showNodes} />
+              <GroupBody group={g} segmentMap={segmentMap} showNodes={showNodes} opacity={opacity} />
             </group>
           )
         }
         return (
           <group key={g.id}>
-            <GroupBody group={g} segmentMap={segmentMap} showNodes={showNodes} />
+            <GroupBody group={g} segmentMap={segmentMap} showNodes={showNodes} opacity={opacity} />
           </group>
         )
       })}
@@ -305,6 +312,7 @@ export function AnimatedModel({
           segmentMap={segmentMap}
           showNodes={showNodes}
           pivotsRef={pivotsRef}
+          opacity={opacity}
         />
       )}
       {hasFrontLegs && (

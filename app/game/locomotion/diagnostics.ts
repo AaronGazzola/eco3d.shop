@@ -1,18 +1,28 @@
 import { FootPhase } from './foot'
 
-export interface FootSnapshot {
-  phase: FootPhase
+export interface AxialOscSnapshot {
+  id: string
+  name: string
+  phase: number
+  amplitude: number
+  intrinsicFrequency: number
+  outputYaw: number
+}
+
+export interface LimbOscSnapshot {
+  id: string
+  hipId: string
+  side: 'left' | 'right'
+  isFront: boolean
+  phase: number
+  amplitude: number
+  stanceOrSwing: FootPhase
   plantedX: number
+  plantedY: number
   plantedZ: number
-  swingStartX: number
-  swingStartZ: number
-  swingTargetX: number
-  swingTargetZ: number
-  swingT: number
-  restOffsetX: number
-  restOffsetZ: number
-  restY: number
-  strain: number
+  worldX: number
+  worldY: number
+  worldZ: number
 }
 
 export interface PivotSnapshot {
@@ -25,29 +35,15 @@ export interface PivotSnapshot {
   worldPos: [number, number, number]
 }
 
-export interface HipSnapshot {
-  id: string
-  hipBack: { x: number; z: number } | null
-  cascadeIndex: number
-  wantedYaw: number
-  appliedYaw: number
-  plantedYaw: number
-  targetYaw: number
-  leftFoot: FootSnapshot | null
-  rightFoot: FootSnapshot | null
-}
-
 export interface FrameSnapshot {
   t: number
   attractor: { x: number; y: number; z: number } | null
   modelRotation: [number, number, number]
-  desiredHeadYaw: number
+  drive: number
+  steer: number
   chain: { id: string; name: string; type: string }[]
-  caps: number[]
-  cascadeOutRaw: number[]
-  cascadeOut: number[]
-  frontHip: HipSnapshot | null
-  rearHip: HipSnapshot | null
+  axialOscillators: AxialOscSnapshot[]
+  limbOscillators: LimbOscSnapshot[]
   pivots: PivotSnapshot[]
 }
 
