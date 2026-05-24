@@ -1,0 +1,1320 @@
+                                                               ORIGINAL RESEARCH
+                                                        published: 23 December 2020
+                                                     doi: 10.3389/fnbot.2020.604426
+
+                                               Reproducing Five Motor Behaviors in
+                                               a Salamander Robot With Virtual
+                                               Muscles and a Distributed CPG
+                                               Controller Regulated by Drive Signals
+                                               and Proprioceptive Feedback
+
+                                 Edited by:    Jérémie Knüsel 1,2, Alessandro Crespi 1, Jean-Marie Cabelguen 3, Auke J. Ijspeert 1* and
+                Poramate Manoonpong,           Dimitri Ryczko * 4,5,6,7
+
+                   University of Southern      1 Biorobotics Laboratory (BioRob), Institute of Bioengineering, Ecole Polytechnique Fédérale de Lausanne (EPFL), Lausanne,
+                       Denmark, Denmark        Switzerland, 2 Institute for Optimisation and Data Analysis (IODA), Bern University of Applied Sciences, Biel, Switzerland,
+                                               3 Institut National de la Santé et de la Recherche Médicale (INSERM) U 862 - Neurocentre Magendie, Université de
+                             Reviewed by:      Bordeaux, Bordeaux, France, 4 Département de Pharmacologie-Physiologie, Faculté de Médecine et des Sciences de la
+                             Cecilia Laschi,   Santé, Université de Sherbrooke, Sherbrooke, QC, Canada, 5 Centre de Recherche du Centre Hospitalier Universitaire de
+       Sant'Anna School of Advanced            Sherbrooke, Sherbrooke, QC, Canada, 6 Institut de Pharmacologie de Sherbrooke, Sherbrooke, QC, Canada, 7 Centre
+                                               d'Excellence en Neurosciences de l'Université de Sherbrooke, Sherbrooke, QC, Canada
+                               Studies, Italy
+                                 Shinya Aoi,   Diverse locomotor behaviors emerge from the interactions between the spinal central
+                                               pattern generator (CPG), descending brain signals and sensory feedback. Salamander
+                 Kyoto University, Japan       motor behaviors include swimming, struggling, forward underwater stepping, and
+                                 Holk Cruse,   forward and backward terrestrial stepping. Electromyographic and kinematic recordings
+                                               of the trunk show that each of these five behaviors is characterized by specific patterns
+          Bielefeld University, Germany        of muscle activation and body curvature. Electrophysiological recordings in isolated
+                                               spinal cords show even more diverse patterns of activity. Using numerical modeling
+                      *Correspondence:         and robotics, we explored the mechanisms through which descending brain signals
+                             Dimitri Ryczko    and proprioceptive feedback could take advantage of the flexibility of the spinal CPG
+                                               to generate different motor patterns. Adapting a previous CPG model based on abstract
+        dimitri.ryczko@usherbrooke.ca          oscillators, we propose a model that reproduces the features of spinal cord recordings:
+                            Auke J. Ijspeert   the diversity of motor patterns, the correlation between phase lags and cycle frequencies,
+                                               and the spontaneous switches between slow and fast rhythms. The five salamander
+                    auke.ijspeert@epfl.ch      behaviors were reproduced by connecting the CPG model to a mechanical simulation
+                                               of the salamander with virtual muscles and local proprioceptive feedback. The main
+                                  Deceased     results were validated on a robot. A distributed controller was used to obtain the
+                                               fast control loops necessary for implementing the virtual muscles. The distributed
+       Received: 09 September 2020             control is demonstrated in an experiment where the robot splits into multiple functional
+       Accepted: 10 November 2020              parts. The five salamander behaviors were emulated by regulating the CPG with two
+      Published: 23 December 2020              descending drives. Reproducing the kinematics of backward stepping and struggling
+                                               however required stronger muscle contractions. The passive oscillations observed in the
+                                   Citation:   salamander's tail during forward underwater stepping could be reproduced using a third
+ Knüsel J, Crespi A, Cabelguen J-M,            descending drive of zero to the tail oscillators. This reduced the drag on the body in
+                                               our hydrodynamic simulation. We explored the effect of local proprioceptive feedback
+      Ijspeert AJ and Ryczko D (2020)
+Reproducing Five Motor Behaviors in
+
+     a Salamander Robot With Virtual
+       Muscles and a Distributed CPG
+Controller Regulated by Drive Signals
+
+         and Proprioceptive Feedback.
+        Front. Neurorobot. 14:604426.
+     doi: 10.3389/fnbot.2020.604426
+
+Frontiers in Neurorobotics | www.frontiersin.org  1  December 2020 | Volume 14 | Article 604426
+Knüsel et al.                                                          A CPG for Five Behaviors
+
+               during swimming and forward terrestrial stepping. We found that feedback could replace
+               or reduce the need for different drives in both cases. It also reduced the variability of
+               intersegmental phase lags toward values appropriate for locomotion. Our work suggests
+               that different motor behaviors do not require different CPG circuits: a single circuit can
+               produce various behaviors when modulated by descending drive and sensory feedback.
+
+               Keywords: central pattern generator (CPG), proprioceptive sensory feedback, descending drive, distributed
+               control, salamander, locomotion, numerical modeling, robotics
+
+INTRODUCTION                                                           stepping, and struggling. To match the biological data
+                                                                       from that study, we focused on reproducing the patterns
+Many motor behaviors in animals require coordinated rhythmic           of muscle activation and body curvature along the
+activation of multiple muscles. Neural networks capable of             body axis.
+producing such activity patterns without rhythmic input from
+other networks or from sensory feedback are called central                For the CPG, our starting point was the abstract oscillator
+pattern generators (CPGs). It has been shown that CPGs                 model of Ijspeert et al. (2007), with modifications to allow for
+in the spinal cord underlie locomotion in many vertebrate              the flexible coordination of limb and axial network activities
+species (for review, Grillner and El Manira, 2020). Drive              (Knüsel et al., 2013). This flexibility is required to reproduce
+signals descending from brain neurons control locomotion               the observations from Ryczko et al. (2015). Here, we extended
+initiation, speed and gait transitions (Brocard et al., 2010;          the model to comprise 25 segments and introduced random
+Capelli et al., 2017; Caggiano et al., 2018; Josset et al., 2018)      parameters to account for the differences between individuals.
+and steering movements (Fagerstedt et al., 2001; Ryczko et al.,        The main hypotheses are the following: (1) limb oscillators
+2016b; Cregg et al., 2020). Sensory feedback plays an important        project only to the axial oscillators close to the corresponding
+role in modulating the CPG activity to adapt the locomotor             girdles; (2) couplings between axial oscillators are stronger in
+pattern to the environment (e.g., Wyart et al., 2009; Akay             the head-to-tail direction; (3) limb oscillators saturate1 at lower
+et al., 2014; Hubbard et al., 2016; Knafo et al., 2017). These         excitatory drives than axial oscillators; (4) hindlimb oscillators
+feedback signals depend on the interactions between the neural         are intrinsically slower than forelimb oscillators. Hypotheses 1
+networks, the mechanical properties of the body and the                and 2 make the model's intersegmental phase lag flexible and
+environment, making it a challenge to fully understand the             controllable (Knüsel et al., 2013). Hypotheses 3 and 4 allow the
+operation of the CPG even at a high level of abstraction.              model to reproduce the distribution of phase lags of recordings
+Numerical models of the complete system can be used to                 in vitro.
+investigate the effect of sensory feedback on the CPG, but
+some aspects such as hydrodynamic and friction forces are                 We modeled the biomechanical properties of the body axis
+difficult to simulate reliably. Robots are thus useful to validate     using virtual muscles that determine the torques of the axial joints
+simulation results in the real world, with real physics. Here,         based on the CPG activity and the current joint position and
+we used numerical simulations and robotics to investigate              velocity (Ekeberg, 1993). The joint positions were also used for
+the generation of different behaviors in the salamander, an            proprioceptive feedback, simulating stretch receptors that send
+interesting animal model as it can move underwater and on              phasic inputs to the local CPG segments. The virtual muscle
+ground (Ryczko et al., 2020). In particular, we addressed the          model requires a small time step for stability and accuracy of
+following questions:                                                   the numerical integration, which is challenging to achieve with
+                                                                       eight joints given the limited bandwidth and processing power
+1. Can different motor behaviors be generated by a single              of the robotic platform. We solved this difficulty by distributing
+   spinal CPG circuit as opposed to requiring several dedicated        the computation of the CPG and muscle models in the eight
+   CPG circuits?                                                       active modules, so that each module calculates the part of the
+                                                                       model that controls its own joint. The modules use peer-to-peer
+2. What are the roles of descending drives in generating these         communication, such that splitting the robot results in several
+   different motor behaviors, and how many independent drives          functional pieces (unlike most robots).
+   are necessary?
+                                                                          The isolated CPG model was tuned to reproduce the diversity
+3. What is the potential role of sensory feedback                      of coordination patterns observed in isolated spinal cords. To
+   in shaping the patterns and in reducing the                         determine values for the proprioceptive feedback and virtual
+   variability of CPG activity observed in isolated spinal             muscle parameters, we systematically explored the parameter
+   cords?                                                              space using a mechanical simulation of the robot: Using the
+                                                                       same tonic drive for all oscillators, we identified parameter values
+We used the Salamandra robotica II robot (Crespi et al.,
+2013) driven by a spinal CPG model and virtual muscles                 1When the excitatory inputs to the spinal cord increase beyond a certain level,
+to reproduce the five salamander behaviors documented                  CPG units saturate: they cease to produce rhythmic output. In the model, this is
+in Ryczko et al. (2015): forward swimming, forward                     implemented as a decrease of oscillation amplitude toward zero (see the left part of
+and backward terrestrial stepping, forward underwater                  Figure 3 for an illustration).
+
+Frontiers in Neurorobotics | www.frontiersin.org                    2  December 2020 | Volume 14 | Article 604426
+Knüsel et al.                                                              A CPG for Five Behaviors
+
+that allowed feedback to have a positive effect on swimming                bending gets larger toward the tail. This suggests that the
+speed while maintaining stable CPG rhythms. We then attempted              mechanical properties of body tissues play an important role
+to reproduce the five salamander behaviors without sensory                 during these behaviors, as suggested by a lamprey modeling
+feedback, by varying the tonic drive sent to different parts of the        study (Tytell et al., 2010).
+CPG, adapting other model parameters when necessary. Further
+simulations were made to investigate the effect of proprioceptive             The increasing EMG-mechanical delay toward the tail also
+feedback during swimming and forward terrestrial stepping.                 suggests that proprioceptive feedback might have a different
+Finally, we used the real robot to validate simulation results.            effect at various points along the body axis. Salamanders
+Each behavior was reproduced on the robot using different                  are known to have sensory cells that generate proprioceptive
+"individuals" from the family of models used in modeling isolated          information relative to axial movements: The skin contains
+spinal cords, to check the robustness of the control architecture          mechano-sensitive Merkel cells (Scott et al., 1981; Diamond et al.,
+to individual variations.                                                  1986), and some cells in the spinal cord are morphologically
+                                                                           similar to the mechano-sensitive "edge cells" (Schroeder and
+MOTOR CONTROL IN SALAMANDERS                                               Egar, 1990) that encode body bending in lampreys (Grillner
+                                                                           et al., 1982, 1984). They also have cerebrospinal fluid contacting
+The salamander spinal CPG produces the rhythmic movements                  neurons (Kolmer-Agduhr cells, Harper and Roberts, 1993),
+of the limbs (Cheng et al., 1998; Lavrov and Cheng, 2004; Ijspeert         which are active during body bending in zebrafish (Böhm et al.,
+et al., 2007), trunk (Delvolvé et al., 1999; Branchereau et al., 2000;     2016) and provide mechanosensory input to the swimming CPG
+Ryczko et al., 2010), and tail (Charrier and Cabelguen, 2013). This        (Wyart et al., 2009; Hubbard et al., 2016, Orts-Del'Immagine
+spinal circuitry is controlled by the brainstem in salamanders             et al., 2020, see also Jalalvand et al., 2016 in lampreys). The limbs
+as in other vertebrates (for review, see Ryczko and Dubuc,                 are another source of proprioceptive feedback, as they contain
+2013). Stimulation of the salamander mesencephalic locomotor               fibers that respond to stretch similarly to muscle spindles in other
+region elicits stepping at low stimulation intensities, whereas            species (Bone et al., 1976).
+swimming requires higher intensities (Cabelguen et al., 2003).
+These descending commands are carried to the spinal cord by                   According to in vitro recordings of the salamander spinal cord,
+reticulospinal neurons (Ryczko et al., 2016a, see also Ryczko et al.,      the isolated CPG can generate stable patterns for the three types
+2020 for a recent review).                                                 of axial waves (caudorostral, standing and rostrocaudal waves),
+                                                                           with occasional switches between two wave types (Ryczko et al.,
+   The coordination of muscles along the body axis plays an                2015). The intersegmental phase lags generated by the isolated
+important role in salamander locomotion, to generate thrust                CPG cover a greater range than those observed in EMG recording
+during swimming and to maximize the stride length during                   (-12.6 to +12.4% of a cycle duration for recordings in vitro,
+terrestrial stepping (Delvolvé et al., 1997). So far, at least five        and -4.8 to +6.4% for EMG recordings), with a distribution
+salamander motor behaviors have been characterized: forward                showing three peaks centered on -9.6, -1.0, and +6.6%. The
+swimming, forward and backward terrestrial stepping, forward               salamander CPG thus provides a flexible ground onto which
+underwater stepping, and struggling (Ryczko et al., 2015).                 sensory feedback and descending drives could act to influence the
+Forward terrestrial stepping generally takes the form of a walking         spinal motor output.
+trot, but lateral sequence walks have also been observed (reviewed
+in Chevallier et al., 2008, see also Ashley-Ross et al., 2009).            RELATED MODELING WORK
+During forward underwater stepping, the salamander progresses
+at the bottom of water, with periods of suspension in water                Previous studies have modeled the CPG components using
+without ground contact. Struggling refers to the behavior of               abstract oscillators (Ijspeert et al., 2005, 2007; Knüsel et al.,
+the salamander when it is firmly grasped at the pelvic girdle.             2013; Yin et al., 2016), single bursting neurons (Liu et al.,
+Electromyographic (EMG) recordings of multiple segments in                 2018, 2020), integrate-and-fire neurons (Ijspeert, 2001; Bem
+the salamander mid-trunk show that each of the five behaviors              et al., 2003; Harischandra et al., 2011; Knüsel et al., 2013)
+is characterized by a specific pattern of muscle activation, in            and detailed networks of three compartment Hodgkin-Huxley
+terms of cycle frequencies and intersegmental phase lags: (1)              neurons (Bicanski et al., 2013).
+rostrocaudal waves occur during forward swimming and, with
+lower cycle frequencies, during backward terrestrial stepping; (2)            The mechanical body of the salamander has been modeled
+slow caudorostral waves occur during struggling; (3) standing              with varying accuracy. Many models include four joints between
+waves are stable during forward terrestrial stepping but more              the girdles and a single degree of freedom (DOF) per limb
+variable during forward underwater stepping (Ryczko et al.,                (Ijspeert, 2001; Ijspeert et al., 2005, 2007; Suzuki et al., 2019a) or
+2015).                                                                     three DOFs per limb (Harischandra et al., 2010, 2011; Liu et al.,
+                                                                           2018, 2020). The simplest model has one of each (Yin et al., 2016),
+   Kinematic recordings show similar patterns of trunk                     while other models have one joint between the girdles and two
+curvature. However, kinematic intersegmental phase lags are                DOFs per limb (Zhong et al., 2018; Suzuki et al., 2019b). Bem
+significantly larger during forward terrestrial stepping and               et al. (2003) have modeled the swimming salamander as a chain
+swimming (Frolich and Biewener, 1992; Ryczko et al., 2015).                of ten links, corresponding roughly to three trunk joints and no
+In other words, the delay between muscle activation and body               limbs. The most accurate model has five joints between the girdles
+                                                                           and four DOFs in each limb (Karakasiliotis et al., 2016; Horvat
+
+Frontiers in Neurorobotics | www.frontiersin.org                        3  December 2020 | Volume 14 | Article 604426
+Knüsel et al.                                                                            A CPG for Five Behaviors
+
+and Ijspeert, 2017; Horvat et al., 2017). Mechanical properties           Most studies have focused on the reproduction of forward
+(damping and elasticity) of the body tissues were included in the      terrestrial stepping (with a walking and/or trotting gait),
+muscle models used by Ijspeert (2001; 2005) Bem et al. (2003),         swimming, transitions between these behaviors, and turning.
+Harischandra et al. (2010, 2011), and Liu et al. (2018, 2020), and     The exceptions are the works of Karakasiliotis et al. (2016)
+in the controller of Suzuki et al. (2019b).                            which reproduced underwater stepping in addition to swimming
+                                                                       and forward terrestrial stepping (though using predefined
+   The effect of sensory feedback on the activity of the               joint trajectories rather than a CPG) and Liu et al. (2018)
+salamander CPG has only been investigated in simulation (Bem           which reproduced backward terrestrial stepping in addition
+et al., 2003; Ijspeert et al., 2005; Harischandra et al., 2011;        to forward terrestrial stepping (using dedicated networks for
+Liu et al., 2020). The role of sensory feedback in body-limb           each gait).
+coordination has also been investigated using controllers without
+CPG, both in simulations (Horvat and Ijspeert, 2017) and with a           Table 1 summarizes the particularities of past studies and how
+robot (Suzuki et al., 2019a).                                          they compare to the present one. To our knowledge, the present
+
+TABLE 1 | Related studies.
+
+                CPG Trunk         Limb Robot Biomech  Proprio.        Force   Behaviors  Turning Transition
+                          joints  DOFs                feedback      feedback
+
+                                                      Trunk Limbs Trunk Limbs Swim Walk Trot Back U.w. Struggle
+                                                                                                                                 step step
+
+Bem et al. IF        ···
+(2003)
+
+Bicanski HH
+et al. (2013)
+
+Knüsel et al. AO+IF
+(2013)
+
+Ijspeert        IF   ····         ·
+                                  ·
+(2001)                            ·
+                                  ···
+Ijspeert et al. AO   ····         ···
+(2005)                            ·
+                                  ····
+Ijspeert et al. AO   ····         ····
+(2007)                            ····
+
+Harischandra         ····         ···
+et al. (2010)                     ··
+                                  ·
+Harischandra IF      ····         ··
+et al. (2011)                     ···
+                                  ·
+Yin et al. AO ·
+(2016)
+
+Karakasiliotis       ·····
+et al. (2016)
+
+Horvat et al.        ·····
+(2017)
+
+Horvat and           ·····
+Ijspeert
+(2017)
+
+Liu et al.      BN · · · ·
+(2018)
+
+Zhong et al.         ·
+
+(2018)
+
+Suzuki et al.        ····
+(2019a)
+
+Suzuki et al. AO ·
+(2019b)
+
+Liu et al.      BN · · · ·
+(2020)
+
+This study AO · · · ·
+
+CPG: IF, Integrate and fire; HH, Hodgkin-Huxley; AO, Abstract oscillators; BN, Bursting neurons. Trunk joints: counting joints between girdles (a joint on the girdle counts as a half).
+DOFs: degrees of freedom. The number of black dots represents the number of trunk joints and limb degrees of freedom respectively. Biomech: mechanical properties from body tissues
+such as muscles. Walk: forward terrestrial stepping with lateral sequence walking. Trot: forward terrestrial stepping with walking trot. Colors indicate different groups of model features:
+mechanical model (green), sensory feedback modalities (orange), behaviors (gray).
+
+Frontiers in Neurorobotics | www.frontiersin.org                    4         December 2020 | Volume 14 | Article 604426
+Knüsel et al.                                        A CPG for Five Behaviors
+
+FIGURE 1 | Robot with distributed controller with the spinal central pattern generator (CPG) model, axial proprioceptive feedback, descending drives and virtual
+muscles. (A) The robot Salamandra robotica II. (B) The axial CPG was divided in 8 groups (gray rectangles) to distribute the computations in the 8 robot modules with
+active joints. Left: tonic descending drives are applied to limb (blue), trunk (green) and tail (yellow) oscillators. Virtual stretch receptors (orange triangles) project to the 3
+nearest segments with opposite ipsilateral (excitatory) and contralateral (inhibitory) weights. Feedback from the neck joint (dashed orange) was disabled for robot
+experiments (see Results). Black lines indicate bidirectional couplings between oscillators (see Figure 2A). Middle: 2 outputs xi, xi+25 of each group (purple horizontal
+arrows) govern left (l) and right (r) muscle activities Mi from which the muscle model calculates an output torque Ti. Right: the torque Ti is applied at each axial joint
+(orange circles). The joint position i and velocity i are fed back (orange arrows) to the muscles. Virtual stretch receptors only receive i. The phases i of limb
+oscillators (red horizontal arrows) determine the limb positions.
+
+Frontiers in Neurorobotics | www.frontiersin.org  5  December 2020 | Volume 14 | Article 604426
+Knüsel et al.                                                                          A CPG for Five Behaviors
+
+work is the first to incorporate biomechanical properties and
+proprioceptive sensory feedback in a real salamander robot.
+
+MATERIALS AND METHODS
+
+CPG Model
+
+The model was developed using the Codyn framework and
+exported to C code to run on the robot microcontrollers. Only
+the 25 most rostral axial segments (each comprising 1 left and
+1 right hemisegments) are modeled out of the 40 segments
+that salamanders typically have (for review see, Chevallier et al.,
+2008). Four additional oscillators control the limbs. The 25 axial
+segments control the active part of the robot. The caudal half
+of the robot tail is a passive, flexible caudal fin (Figure 1A).
+Each axial hemisegmental oscillator and each limb oscillator is
+modeled as a phase oscillator with controllable amplitude, and
+the connections between oscillators are functions of the phase
+difference between sender and receiver:
+
+i = 2i +                             rjwij sin     j - i - ij  -  si  sin  i
+                                                                  ri
+                                  j
+
+ri = a (Ri - ri) + si cos i
+
+xi = ri (1 + cos i)                                                                      FIGURE 2 | The CPG model. (A) The axial (i.e., trunk and tail) spinal network
+                                                                                         model is constituted by a double chain of 50 oscillators, i.e., 25 segments of
+i = diei                                                                                 which 19 are shown (green). Four oscillators (blue) control the limbs. Thicker
+                                                                                         arrows denote stronger couplings. For simulations of the isolated CPG, a
+Ri = diP di, dith                                                                        randomly fluctuating tonic drive mimicking the pharmacological activation used
+                                                                                         in Ryczko et al. (2015) was applied to all oscillators. (B) Intersegmental phase
+A positive output xi (which determines the muscle activation)                            lags from 10,000 simulations of the isolated CPG using different random seeds
+is calculated from the instantaneous phase i and amplitude                               (intersegmental phase lag calculated by taking the average of intersegmental
+ri. The intrinsic frequency i is proportional to the oscillator                          phase lags between segments 8­12, see Methods). Simulations are ordered
+excitability ei and to a drive di that represents the excitation                         by decreasing intersegmental phase lag on the vertical axis. A positive phase
+from descending drives. The intrinsic amplitude Ri increases with                        lag corresponds to a rostrocaudal traveling wave (i.e., from head to tail), a zero
+increasing drive until it approaches a saturation threshold dith                         phase lag to a standing wave, and a negative phase lag to a caudorostral
+after which it decreases progressively to zero due to the sigmoid                        traveling wave. (C) Trimodal distribution of intersegmental phase lags. (D)
+                                                                                         Cycle durations vs. intersegmental phase lags. A linear fit was applied to the
+function P d, dth            =              1      with b the saturation rate. The       dataset. The square of the correlation coefficient and the significance of the fit
+                                                                                         are given.
+                                     1+eb(d-dth )
+excitability ei determines the intrinsic frequency of a particular                     to represent a tonic pharmacological stimulation, with small
+                                                                                       fluctuations over time added in the form of a mean reverting
+oscillator as a function of the external drive. The excitability                       random walk: d = c d0 - d ±  with d0 the drive picked
+                                                                                       from a Gaussian distribution, c a convergence factor, and ± a
+of each oscillator is drawn from a Gaussian distribution with                          random process yielding positive and negative steps with equal
+                                                                                       probability. Multiple simulations were performed with different
+different means for forelimb, hindlimb and axial oscillators.                          random seeds to reflect the diversity of coordination patterns
+                                                                                       observed in individual spinal cord preparations.
+The saturation thresholds of the forelimbs, hindlimbs and axial
+                                                                                       Muscle Model
+network are also drawn from a Gaussian distribution with
+                                                                                       A linear spring-damper model with variable stiffness (Ekeberg,
+different means for the axial and limb networks. The coupling                          1993) was used to model a pair of antagonist muscles and
+                                                                                       calculate the resulting torque at each axial joint (Figure 1B):
+from oscillator j to oscillator i is characterized by a strength
+                                                                                              Ti =  Mil - Mir -  Mil + Mir +  i - i
+wij and phase bias ij. The gain a determines the speed of
+                                                                                       An active term is calculated from the difference of the left and
+convergence for the amplitude. The symbol si represents the                            right muscle activations Mil and Mir multiplied by a gain . A
+                                                                                       stiffness term is calculated from the muscle activities, the tonic
+feedback signal from simulated stretch receptors (see below). The
+toefrmadsd-inrsgii
+                    sin  i   and  si cos i are the polar coordinate   equivalent
+                    si   to  the  derivative x of an oscillator in     Cartesian
+
+coordinates (see Supplementary Materials for the derivation).
+
+The network connectivity is described in Figure 2A and
+
+Table 2. Other parameter values are provided in Tables 3, 4.
+
+Simulations of the Isolated CPG
+
+For simulations of in vitro electrophysiological recordings of
+the isolated salamander spinal cord reported in Ryczko et al.
+(2015), the same drive di = d was used for all oscillators
+
+Frontiers in Neurorobotics | www.frontiersin.org                                    6  December 2020 | Volume 14 | Article 604426
+Knüsel et al.                                                                                              A CPG for Five Behaviors
+
+TABLE 2 | CPG coupling parameters.                                                  stepping the direction of limb rotation was inverted by using -i
+                                                                                    instead of i.
+Coupling type                         Strength wij  Phase bias ij (rad.)
+                                                                                    Sensory Feedback
+Intersegmental, rostrocaudal           5                   0.066·2
+                                                          -0.066·2                  Proprioceptive feedback signals si are derived from the joint
+Intersegmental, caudorostral           1                                            angles i by simulating the activity of stretch receptors: si =
+                                                                                    wipsisiipsi + wcontrasicontra, with siipsi and sicontra the positive part
+Intrasegmental, lateral                10                                           of i and -i, respectively, for the left side (-i and i for the
+                                                                                    right side), and wipsi and wcontra the feedback weights. Since the
+Interlimb, rostrocaudal                3                                            axial part of the CPG model has 25 segments (each containing 2
+                                                         4 (BTS: 5.5*)              hemisegmental oscillators) and the robot only 8 active axial joints
+Interlimb, caudorostral                30              -4 (BTS: -5.5*)              (Figure 1B), some mapping is necessary. The signal from each
+                                                                                    joint is sent to the 3 neighboring segments, while only the middle
+Interlimb, lateral                     10                                           segment is used to drive the joint muscles (Figure 1B). This
+                                                                                    leaves segments 3 and 16 without feedback, which is reasonable
+Limb to axial oscillators              30                                           since the amplitude of the body curvature is smallest at these
+                                                                                    positions in the animal (Karakasiliotis et al., 2013).
+Axial to limb oscillators              2.5
+                                                                                       In some simulations, an additional term was added to
+*BTS, backward terrestrial stepping.                                                the i equation for limb oscillators to represent excitatory
+                                                                                    proprioceptive feedback from the limbs, as used in a previous
+TABLE 3 | Other CPG parameters.                                                     study (Harischandra et al., 2011). Here a simplified form
+                                                                                    was used:
+Name                          Symbol              Value (mean ± SD)
+
+Amplitude convergence         a                   5
+
+factor                                            500
+                                                  0.001 (in vitro)
+Saturation rate               b                   0 (in vivo)
+                                                  0.03 (in vitro)
+Drive random walk             c                   0 (in vivo)
+                                                  See Table 4
+convergence factor                                0.3 (axis, in vitro)
+                                                  3 (axis, in vivo)
+Drive random walk step                            0.09 ± 0.02 (limbs, in vitro)     i = 2i + rjwij sin j - i - ij
+                                                  1.27 ± 0.02 (limbs, in vivo)
+size                                              1.1 ± 0.07 (axis)
+                                                  0.8 ± 0.05 (forelimbs)
+Drive                         di                  0.5 ± 0.03 (hindlimbs)            j
+                                                  See Table 4
+Saturation threshold          dith                                                  +wlimb max  0, 1 -  i - i0
+                                                  -wipsi
+                                                                                                             
+                                                                                                        2
+
+Excitability                  ei                                                    Here wlimb is the feedback weight, i the joint angle of the robot
+                              wipsi                                                 rotational limb and i0 the angle at the transition from stance
+Axial proprioceptive          wcontra                                               to swing. The feedback is maximal at the end of the stance and
+feedback, ipsilateral                                                               decreases linearly on either side until it reaches zero. The rate of
+Axial proprioceptive                                                                decrease is such that the feedback is non-zero for half of the leg
+feedback, contralateral                                                             rotation. The value is always positive or zero, so this feedback
+                                                                                    term can only have an accelerating effect.
+
+stiffness  , a stiffness gain  and the joint angle i. A damping                     Mechanical Simulation
+term is calculated from a damping constant  and the joint
+angular velocity i. Parameter values are given in Table 5.                          3D simulations of the robot were performed using the Webots 6
+                                                                                    software (Cyberbotics, Switzerland), which is based on the Open
+   In simulations, a delay of 10 ms was introduced between the                      Dynamics Engine (ODE, www.ode.org). The physics engine was
+CPG outputs xi, xi+25 and the corresponding muscle activations                      extended with a hydrodynamics model that includes reactive
+Mil, Mir, respectively, as a minimum to account for the muscle                      and resistive forces (Porez et al., 2014). The passive tail fin was
+activation dynamics. This delay was not necessary in robot                          modeled as a chain of 10 small segments with passive stiffness.
+experiments since the motor torque controller already introduces                    The physics was simulated with a time step of 0.5 ms. The robot
+a larger delay of the order of 50 ms, which is consistent with the                  controller used a time step of 1 ms, the minimum value supported
+reported range (50 ms to 1 s) of the low-pass filter properties of                  by Webots. This was just too high for a stable simulation of the
+muscle contraction (Partridge, 1965).                                               muscles, so the physics plugin was used to implement the muscle
+                                                                                    model and set the joint torques.
+Limb Joints
+                                                                                    Robot Hardware
+For the limbs, the oscillator phase i is used directly as a
+representation of the desired position, with a piece-wise linear                    The robot Salamandra robotica II (Crespi et al., 2013) is made of
+transfer function that modulates the swing and stance rotation                      a head module (9.6 cm long), 8 active modules (9.6 cm long each)
+speeds such as to obtain a duty factor of 77% (Ashley-Ross and                      and a 24.6 cm long, passive, flexible caudal fin (Figure 1A). This
+Lauder, 1997; Ashley-Ross et al., 2009). For backward terrestrial                   allowed the robot to approximately reach the tail length/total
+                                                                                    body length ratio of the real animal (around 0.5­0.6, see Ryczko
+                                                                                    et al., 2015). Each module actuates an axial joint with motion
+
+Frontiers in Neurorobotics | www.frontiersin.org                                 7     December 2020 | Volume 14 | Article 604426
+Knüsel et al.                                                                                                                     A CPG for Five Behaviors
+
+TABLE 4 | Parameters regulating the CPG activity.
+
+                                                                                                 Drives di                     Feedback weights
+                                                                                               Seg. 4­25
+                                                                  Seg. 1­3                                        Limbs        wipsi     wlimb
+
+Robot experiments with 5 individuals (Figure 5)
+
+Swimming                                                                                           1                           10        0
+
+Forward terrestrial stepping                                                          0.60 ± 0.02                 1.00 ± 0.04  0         0
+
+Forward underwater stepping                                                           0.42 ± 0.01                 0.71 ± 0.03  0         0
+
+Backward terrestrial stepping                                                         0.23 ± 0.01                 0.46 ± 0.02  0         0
+
+Struggling                                                                            0.27 ± 0.01                 0.38 ± 0.01  0         0
+
+Other robot experiments
+
+Swimming without regulation (Supplementary Movie 1)                                                1                           0         0
+
+Swimming with differential drive (Supplementary Movie 2)          0.9                                       1                  0         0
+
+Forward terrestrial stepping with feedback (Figure 6E)                                   0.61                     0.98         from      0
+
+                                                                                                                               -10 to 6
+
+Simulations
+
+Isolated CPG (simulation of in vitro experiments) (Figures 2, 3)                               0.1 ± 0.01                      0         0
+
+Swimming without regulation (Supplementary Figure 4A)                                              1.34                        0         0
+
+Swimming with differential drive (Supplementary Figure 4B)        1.03                                      1.34               0         0
+
+Swimming with axial feedback (Supplementary Figures 4C,D)                                          1.34                        21        0
+
+Forward terrestrial stepping without regulation (Figure 6A)                                        0.98                        0         0
+
+Forward terrestrial stepping with differential drive (Figure 6B)                         0.63                     0.98         0         0
+
+Forward terrestrial stepping with axial feedback (Figure 6C)                                       0.98                        -0.65     0
+
+Forward terrestrial stepping with limb feedback (Figure 6D)                                        0.98                        0         3.7
+
+Robot experiments used lower drives for swimming to stay in the robot operating range (see Results). Standard deviations for the drive reflect variations between the simulated individuals.
+Drive values are shown centered across two or three columns in cases where the same value was applied to the corresponding groups of oscillators.
+
+TABLE 5 | Muscle parameters.      Symbol              Value                              Distributed Electronics and Control
+Name                              
+Muscle active gain (N·m)                              0.4 (BTS, ST: 4*) (simulation)     Software
+
+Muscle stiffness gain (N·m/rad)                       0.5 (BTS, ST: 5*) (robot)          The robot controller is distributed: each module reads the
+                                                      1.2 (BTS, ST: 12*)                 position and velocity of the local joint and computes the control
+Muscle tonic stiffness (no unit)                      0.2                                loop for the corresponding part of the CPG and the joint's
+                                                      0.1                                virtual muscles, with a time step of 10 ms. The numerical
+Muscle damping (N·m·s/rad)                                                               integration of CPG segments with floating-point operations
+                                                                                         required a modification to the hardware described by Crespi
+*BTS, backward terrestrial stepping; ST, struggling.                                     et al. (2013): the modules were upgraded to include an LPC2129
+                                                                                         ARM7TDMI microcontroller running at 60 MHz, as already
+restricted to the horizontal plane; the two girdle modules also                          present in the head. Communications between modules are
+include rotational joints for the limbs. The entire robot measures                       restricted to drive signals from the head and CPG couplings
+111 cm and weighs 2.48 kg. The robot modules have LEDs on                                between adjacent modules, sent over the CAN bus running at
+the covers which were used to track the robot's motion with two                          1 Mbps. The leg positions are set by PD controllers using the
+Basler A622F video cameras (15 frames/s) to cover the whole                              motor encoders. The axial torques are set by PI controllers using
+track length (6 m) with an accuracy of ± 1 cm. The Supplemental                          current sensing. The CPG state from each module was recorded
+Movies of the robot were captured with another camera at 15                              by logging coupling and debug messages sent over the CAN
+or 30 frames/s. Two adaptations were made to the robot to                                bus. This logging was done on an external computer, by spying
+reproduce the different behaviors. During forward underwater                             on the bus using long, thin wires attached to the caudal end
+stepping, the buoyancy was adjusted by adding 72 g of lead in                            of the robot. Two modifications were made to the distributed
+the head. This corresponds to +2.9% of the total robot weight,                           controller between the initial tests and the final version (see
+or + 41.8% of the normal weight of the head module (172 g).                              Results): (1) The numerical integration of the CPG was changed
+During struggling, tape was added under the feet to increase                             to estimate the phases j and amplitudes rj of coupling sources at
+slipping, mirroring the conditions of the animal experiments                             the time of integration using a linear extrapolation of the values
+(Ryczko et al., 2015).                                                                   from the two latest CAN messages and their times of arrival
+                                                                                         (coupling terms are dropped entirely from the integration if
+                                                                                         the two previous CAN messages are older than 200 or 400 ms,
+                                                                                         respectively); (2) The phases and amplitudes were encoded in
+
+Frontiers in Neurorobotics | www.frontiersin.org                                      8                                  December 2020 | Volume 14 | Article 604426
+Knüsel et al.                                                            A CPG for Five Behaviors
+
+CAN messages as 16-bit half-floats rather than 32-bit floats, such
+that coupling signals from a module to a particular neighbor
+would fit in a single message.
+
+Selection of Parameter Values                                              FIGURE 3 | The CPG spontaneously switches between axial motor patterns
+                                                                           as a function of a fluctuating background drive strength. The strength of the
+The CPG parameters were hand-tuned to reproduce the                        simulated pharmacological drive applied to the CPG is shown together with
+distribution of intersegmental phase lags and cycle durations              the outputs of the oscillators of the left forelimb, left trunk segments 8 and 10,
+from in vitro recordings of isolated spinal cords (Ryczko et al.,          and the left hindlimb. Before the switch, limb oscillators (blue lines) are
+2015). To emulate the motor behaviors displayed by the animal              saturated by the drive strength. Therefore, they show low amplitude
+in vivo, the CPG model was subjected to higher excitatory                  oscillations and are entrained to the higher frequency of the trunk oscillators,
+drives which were tuned to reproduce typical electromyographic             and the motor pattern in the trunk segments (green) is a rostrocaudal wave
+patterns for each of the five motor behaviors, in terms of cycle           (white dots). Then, a progressive decrease in drive strength occurs through
+frequency and intersegmental phase lags (Ryczko et al., 2015).             random fluctuations, and this progressively de-saturates the limb oscillators.
+However, the cycle frequencies targeted with the model were set            The de-saturation allows limb circuits to oscillate at higher amplitude, causing
+to half that of the in vivo recordings. This was chosen to reflect         a switch (arrows) from a fast rostrocaudal wave to a slower caudorostral wave
+the scaling of locomotion frequency with body mass observed                (black dots). After the switch, the de-saturated limbs show high amplitude
+in animals (Bejan and Marden, 2006). For robot experiments,                oscillations and therefore entrain to their slower frequency the trunk oscillators,
+the target frequency for swimming was further lowered to 1.1 Hz            because effective connection strength in the model is proportional to the
+due to the limits of operation of the robot (in particular torque          amplitude of oscillations from the sender (see Methods). The same switches
+limits). Other than the drive levels and sensory feedback, the             have been observed in the isolated spinal cord [Figures 5A,B of Ryczko et al.
+only changes from in vitro to in vivo CPG conditions were in the           (2015)].
+average saturation thresholds which had to be increased to match
+the higher drives used in vivo.                                             The limb-body phase bias was optimized again on the robot,
+                                                                         due to the different zero-point reference and the backlash in the
+   The parameter space for the virtual muscles and                       gears. The main simulation results were then reproduced on the
+proprioceptive feedback was explored systematically using                robot with five different "individuals," which were modeled by
+the 3D mechanical simulation of the robot during swimming. An            initializing the CPG parameters using different random seeds.
+"average individual" was used by setting the standard deviations         The descending drives were adjusted for each "individual" and
+of the CPG excitabilities to zero, to increase reproducibility (this     each motor behavior. Other parameters were sometimes adjusted
+restriction was relaxed for robot experiments). We used uniform          between behaviors but always using the same values for all
+muscle parameter values for trunk joints, and progressively              individuals (see Results). The movies shown in the Supplemental
+smaller values in the tail to emulate body taper: the values of          Materials were prepared using an average individual.
+and  in modules 6, 7, and 8 were multiplied by a factor 0.7, 0.5,
+and 0.2, respectively. The same feedback parameter values were           Data Processing
+used for all joints, and the same feedback weights (with opposite
+signs) were used for ipsilateral and contralateral projections.          The joint angles from simulations and robot experiments were
+Initial tests were made with a tonic muscle stiffness  = 0:              calculated in Matlab by fitting the kinematic chain of the
+this parameter is mostly redundant with the stiffness gain  for          robot to the positions of the LEDs. The CPG and kinematic
+a given (non-zero) amplitude of CPG oscillations. A uniform              intersegmental phase lags were calculated in Matlab from
+excitatory drive was used for all oscillators, which in absence of       the CPG output and joint angle oscillations using the same
+feedback results in high intersegmental phase lags inappropriate         algorithm: The timing of each cycle was defined as the centroid
+for swimming. The drive was set to 1.34, corresponding to a              of the positive part of each oscillation (Knüsel et al., 2013). These
+swimming frequency of 1.47 Hz (in absence of sensory feedback),          timings were used to calculate a median phase lag (over time) for
+which is close to our target of half the frequency observed in           each pair of consecutive segments (CPG lag) or consecutive joints
+the animal (2.78 Hz and 3.12 Hz during EMG and kinematic                 (kinematic lag). The CPG intersegmental phase lag was calculated
+recordings, respectively, Ryczko et al., 2015). We selected muscle       using the average of the median phase lags between segments 8 to
+and feedback parameter values that showed a significant increase
+in swimming speed and high stability of the CPG and kinematic
+patterns, while keeping the joint torques close to the robot's limit
+of 0.7 Nm (Supplementary Figures 1­3).
+
+   The five salamander behaviors were first reproduced in
+simulation without sensory feedback, by tuning the CPG
+drive levels and optimizing the limb-body phase bias for
+speed of locomotion. Additional simulations were done with
+varying strengths of axial proprioceptive feedback during
+forward terrestrial stepping and swimming. Further simulations
+were made with proprioceptive limb feedback during forward
+terrestrial stepping.
+
+Frontiers in Neurorobotics | www.frontiersin.org                      9  December 2020 | Volume 14 | Article 604426
+Knüsel et al.                                                             A CPG for Five Behaviors
+
+12. For simulations, the kinematic intersegmental phase lag was           Simulation Results Transferred to the
+calculated using the average of the median phase lags between
+joints 3 to 5. For robot experiments, joint 5 was often an outlier        Robot Following Some Adaptations
+due to the robot torque limits, so joints 2 to 4 were used instead.
+                                                                          The simulation results could be reproduced on the robot, with
+Statistics                                                                the following changes made based on qualitative judgements:
+                                                                          the muscle active gain  had to be increased from 0.4 to 0.5 to
+Data are given as means ± standard deviation (SD) unless                  obtain reasonable amplitudes of oscillation during swimming.
+specified otherwise. Correlations between variables were                  Uniform muscle parameter values were used in all robot joints:
+evaluated in SigmaPlot 11.0 using the Pearson Product Moment              the tapering of the active and stiffness gains was removed to
+Correlation test.                                                         obtain reasonable amplitudes of oscillations in the tail and good
+                                                                          swimming speeds. Due to the limits of operation of the robot,
+RESULTS                                                                   the target frequency for swimming had to be lowered down
+                                                                          to 1.1 Hz2. The feedback weights were reduced to 10. Sensory
+The Isolated CPG Model Reproduces the                                     feedback from the neck joint was removed as it was destabilizing,
+Main Features of Recordings From Isolated                                 leading to aperiodic rhythms. Finally, in simulation we found
+Spinal Cords                                                              that a common limb-body phase bias gave near-optimal speed
+                                                                          for all stepping behaviors. This was not the case with the robot: a
+We found that asymmetric intersegmental couplings, together               specific limb-body phase bias was required for backward stepping
+with different excitabilities and saturation thresholds between           (Table 2) to obtain the optimal speed for that behavior.
+forelimb, hindlimb and axial oscillators, enabled the spinal
+cord model to reproduce the trimodal distribution of phase                Two Drive Signals Suffice to Reproduce the
+lags observed in vitro during fictive locomotion (Ryczko
+et al., 2015). The values shown in Tables 2, 3 were found                 Five Motor Behaviors, but Backward
+to produce a range of phase lags similar to the biological
+data, with peaks centered on 6.7 ± 1.3, 1.3 ± 1.3, and                    Terrestrial Stepping and Struggling Require
+-6.1 ± 1.0% (Figures 2B,C). The positive correlation between
+phase lag and cycle duration (Ryczko et al., 2015) was also               Stronger Muscle Contractions
+reproduced (Figure 2D). Furthermore, the small fluctuations in
+the excitatory drive over time allowed the model to reproduce the         We found that tonic drives with only two different values
+spontaneous switches between slow caudorostral waves and fast             applied to different parts of the CPG were sufficient to
+rostrocaudal waves of axial activity reported in the isolated spinal      reproduce qualitatively the five motor behaviors with the
+cord (Delvolvé et al., 1999; Ryczko et al., 2015). Figure 3 shows         robot, as shown by movies (Supplementary Movies 2­6),
+an example of the model producing such a switch.                          frame sequences (Figure 4) and robot kinematics (Figure 5,
+                                                                          Supplementary Figure 4B). In particular, the differences
+Improving Swimming With Proprioceptive                                    in CPG and kinematic intersegmental phase lags between
+Feedback Requires Specific Muscle                                         the five behaviors were reproduced (Figures 5F,G), as
+Stiffness and Damping Properties                                          well as the differences in cycle durations (Figure 5H).
+                                                                          Figures 5A­E show the CPG outputs and joint oscillations
+Using a uniform drive yielded an intersegmental phase lag of              for a single individual. The rostrocaudally increasing
+6.6% in an average individual (leftmost peak of the distribution).        lag between CPG and kinematic waves is reproduced
+This resulted in inefficient swimming, with too many nodes in the         (increasing gap between the thick red and thick
+traveling wave (Supplementary Movie 1). We looked for muscle              black lines).
+parameters that would allow proprioceptive feedback to improve
+swimming by decreasing the phase lag toward more physiological               Swimming could be obtained by sending a strong
+values. For the active gain , a value of 0.4 proved optimal, as           drive (i.e., saturating limb oscillators, Hypothesis 3) to
+higher values (together with higher stiffness  or  ) would have           the whole CPG, with a slightly lower drive to the most
+given higher swimming speeds but would have required torques              rostral oscillators (segments 1-3 in Figure 2) to adjust
+beyond our robot's limits. Systematic tests in the , , wipsi space        the phase lag as proposed in numerical simulation of the
+showed a single region where feedback increased the swimming              lamprey locomotor CPG (Kozlov et al., 2009). The other
+speed thanks to a decrease of the phase lag, while keeping the            behaviors were obtained by adjusting the drive to the limb
+CPG rhythm stable. This stable region corresponds to a stiffness          oscillators independently from the drive to the axial oscillators
+gain  between 1.6 and 2.3, a damping  between 0.05 and                    (Figure 5H, Supplementary Movies 3­6). Higher axial phase
+0.15 and feedback weights wipsi = -wcontra between 17 and                 lags required a greater relative difference between the two
+22 (Supplementary Figures 1­3). Further tests in the ,  , wipsi           drives, and higher frequencies required higher values of
+space showed that we could trade some fitness gain  for tonic             both drives.
+stiffness  . We settled on  = 1.2,  = 0.2, which give
+qualitatively reasonable passive mechanical properties (Table 5).            While two drives were sufficient to generate the CPG
+                                                                          activity patterns for all behaviors, we found that stronger
+                                                                          forces from the virtual muscles were required to reproduce the
+
+                                                                          2This meant producing a swimming gait in the frequency range of forward
+                                                                          terrestrial stepping, i.e. with drives under the limb saturation threshold, so limb
+                                                                          oscillators had to be silenced artificially.
+
+Frontiers in Neurorobotics | www.frontiersin.org                      10  December 2020 | Volume 14 | Article 604426
+Knüsel et al.                                                         A CPG for Five Behaviors
+
+FIGURE 4 | Frame sequences showing from top to bottom one complete stride for the five motor behaviors. Light-emitting diodes were tracked on each module for
+kinematic analysis. A black dot was added on each frame to illustrate robot progression. Inter-frame time intervals in ms are, respectively: 200 (swimming, SW); 133.3
+(forward underwater stepping, FUS); 166.7 (forward terrestrial stepping, FTS); 400 (backward terrestrial stepping, BTS); 466.7 (struggling, ST). Scale bar (white),
+10 cm. The different background colors are due to the different environments: water tank for SW and FUS, wooden board for the other behaviors. The behaviors are
+close to those observed in the real animal [Figure 1 of Ryczko et al. (2015)].
+
+kinematics of backward terrestrial stepping and struggling.           Proprioceptive Feedback Can Regulate the
+To avoid introducing additional parameters, this was
+implemented by increasing the muscle gains  and .                     Phase Lag During Swimming and Forward
+A 10-fold increase was found appropriate to avoid large
+deviations between the CPG activity and the kinematics (Table 5,      Terrestrial Stepping, and Reduces
+Figures 5A,E).
+                                                                      Variability
+
+                                                                      With axial proprioceptive feedback, swimming could be
+                                                                      reproduced with a single drive to the whole CPG (Figures 5B,I,
+
+Frontiers in Neurorobotics | www.frontiersin.org                  11  December 2020 | Volume 14 | Article 604426
+Knüsel et al.                                                            A CPG for Five Behaviors
+
+Supplementary Movie 8). In absence of feedback, the axial                Coupling Delays Introduce Systematic
+network of the five robot "individuals" produces intersegmental          Phase Biases in the Distributed Robot
+phase lags of 6.1 ± 1.4% (Supplementary Figure 4A,                       Controller
+Supplementary Movie 1). With feedback, this could be reduced
+to 1.9 ± 1.1%, which matches the values observed in the animal           Initial tests on the robot with the distributed controller gave
+(1.89 ± 0.25%, Ryczko et al., 2015). Feedback also reduced the           non-uniform phase lags along the body, unlike what was
+variability between individuals: Without feedback, the individual        seen in simulation. We investigated the issue using a chain
+corresponding to the leftmost curve in Figure 5I (dashed lines)          of 7 simple modules (no girdles) and a CPG model with
+was an outlier. Using feedback with identical weights in all             symmetrical ascending and descending coupling weights and
+individuals (solid lines), the outlier showed phase lags similar to      phase biases of 5%. We found increased phase lags between
+the other individuals.                                                   the first modules and decreased phase lags between the more
+                                                                         caudal ones (Figure 8A). An analysis of the coupling terms
+   Axial proprioceptive feedback could also replace differential         used in the numerical integration of the CPG showed that
+drives (i.e., different drive values for different parts of the          rostral modules were significantly slowed down by caudal ones
+CPG) as a means of obtaining axial phase lags close to                   (Figure 8B). This suggested that the j values (the phases
+zero in simulations of forward terrestrial stepping. However,            of the couplings' source oscillators) used in the numerical
+this required feedback weights of opposite signs compared                integration of the target oscillators were out of date. We
+to swimming. Using uniform drives and no feedback, the                   modified the numerical integration to estimate the state of
+CPG generated negative phase lags (Figure 6A). With uniform              the source oscillator at the time of integration using a
+drives, positive values of wipsi (as used in swimming) had               linear extrapolation of the two previous coupling messages
+a destabilizing effect on the CPG, with oscillators failing to           and their times of arrival (see Methods). This considerably
+lock in frequency. With differential drives as in Figure 6B,             reduced the slow-down effect and yielded almost uniform phase
+we found that positive values of wipsi were counterproductive,           lags (Figures 8C,D). Further improvements (not shown) were
+decreasing again the CPG phase lag to negative values. However,          obtained by encoding the coupling phases and amplitudes
+negative values of wipsi produced higher phase lags as desired           as 16-bit half-floats. This halved the number of messages
+and could be used to reproduce forward terrestrial stepping              sent over the CAN bus and helped decrease the rate of
+with uniform drives (Figure 6C). This effect of an increasing            transmission errors.
+intersegmental phase lag with decreasing feedback weights
+during forward terrestrial stepping was reproduced in robot              The Distributed Controller Allows for
+experiments (Figure 6E).                                                 Autonomously Moving Robot Parts
+
+   Instead of axial feedback, the differential drive could               We found that the distributed implementations of the CPG
+also be replaced with limb proprioceptive signals fed back               and muscle models have the side effect of making the
+to the limb oscillators. This was only tested in simulation              robot modular at runtime. We conducted forward terrestrial
+(Figure 6D). The effect of feedback here was again to increase           stepping experiments with screws between some modules
+the negative CPG phase lags toward slightly positive values, close       removed, causing the robot to break into parts (no other
+to zero.                                                                 changes were made to the hardware or software). Each part
+                                                                         kept functioning, still coordinated by its own section of the
+A Passive Tail Decreases the Drag During                                 CPG model. This is demonstrated in Supplementary Movie 9,
+                                                                         Figure 9.
+Underwater Stepping
+                                                                         DISCUSSION
+During forward underwater stepping, the locomotor
+performance could be improved by using "passive" tail                    A Modulable CPG Architecture
+segments (Supplementary Movie 7), similar to the animal
+which shows passive tail undulations during this locomotor               Our results suggest that the answer to question 1 is yes: a
+behavior (see Cabelguen et al., 2014). This was implemented              modulable CPG provides a robust framework for generating
+using a third drive level of zero to the tail segments. The tail         multiple motor patterns, such that different motor behaviors
+CPG was then inactive, but the robot modules continued                   do not necessarily require dedicated CPGs. This concept was
+to generate torques corresponding to the passive parts of                proposed by Grillner (1981) as the "unit burst generator" theory,
+the muscle model (the terms that remain when Mil and Mir                 which states that independent rhythmogenic circuits can be
+are 0). Measurements of the hydrodynamic forces in the 3D                flexibly coupled from one behavior to another. Such circuits
+mechanical simulation suggest that for this particular gait, the         have been identified in many animals. In the salamander,
+undulations of passive tail segments allow the caudal fin to             specific spinal hemisegments have been shown to control
+generate more thrust than in the case of active tail segments            muscles of the trunk (Ryczko et al., 2010), tail (Charrier
+(Figure 7). The drag at the head and girdles is also reduced             and Cabelguen, 2013) and limbs (Cheng et al., 1998; Lavrov
+in the passive case. The net drag on the body axis is thus               and Cheng, 2004; Ijspeert et al., 2007). Other examples
+reduced from -0.0422 ± 0.0003 N to -0.0295 ± 0.0004 N                    include the spinal hemisegments in the lamprey (Cangiano
+(standard errors).                                                       and Grillner, 2003, 2005; Cangiano et al., 2012), the flexor
+
+Frontiers in Neurorobotics | www.frontiersin.org                     12  December 2020 | Volume 14 | Article 604426
+Knüsel et al.                                         A CPG for Five Behaviors
+
+FIGURE 5 | CPG output and joint kinematics during the five motor behaviors reproduced with the robot. Results obtained using a single drive level and proprioceptive
+feedback for swimming, two drive levels (to limb and axial oscillators) and no feedback for the other behaviors, with a third drive of zero for the tail during underwater
+stepping. (A­E) and (F,G) emulate the biological data illustrated in Figures 2, 3 of Ryczko et al. (2015), respectively. (A­E) Kinematic angular oscillations (thin black
+
+                                                                                                                                                                                                       (Continued)
+
+Frontiers in Neurorobotics | www.frontiersin.org  13  December 2020 | Volume 14 | Article 604426
+Knüsel et al.                                                             A CPG for Five Behaviors
+
+FIGURE 5 | lines) and CPG outputs xi (thin red lines) are shown for each joint, with circular markers indicating the centroid of the positive half of each cycle.
+Rostrocaudal (A-C, line descending to the right), standing (D, almost vertical line) and caudorostral (E, line descending leftward) kinematic waves (thick black lines)
+followed the CPG activity (thick red lines) with variable delays during the 5 motor behaviors: backward terrestrial stepping (BTS), forward swimming (SW), forward
+underwater stepping (FUS), forward terrestrial stepping (FTS) and struggling (ST). All figures are from the same simulated individual. (F,G) Intersegmental phase lag
+distributions for CPG waves (F) and for kinematic waves (G) in the robot trunk. Each marker represents a single recording. (H) Comparison of the tonic drive signals
+applied to the CPG and resulting oscillation frequencies (Hz) for each motor behavior. Data represent mean ± SD over the 5 simulated individuals. The overlap in limb
+drive values between SW and FTS is due to reduced drive and limb saturation thresholds during SW to accommodate for the robot's torque limitations (See Methods).
+Without these limitations, the limb and axial drives for SW would be 1.34 as in simulation. (I) Rostrocaudal axial waves generated during SW by the CPG without
+sensory feedback (dashed lines) and with sensory feedback (solid lines), with uniform drive di = 1, in the 5 simulated individuals. For each individual, the wave with
+feedback is horizontally positioned in the figure to connect to the wave without feedback. The experiments with sensory feedback correspond to the SW data in (F­H).
+
+and extensor networks in the left and right side of the mouse             Oscillator Frequencies and Saturation
+spinal cord (Hägglund et al., 2013), the crayfish swimmeret
+system (Mulloney and Smarandache-Wellmann, 2012) and the                  For our CPG model to be able to generate the three types of
+networks controlling individual leg joints in the stick insect            axial waves recorded in vitro and in vivo in salamanders, and
+(Büschges et al., 1995). A modeling study of insect locomotion            the positive correlation between cycle duration and phase lag
+suggests that the recruitment of a single neural structure for            (Ryczko et al., 2015), we had to modify the intrinsic frequency
+various behaviors also applies to situations where locomotion             of limb networks compared to our previous study (Ijspeert
+is largely driven by sensory feedback (Schilling and Cruse,               et al., 2007). Forelimb and hindlimb oscillators still have an
+2020).                                                                    intrinsic frequency slower than axial oscillators, but here forelimb
+                                                                          oscillators are faster than hindlimb ones (Hypothesis 4). Data in
+Oscillator Couplings                                                      mammals suggest that forelimbs deprived of normal interactions
+                                                                          with the hindlimb networks tend to accelerate in vivo. Indeed, in
+Biological data indicate that in salamanders, limb activity               adult cats where the spinal cord is partially lesioned, forelimb and
+can occur together with traveling waves in vivo and in vitro              hindlimb rhythms often dissociate, and forelimbs adopt a faster
+(Ryczko et al., 2015). In our previous robotic study (Ijspeert            rhythm, yielding a 2:1 forelimb-hindlimb coupling (for review,
+et al., 2007), limbs projected to all axial oscillators (forelimb         see Frigon, 2017). At the cellular level, modification of a single
+oscillators to trunk oscillators, and hindlimb oscillators to tail        conductance controlling burst termination should be sufficient
+oscillators). Two axial outputs were therefore possible: either           to make limb segments generate slower oscillations, as suggested
+a standing wave when limb oscillators were active (during                 by a detailed Hodgkin-Huxley model of a salamander spinal
+stepping), or a rostrocaudal wave when limbs were saturated               segment (Bicanski et al., 2013).
+(during swimming). Here we made the limb oscillators project
+only to neighboring axial oscillators (Hypothesis 1), which gives            A hypothesis that we kept from our previous work (Ijspeert
+more flexibility for the coordination of axial oscillators when           et al., 2007) is that with a strong descending drive, limb networks
+limbs are rhythmically active (Ijspeert et al., 2005; Knüsel et al.,      "saturate" whereas axial oscillators do not (Hypothesis 3). Future
+2013). In the animal, a unidirectional connection from excitatory         studies should examine whether and how such a function is
+interneurons generating the limb rhythm to those generating               implemented in the animal. It could be a differential recruitment
+the axial rhythm would be sufficient to impose the slow limb              of specialized interneuron populations as a function of drive
+oscillations to the axial segment, according to a detailed model of       strength, as documented as a function of speed in zebrafish
+salamander spinal networks based on Hodgkin-Huxley neurons                (McLean et al., 2007, 2008; Gabriel et al., 2011; Ampatzis et al.,
+(Bicanski et al., 2013).                                                  2014, for review see Berg et al., 2018) and mice (Talpalar
+                                                                          et al., 2013, for review see Kiehn, 2016). It could also involve
+   In our model, the asymmetry between ascending and                      a shift in the active set of reticulospinal neurons as a function
+descending coupling weights wij is required to reproduce a                of speed/gait. Some reticular neurons increase their firing
+wide diversity of axial phase lags with consistent values along           specifically during swimming in salamanders (Lowry et al., 1996).
+the axis as observed in vitro and in vivo (Ryczko et al.,                 Different reticulospinal neurons are activated as a function of
+2015). Symmetric weights as used in Ijspeert et al. (2007)                speed in zebrafish (Kinkhabwala et al., 2011).
+produce non-uniform phase lags along the axis when the
+oscillators have different intrinsic frequencies. Future studies          Regulation Through Descending Drives
+should determine whether such a coupling is present in
+salamanders and how it is implemented. Possibilities include              In answer to question 2, our results (Figure 5,
+an asymmetry at the neuroanatomical level (dominance of                   Supplementary Figure 4B, Supplementary Movies 2­6) suggest
+descending projections, see Buchanan et al., 1989; Buchanan,              that independent drive levels to a few parts of a CPG network
+2001 in lamprey) or in electrophysiological terms (stronger               (here two, or three to reproduce passive tail undulations) are
+synaptic strengths toward caudal segments, see Smarandache                sufficient to emulate a diversity of motor behaviors. In the
+et al., 2009 in crayfish; more spikes per locomotor cycle                 model, the regulation of CPG activity by descending drives
+in neurons projecting caudally, see Mulloney et al., 2006                 can be understood intuitively. The drive signals control the
+in crayfish).                                                             intrinsic (uncoupled) frequencies of the oscillators. Because
+                                                                          rostrocaudal couplings are stronger than caudorostral couplings,
+
+Frontiers in Neurorobotics | www.frontiersin.org                      14  December 2020 | Volume 14 | Article 604426
+Knüsel et al.                                                        A CPG for Five Behaviors
+
+FIGURE 6 | Effect of axial or limb proprioceptive feedback on CPG activity and kinematics during forward terrestrial stepping (FTS). (A­D) Joint kinematics (black) and
+CPG activity (red, dashed for limb oscillators) in simulation. Circular markers indicate the centroid of the positive half of each cycle. The limb-body phase bias ij was
+adapted in each case for optimal speed of locomotion. (A) With uniform drive (di = 0.98) and no feedback, the CPG with active (non-saturated) limb oscillators
+produces caudorostral waves of activity. (B) Standing waves of CPG activity can be obtained by using a different drive of 0.63 for the limb oscillators. (C) Standing
+CPG waves can also be obtained using uniform drives and axial proprioceptive feedback, with wipsi = -wcontra = -0.65. (D) Standing waves of CPG activity could
+also be obtained with uniform drives using proprioceptive limb feedback, with wlimb = 3.7. (E) Effect of the axial feedback weight on CPG axial intersegmental phase
+lag in robot experiments. Before introducing feedback, differential drives to the limb (di = 0.98) and axial (di = 0.61) oscillators were used to increase the phase lag
+toward zero. Positive ipsilateral feedback weights (as those used during swimming with sensory feedback, Figure 5I) decreased the phase lag, whereas negative
+ipsilateral weights increased it.
+
+a segment will entrain a slower or faster caudal neighbor, and       values: the uncoupled frequency of the first segment, and that of
+the resulting common frequency will be close to the frequency        the other segments.
+of the rostral segment. However, the faster segment will lead
+the slower one with a delay that increases with the difference          This mechanism of regulation is close to the "trailing
+in uncoupled frequencies (this delay being in addition to the        oscillator hypothesis," which states that the oscillator of higher
+coupling's natural phase bias). This effect will propagate down      excitability becomes the leader of the chain. This hypothesis is
+the chain of segments, such that the resulting frequency and         based on lamprey experimental data showing that increasing
+phase lag of the whole chain can be controlled by adjusting two      the excitability in caudal segments causes a switch from a
+                                                                     rostrocaudal to a caudorostral wave in isolated spinal cords
+
+Frontiers in Neurorobotics | www.frontiersin.org                 15  December 2020 | Volume 14 | Article 604426
+Knüsel et al.                                                                        A CPG for Five Behaviors
+
+  FIGURE 7 | Passive tail CPG segments reduce drag during forward                    forelimb, hindlimb and axial oscillators (Table 3), enable the
+  underwater stepping (FUS) in simulation. The hydrodynamic forces acting on         isolated CPG model to reproduce the trimodal distribution
+  different parts of the robot modules along the direction of motion are given.      of phase lags observed in vitro: In the model, hindlimb
+  The caudal fin provides more thrust when the tail is passive. Forces on each       oscillators are intrinsically slower than forelimb oscillators.
+  module were measured for an "average individual" during 15 s after a warm-up       Given the random nature of the saturation thresholds, forelimbs
+  period of 15 s, and averaged over the 30,000 time steps. The procedure was         or hindlimbs can selectively saturate due to slightly different
+  repeated 100 times with different starting conditions. The bars show the           threshold values. When all oscillators are active, the hindlimb
+  means over the 100 repetitions. Error bars for the standard error are shown,       oscillators slow down the forelimbs, and the strong local
+  but barely visible (all standard errors are < 0.00013).                            connections from limb to axial oscillators slow down the girdle
+                                                                                     segments, leading to a highly negative phase lag in the trunk
+(Matsushima and Grillner, 1990, 1992). However, this lamprey                         and tail axial networks. This corresponds to the rightmost peak
+model assumed symmetrical rostrocaudal and caudorostral                              of the distribution (i.e., negative lags, Figures 2B­D). When the
+couplings, while we found that the coupling asymmetry is                             hindlimb oscillators saturate, the forelimb oscillators accelerate
+important to maintain a uniform phase lag along the chain of                         a bit but continue to slow down the first segments, yielding the
+oscillators. A later lamprey modeling study with a detailed neural                   phase lags that make up the middle peak of the distribution (i.e.,
+network of Hodgkin­Huxley neurons showed that dominant                               near zero lags, Figures 2B­D). When all limb oscillators saturate,
+descending couplings allow for flexible control of forward and                       the axial network is no longer influenced by limb network activity
+backward swimming with constant phase lag along the spinal                           and generates the higher, positive phase lags found in the leftmost
+cord at different speeds: the frequency and intersegmental phase                     peak (i.e., positive lags, Figures 2B­D).
+lag can be controlled by adjusting the excitatory drive of the first
+segments compared to the remaining ones (Kozlov et al., 2009).                          This mechanism also explains the spontaneous switches
+
+   In our salamander model, the differential excitation of the first                 between slow caudorostral waves and fast rostrocaudal waves
+segments can be realized through the strong connections from                         of axial activity: In the isolated CPG model, the transitions
+the forelimb oscillators (when they are active). The regulation of                   between the active and saturated states are triggered by small
+the axial CPG pattern is then achieved by adjusting the excitation                   fluctuations in the excitatory drive (Figure 3), which represents
+of the limb oscillators compared to the axis, instead of the first                   tonic pharmacological excitation as in Ryczko et al. (2010, 2015)
+axial segments compared to the others as in the swimming case.                       or Delvolvé et al. (1999). The progressive saturation of the
+This mechanism of regulation has been investigated with abstract                     limb oscillators causes their oscillation amplitude to diminish
+oscillators and validated with a more detailed integrate-and-fire                    as the cycle frequency increases. The model thus suggests that
+model (Knüsel et al., 2013).                                                         limb burst amplitude in vitro should be higher during slow
+                                                                                     caudorostral wave of activity than during a rostrocaudal wave
+   The coordination of limb muscles was beyond the scope of this                     (Figure 3).
+study: the limbs of our robot have a single rotational degree of
+freedom, and the direction of rotation was artificially inverted                     Regulation Through Proprioceptive
+for backward stepping. We expect that more drives would be
+required in a model with more realistic limbs. Turning was also                      Feedback
+not investigated here but can in principle be obtained during
+swimming and stepping using different drives for axial oscillators                   Recordings from isolated spinal cords show much more
+on the left and right sides (Ijspeert et al., 2007).                                 variability among salamander individuals than EMG recordings
+                                                                                     of intact animals (Ryczko et al., 2015). In response to
+The Regulation Mechanism in the Isolated                                             question 3, our results from robot experiments with five
+CPG                                                                                  swimming "individuals" suggest that local sensory feedback
+                                                                                     could explain this reduction of variability from the in vitro
+The mechanism of regulation described above, together with                           to the in vivo condition (Figure 5I): sensory feedback made
+the differences in excitability and saturation thresholds between                    it unnecessary to tune the drive levels in each individual
+                                                                                     (compare the standard deviation of the drives in Figure 5H
+                                                                                     for swimming vs. the other behaviors). Results from robot
+                                                                                     experiments and simulations also suggest that local sensory
+                                                                                     feedback can replace differential drive as a modulator of the
+                                                                                     CPG activity to produce forward terrestrial stepping (Figure 6)
+                                                                                     and swimming (Figures 5B,I, Supplementary Figures 4A,C,
+                                                                                     Supplementary Movies 1, 8), which answers the other part of
+                                                                                     question 3.
+
+                                                                                        The regulation of our CPG model by proprioceptive feedback
+                                                                                     can be explained with the same mechanism as regulation by
+                                                                                     different drive signals. Sensory feedback has been previously
+                                                                                     reported to increase the locomotion cycle frequency through
+                                                                                     an excitatory effect on the lamprey CPG activity (e.g., Kiemel
+                                                                                     and Cohen, 2001). In our model, the addition of proprioceptive
+
+Frontiers in Neurorobotics | www.frontiersin.org                                 16  December 2020 | Volume 14 | Article 604426
+Knüsel et al.                                                             A CPG for Five Behaviors
+
+FIGURE 8 | Systematic phase biases due to the slow-down effect of coupling delays in the robot's distributed controller. Undesired phase lags in the distributed
+controller were analyzed using a chain of 7 simple (non-girdle) robot modules and a CPG model with symmetrical ascending and descending coupling weights and a
+uniform intersegmental phase bias of 5%. (A) CPG intersegmental phase lags calculated from the middle segment of each module, as percentage of the cycle
+duration. The observed values are higher than the target of 5% in the rostral modules and lower than the target in the caudal ones. (B) Average effect of the ascending
+and descending couplings on the left oscillator of the middle segment in each module. Values shown correspond to the coupling terms rjwij sin j - i - ij , averaged
+over the whole recording. The negative red bars show that the net effect of both coupling types is to slow down the oscillation. The effect is stronger in more rostral
+modules. (C) Phase lags observed after the implementation of coupling message extrapolation. The observed values are almost uniform and close to the target of 5%.
+(D) With coupling message extrapolation, the slow-down effect has almost vanished.
+
+feedback in the axis increases the uncoupled frequency of                 phase relationship between i and the phase of the feedback
+                                                                          signal si. In particular, if the kinematics follow closely the CPG
+the segments in the axial network. If the first segment                   output, and if we approximate si with a sine wave, then si will
+                                                                          be proportional to cos i. Assuming a constant amplitude ri,
+receives no feedback, as is the case in robot experiments,                the effect of feedback on i can be written k cos i sin i, which
+                                                                          averages to zero over a 2 interval for i. We conclude that if i
+its uncoupled frequency is comparatively reduced. This leads              increases approximately linearly with time, the effect of feedback
+
+as expected to a decrease in phase lags during swimming                   on the frequency will approach zero when the CPG-mechanical
+
+(Figure 5I).                                                              phase lag approaches zero. And this lag (the distance between
+
+Interestingly, simulations showed that feedback can                       the red and black dots) is indeed very small for the neck joint in
+
+also regulate swimming when neck feedback is included                     Supplementary Figure 4C.
+
+(Supplementary Figures 1­3, 4C). This suggests that feedback                 We can also explain the need for reversed axial feedback
+
+has a weaker accelerating effect in the first segment than in             weights during forward terrestrial stepping: Excitatory axial
+
+the others, even though the feedback amplitude is comparable              feedback (as in swimming) accelerates the mid-trunk oscillators,
+
+(see Supplementary Figure 4C). This can be explained by                   which tends to decrease the intersegmental phase lag. This is
+
+looking at the model equations: axial feedback adds the term
+T-hrseii
+          sin i to  the instantaneous frequency i of the oscillator.
+           average  value of this term is highly dependent on the
+
+Frontiers in Neurorobotics | www.frontiersin.org                      17  December 2020 | Volume 14 | Article 604426
+Knüsel et al.                                                                           A CPG for Five Behaviors
+
+  FIGURE 9 | Frame sequences showing the behavior of the robot when split               limb oscillators. These in turn increase the frequency of the
+  into several parts. (A) After losing its tail, the robot keeps moving (although       first segments, and thus the intersegmental phase lag. Such limb
+  with a malfunction in the pelvic girdle module). The tail modules continue to         feedback has been proposed in a simulation study as a way
+  oscillate. The tail CPG maintains the coordination in the form of a rostrocaudal      of facilitating the transition from walking to trotting in the
+  traveling wave. (B) The robot splits behind both girdles. The three robot parts       salamander (Harischandra et al., 2011).
+  keep moving independently.
+                                                                                           The cells underlying proprioceptive axial feedback remain
+counter-productive since the unregulated intersegmental phase                           to be identified in salamanders (see section Motor control
+lag is already too low (Figure 6A). With inverted weights,                              in salamanders). The limb sensory feedback introduced in
+axial feedback slows down the mid-trunk and increases the                               simulation could be provided by cutaneous receptors during foot
+phase lag as desired. The inclusion of neck feedback has                                contact since mechano-sensitive Merkel cells are present on the
+little importance in this case: when the limbs are active, the                          skin of salamanders (Scott et al., 1981, Diamond et al., 1986),
+activity of segment 3 is largely determined by the strong                               and/or stretch receptors of limb muscles that are sensitive to
+connections from the forelimb oscillators, irrespective of the                          joint angle, since fibers behaving as muscle spindles have been
+activity in the first and second segments. This also means that                         identified in salamanders (Bone et al., 1976). In mammals, it is
+we would expect similar results with a model that includes                              well-established that limb feedback plays a key role in establishing
+head stabilization as observed in the animal during forward                             the locomotor patterns (e.g., Musienko et al., 2012; Akay et al.,
+terrestrial stepping (Ryczko et al., 2015). Our results with                            2014; Takeoka et al., 2014; for review see Frigon, 2017).
+inverted weights are reminiscent of the reversal of the effects
+of sense organs that signal forces on a leg when switching                              Muscles and Passive Biomechanical
+from forward to backward stepping in the stick insect (Akay
+et al., 2007, for review see Mantziaris et al., 2020). The                              Properties
+mechanism underlying such a switch in sensory encoding could
+involve an interplay between the descending drive to the CPG                            We found that higher muscle torques were required to
+and sensory feedback. In line with this possibility, brainstem                          emulate struggling and backward stepping (Table 5). Behavior-
+stimulation changes how lamprey motoneurons respond to                                  dependent changes in limb electromyographic activity have
+rhythmic movements imposed to the spinal cord (Hsu et al.,                              been reported in salamanders when comparing forward and
+2013).                                                                                  backward terrestrial stepping. The electromyographic bursts
+                                                                                        increase during backward stepping in the extensor iliotibialis
+   The regulation mechanism also explains the effect of limb                            pars posterior (the homolog of the rectus femoris in mammals,
+feedback: the excitatory signal increases the frequency of the                          which elevates the femur and extends the knee), mostly during
+                                                                                        the swing phase, whereas the bursts decrease in the other limb
+                                                                                        muscles (Ashley-Ross and Lauder, 1997). Future studies should
+                                                                                        determine whether an increase in electromyographic activity
+                                                                                        occurs in axial muscles during backward terrestrial stepping. A
+                                                                                        differential ratio of activation of epaxial vs. hypaxial muscles
+                                                                                        in the animal could also occur, as observed when comparing
+                                                                                        forward underwater stepping and forward terrestrial stepping in
+                                                                                        salamanders (Deban and Schilling, 2009). The same comparative
+                                                                                        electromyographic measurements should be done for struggling
+                                                                                        in salamanders. Caudorostral waves of axial activity are also used
+                                                                                        during struggling in Xenopus and during backward swimming
+                                                                                        in eels and lampreys. Lateral body undulations are much larger
+                                                                                        during struggling and backward swimming than during forward
+                                                                                        swimming in Xenopus (Kahn and Roberts, 1982), in eel (D'Aout
+                                                                                        and Aerts, 1999) and in lamprey despite a similar duty cycle of
+                                                                                        the electromyographic burst (Islam et al., 2006), suggesting that
+                                                                                        an increase in muscle strength occurs during caudorostral waves.
+
+                                                                                           Passive tail segments reduced the drag during forward
+                                                                                        underwater stepping in simulation (Figure 7). In line with this,
+                                                                                        tail muscles show weak or no activation despite large tail
+                                                                                        undulations during forward underwater stepping in salamanders,
+                                                                                        suggesting that the body generates thrust by transmitting trunk
+                                                                                        movements passively to the tail (Cabelguen et al., 2014).
+                                                                                        At the low frequencies of underwater stepping, the passive
+                                                                                        biomechanical properties of the tail could be sufficient to
+                                                                                        propagate the body undulation, while higher frequencies might
+                                                                                        require a higher stiffness and thus active muscles (Blight, 1976,
+                                                                                        1977) as observed in the salamander during swimming (Delvolvé
+                                                                                        et al., 1997). In salamanders, whether tail deactivation during
+                                                                                        forward underwater stepping is due to reduced activity of
+
+Frontiers in Neurorobotics | www.frontiersin.org                                    18  December 2020 | Volume 14 | Article 604426
+Knüsel et al.                                                           A CPG for Five Behaviors
+
+e.g., some reticulospinal neurons remains to be determined.             stay almost constant. It would be more difficult to extrapolate the
+Biological observations and robotic experiments suggest that            state in a model without explicit phase variables. In conclusion,
+salamanders can use their tail as a "fifth limb" to provide thrust      the CAN bus, being shared by all modules, limits the benefits
+in slippery conditions (Karakasiliotis and Ijspeert, 2009). This        of the distributed controller. A future revision of the robot
+suggests the existence of reticulospinal neurons that can both          should include direct communication between adjacent modules,
+decrease and increase the activity of the tail independently from       in addition to the shared bus, to fully realize the benefits of
+the trunk.                                                              distributed control.
+
+Robotic Platform and Distributed Control                                CONCLUSION
+
+Some of the adaptations required to reproduce the simulation            Following the analogy proposed by Loeb (2001), our study
+results on the robot can be explained by mechanical differences:        suggests that the spinal cord is as a puppet on strings, and
+The need for stronger muscle forces (no tapering) in the robot's        that a complex motor repertoire can be generated by pulling a
+tail might be due to the passive fin exerting more resistance than      limited set of "sensory" or "descending" strings, which in turn
+in the simulation. The different optimal limb-body phase bias for       take advantage of a flexible spinal motor circuit.
+backward stepping could be due to the backlash in the leg gears.
+                                                                        DATA AVAILABILITY STATEMENT
+   Our initial implementation of the controller was centralized
+in the head module. This required retrieving the position and           The raw data supporting the conclusions of this article will be
+velocity of all joints and sending back the torque setpoints at         made available by the authors, without undue reservation.
+each time step over the CAN bus. These are slow operations
+since the module has to forward the requests over a local I2C           AUTHOR CONTRIBUTIONS
+bus. The resulting control loop was too slow, making the muscle
+model unstable. The distributed controller solved this problem          DR, JK, AI, and J-MC designed the study. JK and AC performed
+by keeping the communication of joint positions, velocities and         numerical modeling, simulations, and robotic experiments. JK,
+torque setpoints local to each module. This solution shows              J-MC, AI, and DR analyzed data. JK, AI, and DR wrote the
+interesting similarities with the vertebrate nervous system, which      paper. All authors contributed to the article and approved the
+distributes the processing of sensory signals and the generation        submitted version.
+of locomotor patterns along the spinal cord, close to the
+target muscles.                                                         FUNDING
+
+   Watanabe et al. (2009) have shown that a distributed                 The support from the European Community (LAMPETRA grant:
+controller with proprioceptive feedback can have interesting            FP7-ICT-2007-1-216100) and the Fondation pour la Recherche
+fault-tolerance properties, such as robustness to lesions in            Médicale (FRM, DBC 20101021008) are acknowledged. DR
+the communication pathways. It would be interesting to                  receives support from the Canadian Institutes of Health
+experiment with such lesions in our CPG model. The distributed          Research (407083); the Fonds de la Recherche - Québec (FRQS
+controller would probably accommodate such experiments: the             Junior 1 awards 34920 and 36772); the Natural Sciences and
+Supplementary Movie 9 shows that the different sections of the          Engineering Research Council of Canada (RGPIN-2017-05522
+CPG continue to function after the robot has been split in several      and RTI-2019-00628); the Centre de Recherche du Centre
+parts. This is an interesting feature that few robots have. It is       Hospitalier Universitaire de Sherbrooke (CHUS); the fonds
+made possible by the distributed computation of the CPG and             Jean-Luc Mongrain de la fondation du CHUS, the Faculté de
+muscle model, the multi-master nature of the CAN bus and the            médecine et des sciences de la santé; the Centre d'excellence
+nearest-neighbor couplings of the CPG model.                            en Neurosciences de l'Université de Sherbrooke. AI receives
+                                                                        support from Swiss National Science Foundation (Project
+   The distributed controller also introduces a difficulty in the       CR23I2_140714).
+form of coupling delays, which can be hard to predict when
+many modules share the same communication bus. As illustrated           ACKNOWLEDGMENTS
+in Figure 8A, these delays can have a significant impact on the
+coordination between modules: the phase lags between rostral            The authors would like to thank Örjan Ekeberg for his valuable
+modules are markedly increased, while those between caudal              comments on a previous version of the manuscript, and
+modules are decreased. The asymmetry is probably related to             Konstantinos Karakasiliotis for his help in preparing a movie of
+the priority of messages on the CAN bus: the last modules               the robot. Part of this work was previously published as a thesis
+have higher CAN identifiers so lower priorities when several            (Knüsel, 2013).
+modules attempt to talk at the same time. This means that
+ascending couplings will be on average more delayed than                SUPPLEMENTARY MATERIAL
+descending couplings, inducing larger lags in the rostral modules
+(Figure 8B). The problem was mostly solved by extrapolating in          The Supplementary Material for this article can be found
+the receiver module the state of the oscillators at the origin of       online at: https://www.frontiersin.org/articles/10.3389/fnbot.
+the couplings (see Results). Extrapolating these states is easily       2020.604426/full#supplementary-material
+done in our CPG model, where the state variables are the phase
+and amplitude of the oscillators: during steady state locomotion,
+these variables, respectively, grow at an almost constant rate or
+
+Frontiers in Neurorobotics | www.frontiersin.org                    19  December 2020 | Volume 14 | Article 604426
+Knüsel et al.                                                                               A CPG for Five Behaviors
+
+REFERENCES                                                                                  Caggiano, V., Leiras, R., Goñi-Erro, H., Masini, D., Bellardita, C., Bouvier, J., et al.
+                                                                                                (2018). Midbrain circuits that set locomotor speed and gait selection. Nature
+Akay, T., Ludwar, B. C., Göritz, M. L., Schmitz, J., and Büschges, A. (2007).                   553, 455­460. doi: 10.1038/nature25448
+    Segment specificity of load signal processing depends on walking direction
+    in the stick insect leg muscle control system. J. Neurosci. 27, 3285­3294.              Cangiano, L., and Grillner, S. (2003). Fast and slow locomotor burst generation
+    doi: 10.1523/JNEUROSCI.5202-06.2007                                                         in the hemispinal cord of the lamprey. J. Neurophysiol. 89, 2931­2942.
+                                                                                                doi: 10.1152/jn.01100.2002
+Akay, T., Tourtellotte, W. G., Arber, S., and Jessell, T. M. (2014). Degradation of
+    mouse locomotor pattern in the absence of proprioceptive sensory feedback.              Cangiano, L., and Grillner, S. (2005). Mechanisms of rhythm generation in a spinal
+    Proc. Natl. Acad. Sci. U.S.A.111, 16877­16882. doi: 10.1073/pnas.1419045111                 locomotor network deprived of crossed connections: the lamprey hemicord. J.
+                                                                                                Neurosci. 25, 923­935. doi: 10.1523/JNEUROSCI.2301-04.2005
+Ampatzis, K., Song, J., Ausborn, J., and El Manira, A. (2014). Separate
+    microcircuit modules of distinct v2a interneurons and motoneurons control               Cangiano, L., Hill, R. H., and Grillner, S. (2012). The hemisegmental
+    the speed of locomotion. Neuron 83, 934­943. doi: 10.1016/j.neuron.2014.                    locomotor network revisited. Neuroscience 210, 33­37.
+    07.018                                                                                      doi: 10.1016/j.neuroscience.2012.03.007
+
+Ashley-Ross, M. A., and Lauder, G. V. (1997). Motor patterns and kinematics                 Capelli, P., Pivetta, C., Soledad Esposito, M., and Arber, S. (2017). Locomotor
+    during backward walking in the pacific giant salamander: evidence for novel                 speed control circuits in the caudal brainstem. Nature 551, 373­377.
+    motor output. J. Neurophysiol. 78, 3047­3060. doi: 10.1152/jn.1997.78.6.                    doi: 10.1038/nature24064
+    3047
+                                                                                            Charrier, V., and Cabelguen, J.-M. (2013). Fictive rhythmic motor patterns
+Ashley-Ross, M. A., Lundin, R., and Johnson, K. L. (2009). Kinematics of level                  produced by the tail spinal cord in salamanders. Neuroscience 255, 191­202.
+    terrestrial and underwater walking in the California newt, Taricha torosa. J. Exp.          doi: 10.1016/j.neuroscience.2013.10.020
+    Zool. A Ecol. Genet. Physiol. 311, 240­257. doi: 10.1002/jez.522
+                                                                                            Cheng, J., Stein, R. B., Jovanovic´, K., Yoshida, K., Bennett, D. J., and Han, Y. (1998).
+Bejan, A., and Marden, J. H. (2006). Unifying constructal theory for scale                      Identification, localization, and modulation of neural networks for walking in
+    effects in running, swimming and flying. J. Exp. Biol. 209, 238­248.                        the mudpuppy (Necturus maculatus) spinal cord. J. Neurosci. 18, 4295­4304.
+    doi: 10.1242/jeb.01974                                                                      doi: 10.1523/JNEUROSCI.18-11-04295.1998
+
+Bem, T., Cabelguen, J., Ekeberg, Ö., and Grillner, S. (2003). From swimming to              Chevallier, S., Jan Ijspeert, A., Ryczko, D., Nagy, F., and Cabelguen, J.-M.
+    walking: a single basic network for two different behaviors. Biol. Cybern. 88,              (2008). Organisation of the spinal central pattern generators for locomotion
+    79­90. doi: 10.1007/s00422-002-0340-3                                                       in the salamander: biology and modelling. Brain Res. Rev. 57, 147­161.
+                                                                                                doi: 10.1016/j.brainresrev.2007.07.006
+Berg, E. M., Björnfors, E. R., Pallucchi, I., Picton, L. D., and El Manira, A. (2018).
+    Principles governing locomotion in vertebrates: lessons from Zebrafish. Front.          Cregg, J. M., Leiras, R., Montalant, A., Wanken, P., Wickersham, I. R.,
+    Neural Circuits 12:73. doi: 10.3389/fncir.2018.00073                                        and Kiehn, O. (2020). Brainstem neurons that command mammalian
+                                                                                                locomotor asymmetries. Nat. Neurosci. 23, 730­740. doi: 10.1038/s41593-020-
+Bicanski, A., Ryczko, D., Cabelguen, J.-M., and Ijspeert, A. J. (2013). From lamprey            0633-7
+    to salamander: an exploratory modeling study on the architecture of the
+    spinal locomotor networks in the salamander. Biol. Cybern. 107, 565­587.                Crespi, A., Karakasiliotis, K., Guignard, A., and Ijspeert, A. J. (2013). Salamandra
+    doi: 10.1007/s00422-012-0538-y                                                              robotica II: an amphibious robot to study salamander-like swimming and
+                                                                                                walking gaits. IEEE Trans. Robot. 29, 308­320. doi: 10.1109/TRO.2012.22
+Blight, A. (1976). Undulatory swimming with and without waves of contraction.                   34311
+    Nature 264, 352­354. doi: 10.1038/264352a0
+                                                                                            D'Aout, K., and Aerts, P. (1999). A kinematic comparison of forward and backward
+Blight, A. R. (1977). The muscular control of vertebrate swimming movements.                    swimming in the eel anguilla anguilla. J. Exp. Biol. 202, 1511­1521.
+    Biol. Rev. 52, 181­218. doi: 10.1111/j.1469-185X.1977.tb01349.x
+                                                                                            Deban, S. M., and Schilling, N. (2009). Activity of trunk muscles during aquatic and
+Böhm, U. L., Prendergast, A., Djenoune, L., Nunes Figueiredo, S., Gomez,                        terrestrial locomotion in Ambystoma maculatum. J. Exp. Biol. 212, 2949­2959.
+    J., Stokes, C., et al. (2016). CSF-contacting neurons regulate locomotion                   doi: 10.1242/jeb.032961
+    by relaying mechanical stimuli to spinal circuits. Nat. Commun. 7:10866.
+    doi: 10.1038/ncomms10866                                                                Delvolvé, I., Bem, T., and Cabelguen, J. M. (1997). Epaxial and limb muscle activity
+                                                                                                during swimming and terrestrial stepping in the adult newt, Pleurodeles waltl.
+Bone, Q., Ridge, R. M., and Ryan, K. P. (1976). Stretch receptors in urodele limb               J. Neurophysiol. 78, 638­650. doi: 10.1152/jn.1997.78.2.638
+    muscles. Cell Tissue Res. 165, 249­266. doi: 10.1007/BF00226663
+                                                                                            Delvolvé, I., Branchereau, P., Dubuc, R., and Cabelguen, J. M. (1999). Fictive
+Branchereau, P., Rodriguez, J. J., Delvolvé, I., Abrous, D. N., Le Moal,                        rhythmic motor patterns induced by NMDA in an in vitro brain stem-
+    M., and Cabelguen, J. M. (2000). Serotonergic systems in the spinal                         spinal cord preparation from an adult urodele. J. Neurophysiol. 82, 1074­1077.
+    cord of the amphibian urodele pleurodeles waltl. J. Comp. Neurol.                           doi: 10.1152/jn.1999.82.2.1074
+    419, 49­60. doi: 10.1002/(SICI)1096-9861(20000327)419:1&lt;49::AID-
+    CNE3&gt;3.0.CO;2-#                                                                      Diamond, J., Holmes, M., and Nurse, C. A. (1986). Are merkel cell-neurite
+                                                                                                reciprocal synapses involved in the initiation of tactile responses in salamander
+Brocard, F., Ryczko, D., Fénelon, K., Hatem, R., Gonzales, D., Auclair, F.,                     skin? J. Physiol. 376, 101­120. doi: 10.1113/jphysiol.1986.sp016144
+    et al. (2010). The transformation of a unilateral locomotor command into
+    a symmetrical bilateral activation in the brainstem. J. Neurosci. 30, 523­533.          Ekeberg, Ö. (1993). A combined neuronal and mechanical model of fish
+    doi: 10.1523/JNEUROSCI.3433-09.2010                                                         swimming. Biol. Cybern. 69, 363­374. doi: 10.1007/BF01185408
+
+Buchanan, J. T. (2001). Contributions of identifiable neurons and neuron                    Fagerstedt, P., Orlovsky, G. N., Deliagina, T. G., Grillner, S., and Ullén, F.
+    classes to lamprey vertebrate neurobiology. Prog. Neurobiol. 63, 441­466.                   (2001). Lateral turns in the lamprey. II. activity of reticulospinal neurons
+    doi: 10.1016/S0301-0082(00)00050-2                                                          during the generation of fictive turns. J. Neurophysiol. 86, 2257­2265.
+                                                                                                doi: 10.1152/jn.2001.86.5.2257
+Buchanan, J. T., Grillner, S., Cullheim, S., and Risling, M. (1989). Identification
+    of excitatory interneurons contributing to generation of locomotion in                  Frigon, A. (2017). The neural control of interlimb coordination during mammalian
+    lamprey: structure, pharmacology, and function. J. Neurophysiol. 62, 59­69.                 locomotion. J. Neurophysiol. 117, 2224­2241. doi: 10.1152/jn.00978.2016
+    doi: 10.1152/jn.1989.62.1.59
+                                                                                            Frolich, L. M., and Biewener, A. A. (1992). Kinematic and electromyographic
+Büschges, A., Schmitz, J., and Bässler, U. (1995). Rhythmic patterns in the thoracic            analysis of the functional role of the body axis during terrestrial and aquatic
+    nerve cord of the stick insect induced by pilocarpine. J. Exp. Biol. 198, 435­456.          locomotion in the salamander Ambystoma tigrinum. J. Exp. Biol. 162, 107­130.
+
+Cabelguen, J.-M., Bourcier-Lucas, C., and Dubuc, R. (2003). Bimodal                         Gabriel, J. P., Ausborn, J., Ampatzis, K., Mahmood, R., Eklöf-Ljunggren, E.,
+    locomotion elicited by electrical stimulation of the midbrain in the                        and El Manira, A. (2011). Principles governing recruitment of motoneurons
+    salamander Notophthalmus viridescens. J. Neurosci. 23, 2434­2439.                           during swimming in zebrafish. Nat. Neurosci. 14, 93­99. doi: 10.1038/nn.
+    doi: 10.1523/JNEUROSCI.23-06-02434.2003                                                     2704
+
+Cabelguen, J.-M., Charrier, V., and Mathou, A. (2014). Modular functional                   Grillner, S. (1981). "Control of locomotion in bipeds, tetrapods, and fish,"
+    organisation of the axial locomotor system in salamanders. Zoology 117, 57­63.              in Handbook of Physiology. The Nervous System, Motor Control, ed M.
+    doi: 10.1016/j.zool.2013.10.002                                                             Brookhart (Bethesda, MD: American Physiological Society), 1179­1236.
+                                                                                                doi: 10.1002/cphy.cp010226
+
+Frontiers in Neurorobotics | www.frontiersin.org                                        20  December 2020 | Volume 14 | Article 604426
+Knüsel et al.                                                                                A CPG for Five Behaviors
+
+Grillner, S., and El Manira, A. (2020). Current principles of motor control,                 Karakasiliotis, K., Thandiackal, R., Melo, K., Horvat, T., Mahabadi, N. K.,
+    with special reference to vertebrate locomotion. Physiol. Rev. 100, 271­320.                 Tsitkov, S., et al. (2016). From cineradiography to biorobots: an approach for
+    doi: 10.1152/physrev.00015.2019                                                              designing robots to emulate and study animal locomotion. J. R. Soc. Interface
+                                                                                                 13:20151089. doi: 10.1098/rsif.2015.1089
+Grillner, S., McClellan, A., and Sigvardt, K. (1982). Mechanosensitive
+    neurons in the spinal cord of the lamprey. Brain Res. 235, 169­173.                      Kiehn, O. (2016). Decoding the organization of spinal circuits that control
+    doi: 10.1016/0006-8993(82)90208-6                                                            locomotion. Nat. Rev. Neurosci. 17, 224­238. doi: 10.1038/nrn.2016.9
+
+Grillner, S., Williams, T., and Lagerbäck, P. A. (1984). The edge                            Kiemel, T., and Cohen, A. H. (2001). Bending the lamprey spinal cord causes a
+    cell, a possible intraspinal mechanoreceptor. Science 223, 500­503.                          slowly-decaying increase in the frequency of fictive swimming. Brain Res. 900,
+    doi: 10.1126/science.6691161                                                                 57­64. doi: 10.1016/S0006-8993(01)02244-2
+
+Hägglund, M., Dougherty, K. J., Borgius, L., Itohara, S., Iwasato, T., and Kiehn,            Kinkhabwala, A., Riley, M., Koyama, M., Monen, J., Satou, C., Kimura, Y.,
+    O. (2013). Optogenetic dissection reveals multiple rhythmogenic modules                      et al. (2011). A structural and functional ground plan for neurons in
+    underlying locomotion. Proc. Natl. Acad. Sci. U.S.A. 110, 11589­11594.                       the hindbrain of zebrafish. Proc. Natl. Acad. Sci. U.S.A. 108,1164­1169.
+    doi: 10.1073/pnas.1304365110                                                                 doi: 10.1073/pnas.1012185108
+
+Harischandra, N., Cabelguen, J.-M., and Ekeberg, Ö. (2010). A 3D musculo-                    Knafo, S., Fidelin, K., Prendergast, A., Tseng, P.-E. B., Parrin, A., Dickey, C.,
+    mechanical model of the salamander for the study of different gaits and modes                et al. (2017). Mechanosensory neurons control the timing of spinal microcircuit
+    of locomotion. Front. Neurorobot. 4:112. doi: 10.3389/fnbot.2010.00112                       selection during locomotion. eLife 6:e25260. doi: 10.7554/eLife.25260
+
+Harischandra, N., Knuesel, J., Kozlov, A., Bicanski, A., Cabelguen, J.-M., Ijspeert,         Knüsel, J. (2013). Modeling a Diversity of Salamander Motor Behaviors with
+    A., et al. (2011). Sensory feedback plays a significant role in generating                   Coupled Abstract Oscillators and a Robot. Lausanne: EPFL.
+    walking gait and in gait transition in salamanders: a simulation study. Front.
+    Neurorobot. 5:3. doi: 10.3389/fnbot.2011.00003                                           Knüsel, J., Bicanski, A., Ryczko, D., Cabelguen, J.-M., and Ijspeert, A. J. (2013). A
+                                                                                                 salamander's flexible spinal network for locomotion, modeled at two levels of
+Harper, C. E., and Roberts, A. (1993). Spinal cord neuron classes in embryos                     abstraction. Integr. Comp. Biol. 53, 269­282. doi: 10.1093/icb/ict067
+    of the smooth newt Triturus vulgaris: a horseradish peroxidase and
+    immunocytochemical study. Philos. Trans. R. Soc. Lond. B Biol. Sci. 340,                 Kozlov, A., Huss, M., Lansner, A., Kotaleski, J. H., and Grillner, S. (2009).
+    141­160. doi: 10.1098/rstb.1993.0053                                                         Simple cellular and network control principles govern complex patterns
+                                                                                                 of motor behavior. Proc. Natl. Acad. Sci. U.S.A. 106, 20027­20032.
+Horvat, T., and Ijspeert, A. J. (2017). "Spine-limb coordination controller for a                doi: 10.1073/pnas.0906722106
+    sprawling posture robot," in 8th International Symposium on Adaptive Motion
+    of Animals and Machines (AMAM) (Sapporo).                                                Lavrov, I., and Cheng, J. (2004). Activation of NMDA receptors is required for the
+                                                                                                 initiation and maintenance of walking-like activity in the mudpuppy (Necturus
+Horvat, T., Melo, K., and and, A. J., Ijspeert (2017). Spine controller for                      Maculatus). Can. J. Physiol. Pharmacol. 82, 637­644. doi: 10.1139/y04-044
+    a sprawling posture robot. IEEE Robot. Automat. Lett. 2, 1195­1202.
+    doi: 10.1109/LRA.2017.2664898                                                            Liu, Q., Yang, H., Zhang, J., and Wang, J. (2018). A new model of the spinal
+                                                                                                 locomotor networks of a salamander and its properties. Biol. Cybern. 112,
+Hsu, L.-J., Zelenin, P. V., Grillner, S., Orlovsky, G. N., and Deliagina, T. G. (2013).          369­385. doi: 10.1007/s00422-018-0759-9
+    Intraspinal stretch receptor neurons mediate different motor responses along
+    the body in lamprey. J. Comp. Neurol. 521, 3847­3862. doi: 10.1002/cne.23382             Liu, Q., Zhang, Y., Wang, J., Yang, H., and Hong, L. (2020). Modeling of the neural
+                                                                                                 mechanism underlying the terrestrial turning of the salamander. Biol. Cybern.
+Hubbard, J. M., Böhm, U. L., Prendergast, A., Tseng, P.-E. B., Newman, M., Stokes,               doi: 10.1007/s00422-020-00821-1
+    C., et al. (2016). Intraspinal sensory neurons provide powerful inhibition to
+    motor circuits ensuring postural control during locomotion. Curr. Biol. 26,              Loeb, G. E. (2001). Learning from the spinal cord. J. Physiol. 533, 111­117.
+    2841­2853. doi: 10.1016/j.cub.2016.08.026                                                    doi: 10.1111/j.1469-7793.2001.0111b.x
+
+Ijspeert, A. (2001). A connectionist central pattern generator for the aquatic               Lowry, C. A., Rose, J. D., and Moore, F. L. (1996). Corticotropin-releasing factor
+    and terrestrial gaits of a simulated salamander. Biol. Cybern. 84, 331­348.                  enhances locomotion and medullary neuronal firing in an amphibian. Horm.
+    doi: 10.1007/s004220000211                                                                   Behav. 30, 50­59. doi: 10.1006/hbeh.1996.0008
+
+Ijspeert, A. J., Crespi, A., and Cabelguen, J.-M. (2005). Simulation and                     Mantziaris, C., Bockemühl, T., and Büschges, A. (2020). Central pattern
+    robotics studies of salamander locomotion: applying neurobiological principles               generating networks in insect locomotion. Dev. Neurobiol. 80, 16­30.
+    to the control of locomotion in robots. Neuroinformatics 3, 171­195.                         doi: 10.1002/dneu.22738
+    doi: 10.1385/NI:3:3:171
+                                                                                             Matsushima, T., and Grillner, S. (1990). Intersegmental co-ordination of
+Ijspeert, A. J., Crespi, A., Ryczko, D., and Cabelguen, J.-M. (2007). From swimming              undulatory movements­a "trailing oscillator" hypothesis. Neuroreport 1,
+    to walking with a salamander robot driven by a spinal cord model. Science 315,               97­100. doi: 10.1097/00001756-199010000-00003
+    1416­1420. doi: 10.1126/science.1138353
+                                                                                             Matsushima, T., and Grillner, S. (1992). Neural mechanisms of intersegmental
+Islam, S. S., Zelenin, P. V., Orlovsky, G. N., Grillner, S., and Deliagina, T. G.                coordination in lamprey: local excitability changes modify the
+    (2006). Pattern of motor coordination underlying backward swimming                           phase coupling along the spinal cord. J. Neurophysiol. 67, 373­388.
+    in the lamprey. J. Neurophysiol. 96, 451­460. doi: 10.1152/jn.0127                           doi: 10.1152/jn.1992.67.2.373
+    7.2005
+                                                                                             McLean, D. L., Fan, J., Higashijima, S., Hale, M. E., and Fetcho, J. R. (2007).
+Jalalvand, E., Robertson, B., Wallén, P., and Grillner, S. (2016). Ciliated                      A topographic map of recruitment in spinal cord. Nature 446, 71­75.
+    neurons lining the central canal sense both fluid movement and                               doi: 10.1038/nature05588
+    pH through ASIC3. Nat. Commun. 7:10002. doi: 10.1038/ncomms
+    10002                                                                                    McLean, D. L., Masino, M. A., Koh, I. Y. Y., Lindquist, W. B., and Fetcho, J.
+                                                                                                 R. (2008). Continuous shifts in the active set of spinal interneurons during
+Josset, N., Roussel, M., Lemieux, M., Lafrance-Zoubga, D., Rastqar, A., and                      changes in locomotor speed. Nat. Neurosci. 11, 1419­1429. doi: 10.1038/nn.
+    Bretzner, F. (2018). Distinct contributions of mesencephalic locomotor region                2225
+    nuclei to locomotor control in the freely behaving mouse. Curr. Biol. 28,
+    884­901.e3. doi: 10.1016/j.cub.2018.02.007                                               Mulloney, B., Harness, P. I., and Hall, W. M. (2006). Bursts of information:
+                                                                                                 coordinating interneurons encode multiple parameters of a periodic motor
+Kahn, J. A., and Roberts, A. (1982). The neuromuscular basis of rhythmic                         pattern. J. Neurophysiol. 95, 850­861. doi: 10.1152/jn.00939.2005
+    struggling movements in embryos of Xenopus laevis. J. Exp. Biol. 99, 197­205.
+                                                                                             Mulloney, B., and Smarandache-Wellmann, C. (2012). Neurobiology
+Karakasiliotis, K., and Ijspeert, A. J. (2009). "Analysis of the terrestrial locomotion          of the crustacean swimmeret system. Prog. Neurobiol. 96, 242­267.
+    of a salamander robot," in 2009 IEEE/RSJ International Conference on Intelligent             doi: 10.1016/j.pneurobio.2012.01.002
+    Robots and Systems. (St. Louis, MO), 5015­5020.
+                                                                                             Musienko, P. E., Zelenin, P. V., Lyalka, V. F., Gerasimenko, Y. P., Orlovsky,
+Karakasiliotis, K., Schilling, N., Cabelguen, J.-M., and Ijspeert, A. J. (2013).                 G. N., and Deliagina, T. G. (2012). Spinal and supraspinal control of
+    Where are we in understanding salamander locomotion: biological                              the direction of stepping during locomotion. J. Neurosci. 32, 17442­17453.
+    and robotic perspectives on kinematics. Biol. Cybern. 107, 529­544.                          doi: 10.1523/JNEUROSCI.3757-12.2012
+    doi: 10.1007/s00422-012-0540-4
+                                                                                             Orts-Del'Immagine, A., Cantaut-Belarif, Y., Thouvenin, O., Roussel, J., Baskaran,
+                                                                                                 A., Langui, D., et al. (2020). Sensory neurons contacting the cerebrospinal fluid
+
+Frontiers in Neurorobotics | www.frontiersin.org                                         21  December 2020 | Volume 14 | Article 604426
+Knüsel et al.                                                                              A CPG for Five Behaviors
+
+    require the reissner fiber to detect spinal curvature in vivo. Curr. Biol. 30,         Suzuki, S., Kano, T., Ijspeert, A. J., and Ishiguro, A. (2019a). "A salamander
+    827­839. doi: 10.1016/j.cub.2019.12.071                                                    robot driven by cross-coupled sensory feedback control between legs and
+Partridge, L. D. (1965). Modifications of neural output signals by                             trunk," in 9th International Symposium on Adaptive Motion of Animals and
+    muscles: a frequency response study. J. Appl. Physiol. 20, 150­156.                        Machines (AMAM) (Lausanne).
+    doi: 10.1152/jappl.1965.20.1.150
+Porez, M., Boyer, F., and Ijspeert, A. J. (2014). Improved Lighthill fish                  Suzuki, S., Kano, T., Ijspeert, A. J., and Ishiguro, A. (2019b). Decentralized control
+    swimming model for bio-inspired robots: modeling, computational                            with cross-coupled sensory feedback between body and limbs in sprawling
+    aspects and experimental comparisons. Int. J. Robot. Res. 33, 1322­1341.                   locomotion. Bioinspir. Biomim. 14:066010. doi: 10.1088/1748-3190/ab3ef6
+    doi: 10.1177/0278364914525811
+Ryczko, D., Auclair, F., Cabelguen, J.-M., and Dubuc, R. (2016a). The                      Takeoka, A., Vollenweider, I., Courtine, G., and Arber, S. (2014). Muscle spindle
+    mesencephalic locomotor region sends a bilateral glutamatergic drive to                    feedback directs locomotor recovery and circuit reorganization after spinal cord
+    hindbrain reticulospinal neurons in a tetrapod. J. Comp. Neurol. 524,                      injury. Cell 159, 1626­1639. doi: 10.1016/j.cell.2014.11.019
+    1361­1383. doi: 10.1002/cne.23911
+Ryczko, D., Charrier, V., Ijspeert, A., and Cabelguen, J.-M. (2010). Segmental             Talpalar, A. E., Bouvier, J., Borgius, L., Fortin, G., Pierani, A., and Kiehn, O. (2013).
+    oscillators in axial motor circuits of the salamander: distribution and                    Dual-mode operation of neuronal networks involved in left-right alternation.
+    bursting mechanisms. J. Neurophysiol. 104, 2677­2692. doi: 10.1152/jn.0047                 Nature 500, 85­88. doi: 10.1038/nature12286
+    9.2010
+Ryczko, D., and Dubuc, R. (2013). The multifunctional mesencephalic locomotor              Tytell, E. D., Hsu, C. Y., Williams, T. L., Cohen, A. H., and Fauci,
+    region. Curr. Pharm. Des. 19, 4448­4470. doi: 10.2174/1381612811319                        L. J. (2010). Interactions between internal forces, body stiffness, and
+    240011                                                                                     fluid environment in a neuromechanical model of lamprey swimming.
+Ryczko, D., Knüsel, J., Crespi, A., Lamarque, S., Mathou, A., Ijspeert, A. J., et al.          Proc. Natl. Acad. Sci. U.S.A.107, 19832­19837. doi: 10.1073/pnas.10115
+    (2015). Flexibility of the axial central pattern generator network for locomotion          64107
+    in the salamander. J. Neurophysiol. 113, 1921­1940. doi: 10.1152/jn.0089
+    4.2014                                                                                 Watanabe, W., Sato, T., and Ishiguro, A. (2009). "A fully decentralized control
+Ryczko, D., Simon, A., and Ijspeert, A. J. (2020). Walking with salamanders:                   of a serpentine robot based on the discrepancy between body, brain and
+    from molecules to biorobotics. Trends Neurosci. 43, 916­930.                               environment," in IEEE/RSJ International Conference on Intelligent Robots and
+    doi: 10.1016/j.tins.2020.08.006                                                            Systems (St. Louis, MO), 2421­2426.
+Ryczko, D., Thandiackal, R., and Ijspeert, A. J. (2016b). "Interfacing a salamander
+    brain with a salamander-like robot: Control of speed and direction with calcium        Wyart, C., Del Bene, F., Warp, E., Scott, E. K., Trauner, D., Baier, H., et al. (2009).
+    signals from brainstem reticulospinal neurons," in 2016 6th IEEE International             Optogenetic dissection of a behavioural module in the vertebrate spinal cord.
+    Conference on Biomedical Robotics and Biomechatronics (Singapore: BioRob),                 Nature 461, 407­410. doi: 10.1038/nature08323
+    1140­1147.
+Schilling, M., and Cruse, H. (2020). Decentralized control of insect                       Yin, X., Jia, L., Wang, C., and Xie, G.-M. (2016). The effect of waist twisting on
+    walking: a simple neural network explains a wide range of behavioral                       walking speed of an amphibious salamander like robot. Acta Mech. Sin. 32,
+    and neurophysiological results. PLoS Comput. Biol. 16:e100780.                             546­550. doi: 10.1007/s10409-015-0532-4
+    doi: 10.1371/journal.pcbi.1007804
+Schroeder, D. M., and Egar, M. W. (1990). Marginal neurons in the urodele spinal           Zhong, B., Aydin, Y. O., Gong, C., Sartoretti, G., Wu, Y., Rieser, J., et al. (2018).
+    cord and the associated denticulate ligaments. J. Comp. Neurol. 301, 93­103.               Coordination of back bending and leg movements for quadrupedal locomotion.
+    doi: 10.1002/cne.903010109                                                                 Robot. Sci. Syst. 14. doi: 10.15607/RSS.2018.XIV.020
+Scott, S. A., Cooper, E., and Diamond, J. (1981). Merkel cells as targets of the
+    mechanosensory nerves in salamander skin. Proc. R. Soc. Lond. B Biol. Sci. 211,        Conflict of Interest: The authors declare that the research was conducted in the
+    455­470. doi: 10.1098/rspb.1981.0017                                                   absence of any commercial or financial relationships that could be construed as a
+Smarandache, C., Hall, W. M., and Mulloney, B. (2009). Coordination of                     potential conflict of interest.
+    rhythmic motor activity by gradients of synaptic strength in a neural
+    circuit that couples modular neural oscillators. J. Neurosci. 29, 9351­9360.           The reviewer CL declared a past co-authorship with one of the authors AI
+    doi: 10.1523/JNEUROSCI.1744-09.2009                                                    to the handling editor.
+
+                                                                                           Copyright © 2020 Knüsel, Crespi, Cabelguen, Ijspeert and Ryczko. This is an open-
+                                                                                           access article distributed under the terms of the Creative Commons Attribution
+                                                                                           License (CC BY). The use, distribution or reproduction in other forums is permitted,
+                                                                                           provided the original author(s) and the copyright owner(s) are credited and that the
+                                                                                           original publication in this journal is cited, in accordance with accepted academic
+                                                                                           practice. No use, distribution or reproduction is permitted which does not comply
+                                                                                           with these terms.
+
+Frontiers in Neurorobotics | www.frontiersin.org                                       22  December 2020 | Volume 14 | Article 604426
+
