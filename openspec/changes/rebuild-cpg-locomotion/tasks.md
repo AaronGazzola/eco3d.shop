@@ -1,6 +1,6 @@
 ## 0. Stage 0 — Clean slate, authoring intact
 
-- [ ] 0.1 Abandon the superseded `replace-locomotion-with-cpg` change (remove its folder)
+- [x] 0.1 Abandon the superseded `replace-locomotion-with-cpg` change (folder removed in the cleanup commit)
 - [ ] 0.2 Strip the broken CPG/foot logic: empty `cpg.ts` and `foot.ts` to minimal stubs and reduce the live branch of `useLocomotion.ts` to hold every pivot at its rest pose
 - [ ] 0.3 Keep the calibration code path and the playback branch in `useLocomotion.ts` working unchanged
 - [ ] 0.4 Confirm type check passes (`npx tsc --noEmit`) and no references to removed symbols remain
