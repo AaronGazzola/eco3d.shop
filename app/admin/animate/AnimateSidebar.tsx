@@ -212,6 +212,8 @@ function SimulateTab() {
   const setFramesPerStep = useAnimateStore((s) => s.setFramesPerStep)
   const solver = useAnimateStore((s) => s.solver)
   const setTimeScale = useAnimateStore((s) => s.setTimeScale)
+  const manualDrive = useAnimateStore((s) => s.manualDrive)
+  const setManualDrive = useAnimateStore((s) => s.setManualDrive)
 
   const [, force] = useState(0)
   const [copied, setCopied] = useState<string | null>(null)
@@ -313,6 +315,38 @@ function SimulateTab() {
           onChange={(e) => setModelOpacity(parseFloat(e.target.value))}
           className="w-full accent-white/70"
         />
+      </div>
+
+      <div className="flex flex-col gap-1 rounded border border-white/15 p-2">
+        <div className="flex justify-between text-[11px] text-white/60">
+          <span>Drive (manual)</span>
+          <span className="font-mono text-white/80">{manualDrive.toFixed(2)}</span>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={manualDrive}
+          onChange={(e) => setManualDrive(parseFloat(e.target.value))}
+          className="w-full accent-emerald-400/70"
+        />
+        <div className="flex gap-1">
+          {[0, 0.3, 0.6, 1].map((v) => (
+            <button
+              key={v}
+              onClick={() => setManualDrive(v)}
+              className={cn(
+                'flex-1 rounded border px-1 py-0.5 text-[10px]',
+                Math.abs(manualDrive - v) < 0.01
+                  ? 'border-white/40 text-white/90'
+                  : 'border-white/15 text-white/50 hover:bg-white/10'
+              )}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="flex flex-col gap-1 rounded border border-white/15 p-2">

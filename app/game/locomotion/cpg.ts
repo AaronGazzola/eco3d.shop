@@ -2,43 +2,62 @@ import { BodyGroup } from '@/app/admin/_lib/types'
 import { buildCascadeChain } from './chain'
 import { findFrontHip, findRearHip, findLegsForHip } from './legs'
 
-export const DEFAULT_NU_WALK = 1.0
-export const DEFAULT_W_AXIAL = 5.0
-export const DEFAULT_W_LIMB = 5.0
-export const DEFAULT_PHI_AXIAL = 0.2
-export const DEFAULT_A_GAIN = 10
-export const DEFAULT_AXIAL_AMP_MAX = 0.5
-export const DEFAULT_LIMB_AMP_MAX = 1.0
-export const DEFAULT_STRIDE_FORWARD = 0.5
-export const DEFAULT_STEER_SCALE = 0.5
-export const DEFAULT_CLOSE_RADIUS = 1.5
-export const DEFAULT_DRIVE_FALLOFF = 5.0
-export const DEFAULT_STEER_FALLOFF = Math.PI / 4
+export const A_GAIN = 5
+export const SAT_RATE = 500
+export const E_AXIAL = 1.1
+export const E_FORELIMB = 0.8
+export const E_HINDLIMB = 0.5
+export const D_TH_AXIAL = 3
+export const D_TH_LIMB = 1.27
+export const W_INTRA = 10
+export const PHI_INTRA = Math.PI
+export const W_ROSTRO = 5
+export const W_CAUDO = 1
+export const PHI_INTER = 0.066 * 2 * Math.PI
+export const W_LIMB_LATERAL = 10
+export const W_LIMB_ROSTRO = 3
+export const W_LIMB_CAUDO = 30
+export const PHI_LIMB = Math.PI
+export const W_LIMB_TO_AXIAL = 30
+export const PHI_LIMB_TO_AXIAL = 4
+export const W_AXIAL_TO_LIMB = 2.5
+export const PHI_AXIAL_TO_LIMB = -4
+export const AMP_REF = 1.0
+export const AXIAL_BEND_SCALE = 0.4
+export const BODY_SPEED = 4.0
+export const STRIDE_FORWARD = 1.2
 
-export interface AxialOscState {
-  phase: number
-  amplitude: number
-  amplitudeDot: number
-}
-
-export interface LimbOscState {
-  phase: number
-  amplitude: number
-  amplitudeDot: number
-}
-
-export interface CpgState {
-  axial: AxialOscState[]
-  limb: LimbOscState[]
-}
-
-export interface AxialDescriptor {
-  id: string
-  name: string
-  cascadeIndex: number
+function diagonalTrotPhase(isFront: boolean, side: LimbSide): number {
+  const frontLeftOrRearRight = (isFront && side === 'left') || (!isFront && side === 'right')
+  return frontLeftOrRearRight ? 0 : Math.PI
 }
 
 export type LimbSide = 'left' | 'right'
+
+export interface OscDescriptor {
+  excitability: number
+  dThreshold: number
+  initialPhase: number
+  side: LimbSide | null
+  isLimb: boolean
+}
+
+export interface OscState {
+  phase: number
+  amplitude: number
+}
+
+export interface CpgState {
+  osc: OscState[]
+}
+
+export interface AxialPair {
+  id: string
+  name: string
+  cascadeIndex: number
+  leftIndex: number
+  rightIndex: number
+}
 
 export interface LimbDescriptor {
   id: string
@@ -46,13 +65,10 @@ export interface LimbDescriptor {
   hipAxialIndex: number
   side: LimbSide
   isFront: boolean
-  initialPhase: number
+  oscIndex: number
 }
 
-export type CouplingKind = 'axial-axial' | 'limb-axial'
-
 export interface Coupling {
-  kind: CouplingKind
   fromIndex: number
   toIndex: number
   weight: number
@@ -60,19 +76,81 @@ export interface Coupling {
 }
 
 export interface CpgNetwork {
-  axial: AxialDescriptor[]
+  oscillators: OscDescriptor[]
+  axial: AxialPair[]
   limb: LimbDescriptor[]
-  axialAxialCouplings: Coupling[]
-  limbAxialCouplings: Coupling[]
+  couplings: Coupling[]
 }
 
 export function buildCpgNetwork(groups: BodyGroup[]): CpgNetwork {
   const chain = buildCascadeChain(groups)
-  const axial: AxialDescriptor[] = chain.map((g, i) => ({
-    id: g.id,
-    name: g.name,
-    cascadeIndex: i,
-  }))
+  const oscillators: OscDescriptor[] = []
+  const axial: AxialPair[] = []
+
+  for (let i = 0; i < chain.length; i++) {
+    const g = chain[i]
+    const leftIndex = oscillators.length
+    oscillators.push({
+      excitability: E_AXIAL,
+      dThreshold: D_TH_AXIAL,
+      initialPhase: 0,
+      side: 'left',
+      isLimb: false,
+    })
+    const rightIndex = oscillators.length
+    oscillators.push({
+      excitability: E_AXIAL,
+      dThreshold: D_TH_AXIAL,
+      initialPhase: Math.PI,
+      side: 'right',
+      isLimb: false,
+    })
+    axial.push({ id: g.id, name: g.name, cascadeIndex: i, leftIndex, rightIndex })
+  }
+
+  const couplings: Coupling[] = []
+  for (const p of axial) {
+    couplings.push({
+      fromIndex: p.rightIndex,
+      toIndex: p.leftIndex,
+      weight: W_INTRA,
+      phaseBias: PHI_INTRA,
+    })
+    couplings.push({
+      fromIndex: p.leftIndex,
+      toIndex: p.rightIndex,
+      weight: W_INTRA,
+      phaseBias: PHI_INTRA,
+    })
+  }
+  for (let i = 0; i < axial.length - 1; i++) {
+    const a = axial[i]
+    const b = axial[i + 1]
+    couplings.push({
+      fromIndex: a.leftIndex,
+      toIndex: b.leftIndex,
+      weight: W_ROSTRO,
+      phaseBias: PHI_INTER,
+    })
+    couplings.push({
+      fromIndex: b.leftIndex,
+      toIndex: a.leftIndex,
+      weight: W_CAUDO,
+      phaseBias: -PHI_INTER,
+    })
+    couplings.push({
+      fromIndex: a.rightIndex,
+      toIndex: b.rightIndex,
+      weight: W_ROSTRO,
+      phaseBias: PHI_INTER,
+    })
+    couplings.push({
+      fromIndex: b.rightIndex,
+      toIndex: a.rightIndex,
+      weight: W_CAUDO,
+      phaseBias: -PHI_INTER,
+    })
+  }
 
   const cascadeIdxFor = new Map<string, number>()
   chain.forEach((g, i) => cascadeIdxFor.set(g.id, i))
@@ -87,104 +165,86 @@ export function buildCpgNetwork(groups: BodyGroup[]): CpgNetwork {
     : { left: null, right: null }
 
   const limb: LimbDescriptor[] = []
+  const addLimb = (
+    leg: BodyGroup | null,
+    hip: BodyGroup,
+    hipNode: { x: number; z: number } | undefined,
+    side: LimbSide,
+    isFront: boolean
+  ) => {
+    if (!leg?.nodeFoot || !hipNode) return
+    const hipAxialIndex = cascadeIdxFor.get(hip.id)
+    if (hipAxialIndex === undefined) return
+    const oscIndex = oscillators.length
+    oscillators.push({
+      excitability: E_AXIAL,
+      dThreshold: D_TH_LIMB,
+      initialPhase: diagonalTrotPhase(isFront, side),
+      side,
+      isLimb: true,
+    })
+    limb.push({ id: leg.id, hipId: hip.id, hipAxialIndex, side, isFront, oscIndex })
+  }
+
   if (frontHip) {
-    const idx = cascadeIdxFor.get(frontHip.id)
-    if (idx !== undefined) {
-      if (frontLegs.left?.nodeFoot && frontHip.nodeHipLeft) {
-        limb.push({
-          id: frontLegs.left.id,
-          hipId: frontHip.id,
-          hipAxialIndex: idx,
-          side: 'left',
-          isFront: true,
-          initialPhase: 0,
-        })
-      }
-      if (frontLegs.right?.nodeFoot && frontHip.nodeHipRight) {
-        limb.push({
-          id: frontLegs.right.id,
-          hipId: frontHip.id,
-          hipAxialIndex: idx,
-          side: 'right',
-          isFront: true,
-          initialPhase: Math.PI,
-        })
-      }
-    }
+    addLimb(frontLegs.left, frontHip, frontHip.nodeHipLeft, 'left', true)
+    addLimb(frontLegs.right, frontHip, frontHip.nodeHipRight, 'right', true)
   }
   if (rearHip) {
-    const idx = cascadeIdxFor.get(rearHip.id)
-    if (idx !== undefined) {
-      if (rearLegs.left?.nodeFoot && rearHip.nodeHipLeft) {
-        limb.push({
-          id: rearLegs.left.id,
-          hipId: rearHip.id,
-          hipAxialIndex: idx,
-          side: 'left',
-          isFront: false,
-          initialPhase: Math.PI,
-        })
-      }
-      if (rearLegs.right?.nodeFoot && rearHip.nodeHipRight) {
-        limb.push({
-          id: rearLegs.right.id,
-          hipId: rearHip.id,
-          hipAxialIndex: idx,
-          side: 'right',
-          isFront: false,
-          initialPhase: 0,
-        })
-      }
-    }
+    addLimb(rearLegs.left, rearHip, rearHip.nodeHipLeft, 'left', false)
+    addLimb(rearLegs.right, rearHip, rearHip.nodeHipRight, 'right', false)
   }
 
-  const axialAxialCouplings: Coupling[] = []
-  for (let i = 0; i < axial.length - 1; i++) {
-    axialAxialCouplings.push({
-      kind: 'axial-axial',
-      fromIndex: i + 1,
-      toIndex: i,
-      weight: DEFAULT_W_AXIAL,
-      phaseBias: DEFAULT_PHI_AXIAL,
-    })
-    axialAxialCouplings.push({
-      kind: 'axial-axial',
-      fromIndex: i,
-      toIndex: i + 1,
-      weight: DEFAULT_W_AXIAL,
-      phaseBias: -DEFAULT_PHI_AXIAL,
-    })
+  const findLimb = (isFront: boolean, side: LimbSide) =>
+    limb.find((l) => l.isFront === isFront && l.side === side)
+  const pair = (
+    a: LimbDescriptor | undefined,
+    b: LimbDescriptor | undefined,
+    weightAtoB: number,
+    weightBtoA: number
+  ) => {
+    if (!a || !b) return
+    couplings.push({ fromIndex: a.oscIndex, toIndex: b.oscIndex, weight: weightAtoB, phaseBias: PHI_LIMB })
+    couplings.push({ fromIndex: b.oscIndex, toIndex: a.oscIndex, weight: weightBtoA, phaseBias: PHI_LIMB })
   }
+  const fl = findLimb(true, 'left')
+  const fr = findLimb(true, 'right')
+  const rl = findLimb(false, 'left')
+  const rr = findLimb(false, 'right')
+  pair(fl, fr, W_LIMB_LATERAL, W_LIMB_LATERAL)
+  pair(rl, rr, W_LIMB_LATERAL, W_LIMB_LATERAL)
+  pair(fl, rl, W_LIMB_ROSTRO, W_LIMB_CAUDO)
+  pair(fr, rr, W_LIMB_ROSTRO, W_LIMB_CAUDO)
 
-  const limbAxialCouplings: Coupling[] = []
-  for (let li = 0; li < limb.length; li++) {
-    limbAxialCouplings.push({
-      kind: 'limb-axial',
-      fromIndex: limb[li].hipAxialIndex,
-      toIndex: li,
-      weight: DEFAULT_W_LIMB,
-      phaseBias: 0,
+  for (const l of limb) {
+    const girdle = axial[l.hipAxialIndex]
+    if (!girdle) continue
+    const axialIndex = l.side === 'left' ? girdle.leftIndex : girdle.rightIndex
+    couplings.push({
+      fromIndex: l.oscIndex,
+      toIndex: axialIndex,
+      weight: W_LIMB_TO_AXIAL,
+      phaseBias: PHI_LIMB_TO_AXIAL,
+    })
+    couplings.push({
+      fromIndex: axialIndex,
+      toIndex: l.oscIndex,
+      weight: W_AXIAL_TO_LIMB,
+      phaseBias: PHI_AXIAL_TO_LIMB,
     })
   }
 
-  return { axial, limb, axialAxialCouplings, limbAxialCouplings }
+  return { oscillators, axial, limb, couplings }
 }
 
 export function initCpgState(network: CpgNetwork): CpgState {
   return {
-    axial: network.axial.map(() => ({ phase: 0, amplitude: 0, amplitudeDot: 0 })),
-    limb: network.limb.map((l) => ({
-      phase: l.initialPhase,
-      amplitude: 0,
-      amplitudeDot: 0,
-    })),
+    osc: network.oscillators.map((o) => ({ phase: o.initialPhase, amplitude: 0 })),
   }
 }
 
 export interface CpgTickResult {
-  axialYaws: number[]
-  limbPhases: number[]
-  intrinsicFrequency: number
+  outputs: number[]
 }
 
 function wrapPhase(p: number): number {
@@ -194,118 +254,50 @@ function wrapPhase(p: number): number {
   return x
 }
 
+function saturation(d: number, dThreshold: number): number {
+  return 1 / (1 + Math.exp(SAT_RATE * (d - dThreshold)))
+}
+
 export function tickCpg(
   state: CpgState,
   network: CpgNetwork,
   drive: number,
-  steer: number,
   dt: number
 ): CpgTickResult {
-  const driveClamped = Math.max(0, Math.min(1, drive))
-  void steer
+  const d = Math.max(0, drive)
+  const n = network.oscillators.length
 
-  const nuAxial = driveClamped * DEFAULT_NU_WALK
-  const nuLimb = driveClamped * DEFAULT_NU_WALK
-  const rAxialTarget = driveClamped * DEFAULT_AXIAL_AMP_MAX
-  const rLimbTarget = driveClamped * DEFAULT_LIMB_AMP_MAX
-
-  const axialDPhase = new Array<number>(state.axial.length)
-  for (let i = 0; i < state.axial.length; i++) {
-    axialDPhase[i] = 2 * Math.PI * nuAxial
+  const dPhase = new Array<number>(n)
+  for (let i = 0; i < n; i++) {
+    const nu = d * network.oscillators[i].excitability
+    dPhase[i] = 2 * Math.PI * nu
   }
-  for (const c of network.axialAxialCouplings) {
-    const from = state.axial[c.fromIndex]
-    const to = state.axial[c.toIndex]
-    axialDPhase[c.toIndex] +=
+  for (const c of network.couplings) {
+    const from = state.osc[c.fromIndex]
+    const to = state.osc[c.toIndex]
+    dPhase[c.toIndex] +=
       c.weight * from.amplitude * Math.sin(from.phase - to.phase - c.phaseBias)
   }
 
-  const limbDPhase = new Array<number>(state.limb.length)
-  for (let i = 0; i < state.limb.length; i++) {
-    limbDPhase[i] = 2 * Math.PI * nuLimb
-  }
-  for (const c of network.limbAxialCouplings) {
-    const from = state.axial[c.fromIndex]
-    const to = state.limb[c.toIndex]
-    limbDPhase[c.toIndex] +=
-      c.weight * from.amplitude * Math.sin(from.phase - to.phase - c.phaseBias)
-  }
-
-  const a = DEFAULT_A_GAIN
-  const a4 = a / 4
-
-  for (let i = 0; i < state.axial.length; i++) {
-    const s = state.axial[i]
-    const ddr = a * (a4 * (rAxialTarget - s.amplitude) - s.amplitudeDot)
-    s.amplitudeDot += ddr * dt
-    s.amplitude += s.amplitudeDot * dt
-    if (s.amplitude < 0) {
-      s.amplitude = 0
-      if (s.amplitudeDot < 0) s.amplitudeDot = 0
-    }
-    s.phase = wrapPhase(s.phase + axialDPhase[i] * dt)
+  const outputs = new Array<number>(n)
+  for (let i = 0; i < n; i++) {
+    const osc = network.oscillators[i]
+    const s = state.osc[i]
+    const R = d * saturation(d, osc.dThreshold)
+    s.amplitude += A_GAIN * (R - s.amplitude) * dt
+    if (s.amplitude < 0) s.amplitude = 0
+    s.phase = wrapPhase(s.phase + dPhase[i] * dt)
+    outputs[i] = s.amplitude * (1 + Math.cos(s.phase))
   }
 
-  for (let i = 0; i < state.limb.length; i++) {
-    const s = state.limb[i]
-    const ddr = a * (a4 * (rLimbTarget - s.amplitude) - s.amplitudeDot)
-    s.amplitudeDot += ddr * dt
-    s.amplitude += s.amplitudeDot * dt
-    if (s.amplitude < 0) {
-      s.amplitude = 0
-      if (s.amplitudeDot < 0) s.amplitudeDot = 0
-    }
-    s.phase = wrapPhase(s.phase + limbDPhase[i] * dt)
-  }
-
-  const axialYaws = new Array<number>(state.axial.length)
-  for (let i = 0; i < state.axial.length; i++) {
-    axialYaws[i] = state.axial[i].amplitude * Math.cos(state.axial[i].phase)
-  }
-  const limbPhases = new Array<number>(state.limb.length)
-  for (let i = 0; i < state.limb.length; i++) {
-    limbPhases[i] = state.limb[i].phase
-  }
-
-  return { axialYaws, limbPhases, intrinsicFrequency: nuAxial }
+  return { outputs }
 }
 
-export function axialYawWithSteer(
-  yaw: number,
-  steer: number,
-  capYaw: number,
-  steerScale: number
-): number {
-  const biased = yaw + steer * steerScale
-  if (biased > capYaw) return capYaw
-  if (biased < -capYaw) return -capYaw
-  return biased
-}
-
-export interface DriveSteer {
-  drive: number
-  steer: number
-}
-
-export function computeDriveSteer(
-  attractor: { x: number; y: number; z: number } | null,
-  headXz: { x: number; z: number },
-  headForwardXz: { x: number; z: number },
-  closeRadius: number = DEFAULT_CLOSE_RADIUS,
-  driveFalloff: number = DEFAULT_DRIVE_FALLOFF,
-  steerFalloff: number = DEFAULT_STEER_FALLOFF
-): DriveSteer {
-  if (!attractor) return { drive: 0, steer: 0 }
-  const dx = attractor.x - headXz.x
-  const dz = attractor.z - headXz.z
-  const distance = Math.sqrt(dx * dx + dz * dz)
-  if (distance < 1e-6) return { drive: 0, steer: 0 }
-  const drive = Math.max(0, Math.min(1, (distance - closeRadius) / driveFalloff))
-  const ndx = dx / distance
-  const ndz = dz / distance
-  const dot = headForwardXz.x * ndx + headForwardXz.z * ndz
-  const cross = headForwardXz.x * ndz - headForwardXz.z * ndx
-  const signedAngle = Math.atan2(cross, dot)
-  const steer = Math.max(-1, Math.min(1, signedAngle / steerFalloff))
-  return { drive, steer }
+export function axialBend(result: CpgTickResult, pair: AxialPair, cap: number): number {
+  const xL = result.outputs[pair.leftIndex]
+  const xR = result.outputs[pair.rightIndex]
+  const bend = (AXIAL_BEND_SCALE * cap * (xL - xR)) / (2 * AMP_REF)
+  if (bend > cap) return cap
+  if (bend < -cap) return -cap
+  return bend
 }

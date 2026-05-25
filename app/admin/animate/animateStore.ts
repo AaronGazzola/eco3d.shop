@@ -25,9 +25,11 @@ interface AnimateStore {
   legPairMirroredOverrides: Record<string, boolean>
   cameraPreset: CameraPreset | null
   modelOpacity: number
+  manualDrive: number
   playback: PlaybackState
   solver: SolverFlags
 
+  setManualDrive: (d: number) => void
   setAttractor: (a: { x: number; y: number; z: number } | null) => void
   setAnimateTab: (tab: AnimateTab) => void
   setCalibratingGroup: (id: string | null) => void
@@ -56,8 +58,11 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   legPairMirroredOverrides: {},
   cameraPreset: null,
   modelOpacity: 1,
+  manualDrive: 1,
   playback: { active: false, playing: false, frameIndex: 0, framesPerStep: 1 },
   solver: { ...DEFAULT_SOLVER },
+
+  setManualDrive: (d) => set({ manualDrive: Math.max(0, Math.min(1, d)) }),
 
   setAttractor: (a) => set({ attractor: a }),
 

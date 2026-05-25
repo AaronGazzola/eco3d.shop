@@ -6,21 +6,21 @@ import * as THREE from 'three'
 import { BodyGroup } from '@/app/admin/_lib/types'
 import { useAnimateStore } from '@/app/admin/animate/animateStore'
 import { buildSkeletonTree, flattenSkeleton, effectiveAngleCaps } from './chain'
-import { findFrontHip, findRearHip, findLegsForHip } from './legs'
+import { findFrontHip, findRearHip } from './legs'
 import {
   buildCpgNetwork,
   initCpgState,
   tickCpg,
-  axialYawWithSteer,
-  computeDriveSteer,
+  axialBend,
+  E_AXIAL,
+  BODY_SPEED,
+  STRIDE_FORWARD,
   CpgNetwork,
   CpgState,
-  DEFAULT_STEER_SCALE,
-  DEFAULT_STRIDE_FORWARD,
+  AxialPair,
 } from './cpg'
 import {
   FootState,
-  LIFT_HEIGHT,
   makeFootState,
   updateFootFromPhase,
   footWorldX,
@@ -146,39 +146,6 @@ function pickMarker(
   return ref?.current ?? null
 }
 
-interface HeadFrame {
-  worldX: number
-  worldZ: number
-  forwardX: number
-  forwardZ: number
-}
-
-function readHeadFrame(
-  headGroup: BodyGroup,
-  headPivot: THREE.Group,
-  scratch: Scratch
-): HeadFrame {
-  headPivot.updateWorldMatrix(true, false)
-  scratch.wp.set(0, 0, 0).applyMatrix4(headPivot.matrixWorld)
-  const worldX = scratch.wp.x
-  const worldZ = scratch.wp.z
-  let forwardX = 0
-  let forwardZ = 1
-  const nf = headGroup.nodeFront
-  const nb = headGroup.nodeBack
-  if (nf && nb) {
-    scratch.v2.set(nf.x - nb.x, 0, nf.z - nb.z)
-    headPivot.getWorldQuaternion(scratch.qWorld)
-    scratch.v2.applyQuaternion(scratch.qWorld)
-    const mag = Math.sqrt(scratch.v2.x * scratch.v2.x + scratch.v2.z * scratch.v2.z)
-    if (mag > 1e-6) {
-      forwardX = scratch.v2.x / mag
-      forwardZ = scratch.v2.z / mag
-    }
-  }
-  return { worldX, worldZ, forwardX, forwardZ }
-}
-
 function ensureFootState(
   footStates: Map<string, FootState>,
   legId: string,
@@ -201,12 +168,14 @@ export function useLocomotion(
 ) {
   const targetQuat = useRef(new THREE.Quaternion())
   const networkRef = useRef<CpgNetwork>({
+    oscillators: [],
     axial: [],
     limb: [],
-    axialAxialCouplings: [],
-    limbAxialCouplings: [],
+    couplings: [],
   })
-  const cpgStateRef = useRef<CpgState>({ axial: [], limb: [] })
+  const cpgStateRef = useRef<CpgState>({ osc: [] })
+  const bodyOffsetRef = useRef({ x: 0, z: 0 })
+  const headingRef = useRef(0)
   const footStatesRef = useRef<Map<string, FootState>>(new Map())
   const playbackTimingRef = useRef<{
     wasPlaying: boolean
@@ -233,11 +202,6 @@ export function useLocomotion(
 
   const network = useMemo(() => buildCpgNetwork(groups), [groups])
   const skeletonGroups = useMemo(() => flattenSkeleton(buildSkeletonTree(groups)), [groups])
-  const cascadeIdxFor = useMemo(() => {
-    const m = new Map<string, number>()
-    network.axial.forEach((a, i) => m.set(a.id, i))
-    return m
-  }, [network])
   const cascadeIds = useMemo(() => new Set(network.axial.map((a) => a.id)), [network])
   const allLegs = useMemo(
     () => groups.filter((g) => g.type === 'leg-left' || g.type === 'leg-right'),
@@ -250,19 +214,19 @@ export function useLocomotion(
   }, [groups])
   const frontHip = useMemo(() => findFrontHip(groups), [groups])
   const rearHip = useMemo(() => findRearHip(groups), [groups])
-  const frontLegs = useMemo(
-    () => (frontHip ? findLegsForHip(groups, frontHip.id) : { left: null, right: null }),
-    [groups, frontHip]
-  )
-  const rearLegs = useMemo(
-    () => (rearHip ? findLegsForHip(groups, rearHip.id) : { left: null, right: null }),
-    [groups, rearHip]
-  )
+  const axialPairById = useMemo(() => {
+    const m = new Map<string, AxialPair>()
+    for (const p of network.axial) m.set(p.id, p)
+    return m
+  }, [network])
+  const rootId = useMemo(() => skeletonGroups[0]?.id ?? null, [skeletonGroups])
 
   useEffect(() => {
     networkRef.current = network
     cpgStateRef.current = initCpgState(network)
     footStatesRef.current = new Map()
+    bodyOffsetRef.current = { x: 0, z: 0 }
+    headingRef.current = 0
   }, [network])
 
   useFrame((_, dt) => {
@@ -321,6 +285,7 @@ export function useLocomotion(
         const q = pivotQuats.get(sg.id)
         if (q) pivot.quaternion.set(q[0], q[1], q[2], q[3])
         else pivot.quaternion.identity()
+        if (sg.id === rootId) pivot.position.set(0, 0, 0)
       }
 
       for (const leg of allLegs) {
@@ -378,50 +343,51 @@ export function useLocomotion(
     }
 
     const effectiveDt = dt * storeState.solver.timeScale
-    const attractor = calibrating ? null : storeState.attractor
-
-    const headGroup = groups.find((g) => g.id === network.axial[0]?.id)
-    const headPivot = headGroup ? pivots.get(headGroup.id) : null
-    let drive = 0
-    let steer = 0
-    if (!calibrating && headGroup && headPivot) {
-      const headFrame = readHeadFrame(headGroup, headPivot, scratch)
-      const ds = computeDriveSteer(
-        attractor,
-        { x: headFrame.worldX, z: headFrame.worldZ },
-        { x: headFrame.forwardX, z: headFrame.forwardZ }
-      )
-      drive = ds.drive
-      steer = ds.steer
-    }
-
-    const tick = tickCpg(cpgStateRef.current, network, drive, steer, effectiveDt)
-
     const alpha = 1 - Math.exp(-SLERP_RATE * effectiveDt)
     const nowMs = performance.now()
     const pivotSnapshots: PivotSnapshot[] = []
+
+    const drive = calibrating ? 0 : storeState.manualDrive
+    const tick = tickCpg(cpgStateRef.current, network, drive, effectiveDt)
+    const appliedBend = new Map<string, number>()
+
+    const heading = headingRef.current
+    const forwardX = -Math.cos(heading)
+    const forwardZ = Math.sin(heading)
+    if (calibrating) {
+      bodyOffsetRef.current.x = 0
+      bodyOffsetRef.current.z = 0
+    } else {
+      bodyOffsetRef.current.x += drive * BODY_SPEED * effectiveDt * forwardX
+      bodyOffsetRef.current.z += drive * BODY_SPEED * effectiveDt * forwardZ
+    }
+    const rootPivot = rootId ? pivots.get(rootId) : null
+    if (rootPivot) rootPivot.position.set(bodyOffsetRef.current.x, 0, bodyOffsetRef.current.z)
 
     for (const sg of skeletonGroups) {
       const pivot = pivots.get(sg.id)
       if (!pivot) continue
 
       let requestedYaw = 0
+      let directSet = false
       if (calibrating && sg.id === calibratingGroupId) {
         scratch.qYaw.setFromAxisAngle(Y_AXIS, calibratingYaw)
         scratch.qPitch.setFromAxisAngle(Z_AXIS, calibratingPitch)
         targetQuat.current.copy(scratch.qYaw).multiply(scratch.qPitch)
         requestedYaw = calibratingYaw
-      } else if (!calibrating && cascadeIds.has(sg.id)) {
-        const i = cascadeIdxFor.get(sg.id)!
-        const capYaw = effectiveAngleCaps(sg).yaw
-        const finalYaw = axialYawWithSteer(tick.axialYaws[i], steer, capYaw, DEFAULT_STEER_SCALE)
-        targetQuat.current.setFromAxisAngle(Y_AXIS, finalYaw)
-        requestedYaw = finalYaw
+      } else if (!calibrating && axialPairById.has(sg.id)) {
+        const pair = axialPairById.get(sg.id)!
+        const bend = axialBend(tick, pair, effectiveAngleCaps(sg).yaw)
+        targetQuat.current.setFromAxisAngle(Y_AXIS, bend)
+        requestedYaw = bend
+        appliedBend.set(sg.id, bend)
+        directSet = true
       } else {
         targetQuat.current.identity()
       }
 
-      pivot.quaternion.slerp(targetQuat.current, alpha)
+      if (directSet) pivot.quaternion.copy(targetQuat.current)
+      else pivot.quaternion.slerp(targetQuat.current, alpha)
 
       if (cascadeIds.has(sg.id)) {
         const q = pivot.quaternion
@@ -470,21 +436,10 @@ export function useLocomotion(
       }
     }
 
-    let bodyForwardX = 0
-    let bodyForwardZ = 1
-    if (!calibrating && headGroup && headPivot) {
-      const hf = readHeadFrame(headGroup, headPivot, scratch)
-      bodyForwardX = hf.forwardX
-      bodyForwardZ = hf.forwardZ
-    }
-    const strideForward = drive * DEFAULT_STRIDE_FORWARD
-
     const limbSnapshots: LimbOscSnapshot[] = []
     if (!calibrating) {
-      for (let li = 0; li < network.limb.length; li++) {
-        const limbDesc = network.limb[li]
-        const limbPhase = tick.limbPhases[li]
-        const limbState = cpgStateRef.current.limb[li]
+      for (const limbDesc of network.limb) {
+        const limbState = cpgStateRef.current.osc[limbDesc.oscIndex]
         const hipGroup = limbDesc.isFront ? frontHip : rearHip
         if (!hipGroup?.nodeBack) continue
         const hipPivot = pivots.get(hipGroup.id)
@@ -518,16 +473,16 @@ export function useLocomotion(
         )
 
         updateFootFromPhase(foot, {
-          limbPhase,
+          limbPhase: limbState.phase,
           hipSocketWorldX,
           hipSocketWorldZ,
           hipWorldYaw,
           restOffsetX,
           restOffsetZ,
           restY,
-          bodyForwardX,
-          bodyForwardZ,
-          strideForward,
+          bodyForwardX: forwardX,
+          bodyForwardZ: forwardZ,
+          strideForward: drive * STRIDE_FORWARD,
         })
 
         applyLegBone(
@@ -563,21 +518,25 @@ export function useLocomotion(
       }
     }
 
-    const axialSnapshots: AxialOscSnapshot[] = network.axial.map((a, i) => ({
-      id: a.id,
-      name: a.name,
-      phase: cpgStateRef.current.axial[i].phase,
-      amplitude: cpgStateRef.current.axial[i].amplitude,
-      intrinsicFrequency: tick.intrinsicFrequency,
-      outputYaw: tick.axialYaws[i],
-    }))
+    const nuAxial = drive * E_AXIAL
+    const axialSnapshots: AxialOscSnapshot[] = network.axial.map((a) => {
+      const left = cpgStateRef.current.osc[a.leftIndex]
+      return {
+        id: a.id,
+        name: a.name,
+        phase: left.phase,
+        amplitude: left.amplitude,
+        intrinsicFrequency: nuAxial,
+        outputYaw: appliedBend.get(a.id) ?? 0,
+      }
+    })
 
     const snapshot: FrameSnapshot = {
       t: nowMs,
-      attractor: attractor ? { x: attractor.x, y: attractor.y, z: attractor.z } : null,
+      attractor: null,
       modelRotation: [modelRotation[0], modelRotation[1], modelRotation[2]],
       drive,
-      steer,
+      steer: 0,
       chain: network.axial.map((a) => {
         const g = groupById.get(a.id)
         return { id: a.id, name: a.name, type: g?.type ?? 'spine' }
@@ -587,9 +546,5 @@ export function useLocomotion(
       pivots: pivotSnapshots,
     }
     recordFrame(snapshot)
-
-    void frontLegs
-    void rearLegs
-    void LIFT_HEIGHT
   })
 }
