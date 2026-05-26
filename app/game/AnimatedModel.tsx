@@ -5,7 +5,6 @@ import * as THREE from 'three'
 import { ModelConfigRow, SegmentData, BodyGroup } from '../admin/_lib/types'
 import { useLocomotion } from './locomotion/useLocomotion'
 import { buildSkeletonTree, flattenSkeleton, SkeletonNode } from './locomotion/chain'
-import { findFrontHip, findRearHip, findLegsForHip } from './locomotion/legs'
 
 function mergeGroupPositions(segments: SegmentData[]): Float32Array {
   let totalLen = 0
@@ -225,17 +224,6 @@ function ChainNode({
   )
 }
 
-function FootMarker({ markerRef, color }: { markerRef: RefObject<THREE.Group | null>; color: string }) {
-  return (
-    <group ref={markerRef}>
-      <mesh>
-        <sphereGeometry args={[0.18, 16, 12]} />
-        <meshBasicMaterial color={color} depthTest={false} transparent opacity={0.9} />
-      </mesh>
-    </group>
-  )
-}
-
 export function AnimatedModel({
   modelConfig,
   segments,
@@ -249,37 +237,12 @@ export function AnimatedModel({
 }) {
   const segmentMap = useMemo(() => new Map(segments.map((s) => [s.id, s])), [segments])
   const pivotsRef = useRef<Map<string, THREE.Group>>(new Map())
-  const frontLeftFootMarkerRef = useRef<THREE.Group | null>(null)
-  const frontRightFootMarkerRef = useRef<THREE.Group | null>(null)
-  const rearLeftFootMarkerRef = useRef<THREE.Group | null>(null)
-  const rearRightFootMarkerRef = useRef<THREE.Group | null>(null)
 
   const skeletonTree = useMemo(() => buildSkeletonTree(modelConfig.groups), [modelConfig.groups])
   const skeletonGroups = useMemo(() => flattenSkeleton(skeletonTree), [skeletonTree])
   const chainIds = useMemo(() => new Set(skeletonGroups.map((g) => g.id)), [skeletonGroups])
 
-  const hasFrontLegs = useMemo(() => {
-    const frontHip = findFrontHip(modelConfig.groups)
-    if (!frontHip) return false
-    const { left, right } = findLegsForHip(modelConfig.groups, frontHip.id)
-    return !!(left?.nodeFoot && right?.nodeFoot)
-  }, [modelConfig.groups])
-
-  const hasRearLegs = useMemo(() => {
-    const rearHip = findRearHip(modelConfig.groups)
-    if (!rearHip) return false
-    const { left, right } = findLegsForHip(modelConfig.groups, rearHip.id)
-    return !!(left?.nodeFoot && right?.nodeFoot)
-  }, [modelConfig.groups])
-
-  useLocomotion(pivotsRef, modelConfig.groups, modelConfig.model_rotation, {
-    front: hasFrontLegs
-      ? { left: frontLeftFootMarkerRef, right: frontRightFootMarkerRef }
-      : null,
-    rear: hasRearLegs
-      ? { left: rearLeftFootMarkerRef, right: rearRightFootMarkerRef }
-      : null,
-  })
+  useLocomotion(pivotsRef, modelConfig.groups)
 
   return (
     <group>
@@ -314,18 +277,6 @@ export function AnimatedModel({
           pivotsRef={pivotsRef}
           opacity={opacity}
         />
-      )}
-      {hasFrontLegs && (
-        <>
-          <FootMarker markerRef={frontLeftFootMarkerRef} color="#4ade80" />
-          <FootMarker markerRef={frontRightFootMarkerRef} color="#a78bfa" />
-        </>
-      )}
-      {hasRearLegs && (
-        <>
-          <FootMarker markerRef={rearLeftFootMarkerRef} color="#facc15" />
-          <FootMarker markerRef={rearRightFootMarkerRef} color="#38bdf8" />
-        </>
       )}
     </group>
   )

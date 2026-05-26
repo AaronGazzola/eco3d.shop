@@ -1,110 +1,123 @@
 # Locomotion (project design)
 
-This doc describes **how we apply the CPG model to our rig** — the rules, the skeleton
-foundation, and the decisions specific to this project.
+This doc describes **how we apply the paper's locomotion model to our rig** — the goal,
+the foundation we keep, and how the paper's system decomposes onto our node skeleton.
 
-It deliberately contains **no equations and no parameter values**. Those live in exactly
-one place:
+**Goal:** a **faithful recreation of the Knüsel et al. (2020) salamander system**, applied
+to our model. Their locomotion (swimming, terrestrial stepping, underwater stepping,
+turning) is the *emergent output* of a CPG controller driving virtual muscles inside a
+physics simulation. We recreate that whole pipeline — controller → muscles → body
+dynamics → environment forces → motion — so that movement **emerges** the way it does in
+the paper, rather than being hand-authored.
 
-> **`documentation/reference/locomotion-reference.md`** — the verified extraction of the
-> source paper (Knüsel et al. 2020). It is the single source of truth for the animation
-> math. If anything here ever appears to restate a formula or a number, the reference
-> wins.
+> **Math + parameters live in one place:**
+> `documentation/reference/locomotion-reference.md` — the verified extraction of the
+> source paper. It is the single source of truth. If anything here restates a formula or
+> number, the reference wins.
 
----
-
-## 1. Rules
-
-These hold for every rig, every pose, every frame. Code that violates one is broken.
-
-1. **Bone lengths are constant.** Each body group is a rigid bone — its mesh never stretches.
-2. **Hips are welded to the spine.** `nodeHipLeft` / `nodeHipRight` are fixed offsets in their owning spine group's local frame.
-3. **One BodyGroup = one rigid bone.** To bend mid-piece, split into two groups in the studio — never at runtime.
-4. **Nodes are the only authoring surface.** Animation moves studio-placed nodes only; it does not invent attach points or bypass the skeleton.
-5. **Studio angle caps are sacred.** Every joint angle is clamped to its `angleCap` before being applied. Code may clamp tighter for a single frame; it never raises, overrides, or substitutes caps.
-6. **Feet stay grounded during stance and lift smoothly during swing.** A foot never teleports. Its world position changes only via a swing arc between stance phases.
+> **Current build state + the staged plan:** see the dated handover in
+> `documentation/TEMP-handover-*.md`. Phases are tracked as OpenSpec changes.
 
 ---
 
-## 2. The model in one paragraph
+## 1. Foundation we keep (the fixed substrate)
 
-The body is driven by a **central pattern generator** — a network of coupled phase
-oscillators. A single scalar `drive` sets the speed; the oscillators produce a travelling
-body wave and a leg-stepping rhythm that together make the creature walk. Turning comes
-from biasing the drive across the body. Standing still is `drive = 0`. There is no solver,
-no strain calculation, no inverse-kinematics goal-chasing — the pose each frame is a pure
-function of the oscillator state. **All equations, couplings, and parameter values:** see
-the reference doc.
+These hold for every rig, every frame. They are the *only* things we carry over from the
+existing app; everything about locomotion itself comes from the paper.
 
----
+1. **The node skeleton is the authoring surface.** Each `BodyGroup` carries studio-placed
+   node offsets (`nodeFront/Back`, `nodeHipLeft/Right`, `nodeFoot`) and `angleCaps`. Nodes
+   are the only thing animation moves.
+2. **Bone lengths are constant.** Each body group is one rigid bone; its mesh never
+   stretches. To bend mid-piece, split into two groups in the studio — never at runtime.
+3. **Hips are welded to the spine.** `nodeHipLeft/Right` are fixed offsets in their owning
+   spine group's local frame.
+4. **3D meshes are passengers.** STL segments are assigned to groups and rendered
+   positioned relative to the node skeleton. Animation never touches meshes directly.
+5. **Angle caps are sacred.** Every joint angle written to a pivot is clamped to its
+   `angleCaps`. Code may clamp tighter for a frame; it never raises, overrides, or
+   substitutes caps. (In a torque-driven body these become joint-limit stops.)
+6. **Limbs stay attached** to their hips.
+7. **Adapts to any rig.** Variable spine counts and segment lengths; same
+   head→spine→tail topology with legs on hip sockets. Physical body parameters (segment
+   length, mass, inertia, joint axes) are **derived from the rig geometry**, never
+   hard-coded per model.
 
-## 3. The skeleton foundation (what we keep)
+Preserved app surfaces: node authoring (`app/admin/group/*`), the **Calibrate tab**,
+`LimitSlider`, angle-cap authoring, `sharedStore`, save/load config, mesh loading, and the
+pivot/render scaffolding. Only the **Simulate tab** is being replaced.
 
-This is unchanged from the existing studio rig and is the base every step builds on:
-
-- The creature is a **node skeleton positioned relative to the 3D model**. Each
-  `BodyGroup` (head / spine / tail / leg) is a rigid bone carrying studio-placed node
-  offsets (`nodeFront`, `nodeBack`, `nodeHipLeft/Right`, `nodeFoot`) and `angleCaps`.
-- The structure is fixed but the **counts and lengths vary**: any number of spine
-  segments, any bone lengths, the same overall head→spine→tail topology with legs on
-  hip sockets. The animation code reads this topology; it is never hand-wired per rig.
-- `buildCascadeChain` / `buildSkeletonTree` define the ordered chain (head → spines →
-  tail) the oscillators attach to.
-- Our rig is **kinematic**: we set joint angles directly. There is no physics engine.
-
----
-
-## 4. How the paper maps to our rig (settled decisions)
-
-| Studio / rig concept | CPG role |
-|---|---|
-| Each spine group in the chain | a **left + right** axial oscillator pair (the paper's double chain) |
-| Hip socket (`nodeHipLeft/Right` + matching leg group) | one limb oscillator per leg |
-| Group adjacency in the chain | axial neighbour coupling |
-| Hip socket's parent segment | limb-to-girdle coupling target |
-| `angleCap.yaw` | clamp on the final joint bend angle |
-| `angleCap.yaw` / `angleCap.yawBack` on leg groups | leg rotation clamp (existing rig code) |
-| `nodeFoot` rest offset | foot home position for stride placement |
-
-**The one substitution from the paper.** The paper turns oscillator output into muscle
-torque and runs a physics simulation. We are kinematic, so instead we map the segment's
-left/right oscillator outputs directly to a **joint bend angle** (the left−right
-difference), then clamp to the studio cap. This is the only place we depart from the
-paper, and it is documented in the reference doc §4. Everything upstream — the oscillator
-network itself — is built 1:1 from the paper.
-
-`drive` is derived from the attractor (how far away it is). Turning is produced by
-**differential drive** across the body, the paper's own mechanism (reference §6).
-
-Adding a spine segment in the studio adds an oscillator pair. Removing a leg removes a
-limb oscillator. Changing bone lengths changes the rendered geometry but not the
-oscillator math. The same code path serves a snake (no limbs), a lizard, or a centipede.
+> **Note on the old "rule 6" (feet grounded during stance / lift during swing):** that was
+> a *kinematic stepping* rule. In the paper, limbs are 1-DOF sweeps and foot–ground contact
+> *emerges from the physics*. So in this direction, foot contact comes from the contact
+> model, not a scripted plant/lift. Reinterpretation to confirm before the limb phase.
 
 ---
 
-## 5. Open decisions (to settle during the incremental build)
+## 2. The paper's system, as a pipeline
 
-These are **not yet decided** and must not be assumed. Each is resolved and visually
-verified in its own build step:
+Their locomotion is produced by this chain (reference §2–§7):
 
-- **Attractor → drive curve** — the exact falloff/close-radius mapping.
-- **Body reference frame** — drive/steer must be computed from a **stable body frame**
-  (e.g. the root/tail segment), *not* the head's live forward vector. (Using the head
-  caused a feedback loop in the previous attempt.)
-- **Steering** — how the attractor's bearing maps onto a left/right (or front/back)
-  drive split.
-- **Foot world placement** — how a limb oscillator's phase becomes a planted-then-
-  swinging foot position in the scene (the paper got this from physics; we place it
-  kinematically).
-- **Gait phase offsets** — the initial limb phases for our specific leg set; whether the
-  tail participates in the body wave.
+1. **Descending drive `dᵢ`** — scalar tonic input per region (Seg 1–3, Seg 4–25, limbs).
+   Sets speed/gait; asymmetry (left/right or rostral/caudal) turns.
+2. **CPG network** — coupled phase oscillators: a **left + right oscillator per axial
+   segment** (double chain) + **one per limb**. Phase + first-order amplitude equations,
+   output `x = r(1+cos θ)`, Table 2 couplings, drive→(frequency, amplitude) saturation.
+3. **Actuation** — axial: the segment's two outputs feed an **Ekeberg virtual-muscle pair**
+   → a **joint torque** (uses the physical joint angle/velocity). Limbs: phase → a
+   **piecewise-linear transfer function** → desired 1-DOF position (77% stance duty).
+4. **Mechanical body** — a chain of rigid segments (mass, inertia, length), 1 rotational
+   DOF per joint, passive damping. The body is **free in the world**; its pose is
+   integrated, not assigned.
+5. **Environment forces** — **hydrodynamics** (reactive + resistive) for water; **ground
+   contact + friction** for land. These turn body-bending into net translation.
+6. **Integration** advances all of the above; **locomotion emerges.**
+7. **(Optional) proprioceptive feedback** — joint angles → stretch signals back into the CPG.
+
+The CPG is the "brain"; everything from step 3 down is the body + world. Movement is never
+prescribed — it is the integrated result of forces.
 
 ---
 
-## 6. Sources
+## 3. Decomposition onto our rig (the layers to build)
 
-- **`documentation/reference/locomotion-reference.md`** — verified model; single source
-  of truth for all math and parameters.
-- **`documentation/reference/knusel-2020-salamander-cpg.pdf`** — the paper itself
-  (Knüsel et al. 2020, *Frontiers in Neurorobotics* 14:604426). Open access.
-</content>
+- **L0 — Foundation (keep):** node skeleton, caps, mesh-follows-nodes, calibrate, config.
+- **L1 — Physical body from the rig:** derive a multibody spec — segment lengths from node
+  spacing, mass/inertia from each segment's mesh, joint axes at the nodes (axial = 1-DOF
+  yaw; limb = 1-DOF at the hip), joint limits = the caps. (This is what makes it adapt.)
+- **L2 — CPG controller:** the oscillator network (reference §2–§3, §7).
+- **L3 — Actuation:** Ekeberg muscles → axial torques; limb transfer function → limb
+  targets (reference §4, §5).
+- **L4 — Dynamics solver:** integrate equations of motion under actuation + joint limits +
+  damping → joint motion + the body's free-frame motion.
+- **L5 — Environment forces:** hydrodynamic (swim) / contact + friction (walk) (reference
+  §5; the paper's Webots model uses reactive + resistive hydrodynamics).
+- **L6 — Render mapping:** sim joint angles → node-skeleton pivots (clamped to caps); body
+  world-pose → root frame; meshes and limbs follow.
+- **L7 — (later) feedback:** close the CPG loop (reference §9).
+- **L8 — UI:** Simulate-tab controls for this model (drive, behavior/environment, readouts).
+
+---
+
+## 4. Key architecture decisions (to finalize per the handover)
+
+- **Dimensionality** — planar (2D top-down) vs full 3D. *Lean: planar first* (captures the
+  in-plane physics that produces locomotion; far more tractable in-browser).
+- **Solver** — custom reduced-order vs a physics library. *Lean: custom* (implements the
+  paper's exact force laws — Ekeberg muscles, resistive-force hydrodynamics, friction).
+- **Environment first** — water vs land. *Lean: swimming first* (cleanest "wiggle → thrust";
+  limbs fold, no leg/gait coordination yet).
+
+> "Faithful" means **the same system/equations producing the same kind of emergent
+> locomotion, applied to our rig** — not a pixel-match of their specific salamander robot
+> (our model has different proportions, segment counts, and caps).
+
+---
+
+## 5. Sources
+
+- **`documentation/reference/locomotion-reference.md`** — verified model; single source of
+  truth for all math and parameters.
+- **`documentation/reference/knusel-2020-salamander-cpg.pdf`** — the paper (Knüsel et al.
+  2020, *Frontiers in Neurorobotics* 14:604426). Open access.
+- **`documentation/TEMP-handover-*.md`** — current state + the staged plan/process.
