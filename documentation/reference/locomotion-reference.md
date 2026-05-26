@@ -119,12 +119,33 @@ against PDF screenshot):
 ```
 Tᵢ = α·(Mᵢˡ − Mᵢʳ)  −  β·(Mᵢˡ + Mᵢʳ + γ)·φᵢ  −  δ·φ̇ᵢ
 ```
-- `α` active gain, `β` stiffness gain, `γ` tonic stiffness, `δ` damping (Table 5).
+- `α` active gain, `β` stiffness gain, `γ` tonic stiffness, `δ` damping (Table 5, below).
 - `φᵢ` is the **physical joint angle**, `φ̇ᵢ` its velocity (not the oscillator phase θ).
 - The active term is the left−right activation difference; the stiffness term pulls the
   joint toward 0 with a stiffness that grows with total activation; the last term damps.
 - A 10 ms delay sits between output `xᵢ` and activation `Mᵢ`.
 - That torque then drives a physics simulation (ODE / Webots) to produce the joint angle.
+
+**Muscle constants (Table 5, PDF p.8).** The paper reports both a robot column and a
+simulation column. We recreate the **simulation**, so the simulation values are ours:
+
+| Name | Symbol | Value (simulation) | Notes |
+|---|---|---|---|
+| Muscle active gain | `α` | **0.4** N·m | Robot/sim base. "A value of 0.4 proved optimal" (Results). |
+| Muscle stiffness gain | `β` | **1.2** N·m/rad | Robot used 0.5; sim settled 1.2. |
+| Muscle tonic stiffness | `γ` | **0.2** (dimensionless) | "We settled on β = 1.2, γ = 0.2." |
+| Muscle damping | `δ` | **0.1** N·m·s/rad | ⚠ value reconstructed: text-layer cell was blank, but the stated stable region is δ ∈ [0.05, 0.15] and 0.1 is the table cell — verify against the PDF Table 5 screenshot. |
+
+> ✅ `α`, `β`, `γ` are confirmed from the Results prose ("For the active gain, a value of
+> 0.4 proved optimal"; "We settled on β = 1.2, γ = 0.2"). ⚠ `δ` is reconstructed from the
+> stable-region prose (0.05–0.15) + the table cell; confirm the exact figure against the
+> PDF when building Phase B.
+
+**Two behaviour-dependent overrides** (not our target regime, recorded so we don't trip on
+them): backward terrestrial stepping and struggling multiply `α` and `β` **×10** (→ 4 and
+12) for stronger torques; and the **tail taper** multiplies `α`,`β` in the last three
+modules (6,7,8) by **0.7, 0.5, 0.2** to emulate the body thinning toward the tail. Forward
+stepping and swimming — what we build — use the base values above.
 
 **How we recreate this (faithful, not substituted).** We implement this block as written:
 the two segment outputs (`Mᵢˡ`, `Mᵢʳ`) drive an Ekeberg virtual-muscle pair producing the

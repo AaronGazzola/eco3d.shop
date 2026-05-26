@@ -222,16 +222,181 @@ with amplitude, the same network gives swimming (traveling wave) or walking (sta
 depending on whether the limbs are active or saturated.
 
 ### Part 4 — From oscillator to motion (muscles → body → environment → thrust)
-_To be written._
+
+Part 3 ended with the CPG producing, at each joint, a pair of one-sided rhythmic pulses
+(left `xᵢ`, right `xᵢ₊₂₅`). Those are still just **neural signals**. Part 4 is the
+five-stage pipeline that turns signals into actual movement — and it is the layer the old
+kinematic version faked.
+
+**Stage 1 — Output → muscle activation (10 ms delay).** The oscillator output
+`x = r(1+cos θ)` is a *command*, not a force. A 10 ms first-order delay converts each output
+into a muscle activation `M` (`xᵢ→Mᵢˡ`, `xᵢ₊₂₅→Mᵢʳ`), modeling the fact that real muscle
+force lags the neural signal — contraction is a low-pass-filtered version of the command. **[paper]**
+
+**Stage 2 — Ekeberg virtual-muscle pair → joint torque.** The segment's two activations feed
+an antagonist spring-damper muscle pair producing a joint **torque** (reference §4;
+constants α=0.4, β=1.2, γ=0.2, δ≈0.1):
+
+```
+Tᵢ = α·(Mˡ − Mʳ)  −  β·(Mˡ + Mʳ + γ)·φᵢ  −  δ·φ̇ᵢ
+```
+Three pieces, each with a clear job **[paper]**:
+- **Active term `α(Mˡ − Mʳ)`** — the net pull. Left pulls one way, right the other; their
+  *difference* is the commanded bending torque. This is where Part 3's left/right antiphase
+  becomes a signed effort.
+- **Variable-stiffness spring `−β(Mˡ + Mʳ + γ)φᵢ`** — pulls the joint back toward straight
+  (`φᵢ=0`), but its stiffness is not fixed: it grows with the *total* activation `(Mˡ+Mʳ)`
+  plus a tonic baseline `γ`. Co-contraction stiffens the joint — fire both muscles hard and
+  it resists deflection more.
+- **Damping `−δφ̇ᵢ`** — opposes joint angular velocity; bleeds energy and keeps it stable.
+
+The decisive point: **this is a torque, not a commanded angle.** The resulting angle is
+whatever the dynamics work out. The old kinematic version skipped straight to *setting* the
+angle — that substitution is exactly what we remove. **[paper/interp]**
+
+**Stage 3 — Free rigid-body chain (no root).** The body is a chain of rigid segments joined
+by 1-DOF rotational joints, floating **free** in the world — nothing pinned. The muscle
+torques are *internal* (between adjacent segments), so by Newton's third law they can only
+rearrange the body's *shape* — internal torques alone can never translate the center of
+mass. **[paper]** This is the deep reason the paper needs no render-root: the body's world
+pose is an *output* of integration. **We** still need a root frame because our rig is
+authored around a skeleton root — the one spot where our setup structurally differs.
+**[paper; the "they don't need a root, we do" contrast is ours]**
+
+**Stage 4 — Environment forces (the crux).** Since internal torques only bend the body, net
+translation must come from *external* forces — the environment pushing back:
+- *Water:* reactive + resistive hydrodynamics (paper uses the Porez et al. 2014 model). A
+  slender segment feels far more drag *across* it than *along* it (anisotropic). As the
+  head→tail wave shoves each segment sideways-and-back, the summed normal reaction nets out
+  as **forward thrust**. **[paper]**
+- *Land:* contact (normal force / no penetration) + friction (tangential). Feet plant and
+  push backward; friction resists; the body goes forward. **[paper]**
+- **No environment reaction → no locomotion, just wiggling in place.** The Part 1 claim made
+  concrete: *this* is the layer that supplies the reaction the kinematic version never had.
+  **[paper/interp]**
+
+**Stage 5 — Integration → emergence.** Step everything forward together each tick: CPG
+states `(θ,r)` → activations `M` → torques `T` → rigid-body accelerations under torques +
+environment forces → integrate to velocities and positions. Locomotion is the *integrated
+result* of forces — never prescribed. **[paper]**
+
+**Part 4 in one line:** the CPG's rhythmic pulses become muscle activations (10 ms lag), an
+Ekeberg pair turns each segment's left−right difference into a joint *torque* (active pull +
+variable-stiffness spring + damping), those torques bend a free rigid-body chain, and only
+the environment's reaction to that bending produces net motion — integrated forward,
+locomotion emerges. This pipeline is what locks Decisions 1–3 (§2): planar, custom solver,
+swimming-first.
 
 ### Part 5 — Limbs & gait (transfer function, duty factor, diagonal trot)
-_To be written._
+
+**Four legs, one oscillator each.** Each leg is a single 1-DOF rotational joint at the hip —
+in our planar world a fore-aft protraction/retraction sweep. A leg gets a *single*
+oscillator, not the left/right pair the axial segments use. **[paper]**
+
+**Legs are driven differently from the axial body — the key contrast.** The axial joints go
+through the full Ekeberg torque path (Part 4). The limbs do **not**: the limb oscillator's
+**phase `θᵢ` is used directly as the desired leg position**, mapped through a
+**piecewise-linear transfer function**. The leg joint is then driven toward that target
+position, not via a muscle-activation difference. **[paper]**
+
+**Duty factor and the transfer function.** The map is shaped to hit a **77% stance / 23%
+swing** duty factor (= fraction of the cycle the foot is on the ground). As phase sweeps
+0→2π the leg spends ~77% sweeping *backward slowly* (stance — foot planted, propelling) and
+~23% swinging *forward fast* (swing — foot lifted, resetting); the two slopes *are* the duty
+factor. The paper gives the 77% target but **not the formula**, so the piecewise-linear map
+is **ours** to design. Backward stepping uses `−θᵢ`. **[paper target; transfer function is ours]**
+
+**Foot contact emerges — it is not scripted.** No keyframed plant/lift. The limb is a
+simulated 1-DOF joint driven toward the transfer-function position, and the foot's
+contact / slip / lift **emerges from the contact model** (Part 4's land forces). This is the
+reinterpretation of the old kinematic "rule 6" (§2 decision 4). **[paper/ours]**
+
+**The four legs coordinate into a diagonal trot** via interlimb couplings — all **antiphase
+(`φ=π`)**, three kinds (Table 2): left↔right (lateral) `w=10`; fore→hind (rostrocaudal)
+`w=3`; hind→fore (caudorostral) `w=30`. The two legs on a girdle are antiphase, and fore/hind
+on a side are antiphase with the **hind legs leading** (caudorostral coupling is 10×
+stronger). Working the relations through: **left-fore + right-hind move together, antiphase
+to right-fore + left-hind** — the diagonal trot. **[paper]**
+
+**Legs tie to the body wave** through the limb↔axial coupling: **limb→axial `w=30`** (strong,
+only near the girdles — Hypothesis 1) and **axial→limb `w=2.5`** (weak), phase bias `φ=4`
+rad. This is the Part 3 lever — active limbs impose their slower rhythm on the nearby axial
+segments, dragging the body toward a **standing wave** during walking. **[paper]**
+
+**Why limbs run slower and saturate first.** Limb excitability is lower (forelimb `e=0.8`,
+hindlimb `e=0.5`) than axial (`e=1.1`), and the limb saturation threshold is lower
+(`d_th≈1.27` vs axial `3`). At low drive both step (walking); raise the drive and the
+**limbs saturate first** — amplitude→0, they fold away — and the body switches to swimming.
+(Part 2's gait transition, now located in the limbs.) **[paper]**
+
+**Where this sits in our build:** Part 5 is **Phase D (walking), after swimming.** For
+swimming-first the limbs saturate and contribute nothing, so we understand them now and
+build them later. **[ours]**
+
+**Part 5 in one line:** each leg is a single oscillator whose phase drives a 1-DOF hip joint
+through a 77%-stance transfer function; antiphase interlimb couplings produce the diagonal
+trot; a strong limb→axial coupling ties legs to the body and forces a standing wave when
+walking; and lower limb excitability/threshold makes the limbs fold first into swimming.
 
 ### Part 6 — Turning & the behavior table (differential drive)
-_To be written._
+
+**Turning has no separate system — it is just uneven drive.** Send a different drive value to
+different parts of the body and it curves. Two flavors: **front-vs-back** (rostral segments
+get less drive than the rest) and **left-vs-right** (one side gets more → the body bends
+toward the weaker side). Steering = drive asymmetry. **[paper]**
+
+**The headline forward gait is already differential.** Even going straight, the paper's
+forward stepping gives the **front 3 segments a lower drive (~0.6) than the rest of the body
+and legs (~1.0)** to tune the body wave. The same knob, pushed left/right, is what turns. **[paper]**
+
+**All five behaviors come from drive settings alone** (Table 4) — one fixed network, no
+rewiring:
+- **Swimming** — high drive (legs saturate, body undulates).
+- **Forward terrestrial stepping** — 0.6 front / 1.0 body+legs.
+- **Forward underwater stepping** — same shape, lower drives (~0.42 / 0.71).
+- **Backward stepping** — lower still, plus legs run on `−θ` and muscle gains ×10.
+- **Struggling** — low drive + muscle gains ×10.
+
+**[paper]**
+
+**Our regime is fixed tonic drive, no noise** — the paper's in-vivo runs zero out the
+random-walk drive terms. That is the regime we use. **[paper]**
+
+**Where this sits:** **Phase E (turning + behavior presets matching Table 4)**, after
+swimming and walking. The actual *attractor → left/right drive split* (how the lizard
+decides how hard to turn toward a target) is **ours** to design — that is Phase F
+(head-tracking). **[ours]**
+
+**Part 6 in one line:** turning is differential drive, not a new system; the same drive
+table that selects gait also steers; the five behaviors are all just drive settings on one
+fixed network; we run fixed tonic drive and add the attractor→drive mapping ourselves later.
 
 ### Part 7 — Feedback (optional; v1 skips it)
-_To be written._
+
+**So far the CPG is open-loop:** drive goes in, rhythm comes out, and the controller never
+*senses* what the body actually did. Feedback closes that loop — the body's real joint
+angles flow back into the oscillators. **[paper]**
+
+**Two kinds** (reference §9): **[paper]**
+- **Axial proprioceptive feedback** — simulated stretch receptors read each joint's actual
+  angle and nudge that segment's oscillator (`sᵢ = w_ipsi·[φᵢ]₊ + w_contra·[−φᵢ]₊`, with
+  `w_contra = −w_ipsi`; it feeds the last term of the phase + amplitude equations). Effect:
+  the CPG entrains to the real body motion — sharpens the wave, pulls the swimming phase lag
+  toward more physiological values, and adapts to load/terrain.
+- **Limb feedback** — an extra term on the leg oscillators that is strongest at end-of-stance
+  and can only *accelerate* the cycle (always ≥ 0). It ties the stepping rhythm to where the
+  leg actually is.
+
+**Why we skip it for v1:** the open-loop CPG already produces all the behaviors on its own —
+feedback is an *enhancement* (better swimming phase lag, recovery from perturbation), not a
+requirement. Set `sᵢ = 0` and `w_limb = 0` and none of it runs. **[paper]**
+
+**Where this sits:** **Phase G (optional), last.** It is fully recorded in reference §9 so we
+never re-derive it. **[ours]**
+
+**Part 7 in one line:** feedback closes the loop by feeding real joint angles back into the
+oscillators to refine and stabilize the gait; it is optional, so v1 runs fully open-loop
+(`s=0`) and we keep it in our back pocket for Phase G.
 
 ### Part 8 — Mapping onto our rig
 
@@ -254,7 +419,33 @@ right leg** (always 4 legs). The adaptation rules (full reasoning in Part 3):
 Only model-specific inputs: **N**, **node spacing**, **mesh-derived masses**, and **which
 spine segment each hip sits on**. Applies to **both swimming and walking** (one network):
 the length-weighted bias shapes *swimming* most, while *walking* leans on the 4-limb
-coordination + hip placement. _Expand into the full render/sim mapping when we reach it._
+coordination + hip placement.
+
+**The full sim/render mapping** (ties the L0–L8 layers of `locomotion.md §3` to the concrete
+rig, in planar mode — Decision 1):
+
+- **Inputs read from the rig** (and nothing else): **N** → build N left/right axial
+  oscillator pairs + always 4 limb oscillators; **node spacing** → segment lengths; **segment
+  meshes** → mass + rotational inertia; **hip node positions** → attach each leg's coupling
+  to the nearest spine segment; **`angleCaps`** → joint-limit stops. **[ours]**
+- **Network is size-independent.** Coupling *weights* are per-connection constants (Table 2),
+  unchanged by N. Only the **phase bias** scales with the rig — spread along the body in
+  proportion to segment length so the number of body-waves is invariant to node count
+  (Decision 6 lean). **[paper + ours]**
+- **Simulation state (planar).** Per tick we integrate: one **yaw angle per axial joint**
+  (plus one per leg in walking), and the body's **free planar pose `(x, y, heading)`** — the
+  piece the paper gets for free with no root, which we read out into our skeleton root. The
+  step: CPG → activations → Ekeberg torques (axial) / transfer-function targets (legs) →
+  planar rigid-body accelerations under those + environment forces, clamped by the caps →
+  integrate. **[paper + ours]**
+- **Render mapping (L6 — the bridge back).** Integrated joint angles → node-skeleton
+  **pivots** (clamped to caps); the body's planar `(x, y, heading)` → the **root frame**;
+  meshes and legs are passengers that follow. Dynamics are 2D; the mesh still renders in 3D —
+  we drive the rig's yaw pivots + root transform from a planar solve. **[ours]**
+
+**One network, both gaits, any rig:** the length-weighted phase bias shapes *swimming*; the
+4-limb coordination + hip placement drive *walking*. Same controller, sized to whatever rig
+is loaded.
 
 ---
 
@@ -262,14 +453,26 @@ coordination + hip placement. _Expand into the full render/sim mapping when we r
 
 A dated log of decisions, with reasoning. Settled one at a time as we work through them.
 
-_None locked yet._
+**Locked:**
+
+1. **Dimensionality → planar (2D, top-down).** _2026-05-27._ The paper's robot runs with its
+   axial joints "restricted to the horizontal plane" (PDF p.8) — the locomotion physics is
+   fundamentally in-plane yaw. Planar is both faithful to the paper and far more tractable
+   in-browser. (Forced by Part 4: we must commit to how the body is built.)
+2. **Solver → custom reduced-order integrator.** _2026-05-27._ We need the paper's exact
+   force laws — Ekeberg torque, anisotropic resistive-force hydrodynamics, friction. A
+   general physics library does not provide resistive-force hydrodynamics out of the box and
+   is heavier than required. A custom integrator implements the model directly.
+3. **Environment first → swimming.** _2026-05-27._ Cleanest "wiggle → thrust": limbs
+   saturate and fold away (Part 2), so there is no gait/leg coordination to get right yet.
+   Walking (limbs + contact + friction) comes after, in Phase D.
+4. **Rule-6 reinterpretation → foot contact emerges from the contact model.** _2026-05-27._
+   The old kinematic "rule 6" scripted feet grounded during stance / lifted during swing.
+   In the paper, limbs are 1-DOF sweeps driven toward a transfer-function position and the
+   foot's plant / slip / lift emerges from the physics. We adopt that: no scripted plant or
+   lift arc (Part 5). (Forced by Part 5: settles how the limb joint is actuated.)
 
 **Pending (to settle):**
-1. **Dimensionality** — planar (2D top-down) vs full 3D. _Lean: planar first._
-2. **Solver** — custom reduced-order integrator vs a physics library. _Lean: custom._
-3. **Environment first** — swimming vs walking. _Lean: swimming first._
-4. **Rule-6 reinterpretation** — foot contact emerges from the contact model rather than a
-   scripted plant/lift. _Lean: confirm._
 5. **Control surface** — expose drive `d` plus a global excitability multiplier (frequency)
    and optionally an amplitude gain as separate sliders, vs a single drive knob. _Lean:
    expose `d` + a global `e` multiplier — stays within the paper's model (see §1 Part 2)._
@@ -313,3 +516,27 @@ reference.
   and Part 2 (one oscillator), verified the gait-transition claim against the paper text,
   and added provenance tags. Wrote Part 3 (the network) and seeded Part 8 with the four
   rig-adaptation rules. Parts 4–7 still to do (Part 8 to expand) before the first phase spec.
+- **2026-05-27** — Transcribed Table 5 muscle constants (α=0.4, β=1.2, γ=0.2, δ≈0.1) into
+  reference §4 (damping flagged for a final PDF check). Confirmed and wrote Part 4 (oscillator
+  → motion: the 5-stage muscle → torque → free body → environment → integration pipeline).
+  Locked Decisions 1–3: **planar**, **custom reduced-order solver**, **swimming-first**.
+  Then wrote Part 5 (limbs & gait: single oscillator per leg, phase→transfer-function
+  position at 77% stance, diagonal trot, limbs fold first into swimming) and locked Decision
+  4 (foot contact emerges from the contact model). Wrote Part 6 (turning = differential
+  drive; five behaviors = drive settings on one network; fixed tonic drive, no noise) and
+  Part 7 (feedback closes the loop; optional; v1 runs open-loop, `s=0`). Expanded Part 8 with
+  the full sim/render mapping (rig inputs → size-independent network → planar state →
+  render). **Walkthrough complete (Parts 1–8); Decisions 1–4 locked.** Next step is the
+  Phase A OpenSpec change (body model + minimal solver); Decisions 5 (control surface) and 6
+  (phase-bias scaling) still to lock as their phases come up.
+- **2026-05-27** — **Phase A implemented** (`openspec/changes/add-locomotion-body-solver`).
+  Built the planar body model (`app/game/locomotion/body.ts`) and the custom reduced-order
+  solver (`solver.ts`): floating-base planar dynamics with the full mass matrix, Coriolis
+  via finite-difference Christoffel terms, joint damping + penalty limit-stops, semi-implicit
+  sub-stepped integration. Wired into the studio (root group in `AnimateScene`, sim branch in
+  `useLocomotion`, minimal Run/Perturb/Reset + diagnostics in the Simulate tab).
+  **Solver physics verified headless** (`scripts/locomotion-solver-check.ts`): COM conserved
+  under internal motion (drift 5.5e-3), energy decays monotonically to rest, limit stops hold,
+  frame-rate independent (30 vs 120 fps). `tsc` clean. **Remaining:** in-studio visual gate
+  (rest pose / Calibrate-unchanged eyeball). Next: Phase B (CPG + Ekeberg muscles); confirm
+  the Table 5 damping `δ` and lock Decision 6 (phase-bias) then.

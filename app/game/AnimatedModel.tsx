@@ -229,11 +229,13 @@ export function AnimatedModel({
   segments,
   showNodes = false,
   opacity = 1,
+  rootRef,
 }: {
   modelConfig: ModelConfigRow
   segments: SegmentData[]
   showNodes?: boolean
   opacity?: number
+  rootRef?: RefObject<THREE.Group | null>
 }) {
   const segmentMap = useMemo(() => new Map(segments.map((s) => [s.id, s])), [segments])
   const pivotsRef = useRef<Map<string, THREE.Group>>(new Map())
@@ -242,7 +244,7 @@ export function AnimatedModel({
   const skeletonGroups = useMemo(() => flattenSkeleton(skeletonTree), [skeletonTree])
   const chainIds = useMemo(() => new Set(skeletonGroups.map((g) => g.id)), [skeletonGroups])
 
-  useLocomotion(pivotsRef, modelConfig.groups)
+  useLocomotion(pivotsRef, modelConfig.groups, segments, rootRef)
 
   return (
     <group>

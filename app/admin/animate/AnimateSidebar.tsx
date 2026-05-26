@@ -4,18 +4,67 @@ import { cn } from '@/lib/utils'
 import { useAnimateStore } from './animateStore'
 import { CalibrateTab } from './CalibrateTab'
 
-function SimulateTab() {
+function DiagnosticRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col gap-3 p-4 text-xs text-white/60">
-      <p className="text-white/40 text-[10px] uppercase tracking-widest">Simulate</p>
-      <p className="leading-relaxed">
-        Locomotion is being rebuilt as a faithful physics recreation of the reference paper
-        (Knüsel et al. 2020). The previous kinematic preview has been removed; the rig shows
-        its rest pose.
-      </p>
-      <p className="leading-relaxed text-white/40">
-        See <span className="font-mono text-white/60">documentation/animation-roadmap.md</span>{' '}
-        for the plan. Controls return per build phase.
+    <div className="flex items-center justify-between">
+      <span className="text-white/40">{label}</span>
+      <span className="font-mono text-white/70">{value}</span>
+    </div>
+  )
+}
+
+function SimulateTab() {
+  const running = useAnimateStore((s) => s.simRunning)
+  const setSimRunning = useAnimateStore((s) => s.setSimRunning)
+  const requestSimReset = useAnimateStore((s) => s.requestSimReset)
+  const requestSimPerturb = useAnimateStore((s) => s.requestSimPerturb)
+  const diagnostics = useAnimateStore((s) => s.simDiagnostics)
+
+  return (
+    <div className="flex flex-col gap-4 p-4 text-xs text-white/60">
+      <p className="text-white/40 text-[10px] uppercase tracking-widest">Simulate — Phase A</p>
+
+      <div className="flex gap-2">
+        <button
+          onClick={() => setSimRunning(!running)}
+          className={cn(
+            'flex-1 py-1.5 rounded-md transition-colors',
+            running
+              ? 'bg-emerald-600/40 text-emerald-200'
+              : 'bg-white/10 text-white/70 hover:text-white'
+          )}
+        >
+          {running ? 'Pause' : 'Run'}
+        </button>
+        <button
+          onClick={requestSimPerturb}
+          className="flex-1 py-1.5 rounded-md bg-white/10 text-white/70 hover:text-white transition-colors"
+        >
+          Perturb
+        </button>
+        <button
+          onClick={requestSimReset}
+          className="flex-1 py-1.5 rounded-md bg-white/10 text-white/70 hover:text-white transition-colors"
+        >
+          Reset
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <p className="text-white/40 text-[10px] uppercase tracking-widest">Diagnostics</p>
+        <DiagnosticRow label="Kinetic energy" value={diagnostics.kineticEnergy.toExponential(2)} />
+        <DiagnosticRow label="COM drift" value={diagnostics.comDrift.toExponential(2)} />
+        <DiagnosticRow
+          label="Max joint / cap"
+          value={`${(diagnostics.maxJointFractionOfCap * 100).toFixed(0)}%`}
+        />
+      </div>
+
+      <p className="leading-relaxed text-white/40 text-[10px]">
+        Phase A verification scaffolding: a passive rigid-body chain (no muscles, CPG, or
+        environment). Run, then Perturb to kick the chain — it should settle via damping with
+        COM drift near zero. Full controls arrive in Phase H. See{' '}
+        <span className="font-mono text-white/60">documentation/animation-roadmap.md</span>.
       </p>
     </div>
   )
