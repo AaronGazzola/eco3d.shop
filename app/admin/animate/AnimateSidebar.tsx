@@ -14,7 +14,7 @@ function SimulateTab() {
         its rest pose.
       </p>
       <p className="leading-relaxed text-white/40">
-        See <span className="font-mono text-white/60">documentation/TEMP-handover-2026-05-26.md</span>{' '}
+        See <span className="font-mono text-white/60">documentation/animation-roadmap.md</span>{' '}
         for the plan. Controls return per build phase.
       </p>
     </div>

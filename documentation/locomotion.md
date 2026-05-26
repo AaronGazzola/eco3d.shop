@@ -15,8 +15,8 @@ the paper, rather than being hand-authored.
 > source paper. It is the single source of truth. If anything here restates a formula or
 > number, the reference wins.
 
-> **Current build state + the staged plan:** see the dated handover in
-> `documentation/TEMP-handover-*.md`. Phases are tracked as OpenSpec changes.
+> **Current build state + the staged plan:** see `documentation/animation-roadmap.md`
+> (the living plan + decision log + progress). Phases are tracked as OpenSpec changes.
 
 ---
 
@@ -120,4 +120,5 @@ prescribed — it is the integrated result of forces.
   truth for all math and parameters.
 - **`documentation/reference/knusel-2020-salamander-cpg.pdf`** — the paper (Knüsel et al.
   2020, *Frontiers in Neurorobotics* 14:604426). Open access.
-- **`documentation/TEMP-handover-*.md`** — current state + the staged plan/process.
+- **`documentation/animation-roadmap.md`** — the living plan, decision log, and the
+  plain-language walkthrough of the model. The entry point for this work.

@@ -1,108 +1,80 @@
-# TEMP Handover — 2026-05-26 — Faithful physics recreation of the paper's locomotion
+# TEMP Handover — 2026-05-26 — Continuing the locomotion walkthrough
 
-**Status: clean slate.** The previous kinematic CPG animation has been removed. The rig
-now renders statically (rest pose) and the Calibrate tab still fully works. This document
-is the entry point for rebuilding locomotion as a **faithful recreation of the Knüsel et
-al. 2020 salamander system**, applied to our node-skeleton rig.
+Transient session pointer. The **durable** plan + understanding lives in
+`documentation/animation-roadmap.md`; this file just says *where we are in the process* and
+*how we're working*, so the next chat can pick up cleanly. Delete + replace this each
+session.
 
-Read these together, in order:
-1. This file (goal + process + what's left in the codebase).
-2. `documentation/locomotion.md` (foundation we keep + the paper pipeline + the L0–L8
-   decomposition + the open architecture decisions).
-3. `documentation/reference/locomotion-reference.md` (the verified paper extraction — the
-   single source of truth for every equation, coupling, and parameter).
+## Read order to get back up to speed
 
----
+1. `documentation/animation-roadmap.md` — the living doc: the plain-language walkthrough
+   (§1), decisions (§2), build phases (§3), status (§4). **Start here.**
+2. `documentation/locomotion.md` — how the paper maps onto our rig (invariants + L0–L8).
+3. `documentation/reference/locomotion-reference.md` — the verified math/params (source of
+   truth).
+4. The paper itself: `documentation/reference/knusel-2020-salamander-cpg.{pdf,txt}`.
 
-## The goal
+## The goal (unchanged)
 
-Recreate the paper's **complete locomotion system** and apply it to our model:
-descending drive → **CPG** → **Ekeberg virtual muscles** → **multibody rigid-body
-dynamics** → **environment forces (hydrodynamic / ground contact)** → emergent motion,
-with optional proprioceptive feedback. Movement must **emerge** from integrated forces,
-exactly as in the paper — not be hand-authored.
+A realistic lizard that tracks an object with its head and uses its body + feet to orient
+and move toward it, where the motion **emerges** from a faithful recreation of the Knüsel
+et al. 2020 salamander CPG + physics — applied to our node-skeleton rig. Adapts to any rig
+(variable spine count/lengths; fixed shape: central spine + head + tail + 2 hips, each with
+a left & right leg = always 4 legs).
 
-"Faithful" = the same model/equations producing the same *kind* of emergent locomotion on
-*our* body. It will not pixel-match their specific robot (different proportions, segment
-counts, caps).
+## How we are working (the process rules — keep following these)
 
-## Hard constraints (from the app — never violated)
+- **Walk through the paper one "Part" at a time**, in concise plain language, *before* any
+  code. The Parts are §1 of the roadmap (Part 1 … Part 8).
+- **Do NOT write a section into the roadmap until the user has confirmed it's correct.**
+  Walk it through verbally in chat first; only write on confirmation.
+- **Provenance tags on every claim:** `[paper]` (verified from the source),
+  `[interp]` (our explanation — consistent but not stated), `[ours]` (our addition). Legend
+  is at the top of roadmap §1.
+- **Verify against the paper text** (`knusel-2020-salamander-cpg.txt`) whenever a claim goes
+  beyond the bare equations. (We did this for the gait-transition / saturation claim.)
+- Build phases come **after** the walkthrough + the gating decisions, each as its own
+  OpenSpec change with a visual verification gate (roadmap §3).
 
-Only these carry over from the existing app; everything else about locomotion is from the
-paper. Full list in `locomotion.md §1`. In short:
-- The **node skeleton** is the only thing animated; **3D meshes follow the nodes**.
-- **Angle caps are sacred** (clamp every applied joint angle; they become joint limits).
-- **Limbs stay attached**; bone lengths constant; hips welded to spine.
-- **Adapts to any rig** — body parameters (length, mass, inertia, joint axes, limits) are
-  **derived from the rig geometry**, never hard-coded per model.
-- **Keep** node authoring, the Calibrate tab, `LimitSlider`, angle-cap authoring,
-  `sharedStore`, save/load. Only the **Simulate tab** is being rebuilt.
-- Old "rule 6" (scripted foot plant/lift) is **reinterpreted**: foot contact emerges from
-  the physics contact model. Confirm before the limb phase.
+## Exactly where we are
 
-## The decomposition (build layers — see `locomotion.md §3`)
+**Walkthrough (roadmap §1):**
+- **Part 1 (emergence)** — written, confirmed, tagged. (Corrected: head→tail traveling wave
+  = swimming; walking body = standing wave.)
+- **Part 2 (one oscillator)** — written, confirmed, tagged. (Gait-transition claim verified
+  against the paper = its Hypothesis 3; robot torque-limit caveat recorded.)
+- **Part 3 (the network)** — written, confirmed, tagged. Includes the length-weighted
+  phase-bias rig-adaptation point.
+- **Part 8 (mapping onto our rig)** — *seeded* with the 4 adaptation rules (same topology
+  any size · physical numbers from rig · length-weighted phase bias · hips/legs by
+  position). To be fully expanded later.
+- **Part 4 (oscillator → motion)** — ⚠ **walked through verbally in chat but NOT yet
+  written or confirmed.** This is the immediate next action. Summary of what was covered:
+  the 4-stage pipeline — (1) output→activation with 10 ms delay; (2) Ekeberg virtual-muscle
+  pair → joint **torque** `Tᵢ = α(Mˡ−Mʳ) − β(Mˡ+Mʳ+γ)φᵢ − δφ̇ᵢ` (active + variable-stiffness
+  spring + damping; torque, not a commanded angle); (3) free rigid-body chain (no root — this
+  is why the paper needs no render root and we do); (4) **environment forces** = the crux:
+  water = reactive + resistive (anisotropic drag → thrust), land = contact + friction;
+  (5) integration → emergence. This is the layer the old kinematic version faked.
 
-L0 foundation (keep) · L1 physical body derived from rig · L2 CPG controller · L3 actuation
-(muscles + limb transfer) · L4 dynamics solver · L5 environment forces · L6 render mapping
-(sim → node skeleton, clamped to caps) · L7 feedback (later) · L8 UI.
+**Parts still to walk through:** 4 (confirm + write), 5 (limbs & gait), 6 (turning &
+behaviors), 7 (feedback), then expand 8.
 
-## Architecture decisions to finalize first (they gate everything)
+## Open items / next actions
 
-Recorded in `locomotion.md §4` with the leaning recommendation for each:
-1. **Planar (2D top-down) vs full 3D.** Lean: planar first.
-2. **Custom reduced-order solver vs physics library.** Lean: custom (the paper's exact
-   force laws).
-3. **Swimming first vs land first.** Lean: swimming first (cleanest "wiggle → thrust").
-4. **Confirm the rule-6 reinterpretation** (physics contact, not scripted lift).
+1. **Confirm + write Part 4** into roadmap §1 (with tags). First thing next session.
+2. **Decisions 1–3 not locked.** Part 4 forces them; recommendation on the table:
+   **planar (2D) + custom reduced-order solver + swimming-first.** Decisions 4 (rule-6
+   reinterpretation), 5 (control surface: drive + global-`e` sliders), 6 (length-weighted
+   phase bias) are also pending in roadmap §2. Lock them as we go; record reasoning in §2.
+3. **Documentation gap — transcribe Table 5** (muscle constants `α, β, γ, δ`) from the PDF
+   into `locomotion-reference.md`. Only `α ≈ 0.4` (swimming) is in our notes so far. Needed
+   before building Part 4 / Phase B.
 
-Decide these before writing the first phase spec.
+## Codebase state
 
-## Intended process (how to proceed in the next session)
-
-Work **one phase at a time**, each as its own **OpenSpec change** (proposal → design →
-spec → tasks), each ending in a **visual verification gate** in the studio before the next.
-Suggested phase order (refine as you go):
-
-- **Phase A — Body model + minimal solver:** derive the multibody body from the rig (L1);
-  stand up a minimal dynamics integrator (L4) with no actuation; verify the passive chain
-  behaves and respects joint limits.
-- **Phase B — CPG + muscles:** rebuild the CPG (L2) from the reference, add Ekeberg muscles
-  (L3 axial) → torques into the solver; verify the body undulates under muscle drive (in
-  place, no environment).
-- **Phase C — Swimming:** add hydrodynamic reactive+resistive forces (L5 water); verify it
-  **swims forward** — first emergent locomotion.
-- **Phase D — Walking:** add limbs (transfer function + limb joints) + ground contact +
-  friction (L5 land); verify terrestrial stepping.
-- **Phase E — Turning + behaviors:** differential drive; behavior presets matching Table 4.
-- **Phase F — Feedback (optional):** close the CPG loop (reference §9).
-- **Phase G — UI:** rebuild the Simulate tab for this model.
-
-Map each phase to the layers in `locomotion.md §3`; pull all math/params from the reference.
-
----
-
-## What the cleanup removed (and what remains)
-
-**Removed (kinematic-approach code + Simulate UI):**
-- `app/game/locomotion/cpg.ts`, `foot.ts`, `diagnostics.ts`, `headGaze.ts` (deleted).
-- `chain.ts`: removed `buildCascadeChain` (kinematic chain ordering).
-- `useLocomotion.ts`: reduced to **rest pose + the Calibrate preview path** only.
-- `AnimatedModel.tsx`: removed foot markers.
-- Simulate-tab UI + its plumbing: drive slider, time-scale, diagnostics/recording/playback,
-  attractor — removed from `AnimateSidebar.tsx`, `AnimateScene.tsx`, `animateStore.ts`.
-- OpenSpec: removed the superseded `rebuild-cpg-locomotion` and
-  `invert-locomotion-foot-anchored` changes. (Other older changes left as history; archive
-  if desired.)
-
-**Kept (foundation + reusable):**
-- Node skeleton + config schema (`app/admin/_lib/types.ts`), node authoring, mesh loading.
-- Rendering scaffolding (`AnimatedModel`, `useStlSegments`); `useLocomotion.ts` reduced to
-  rest pose + the Calibrate preview path.
-- `chain.ts` (skeleton tree, flatten, `effectiveAngleCaps`, default caps) and `legs.ts`
-  (hip/leg lookup) — foundational utilities.
-- Calibrate tab, `LimitSlider`, angle-cap authoring, `sharedStore`, save/load.
-
-**Recoverable if needed:** the previous faithful CPG implementation and the single-bone
-leg IK (`applyLegBone`) live in git history (commit `f01006f`: `cpg.ts`, and the old
-`useLocomotion.ts`) and can be lifted when rebuilding L2 / the render-mapping layer — but
-the reference doc is the authoritative source.
+Clean slate. Old kinematic animation removed; rig renders its **rest pose**; the
+**Calibrate tab fully works** (angle-cap authoring, sliders, save/load). The **Simulate tab
+is a placeholder** pointing at the roadmap. No locomotion runs yet. Foundation kept: node
+skeleton + config schema, mesh loading, pivot/render scaffolding (`AnimatedModel`),
+`chain.ts`, `legs.ts`, `useLocomotion.ts` reduced to rest-pose + Calibrate preview.
