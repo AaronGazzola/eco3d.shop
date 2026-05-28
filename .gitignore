@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# locomotion diagnostic captures
+/documentation/diagnostics/
+
 # next.js
 /.next/
 /out/

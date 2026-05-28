@@ -1,0 +1,245 @@
+export interface CaptureSpecSegment {
+  index: number
+  groupId: string
+  length: number
+  mass: number
+  inertia: number
+}
+
+export interface CaptureSpecJoint {
+  index: number
+  segmentIndex: number
+  capForwardDeg: number
+  capBackwardDeg: number
+}
+
+export interface CaptureSpec {
+  segments: CaptureSpecSegment[]
+  joints: CaptureSpecJoint[]
+  restRootX: number
+  restRootZ: number
+}
+
+export interface CaptureJointSample {
+  rawDeg: number
+  clampedDeg: number
+  fracOfCap: number
+  clamped: boolean
+}
+
+export interface CaptureSample {
+  t: number
+  rootX: number
+  rootZ: number
+  headingDeg: number
+  rootVelX: number
+  rootVelZ: number
+  kineticEnergy: number
+  comX: number
+  comZ: number
+  comDrift: number
+  maxJointFracOfCap: number
+  nan: boolean
+  joints: CaptureJointSample[]
+  nodes: { x: number; z: number }[]
+}
+
+export function subsampleSamples(samples: CaptureSample[], max: number): CaptureSample[] {
+  if (samples.length <= max) return samples
+  const out: CaptureSample[] = []
+  const step = (samples.length - 1) / (max - 1)
+  for (let i = 0; i < max; i++) out.push(samples[Math.round(i * step)])
+  return out
+}
+
+function f(n: number, d: number): string {
+  if (!Number.isFinite(n)) return Number.isNaN(n) ? 'NaN' : n > 0 ? 'Inf' : '-Inf'
+  return n.toFixed(d)
+}
+
+function e(n: number): string {
+  if (!Number.isFinite(n)) return Number.isNaN(n) ? 'NaN' : n > 0 ? 'Inf' : '-Inf'
+  return n.toExponential(2)
+}
+
+function pad(s: string, width: number): string {
+  return s.length >= width ? s : s + ' '.repeat(width - s.length)
+}
+
+interface Bounds {
+  ok: boolean
+  minX: number
+  maxX: number
+  minZ: number
+  maxZ: number
+}
+
+function asciiPlot(nodes: { x: number; z: number }[], bounds: Bounds, w: number, h: number): string[] {
+  const finite = nodes.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.z))
+  if (finite.length < 2 || !bounds.ok) return ['  (non-finite — body diverged)']
+  const grid: string[][] = []
+  for (let r = 0; r < h; r++) grid.push(new Array(w).fill(' '))
+  const spanX = bounds.maxX - bounds.minX || 1
+  const spanZ = bounds.maxZ - bounds.minZ || 1
+  const toCol = (x: number) => Math.min(w - 1, Math.max(0, Math.round(((x - bounds.minX) / spanX) * (w - 1))))
+  const toRow = (z: number) => Math.min(h - 1, Math.max(0, Math.round(((z - bounds.minZ) / spanZ) * (h - 1))))
+  for (let i = 0; i < finite.length - 1; i++) {
+    const c0 = toCol(finite[i].x)
+    const r0 = toRow(finite[i].z)
+    const c1 = toCol(finite[i + 1].x)
+    const r1 = toRow(finite[i + 1].z)
+    const steps = Math.max(Math.abs(c1 - c0), Math.abs(r1 - r0), 1)
+    for (let s = 0; s <= steps; s++) {
+      const c = Math.round(c0 + ((c1 - c0) * s) / steps)
+      const r = Math.round(r0 + ((r1 - r0) * s) / steps)
+      if (grid[r][c] === ' ') grid[r][c] = '*'
+    }
+  }
+  const head = finite[0]
+  const tail = finite[finite.length - 1]
+  grid[toRow(head.z)][toCol(head.x)] = 'H'
+  grid[toRow(tail.z)][toCol(tail.x)] = 'T'
+  return grid.map((row) => '  ' + row.join(''))
+}
+
+function globalBounds(samples: CaptureSample[]): Bounds {
+  let minX = Infinity
+  let maxX = -Infinity
+  let minZ = Infinity
+  let maxZ = -Infinity
+  for (const s of samples) {
+    for (const p of s.nodes) {
+      if (!Number.isFinite(p.x) || !Number.isFinite(p.z)) continue
+      if (p.x < minX) minX = p.x
+      if (p.x > maxX) maxX = p.x
+      if (p.z < minZ) minZ = p.z
+      if (p.z > maxZ) maxZ = p.z
+    }
+  }
+  return { ok: minX <= maxX, minX, maxX, minZ, maxZ }
+}
+
+function evenIndices(length: number, count: number): number[] {
+  if (length <= count) return Array.from({ length }, (_, i) => i)
+  const out: number[] = []
+  const step = (length - 1) / (count - 1)
+  for (let i = 0; i < count; i++) out.push(Math.round(i * step))
+  return out
+}
+
+export function serializeCapture(spec: CaptureSpec, samples: CaptureSample[]): string {
+  const lines: string[] = []
+  const duration = samples.length > 0 ? samples[samples.length - 1].t : 0
+  const firstNaN = samples.find((s) => s.nan)
+  let peakKE = -Infinity
+  let peakKEt = 0
+  let maxDrift = -Infinity
+  let maxDriftT = 0
+  let firstSat: { joint: number; t: number } | null = null
+  for (const s of samples) {
+    if (Number.isFinite(s.kineticEnergy) && s.kineticEnergy > peakKE) {
+      peakKE = s.kineticEnergy
+      peakKEt = s.t
+    }
+    if (Number.isFinite(s.comDrift) && s.comDrift > maxDrift) {
+      maxDrift = s.comDrift
+      maxDriftT = s.t
+    }
+    if (!firstSat) {
+      for (let j = 0; j < s.joints.length; j++) {
+        if (s.joints[j].fracOfCap >= 1) {
+          firstSat = { joint: j, t: s.t }
+          break
+        }
+      }
+    }
+  }
+  const finalKE = samples.length > 0 ? samples[samples.length - 1].kineticEnergy : 0
+
+  lines.push('# Locomotion capture')
+  lines.push(`generated: ${new Date().toISOString()}`)
+  lines.push(
+    `duration: ${f(duration, 2)}s   samples: ${samples.length}   segments: ${spec.segments.length}   joints: ${spec.joints.length}`
+  )
+  lines.push('')
+  lines.push('## summary')
+  lines.push(`blewUp: ${firstNaN ? 'YES' : 'no'}`)
+  lines.push(`firstNaN: ${firstNaN ? `t=${f(firstNaN.t, 2)}s` : '-'}`)
+  lines.push(`peakKE: ${e(peakKE)} @ t=${f(peakKEt, 2)}s`)
+  lines.push(`finalKE: ${e(finalKE)}`)
+  lines.push(`maxCOMdrift: ${e(maxDrift)} @ t=${f(maxDriftT, 2)}s`)
+  lines.push(
+    `firstJointToSaturate: ${firstSat ? `joint ${firstSat.joint} @ t=${f(firstSat.t, 2)}s` : 'none (stayed within caps)'}`
+  )
+  lines.push('')
+
+  lines.push('## body spec')
+  lines.push(`${pad('idx', 5)}${pad('group', 16)}${pad('len', 9)}${pad('mass', 11)}${pad('inertia', 11)}${pad('capF°', 8)}capB°`)
+  for (const seg of spec.segments) {
+    const j = spec.joints.find((jt) => jt.segmentIndex === seg.index)
+    lines.push(
+      pad(String(seg.index), 5) +
+        pad(seg.groupId.slice(0, 14), 16) +
+        pad(f(seg.length, 3), 9) +
+        pad(e(seg.mass), 11) +
+        pad(e(seg.inertia), 11) +
+        pad(j ? f(j.capForwardDeg, 0) : '-', 8) +
+        (j ? f(j.capBackwardDeg, 0) : '-')
+    )
+  }
+  lines.push('')
+
+  lines.push('## scalars (t,s ; head/vel in deg & world units)')
+  lines.push(
+    `${pad('t', 7)}${pad('rootX', 9)}${pad('rootZ', 9)}${pad('head°', 8)}${pad('KE', 11)}${pad('drift', 11)}maxJ%`
+  )
+  for (const s of samples) {
+    lines.push(
+      pad(f(s.t, 2), 7) +
+        pad(f(s.rootX, 3), 9) +
+        pad(f(s.rootZ, 3), 9) +
+        pad(f(s.headingDeg, 1), 8) +
+        pad(e(s.kineticEnergy), 11) +
+        pad(e(s.comDrift), 11) +
+        f(s.maxJointFracOfCap * 100, 0)
+    )
+  }
+  lines.push('')
+
+  lines.push('## joints — raw angle in deg per sample (* = clamped to cap on render)')
+  const jointHeader = [pad('t', 7)]
+  for (let j = 0; j < spec.joints.length; j++) jointHeader.push(pad(`j${j}`, 7))
+  lines.push(jointHeader.join(''))
+  for (const s of samples) {
+    const row = [pad(f(s.t, 2), 7)]
+    for (const j of s.joints) {
+      const cell = f(j.rawDeg, 0) + (j.clamped ? '*' : '')
+      row.push(pad(cell, 7))
+    }
+    lines.push(row.join(''))
+  }
+  lines.push('')
+
+  const bounds = globalBounds(samples)
+  const shapeIdx = evenIndices(samples.length, Math.min(8, samples.length))
+  lines.push('## shape — node XZ polyline (head→tail), world units')
+  for (const i of shapeIdx) {
+    const s = samples[i]
+    const pts = s.nodes.map((p) => `(${f(p.x, 2)},${f(p.z, 2)})`).join(' ')
+    lines.push(`t=${f(s.t, 2)}: ${pts}`)
+  }
+  lines.push('')
+
+  const asciiIdx = evenIndices(samples.length, Math.min(3, samples.length))
+  lines.push('## ascii top-down (x→right, z→down ; H=head T=tail ; shared scale)')
+  lines.push(
+    `  scale: x[${f(bounds.minX, 2)}..${f(bounds.maxX, 2)}] z[${f(bounds.minZ, 2)}..${f(bounds.maxZ, 2)}]`
+  )
+  for (const i of asciiIdx) {
+    const s = samples[i]
+    lines.push(`  --- t=${f(s.t, 2)}s ---`)
+    for (const row of asciiPlot(s.nodes, bounds, 44, 16)) lines.push(row)
+  }
+
+  return lines.join('\n')
+}
