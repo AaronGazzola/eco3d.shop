@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
+import * as THREE from 'three'
 import { useSharedStore } from '../_lib/sharedStore'
 import { useAnimateStore } from './animateStore'
 import { CameraController, StudioCanvas } from '../_lib/StudioCanvas'
@@ -15,6 +16,7 @@ function SceneContent() {
   const configName = useSharedStore((s) => s.configName)
   const modelRotation = useSharedStore((s) => s.modelRotation)
   const modelOpacity = useAnimateStore((s) => s.modelOpacity)
+  const rootRef = useRef<THREE.Group | null>(null)
 
   const modelConfig = useMemo<ModelConfigRow>(
     () => ({
@@ -37,6 +39,7 @@ function SceneContent() {
         segments={segments}
         showNodes
         opacity={modelOpacity}
+        rootRef={rootRef}
       />
     </group>
   )

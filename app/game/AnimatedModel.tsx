@@ -81,7 +81,7 @@ function collectNodes(groups: BodyGroup[]): { pos: THREE.Vector3; color: string 
   }
   const out: { pos: THREE.Vector3; color: string }[] = []
   for (const g of groups) {
-    if (g.nodeFront) out.push({ pos: new THREE.Vector3(g.nodeFront.x, g.nodeFront.y ?? 0, g.nodeFront.z), color: NODE_COLORS.front })
+    if (g.nodeFront && g.type === 'head') out.push({ pos: new THREE.Vector3(g.nodeFront.x, g.nodeFront.y ?? 0, g.nodeFront.z), color: NODE_COLORS.front })
     if (g.nodeBack) out.push({ pos: new THREE.Vector3(g.nodeBack.x, g.nodeBack.y ?? 0, g.nodeBack.z), color: NODE_COLORS.back })
     if (g.nodeHipLeft) out.push({ pos: new THREE.Vector3(g.nodeHipLeft.x, g.nodeHipLeft.y ?? 0, g.nodeHipLeft.z), color: NODE_COLORS.hipLeft })
     if (g.nodeHipRight) out.push({ pos: new THREE.Vector3(g.nodeHipRight.x, g.nodeHipRight.y ?? 0, g.nodeHipRight.z), color: NODE_COLORS.hipRight })
@@ -166,20 +166,54 @@ function GroupBody({
   )
 }
 
+function LegMount({
+  group,
+  segmentMap,
+  showNodes,
+  pivotsRef,
+  opacity,
+}: {
+  group: BodyGroup
+  segmentMap: Map<string, SegmentData>
+  showNodes: boolean
+  pivotsRef: RefObject<Map<string, THREE.Group>>
+  opacity: number
+}) {
+  return (
+    <group
+      ref={(node) => {
+        const m = pivotsRef.current
+        if (!m) return
+        if (node) m.set(group.id, node)
+        else m.delete(group.id)
+      }}
+    >
+      <GroupBody group={group} segmentMap={segmentMap} showNodes={showNodes} opacity={opacity} />
+    </group>
+  )
+}
+
+type ChainNodePos = { x: number; y?: number; z: number }
+
 function ChainNode({
   node,
   segmentMap,
   showNodes,
   pivotsRef,
   opacity,
+  legsBySpineId,
+  parentNodeBack,
 }: {
   node: SkeletonNode
   segmentMap: Map<string, SegmentData>
   showNodes: boolean
   pivotsRef: RefObject<Map<string, THREE.Group>>
   opacity: number
+  legsBySpineId: Map<string, BodyGroup[]>
+  parentNodeBack: ChainNodePos | null
 }) {
   const g = node.group
+  const attachedLegs = legsBySpineId.get(g.id) ?? []
   const children = node.children.map((child) => (
     <ChainNode
       key={child.group.id}
@@ -188,25 +222,38 @@ function ChainNode({
       showNodes={showNodes}
       pivotsRef={pivotsRef}
       opacity={opacity}
+      legsBySpineId={legsBySpineId}
+      parentNodeBack={g.nodeBack ?? null}
+    />
+  ))
+  const legMounts = attachedLegs.map((leg) => (
+    <LegMount
+      key={leg.id}
+      group={leg}
+      segmentMap={segmentMap}
+      showNodes={showNodes}
+      pivotsRef={pivotsRef}
+      opacity={opacity}
     />
   ))
 
-  if (!g.nodeBack) {
+  const pivotNode = parentNodeBack ?? g.nodeBack ?? g.nodeFront
+  if (!pivotNode) {
     return (
       <group>
         <GroupBody group={g} segmentMap={segmentMap} showNodes={showNodes} opacity={opacity} />
         {children}
+        {legMounts}
       </group>
     )
   }
 
-  const back = g.nodeBack
-  const bx = back.x
-  const by = back.y ?? 0
-  const bz = back.z
+  const px = pivotNode.x
+  const py = pivotNode.y ?? 0
+  const pz = pivotNode.z
 
   return (
-    <group position={[bx, by, bz]}>
+    <group position={[px, py, pz]}>
       <group
         ref={(node) => {
           const m = pivotsRef.current
@@ -215,9 +262,10 @@ function ChainNode({
           else m.delete(g.id)
         }}
       >
-        <group position={[-bx, -by, -bz]}>
+        <group position={[-px, -py, -pz]}>
           <GroupBody group={g} segmentMap={segmentMap} showNodes={showNodes} opacity={opacity} />
           {children}
+          {legMounts}
         </group>
       </group>
     </group>
@@ -229,11 +277,13 @@ export function AnimatedModel({
   segments,
   showNodes = false,
   opacity = 1,
+  rootRef,
 }: {
   modelConfig: ModelConfigRow
   segments: SegmentData[]
   showNodes?: boolean
   opacity?: number
+  rootRef?: RefObject<THREE.Group | null>
 }) {
   const segmentMap = useMemo(() => new Map(segments.map((s) => [s.id, s])), [segments])
   const pivotsRef = useRef<Map<string, THREE.Group>>(new Map())
@@ -242,33 +292,49 @@ export function AnimatedModel({
   const skeletonGroups = useMemo(() => flattenSkeleton(skeletonTree), [skeletonTree])
   const chainIds = useMemo(() => new Set(skeletonGroups.map((g) => g.id)), [skeletonGroups])
 
-  useLocomotion(pivotsRef, modelConfig.groups)
+  const { legsBySpineId, orphanLegs } = useMemo(() => {
+    const byParent = new Map<string, BodyGroup[]>()
+    const orphans: BodyGroup[] = []
+    for (const g of modelConfig.groups) {
+      if (g.type !== 'leg-left' && g.type !== 'leg-right') continue
+      const parentId = g.attachedToSpineId
+      if (parentId && chainIds.has(parentId)) {
+        const list = byParent.get(parentId)
+        if (list) list.push(g)
+        else byParent.set(parentId, [g])
+      } else {
+        console.error(
+          `AnimatedModel: leg group ${g.id} has unresolved attachedToSpineId ${parentId ?? '<missing>'} — rendering at model root`
+        )
+        orphans.push(g)
+      }
+    }
+    return { legsBySpineId: byParent, orphanLegs: orphans }
+  }, [modelConfig.groups, chainIds])
+
+  useLocomotion(pivotsRef, modelConfig.groups, rootRef)
 
   return (
-    <group>
+    <group ref={rootRef}>
       {modelConfig.groups.map((g) => {
         if (chainIds.has(g.id)) return null
-        if (g.type === 'leg-left' || g.type === 'leg-right') {
-          return (
-            <group
-              key={g.id}
-              ref={(node) => {
-                const m = pivotsRef.current
-                if (!m) return
-                if (node) m.set(g.id, node)
-                else m.delete(g.id)
-              }}
-            >
-              <GroupBody group={g} segmentMap={segmentMap} showNodes={showNodes} opacity={opacity} />
-            </group>
-          )
-        }
+        if (g.type === 'leg-left' || g.type === 'leg-right') return null
         return (
           <group key={g.id}>
             <GroupBody group={g} segmentMap={segmentMap} showNodes={showNodes} opacity={opacity} />
           </group>
         )
       })}
+      {orphanLegs.map((leg) => (
+        <LegMount
+          key={leg.id}
+          group={leg}
+          segmentMap={segmentMap}
+          showNodes={showNodes}
+          pivotsRef={pivotsRef}
+          opacity={opacity}
+        />
+      ))}
       {skeletonTree && (
         <ChainNode
           node={skeletonTree}
@@ -276,6 +342,8 @@ export function AnimatedModel({
           showNodes={showNodes}
           pivotsRef={pivotsRef}
           opacity={opacity}
+          legsBySpineId={legsBySpineId}
+          parentNodeBack={null}
         />
       )}
     </group>

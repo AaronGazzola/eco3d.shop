@@ -540,3 +540,27 @@ reference.
   frame-rate independent (30 vs 120 fps). `tsc` clean. **Remaining:** in-studio visual gate
   (rest pose / Calibrate-unchanged eyeball). Next: Phase B (CPG + Ekeberg muscles); confirm
   the Table 5 damping `δ` and lock Decision 6 (phase-bias) then.
+- **2026-05-28** — **Phase A's visual gate failed.** A diagnostic capture tool was added
+  to record solver state alongside render state into a compact text artifact
+  (`app/game/locomotion/diagnostics.ts`, `app/api/diagnostics/route.ts`). The first
+  capture revealed the solver was numerically stable but joints ran at 3–5× their caps
+  every frame while the render hard-clamped them; KE held near 400 instead of decaying.
+  Root cause was not the solver constants — it was the renderer wiring. The `rootRef`
+  `useLocomotion` wrote to was never bound to any visible `<group>` (`AnimateScene` did
+  not pass one in, and `AnimatedModel`'s outer group did not bind it), so the body's
+  bodily motion was computed and thrown away. Legs were rendered as world-level siblings
+  of `ChainNode` rather than children of their attached spine pivot, so they stayed
+  glued in world space when the spine bent. **Phase A is being re-decomposed.** The
+  single Phase A commit (`ab3314a`) was reverted along with the OpenSpec change and its
+  headless scripts; the diagnostic capture's serializer + API route survive as latent
+  scaffolding for A3+. The split: **A2** FK renderer + leg parenting + manual pose
+  sliders (no solver), **A3** zero-force solver loop with a free-flight-drift gate,
+  **A4** joint damping + soft limit stops with a visible-settle gate, **A5** re-wire
+  the diagnostic capture. Sec. 3 (Build phases) will be rewritten with the full A1–A5
+  layout once the split has been observed end-to-end through A5.
+- **2026-05-28 (A2 implemented)** — `openspec/changes/add-fk-renderer-phase-a2` lands
+  `body.ts` (extraction reintroduced), reparents leg groups under their attached spine's
+  pivot in `AnimatedModel`, binds a `rootRef` on the model's outer group, and exposes
+  manual pose sliders in the Simulate tab (root x / z / yaw + per-chain-joint yaw,
+  joint sliders fixed at ±π/2 so dragging past a cap reveals the render-side clamp).
+  Calibrate path preserved. `tsc` clean, eslint clean. Hand-verified visual gate pending.
