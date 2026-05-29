@@ -77,6 +77,7 @@ function SimulateTab() {
   const setSimRunning = useAnimateStore((s) => s.setSimRunning)
   const requestSimReset = useAnimateStore((s) => s.requestSimReset)
   const requestSimKick = useAnimateStore((s) => s.requestSimKick)
+  const requestSimPerturb = useAnimateStore((s) => s.requestSimPerturb)
   const simRecording = useAnimateStore((s) => s.simRecording)
   const setSimRecording = useAnimateStore((s) => s.setSimRecording)
   const simDiagnostics = useAnimateStore((s) => s.simDiagnostics)
@@ -90,7 +91,7 @@ function SimulateTab() {
 
   return (
     <div className="flex flex-col gap-4 p-4 text-xs text-white/60">
-      <p className="text-white/40 text-[10px] uppercase tracking-widest">Simulate — Phase A3 (zero-force solver)</p>
+      <p className="text-white/40 text-[10px] uppercase tracking-widest">Simulate — Phase A4 (damping + limit stops)</p>
 
       <div className="flex flex-col gap-2">
         <div className="flex gap-2">
@@ -120,17 +121,23 @@ function SimulateTab() {
             Kick translation
           </button>
           <button
-            onClick={() => setSimRecording(!simRecording)}
-            className={cn(
-              'flex-1 py-1.5 rounded-md transition-colors',
-              simRecording
-                ? 'bg-rose-600/40 text-rose-200 animate-pulse'
-                : 'bg-white/10 text-white/70 hover:text-white'
-            )}
+            onClick={requestSimPerturb}
+            className="flex-1 py-1.5 rounded-md bg-white/10 text-white/70 hover:text-white transition-colors"
           >
-            {simRecording ? 'Stop' : 'Record'}
+            Kick joints
           </button>
         </div>
+        <button
+          onClick={() => setSimRecording(!simRecording)}
+          className={cn(
+            'py-1.5 rounded-md transition-colors',
+            simRecording
+              ? 'bg-rose-600/40 text-rose-200 animate-pulse'
+              : 'bg-white/10 text-white/70 hover:text-white'
+          )}
+        >
+          {simRecording ? 'Stop' : 'Record'}
+        </button>
         {lastCapturePath ? (
           <p className="text-emerald-300/70 text-[10px] break-all font-mono">{lastCapturePath}</p>
         ) : null}
@@ -140,6 +147,7 @@ function SimulateTab() {
         <p className="text-white/40 text-[10px] uppercase tracking-widest">Diagnostics</p>
         <DiagnosticRow label="Kinetic energy" value={simDiagnostics.kineticEnergy.toExponential(2)} />
         <DiagnosticRow label="COM drift" value={simDiagnostics.comDriftFromStart.toExponential(2)} />
+        <DiagnosticRow label="Max joint / cap" value={`${(simDiagnostics.maxJointFracOfCap * 100).toFixed(0)}%`} />
       </div>
 
       <div
@@ -218,9 +226,9 @@ function SimulateTab() {
       </div>
 
       <p className="leading-relaxed text-white/40 text-[10px]">
-        Zero-force solver (Phase A3). Pose the body while paused, click Run, then Kick
-        translation — it should drift in a straight line at constant speed with KE flat
-        and no spin. Reset re-seeds from the current pose. See{' '}
+        Passive solver (Phase A4): joint damping + soft limit stops. Run, then Kick joints
+        — the chain should whip and settle to rest with KE → 0 and Max joint / cap ≤ 100%.
+        Pose a joint past its cap and Run to watch the limit stop pull it back. See{' '}
         <span className="font-mono text-white/60">documentation/animation-roadmap.md</span>.
       </p>
     </div>

@@ -4,9 +4,9 @@ import { SolverDiagnostics, SolverState } from './types'
 export const FIXED_SUBSTEP_SECONDS = 0.002
 export const MAX_FRAME_SECONDS = 0.05
 
-export const JOINT_DAMPING = 0
-export const LIMIT_STOP_STIFFNESS = 0
-export const LIMIT_STOP_DAMPING = 0
+export const JOINT_DAMPING = 20
+export const LIMIT_STOP_STIFFNESS = 8000
+export const LIMIT_STOP_DAMPING = 150
 
 export function initSolverState(spec: BodySpec): SolverState {
   return {
@@ -24,6 +24,34 @@ export function initSolverState(spec: BodySpec): SolverState {
 export function seedRootVelocity(state: SolverState, vx: number, vz: number): void {
   state.rootVelX += vx
   state.rootVelZ += vz
+}
+
+export function perturbJointRates(
+  state: SolverState,
+  spec: BodySpec,
+  magnitude: number
+): void {
+  const n = state.jointRates.length
+  if (n === 0) return
+  for (let j = 0; j < n; j++) state.jointRates[j] = magnitude * (j % 2 === 0 ? 1 : -1)
+
+  const q = stateToCoords(state)
+  const M = buildMassMatrix(spec, q)
+  const baseBlock = [
+    [M[0][0], M[0][1], M[0][2]],
+    [M[1][0], M[1][1], M[1][2]],
+    [M[2][0], M[2][1], M[2][2]],
+  ]
+  const coupling = [0, 0, 0]
+  for (let r = 0; r < 3; r++) {
+    let sum = 0
+    for (let j = 0; j < n; j++) sum += M[r][3 + j] * state.jointRates[j]
+    coupling[r] = -sum
+  }
+  const baseRates = solveLinearSystem(baseBlock, coupling)
+  state.rootVelX = baseRates[0]
+  state.rootVelZ = baseRates[1]
+  state.rootHeadingRateY = baseRates[2]
 }
 
 function stateToCoords(state: SolverState): number[] {
@@ -213,9 +241,21 @@ function coriolisBias(
 
 function generalizedForces(spec: BodySpec, q: number[], qd: number[]): number[] {
   const dof = 3 + spec.joints.length
-  void q
-  void qd
-  return new Array(dof).fill(0)
+  const tau = new Array(dof).fill(0)
+  for (const joint of spec.joints) {
+    const c = joint.coordIndex
+    const angle = q[c]
+    const rate = qd[c]
+    tau[c] -= JOINT_DAMPING * rate
+    if (angle > joint.yawForwardLimit) {
+      const over = angle - joint.yawForwardLimit
+      tau[c] -= LIMIT_STOP_STIFFNESS * over + LIMIT_STOP_DAMPING * rate
+    } else if (angle < -joint.yawBackwardLimit) {
+      const under = angle + joint.yawBackwardLimit
+      tau[c] -= LIMIT_STOP_STIFFNESS * under + LIMIT_STOP_DAMPING * rate
+    }
+  }
+  return tau
 }
 
 function solveLinearSystem(matrix: number[][], rhs: number[]): number[] {
@@ -335,10 +375,18 @@ export function diagnostics(
   startCom: { x: number; z: number }
 ): SolverDiagnostics {
   const com = centerOfMass(state, spec)
+  let maxJointFracOfCap = 0
+  for (let i = 0; i < spec.joints.length; i++) {
+    const angle = state.jointAngles[i]
+    const cap = angle >= 0 ? spec.joints[i].yawForwardLimit : spec.joints[i].yawBackwardLimit
+    const frac = cap > 1e-6 ? Math.abs(angle) / cap : 0
+    if (frac > maxJointFracOfCap) maxJointFracOfCap = frac
+  }
   return {
     kineticEnergy: kineticEnergy(state, spec),
     comX: com.x,
     comZ: com.z,
     comDriftFromStart: Math.hypot(com.x - startCom.x, com.z - startCom.z),
+    maxJointFracOfCap,
   }
 }

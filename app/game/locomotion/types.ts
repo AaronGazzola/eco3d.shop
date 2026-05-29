@@ -14,4 +14,5 @@ export interface SolverDiagnostics {
   comX: number
   comZ: number
   comDriftFromStart: number
+  maxJointFracOfCap: number
 }

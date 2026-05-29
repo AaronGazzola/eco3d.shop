@@ -11,6 +11,7 @@ import {
   centerOfMass,
   diagnostics,
   initSolverState,
+  perturbJointRates,
   seedRootVelocity,
   stepSolver,
 } from './solver'
@@ -27,6 +28,7 @@ const SLERP_RATE = 12
 const Y_AXIS = new THREE.Vector3(0, 1, 0)
 const Z_AXIS = new THREE.Vector3(0, 0, 1)
 const KICK_ROOT_VELOCITY = 0.5
+const PERTURB_MAGNITUDE = 1.5
 const DIAGNOSTICS_INTERVAL = 0.1
 const RECORD_INTERVAL = 0.05
 const MAX_OUTPUT_SAMPLES = 160
@@ -115,6 +117,7 @@ export function useLocomotion(
   const wasRecordingRef = useRef(false)
   const lastResetRef = useRef(0)
   const lastKickRef = useRef(0)
+  const lastPerturbRef = useRef(0)
 
   function seedFromManualPose(spec: BodySpec): SolverState {
     const state = initSolverState(spec)
@@ -158,6 +161,7 @@ export function useLocomotion(
         }
         lastResetRef.current = store.simResetSignal
         lastKickRef.current = store.simKickSignal
+        lastPerturbRef.current = store.simPerturbSignal
       }
       const handle = handleRef.current
 
@@ -170,6 +174,10 @@ export function useLocomotion(
       if (store.simKickSignal !== lastKickRef.current) {
         lastKickRef.current = store.simKickSignal
         seedRootVelocity(handle.state, KICK_ROOT_VELOCITY, 0)
+      }
+      if (store.simPerturbSignal !== lastPerturbRef.current) {
+        lastPerturbRef.current = store.simPerturbSignal
+        perturbJointRates(handle.state, handle.spec, PERTURB_MAGNITUDE)
       }
 
       stepSolver(handle.state, handle.spec, dt)

@@ -585,4 +585,21 @@ reference.
   100 ms. The Simulate sidebar gains Run/Pause, Reset, Kick, Record/Stop, a diagnostics
   readout, and dims the manual sliders while running. Gate is the free-body straight-line
   drift test: one kick → rootX grows linearly, rootZ ≈ 0, heading fixed, no joint motion,
-  KE flat. `tsc` clean, eslint clean. Hand-verified visual gate pending.
+  KE flat. **Gate passed** via capture (rootX slope 0.5, KE flat at 33.3, posed bend held
+  rigidly, head bone len 3.35 after the nodeFront anchor fix). Archived as
+  `2026-05-29-add-zero-force-solver-phase-a3`.
+- **2026-05-29 (A4 implemented)** — `openspec/changes/add-joint-damping-limits-phase-a4`
+  turns the two passive force terms back on (the constants A3 left at `0`):
+  `generalizedForces` applies per-joint viscous damping plus one-sided penalty limit stops
+  at each `angleCaps`. Adds `perturbJointRates` (momentum-balanced alternating joint-rate
+  kick → **Kick joints** button) and a `maxJointFracOfCap` diagnostic (live **Max joint /
+  cap** readout). Gate is the damped-settle test: kick → chain whips → settles to rest
+  with KE → ≈0 and joints inside caps, COM ~stationary (no actuation/environment, so no
+  locomotion). **Tuned across captures:** started `(JOINT_DAMPING, LIMIT_STOP_STIFFNESS,
+  LIMIT_STOP_DAMPING) = (8, 3000, 100)` — settled too slowly with joints parked ~115%
+  past caps and a late KE uptick (stiff explicit end-stop pumping energy). Final
+  **`(20, 8000, 150)`**: joints rest at exactly 100% of cap, KE 102 → 0.43, no uptick, no
+  oscillation. Expected behaviour: with no muscles the body curls from the kick and rests
+  bent against its caps — the restoring force toward a target pose arrives with the Ekeberg
+  muscles in Phase B. `tsc` + eslint clean. Phase A (body model + passive solver) is now
+  complete across A2–A4; A5 (diagnostics) folded into A3's capture re-wire.

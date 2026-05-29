@@ -17,6 +17,7 @@ export interface SimDiagnostics {
   comX: number
   comZ: number
   comDriftFromStart: number
+  maxJointFracOfCap: number
 }
 
 interface AnimateStore {
@@ -31,6 +32,7 @@ interface AnimateStore {
   simRunning: boolean
   simResetSignal: number
   simKickSignal: number
+  simPerturbSignal: number
   simDiagnostics: SimDiagnostics
   simRecording: boolean
   lastCapturePath: string | null
@@ -50,6 +52,7 @@ interface AnimateStore {
   setSimRunning: (running: boolean) => void
   requestSimReset: () => void
   requestSimKick: () => void
+  requestSimPerturb: () => void
   setSimDiagnostics: (d: SimDiagnostics) => void
   setSimRecording: (recording: boolean) => void
   setLastCapturePath: (path: string | null) => void
@@ -67,7 +70,8 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   simRunning: false,
   simResetSignal: 0,
   simKickSignal: 0,
-  simDiagnostics: { kineticEnergy: 0, comX: 0, comZ: 0, comDriftFromStart: 0 },
+  simPerturbSignal: 0,
+  simDiagnostics: { kineticEnergy: 0, comX: 0, comZ: 0, comDriftFromStart: 0, maxJointFracOfCap: 0 },
   simRecording: false,
   lastCapturePath: null,
 
@@ -120,6 +124,8 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   requestSimReset: () => set((state) => ({ simResetSignal: state.simResetSignal + 1 })),
 
   requestSimKick: () => set((state) => ({ simKickSignal: state.simKickSignal + 1 })),
+
+  requestSimPerturb: () => set((state) => ({ simPerturbSignal: state.simPerturbSignal + 1 })),
 
   setSimDiagnostics: (d) => set({ simDiagnostics: d }),
 
