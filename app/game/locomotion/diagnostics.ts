@@ -1,3 +1,9 @@
+import { BodySpec } from './body'
+import { SolverState } from './types'
+import { centerOfMass, kineticEnergy, nodePositions } from './solver'
+
+const RAD_TO_DEG = 180 / Math.PI
+
 export interface CaptureSpecSegment {
   index: number
   groupId: string
@@ -42,6 +48,79 @@ export interface CaptureSample {
   nan: boolean
   joints: CaptureJointSample[]
   nodes: { x: number; z: number }[]
+}
+
+export function buildCaptureSpec(spec: BodySpec): CaptureSpec {
+  return {
+    segments: spec.segments.map((s, i) => ({
+      index: i,
+      groupId: s.groupId,
+      length: s.length,
+      mass: s.mass,
+      inertia: s.inertiaAboutComY,
+    })),
+    joints: spec.joints.map((j, i) => ({
+      index: i,
+      segmentIndex: j.segmentIndex,
+      capForwardDeg: j.yawForwardLimit * RAD_TO_DEG,
+      capBackwardDeg: j.yawBackwardLimit * RAD_TO_DEG,
+    })),
+    restRootX: spec.restRootX,
+    restRootZ: spec.restRootZ,
+  }
+}
+
+export function buildSample(
+  t: number,
+  state: SolverState,
+  spec: BodySpec,
+  baseCom: { x: number; z: number }
+): CaptureSample {
+  const com = centerOfMass(state, spec)
+  const nodes = nodePositions(state, spec)
+  const joints: CaptureJointSample[] = []
+  let maxFrac = 0
+  let nan =
+    !Number.isFinite(state.rootX) ||
+    !Number.isFinite(state.rootZ) ||
+    !Number.isFinite(state.rootHeadingY)
+
+  for (let i = 0; i < spec.joints.length; i++) {
+    const j = spec.joints[i]
+    const raw = state.jointAngles[i]
+    const capF = j.yawForwardLimit
+    const capB = j.yawBackwardLimit
+    const cap = raw >= 0 ? capF : capB
+    const frac = cap > 1e-6 ? Math.abs(raw) / cap : 0
+    if (frac > maxFrac) maxFrac = frac
+    if (!Number.isFinite(raw)) nan = true
+    joints.push({
+      rawDeg: raw * RAD_TO_DEG,
+      clampedDeg: raw * RAD_TO_DEG,
+      fracOfCap: frac,
+      clamped: false,
+    })
+  }
+
+  const ke = kineticEnergy(state, spec)
+  if (!Number.isFinite(ke)) nan = true
+
+  return {
+    t,
+    rootX: state.rootX,
+    rootZ: state.rootZ,
+    headingDeg: state.rootHeadingY * RAD_TO_DEG,
+    rootVelX: state.rootVelX,
+    rootVelZ: state.rootVelZ,
+    kineticEnergy: ke,
+    comX: com.x,
+    comZ: com.z,
+    comDrift: Math.hypot(com.x - baseCom.x, com.z - baseCom.z),
+    maxJointFracOfCap: maxFrac,
+    nan,
+    joints,
+    nodes,
+  }
 }
 
 export function subsampleSamples(samples: CaptureSample[], max: number): CaptureSample[] {

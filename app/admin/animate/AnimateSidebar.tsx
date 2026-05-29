@@ -56,6 +56,15 @@ function PoseSlider({
   )
 }
 
+function DiagnosticRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-white/40">{label}</span>
+      <span className="font-mono text-white/70">{value}</span>
+    </div>
+  )
+}
+
 function SimulateTab() {
   const groups = useSharedStore((s) => s.groups)
   const manualPose = useAnimateStore((s) => s.manualPose)
@@ -64,6 +73,14 @@ function SimulateTab() {
   const setManualPoseRootYaw = useAnimateStore((s) => s.setManualPoseRootYaw)
   const setManualPoseJointAngle = useAnimateStore((s) => s.setManualPoseJointAngle)
   const resetManualPose = useAnimateStore((s) => s.resetManualPose)
+  const simRunning = useAnimateStore((s) => s.simRunning)
+  const setSimRunning = useAnimateStore((s) => s.setSimRunning)
+  const requestSimReset = useAnimateStore((s) => s.requestSimReset)
+  const requestSimKick = useAnimateStore((s) => s.requestSimKick)
+  const simRecording = useAnimateStore((s) => s.simRecording)
+  const setSimRecording = useAnimateStore((s) => s.setSimRecording)
+  const simDiagnostics = useAnimateStore((s) => s.simDiagnostics)
+  const lastCapturePath = useAnimateStore((s) => s.lastCapturePath)
 
   const chainJoints = useMemo(() => {
     const chain = flattenSkeleton(buildSkeletonTree(groups))
@@ -73,8 +90,64 @@ function SimulateTab() {
 
   return (
     <div className="flex flex-col gap-4 p-4 text-xs text-white/60">
-      <p className="text-white/40 text-[10px] uppercase tracking-widest">Simulate — Phase A2 (FK only)</p>
+      <p className="text-white/40 text-[10px] uppercase tracking-widest">Simulate — Phase A3 (zero-force solver)</p>
 
+      <div className="flex flex-col gap-2">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setSimRunning(!simRunning)}
+            className={cn(
+              'flex-1 py-1.5 rounded-md transition-colors',
+              simRunning
+                ? 'bg-emerald-600/40 text-emerald-200'
+                : 'bg-white/10 text-white/70 hover:text-white'
+            )}
+          >
+            {simRunning ? 'Pause' : 'Run'}
+          </button>
+          <button
+            onClick={requestSimReset}
+            className="flex-1 py-1.5 rounded-md bg-white/10 text-white/70 hover:text-white transition-colors"
+          >
+            Reset
+          </button>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={requestSimKick}
+            className="flex-1 py-1.5 rounded-md bg-white/10 text-white/70 hover:text-white transition-colors"
+          >
+            Kick translation
+          </button>
+          <button
+            onClick={() => setSimRecording(!simRecording)}
+            className={cn(
+              'flex-1 py-1.5 rounded-md transition-colors',
+              simRecording
+                ? 'bg-rose-600/40 text-rose-200 animate-pulse'
+                : 'bg-white/10 text-white/70 hover:text-white'
+            )}
+          >
+            {simRecording ? 'Stop' : 'Record'}
+          </button>
+        </div>
+        {lastCapturePath ? (
+          <p className="text-emerald-300/70 text-[10px] break-all font-mono">{lastCapturePath}</p>
+        ) : null}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <p className="text-white/40 text-[10px] uppercase tracking-widest">Diagnostics</p>
+        <DiagnosticRow label="Kinetic energy" value={simDiagnostics.kineticEnergy.toExponential(2)} />
+        <DiagnosticRow label="COM drift" value={simDiagnostics.comDriftFromStart.toExponential(2)} />
+      </div>
+
+      <div
+        className={cn(
+          'flex flex-col gap-4 transition-opacity',
+          simRunning ? 'opacity-40 pointer-events-none' : 'opacity-100'
+        )}
+      >
       <div className="flex flex-col gap-3">
         <p className="text-white/40 text-[10px] uppercase tracking-widest">Root</p>
         <PoseSlider
@@ -142,11 +215,12 @@ function SimulateTab() {
       >
         Reset pose
       </button>
+      </div>
 
       <p className="leading-relaxed text-white/40 text-[10px]">
-        Static-pose driver (Phase A2). Drag a joint slider past its cap to verify the
-        render clamps. Run / Perturb / Record return in Phase A3 when the solver is
-        re-introduced. See{' '}
+        Zero-force solver (Phase A3). Pose the body while paused, click Run, then Kick
+        translation — it should drift in a straight line at constant speed with KE flat
+        and no spin. Reset re-seeds from the current pose. See{' '}
         <span className="font-mono text-white/60">documentation/animation-roadmap.md</span>.
       </p>
     </div>

@@ -84,7 +84,7 @@ function rotationCenterXZ(
   group: BodyGroup,
   parent: BodyGroup | null
 ): { x: number; z: number } | null {
-  const node = parent?.nodeBack ?? group.nodeBack ?? group.nodeFront
+  const node = parent?.nodeBack ?? group.nodeFront ?? group.nodeBack
   if (!node) return null
   return { x: node.x, z: node.z }
 }

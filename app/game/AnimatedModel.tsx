@@ -237,7 +237,7 @@ function ChainNode({
     />
   ))
 
-  const pivotNode = parentNodeBack ?? g.nodeBack ?? g.nodeFront
+  const pivotNode = parentNodeBack ?? g.nodeFront ?? g.nodeBack
   if (!pivotNode) {
     return (
       <group>
@@ -312,7 +312,7 @@ export function AnimatedModel({
     return { legsBySpineId: byParent, orphanLegs: orphans }
   }, [modelConfig.groups, chainIds])
 
-  useLocomotion(pivotsRef, modelConfig.groups, rootRef)
+  useLocomotion(pivotsRef, modelConfig.groups, segments, rootRef)
 
   return (
     <group ref={rootRef}>

@@ -12,6 +12,13 @@ export interface ManualPose {
   jointAnglesRad: Record<string, number>
 }
 
+export interface SimDiagnostics {
+  kineticEnergy: number
+  comX: number
+  comZ: number
+  comDriftFromStart: number
+}
+
 interface AnimateStore {
   animateTab: AnimateTab
   calibratingGroupId: string | null
@@ -21,6 +28,12 @@ interface AnimateStore {
   cameraPreset: CameraPreset | null
   modelOpacity: number
   manualPose: ManualPose
+  simRunning: boolean
+  simResetSignal: number
+  simKickSignal: number
+  simDiagnostics: SimDiagnostics
+  simRecording: boolean
+  lastCapturePath: string | null
 
   setAnimateTab: (tab: AnimateTab) => void
   setCalibratingGroup: (id: string | null) => void
@@ -34,6 +47,12 @@ interface AnimateStore {
   setManualPoseRootYaw: (rad: number) => void
   setManualPoseJointAngle: (groupId: string, rad: number) => void
   resetManualPose: () => void
+  setSimRunning: (running: boolean) => void
+  requestSimReset: () => void
+  requestSimKick: () => void
+  setSimDiagnostics: (d: SimDiagnostics) => void
+  setSimRecording: (recording: boolean) => void
+  setLastCapturePath: (path: string | null) => void
 }
 
 export const useAnimateStore = create<AnimateStore>()((set) => ({
@@ -45,12 +64,18 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   cameraPreset: null,
   modelOpacity: 1,
   manualPose: { rootX: 0, rootZ: 0, rootYawRad: 0, jointAnglesRad: {} },
+  simRunning: false,
+  simResetSignal: 0,
+  simKickSignal: 0,
+  simDiagnostics: { kineticEnergy: 0, comX: 0, comZ: 0, comDriftFromStart: 0 },
+  simRecording: false,
+  lastCapturePath: null,
 
   setAnimateTab: (tab) => {
     if (tab === 'simulate') {
       set({ animateTab: tab, calibratingGroupId: null, calibratingYaw: 0, calibratingPitch: 0 })
     } else {
-      set({ animateTab: tab })
+      set({ animateTab: tab, simRunning: false, simRecording: false })
     }
   },
 
@@ -89,4 +114,17 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
 
   resetManualPose: () =>
     set({ manualPose: { rootX: 0, rootZ: 0, rootYawRad: 0, jointAnglesRad: {} } }),
+
+  setSimRunning: (running) => set({ simRunning: running }),
+
+  requestSimReset: () => set((state) => ({ simResetSignal: state.simResetSignal + 1 })),
+
+  requestSimKick: () => set((state) => ({ simKickSignal: state.simKickSignal + 1 })),
+
+  setSimDiagnostics: (d) => set({ simDiagnostics: d }),
+
+  setSimRecording: (recording) =>
+    set(recording ? { simRecording: true, lastCapturePath: null } : { simRecording: false }),
+
+  setLastCapturePath: (path) => set({ lastCapturePath: path }),
 }))

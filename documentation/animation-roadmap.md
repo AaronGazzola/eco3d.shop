@@ -563,4 +563,26 @@ reference.
   pivot in `AnimatedModel`, binds a `rootRef` on the model's outer group, and exposes
   manual pose sliders in the Simulate tab (root x / z / yaw + per-chain-joint yaw,
   joint sliders fixed at ±π/2 so dragging past a cap reveals the render-side clamp).
-  Calibrate path preserved. `tsc` clean, eslint clean. Hand-verified visual gate pending.
+  Calibrate path preserved. **Visual gate passed** (root sliders translate/yaw; joint
+  sliders bend at each segment's parent `nodeBack`; cap overshoot visibly clamps; legs
+  follow their parent spine; Reset pose works; Calibrate unchanged). One fix during
+  verification: pivot resolution is `parent.nodeBack → self.nodeBack → self.nodeFront`,
+  matching the group editor's node convention (joints live on the parent's back; only
+  the head carries a `nodeFront`; stale `nodeFront` values on other groups are ignored
+  and no longer rendered as ghost spheres). Archived as
+  `2026-05-28-add-fk-renderer-phase-a2`; its 5 requirements merged into
+  `openspec/specs/locomotion/spec.md`.
+- **2026-05-29 (A3 implemented)** — `openspec/changes/add-zero-force-solver-phase-a3`
+  re-introduces the planar multibody solver (`solver.ts` + `types.ts`) **with all
+  generalized forces returning zero** — no joint damping, no limit stops, no actuation;
+  the damping/limit constants are exported as `0` so A4 can flip them on without
+  restructuring. `useLocomotion` gains a solver branch that, on Run, seeds solver state
+  from the current `manualPose` and steps each frame, writing root + chain pivots from
+  solver state; pausing falls back to the A2 manual-pose path. A **Kick translation**
+  button seeds `rootVelX = 0.5` once per click. The diagnostic capture pipeline is
+  re-wired (`buildSample` / `buildCaptureSpec` re-added to `diagnostics.ts`, Record/Stop
+  posts to `/api/diagnostics`). Diagnostics (KE, COM drift) push to the store every
+  100 ms. The Simulate sidebar gains Run/Pause, Reset, Kick, Record/Stop, a diagnostics
+  readout, and dims the manual sliders while running. Gate is the free-body straight-line
+  drift test: one kick → rootX grows linearly, rootZ ≈ 0, heading fixed, no joint motion,
+  KE flat. `tsc` clean, eslint clean. Hand-verified visual gate pending.
