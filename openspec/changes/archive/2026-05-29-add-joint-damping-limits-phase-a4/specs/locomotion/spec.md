@@ -48,18 +48,6 @@ When `simRunning` becomes `false`, the diagnostics push SHALL stop until the sol
 - **WHEN** the chain swings such that a joint momentarily exceeds its cap, then settles
 - **THEN** `simDiagnostics.maxJointFracOfCap` rises above `1.0` during the transient and returns to `≤ 1.0` once the body comes to rest
 
-### Requirement: Kick joints perturbs the chain without injecting net momentum
-
-When `simPerturbSignal` changes value (increment), `useLocomotion` SHALL call `perturbJointRates(state, spec, PERTURB_MAGNITUDE)` exactly once on the current solver state, where `PERTURB_MAGNITUDE` is a documented constant (default `1.5` rad/s). `perturbJointRates` SHALL seed alternating joint rates (`+magnitude`, `−magnitude`, …) and set the root rates so that the body's net linear and angular momentum remain zero — the chain whips internally but its center of mass does not translate.
-
-Each click of the **Kick joints** button in the Simulate sidebar SHALL increment `simPerturbSignal` by one.
-
-#### Scenario: Joint kick leaves COM stationary
-
-- **GIVEN** a solver state at rest with COM at `C`
-- **WHEN** `perturbJointRates(state, spec, 1.5)` is applied and the solver steps forward
-- **THEN** the joints acquire non-zero rates, but the COM does not drift away from `C` beyond a small numerical tolerance over the settling window (no net momentum injected)
-
 ### Requirement: Simulate sidebar exposes solver controls
 
 The Simulate tab in `AnimateSidebar` SHALL render, above the existing manual-pose sliders and Reset pose button:
@@ -84,3 +72,17 @@ While `simRunning` is `true`, the manual pose sliders SHALL be visibly disabled 
 - **GIVEN** the Simulate tab is open with a rig loaded
 - **WHEN** the user clicks Run
 - **THEN** the manual pose sliders and the Reset pose button visibly dim and stop accepting input; Run / Pause, Reset, Kick translation, Kick joints, and Record / Stop remain active
+
+## ADDED Requirements
+
+### Requirement: Kick joints perturbs the chain without injecting net momentum
+
+When `simPerturbSignal` changes value (increment), `useLocomotion` SHALL call `perturbJointRates(state, spec, PERTURB_MAGNITUDE)` exactly once on the current solver state, where `PERTURB_MAGNITUDE` is a documented constant (default `1.5` rad/s). `perturbJointRates` SHALL seed alternating joint rates (`+magnitude`, `−magnitude`, …) and set the root rates so that the body's net linear and angular momentum remain zero — the chain whips internally but its center of mass does not translate.
+
+Each click of the **Kick joints** button in the Simulate sidebar SHALL increment `simPerturbSignal` by one.
+
+#### Scenario: Joint kick leaves COM stationary
+
+- **GIVEN** a solver state at rest with COM at `C`
+- **WHEN** `perturbJointRates(state, spec, 1.5)` is applied and the solver steps forward
+- **THEN** the joints acquire non-zero rates, but the COM does not drift away from `C` beyond a small numerical tolerance over the settling window (no net momentum injected)
