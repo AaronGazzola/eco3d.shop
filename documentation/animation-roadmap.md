@@ -472,13 +472,22 @@ A dated log of decisions, with reasoning. Settled one at a time as we work throu
    foot's plant / slip / lift emerges from the physics. We adopt that: no scripted plant or
    lift arc (Part 5). (Forced by Part 5: settles how the limb joint is actuated.)
 
-**Pending (to settle):**
-5. **Control surface** — expose drive `d` plus a global excitability multiplier (frequency)
-   and optionally an amplitude gain as separate sliders, vs a single drive knob. _Lean:
-   expose `d` + a global `e` multiplier — stays within the paper's model (see §1 Part 2)._
-6. **Phase-bias scaling** — distribute the total head→tail phase lag along the body in
-   proportion to segment length, vs a uniform per-segment bias. _Lean: length-weighted —
-   keeps the wave shape invariant to node count/spacing (see §1 Part 3 / Part 8)._
+5. **Control surface → drive `d` + a global excitability `e` multiplier.** _2026-05-29._
+   The two exposed knobs are: a global axial **drive** `d` (sets both frequency `ν=d·e` and
+   amplitude `R≈d` in the forward regime), and a global **excitability** multiplier `e`
+   (default 1.0). Because `R` does not depend on `e`, the `e` knob changes *frequency
+   independently of amplitude* — the wave speeds up or slows while the bend depth holds —
+   which stays inside the paper's model (§1 Part 2). No separate amplitude gain. Differential
+   drive (rostral vs caudal, left vs right) is the **turning** lever and is deferred to Phase
+   E; Phase B applies one global `d` to all axial segments. (Settled while scoping Phase B.)
+6. **Phase-bias scaling → length-weighted, total lag held constant.** _2026-05-29._ Each
+   adjacent-pair head→tail phase bias is `φₖ = (segmentₖ length / Σ lengths) · Φ_total`, where
+   `Φ_total = 2π · BODY_WAVES` and **`BODY_WAVES ≈ 1.58`** matches the paper's 25-equal-segment
+   total lag (24 × 0.415 ≈ 9.96 rad ≈ 1.58 body waves). Equal segments reduce exactly to the
+   paper's uniform `±0.415` bias; uneven segments get bias proportional to length, so the
+   spatial wave shape is invariant to node count and spacing. `BODY_WAVES` is a single named
+   constant, tunable when we eyeball the undulation in Phase B3. (See §1 Part 3 / Part 8.)
+   The tail→head bias keeps the same length-weighting with the paper's 1:5 strength ratio.
 
 ---
 
@@ -490,10 +499,24 @@ begins. This is the current draft, refined as understanding firms up.
 
 - **Phase A — Body model + minimal solver:** derive the multibody body from the rig (L1);
   stand up a minimal dynamics integrator (L4) with no actuation; verify the passive chain
-  behaves and respects joint limits.
-- **Phase B — CPG + muscles:** build the CPG (L2) from the reference; add Ekeberg muscles
-  (L3 axial) → torques into the solver; verify the body undulates under muscle drive (in
-  place, no environment).
+  behaves and respects joint limits. **Done** — re-decomposed and shipped as A2 (FK
+  renderer), A3 (zero-force solver), A4 (joint damping + soft limit stops).
+- **Phase B — CPG + muscles (axial only; no limbs, no environment).** Split, mirroring A,
+  into signal → actuation → coupling, each with its own gate:
+  - **B1 — CPG network (signal).** The axial double chain (N segments × {left, right})
+    from the reference §2–§3: phase + amplitude ODEs (`s=0`), output `x=r(1+cosθ)`, drive→
+    frequency/amplitude, intra/intersegmental couplings with the length-weighted phase bias
+    (Decision 6). Runs on its own fixed-step clock, no body. Gate: a space-time capture of
+    the per-segment signed activation shows a head→tail traveling wave (phase lag ∝ length,
+    amplitude tracks drive). Locks Decision 6's `BODY_WAVES`.
+  - **B2 — Ekeberg muscles (actuation).** The muscle torque `Tᵢ = α(Mˡ−Mʳ) − β(Mˡ+Mʳ+γ)φᵢ
+    − δφ̇ᵢ` (reference §4, Table 5: α=0.4, β=1.2, γ=0.2, δ=0.1) wired into the solver's
+    generalized forces, driven by a **clean test sinusoid** (not the CPG). Gate: a joint
+    bends sinusoidally and the β stiffness restores it toward 0 — the restoring force A4
+    deliberately lacked. Isolates the muscle params from the CPG.
+  - **B3 — Couple CPG → muscles → body.** Feed B1's real outputs into B2's muscles into the
+    solver (with the 10 ms activation delay). Gate: the body undulates in a head→tail
+    travelling wave in place (no environment → no net thrust). Tune `BODY_WAVES` here.
 - **Phase C — Swimming:** add hydrodynamic reactive + resistive forces (L5 water); verify
   it swims forward — the first emergent locomotion.
 - **Phase D — Walking:** add limbs (transfer function + limb joints) + ground contact +
@@ -603,3 +626,13 @@ reference.
   bent against its caps — the restoring force toward a target pose arrives with the Ekeberg
   muscles in Phase B. `tsc` + eslint clean. Phase A (body model + passive solver) is now
   complete across A2–A4; A5 (diagnostics) folded into A3's capture re-wire.
+- **2026-05-29 (Phase B scoped)** — Explore session mapped the Knüsel CPG + Ekeberg muscle
+  math onto our rig and split Phase B into **B1 (CPG signal) → B2 (Ekeberg muscles,
+  actuation) → B3 (couple → body)**, mirroring A's signal/integrator/forces decomposition;
+  each sub-step has its own gate (see §3). Locked **Decision 5** (control surface = drive
+  `d` + global excitability `e`; differential drive deferred to E) and **Decision 6**
+  (length-weighted phase bias, `BODY_WAVES ≈ 1.58`). Verified `δ = 0.1` against the PDF
+  Table 5 text layer and cleared that flag in the reference. Scope note: Phase B is
+  **axial-only** — no limb oscillators (Phase D) and no environment (Phase C), so the body
+  undulates in place rather than swimming. OpenSpec changes drafted:
+  `add-cpg-network-phase-b1`, `add-ekeberg-muscles-phase-b2`, `add-cpg-muscle-coupling-phase-b3`.

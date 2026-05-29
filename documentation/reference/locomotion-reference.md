@@ -134,12 +134,11 @@ simulation column. We recreate the **simulation**, so the simulation values are 
 | Muscle active gain | `α` | **0.4** N·m | Robot/sim base. "A value of 0.4 proved optimal" (Results). |
 | Muscle stiffness gain | `β` | **1.2** N·m/rad | Robot used 0.5; sim settled 1.2. |
 | Muscle tonic stiffness | `γ` | **0.2** (dimensionless) | "We settled on β = 1.2, γ = 0.2." |
-| Muscle damping | `δ` | **0.1** N·m·s/rad | ⚠ value reconstructed: text-layer cell was blank, but the stated stable region is δ ∈ [0.05, 0.15] and 0.1 is the table cell — verify against the PDF Table 5 screenshot. |
+| Muscle damping | `δ` | **0.1** N·m·s/rad | ✅ confirmed: the PDF text layer (Table 5) lists `0.1` on the Muscle-damping row, directly below tonic stiffness `0.2`; consistent with the stated stable region δ ∈ [0.05, 0.15]. |
 
 > ✅ `α`, `β`, `γ` are confirmed from the Results prose ("For the active gain, a value of
-> 0.4 proved optimal"; "We settled on β = 1.2, γ = 0.2"). ⚠ `δ` is reconstructed from the
-> stable-region prose (0.05–0.15) + the table cell; confirm the exact figure against the
-> PDF when building Phase B.
+> 0.4 proved optimal"; "We settled on β = 1.2, γ = 0.2"). ✅ `δ = 0.1` confirmed against the
+> PDF Table 5 text layer (verified 2026-05-29 while scoping Phase B).
 
 **Two behaviour-dependent overrides** (not our target regime, recorded so we don't trip on
 them): backward terrestrial stepping and struggling multiply `α` and `β` **×10** (→ 4 and
