@@ -1,6 +1,7 @@
 import { BodySpec } from './body'
 import { SolverState } from './types'
 import { centerOfMass, kineticEnergy, nodePositions } from './solver'
+import { CpgSpec, CpgState, signedActivation } from './cpg'
 
 const RAD_TO_DEG = 180 / Math.PI
 
@@ -121,6 +122,50 @@ export function buildSample(
     joints,
     nodes,
   }
+}
+
+export interface CpgCaptureSpec {
+  n: number
+  excitabilityE: number
+  saturationDth: number
+  bodyWaves: number
+  segmentLengths: number[]
+}
+
+export interface CpgCaptureSample {
+  t: number
+  signedActivations: number[]
+  phases: number[]
+}
+
+export function buildCpgCaptureSpec(spec: CpgSpec, bodySpec: BodySpec): CpgCaptureSpec {
+  return {
+    n: spec.n,
+    excitabilityE: spec.e[0] ?? 0,
+    saturationDth: spec.dTh[0] ?? 0,
+    bodyWaves: 1.58,
+    segmentLengths: bodySpec.segments.map((s) => s.length),
+  }
+}
+
+export function buildCpgSample(t: number, state: CpgState, spec: CpgSpec): CpgCaptureSample {
+  const signedActivations: number[] = []
+  for (let k = 0; k < spec.n; k++) {
+    signedActivations.push(signedActivation(state, spec, k))
+  }
+  return {
+    t,
+    signedActivations,
+    phases: state.phases.slice(),
+  }
+}
+
+export function subsampleCpgSamples(samples: CpgCaptureSample[], max: number): CpgCaptureSample[] {
+  if (samples.length <= max) return samples
+  const out: CpgCaptureSample[] = []
+  const step = (samples.length - 1) / (max - 1)
+  for (let i = 0; i < max; i++) out.push(samples[Math.round(i * step)])
+  return out
 }
 
 export function subsampleSamples(samples: CaptureSample[], max: number): CaptureSample[] {
@@ -322,3 +367,140 @@ export function serializeCapture(spec: CaptureSpec, samples: CaptureSample[]): s
 
   return lines.join('\n')
 }
+
+function signedGlyph(value: number, maxAbs: number): string {
+  if (!Number.isFinite(value)) return '?'
+  if (maxAbs <= 1e-9) return ' '
+  const norm = Math.min(1, Math.abs(value) / maxAbs)
+  if (norm < 0.08) return ' '
+  const ramp = ' .:-=+*#'
+  const idx = Math.min(ramp.length - 1, Math.floor(norm * (ramp.length - 1)))
+  const ch = ramp[idx]
+  if (ch === ' ') return ' '
+  return value >= 0 ? ch : ch === '#' ? '@' : ch === '*' ? 'O' : ch === '+' ? 'o' : ch === '=' ? '~' : ch === '-' ? '_' : ch === ':' ? ',' : '.'
+}
+
+function measureFundamentalFrequency(samples: CpgCaptureSample[], segmentIndex: number): number {
+  if (samples.length < 4) return 0
+  const crossings: number[] = []
+  for (let i = 1; i < samples.length; i++) {
+    const a = samples[i - 1].signedActivations[segmentIndex]
+    const b = samples[i].signedActivations[segmentIndex]
+    if (!Number.isFinite(a) || !Number.isFinite(b)) continue
+    if ((a <= 0 && b > 0) || (a >= 0 && b < 0)) {
+      const t0 = samples[i - 1].t
+      const t1 = samples[i].t
+      const frac = a === b ? 0 : Math.abs(a) / (Math.abs(a) + Math.abs(b))
+      crossings.push(t0 + frac * (t1 - t0))
+    }
+  }
+  if (crossings.length < 3) return 0
+  const intervals: number[] = []
+  for (let i = 1; i < crossings.length; i++) intervals.push(crossings[i] - crossings[i - 1])
+  intervals.sort((a, b) => a - b)
+  const median = intervals[Math.floor(intervals.length / 2)]
+  if (median <= 0) return 0
+  return 1 / (2 * median)
+}
+
+export function serializeCpgCapture(
+  spec: CpgCaptureSpec,
+  samples: CpgCaptureSample[],
+  drive: number,
+  excitability: number
+): string {
+  const lines: string[] = []
+  const duration = samples.length > 0 ? samples[samples.length - 1].t : 0
+
+  let maxAbs = 0
+  for (const s of samples) {
+    for (const v of s.signedActivations) {
+      if (Number.isFinite(v) && Math.abs(v) > maxAbs) maxAbs = Math.abs(v)
+    }
+  }
+
+  const measuredFreq = measureFundamentalFrequency(samples, 0)
+  const expectedFreq = drive * excitability * spec.excitabilityE
+
+  lines.push('# CPG capture (Phase B1)')
+  lines.push(`generated: ${new Date().toISOString()}`)
+  lines.push(
+    `duration: ${f(duration, 2)}s   samples: ${samples.length}   segments: ${spec.n}   drive: ${f(drive, 3)}   excitability: ${f(excitability, 3)}`
+  )
+  lines.push(
+    `axial e: ${f(spec.excitabilityE, 3)}   d_th: ${f(spec.saturationDth, 2)}   BODY_WAVES: ${f(spec.bodyWaves, 3)}`
+  )
+  lines.push('')
+
+  lines.push('## summary')
+  lines.push(`maxAbsSignedActivation: ${e(maxAbs)}`)
+  lines.push(`measuredFreqSeg0: ${f(measuredFreq, 3)} Hz`)
+  lines.push(`expectedFreq (drive·exc·e): ${f(expectedFreq, 3)} Hz`)
+  lines.push(`freqRatio (measured/expected): ${expectedFreq > 1e-9 ? f(measuredFreq / expectedFreq, 3) : '-'}`)
+  lines.push('')
+
+  lines.push('## space-time (rows = segments head→tail ; cols = time)')
+  lines.push(`  glyph: signed activation, ramp ' .:-=+*#' positive / ',_~+o O@' negative ; scale: ±${e(maxAbs)}`)
+  if (samples.length === 0 || spec.n === 0) {
+    lines.push('  (no samples)')
+  } else {
+    const width = samples.length
+    for (let k = 0; k < spec.n; k++) {
+      const row: string[] = []
+      for (let c = 0; c < width; c++) {
+        row.push(signedGlyph(samples[c].signedActivations[k], maxAbs))
+      }
+      lines.push(`  s${pad(String(k), 3)}|${row.join('')}|`)
+    }
+    const tickRow: string[] = []
+    for (let c = 0; c < width; c++) tickRow.push(c === 0 || c === width - 1 ? '|' : c % 10 === 0 ? '.' : ' ')
+    lines.push(`      |${tickRow.join('')}|`)
+    lines.push(`      t: 0 → ${f(duration, 2)}s`)
+  }
+  lines.push('')
+
+  lines.push('## phases (final sample, radians ; left chain top, right chain bottom)')
+  if (samples.length > 0) {
+    const last = samples[samples.length - 1]
+    const left: string[] = [pad('seg', 5)]
+    const right: string[] = [pad('seg', 5)]
+    for (let k = 0; k < spec.n; k++) left.push(pad(String(k), 8))
+    for (let k = 0; k < spec.n; k++) right.push(pad(String(k), 8))
+    lines.push(left.join(''))
+    const leftVals: string[] = [pad('L', 5)]
+    for (let k = 0; k < spec.n; k++) leftVals.push(pad(f(last.phases[k] ?? 0, 3), 8))
+    lines.push(leftVals.join(''))
+    const rightVals: string[] = [pad('R', 5)]
+    for (let k = 0; k < spec.n; k++) rightVals.push(pad(f(last.phases[k + spec.n] ?? 0, 3), 8))
+    lines.push(rightVals.join(''))
+
+    const lagVals: string[] = [pad('lagL', 5)]
+    for (let k = 0; k < spec.n; k++) {
+      const d = (last.phases[k] ?? 0) - (last.phases[0] ?? 0)
+      const wrapped = ((d % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)
+      lagVals.push(pad(f(wrapped, 3), 8))
+    }
+    lines.push(lagVals.join(''))
+  } else {
+    lines.push('  (no samples)')
+  }
+  lines.push('')
+
+  lines.push('## per-segment signed-activation max-abs over capture')
+  const segMaxes: number[] = new Array(spec.n).fill(0)
+  for (const s of samples) {
+    for (let k = 0; k < spec.n; k++) {
+      const v = Math.abs(s.signedActivations[k] ?? 0)
+      if (Number.isFinite(v) && v > segMaxes[k]) segMaxes[k] = v
+    }
+  }
+  const segHdr: string[] = [pad('seg', 5)]
+  for (let k = 0; k < spec.n; k++) segHdr.push(pad(String(k), 9))
+  lines.push(segHdr.join(''))
+  const segVals: string[] = [pad('max', 5)]
+  for (let k = 0; k < spec.n; k++) segVals.push(pad(e(segMaxes[k]), 9))
+  lines.push(segVals.join(''))
+
+  return lines.join('\n')
+}
+

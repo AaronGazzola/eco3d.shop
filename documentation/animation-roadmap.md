@@ -636,3 +636,52 @@ reference.
   **axial-only** — no limb oscillators (Phase D) and no environment (Phase C), so the body
   undulates in place rather than swimming. OpenSpec changes drafted:
   `add-cpg-network-phase-b1`, `add-ekeberg-muscles-phase-b2`, `add-cpg-muscle-coupling-phase-b3`.
+- **2026-06-02 (B1 implemented)** — `openspec/changes/add-cpg-network-phase-b1` builds the
+  axial double-chain CPG in isolation (`app/game/locomotion/cpg.ts`): `buildCpgSpec`,
+  `initCpgState`, `stepCpg` (2 ms substeps, dt clamped to 50 ms), `oscillatorOutput`,
+  `signedActivation`. Intrasegmental left↔right `w=10, φ=π`; intersegmental head→tail `w=5`
+  with length-weighted `φₖ = (lenₖ/Σlen)·2π·BODY_WAVES` (`BODY_WAVES = 1.58`); tail→head
+  `w=1, −φ`. Constants per Knüsel Table 3: `a=5, b=500, e_axial=1.1, d_th_axial=3`.
+  `feedback s=0` (term dropped, not stubbed). Store gains `cpgDrive/cpgExcitability/
+  cpgRunning/cpgRecording`; sidebar gains a **CPG (Phase B1)** section (drive + excitability
+  sliders 0–2, Run/Pause, Record/Stop). `useLocomotion` steps the CPG each frame on Simulate
+  without touching any pivot or root — the body stays at rest. `diagnostics.ts` gains
+  `buildCpgCaptureSpec`/`buildCpgSample`/`serializeCpgCapture` with a space-time ASCII grid
+  (rows = segments head→tail, cols = time, signed-activation glyph ramp) + per-segment phase
+  snapshot + measured fundamental frequency. **Two empirical fixes during the gate run:**
+  (a) all-zero phase init left the system in a symmetric equilibrium — neither bilateral
+  antiphase nor head→tail asymmetry could escape it — so `buildCpgSpec` now emits
+  `initialPhases` seeded at the target steady state (right chain at `π`, left chain a
+  cumulative head→tail ramp of `−Σφₖ` mod `2π`); design.md had flagged the lean and the
+  empirical answer is "yes, seed both"; (b) the 50 ms record throttle lost data when a
+  single useFrame tick ate a huge `dt` (HMR/throttle), so we now push a sample every frame
+  and let `subsampleCpgSamples` cap the output. **Gate passed:** at `drive=exc=1.0`,
+  measured frequency 1.100 Hz (= `drive·exc·1.1` ✓), maxAbsSignedActivation 2.0, total
+  head→tail lag 9.93 rad ≈ `2π·1.58` ✓, space-time grid shows clear diagonal stripes,
+  body unmoved.
+- **2026-06-02 (B2 implemented)** — `openspec/changes/add-ekeberg-muscles-phase-b2` adds the
+  Ekeberg virtual-muscle pair (`app/game/locomotion/muscles.ts`): `ekebergTorque(mL,mR,φ,φ̇)
+  = α(Mˡ−Mʳ) − β(Mˡ+Mʳ+γ)φ − δφ̇` with Table 5 constants `α=0.4, β=1.2, γ=0.2, δ=0.1`, a
+  10 ms per-segment activation ring buffer, and a test-sinusoid activation source
+  (`testActivation(t,k,freq,amp,phasePerSeg)` → antiphase `(1+cos)` pair). `stepSolver`
+  gains optional `jointTorques?: number[]` and `jointDampingScale?: number` (default 1 →
+  unchanged A4; muscle test passes 0.1) — generalized forces add the muscle torque
+  alongside damping + limit stops. `useLocomotion` gains a muscle-test branch
+  (mutually exclusive with A-phase Run; CPG preview still independent), a Pause→release
+  flag that keeps the muscle solver active with `amp=0` so the body **springs back to rest
+  under the β·γ·φ stiffness** (the restoring force A4 lacked), and reuses the existing
+  solver capture for recording. Store + sidebar gain
+  `muscleTestRunning/Freq/Amplitude/PhasePerSeg` controls; the sidebar Muscle test block
+  now has a co-located Record/Stop button. **Two empirical fixes during the gate run:**
+  (a) at our rig's scale (`BODY_DENSITY=1` × mesh volume → ~80 kg head segment, ~6 kg·m²
+  tail inertia) the paper's `amp=1` produces invisible ~0.5° amplitude — bumped the
+  default to `amp=20` and the slider range to `0–50` so the muscle is strong enough
+  for our mass scale, while keeping Table 5 constants paper-faithful; (b) fully
+  suppressing A4's `JOINT_DAMPING=20` left the spring-back at damping ratio ζ≈0.03
+  (slow ooze, visually indistinguishable from "stuck"), so the muscle test now passes
+  `jointDampingScale=0.1` (= effective `D=2`) which makes the active drive still visible
+  (~9° per joint) AND the release spring-back nearly critically damped — KE decays
+  5 → 0.13 in ~3 s in capture. **Gate passed:** all 10 joints oscillate within caps,
+  KE bounded, body wriggles in place (`maxCOMdrift = 5×10⁻⁴` over 18 s), Pause produces
+  visible spring-back. The A4/muscle damping interplay open question in the design.md
+  resolved in B2 itself via `jointDampingScale` (rather than deferred to B3).

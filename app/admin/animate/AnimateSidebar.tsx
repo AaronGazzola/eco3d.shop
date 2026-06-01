@@ -82,6 +82,22 @@ function SimulateTab() {
   const setSimRecording = useAnimateStore((s) => s.setSimRecording)
   const simDiagnostics = useAnimateStore((s) => s.simDiagnostics)
   const lastCapturePath = useAnimateStore((s) => s.lastCapturePath)
+  const cpgDrive = useAnimateStore((s) => s.cpgDrive)
+  const cpgExcitability = useAnimateStore((s) => s.cpgExcitability)
+  const cpgRunning = useAnimateStore((s) => s.cpgRunning)
+  const cpgRecording = useAnimateStore((s) => s.cpgRecording)
+  const setCpgDrive = useAnimateStore((s) => s.setCpgDrive)
+  const setCpgExcitability = useAnimateStore((s) => s.setCpgExcitability)
+  const setCpgRunning = useAnimateStore((s) => s.setCpgRunning)
+  const setCpgRecording = useAnimateStore((s) => s.setCpgRecording)
+  const muscleTestRunning = useAnimateStore((s) => s.muscleTestRunning)
+  const muscleTestFreq = useAnimateStore((s) => s.muscleTestFreq)
+  const muscleTestAmplitude = useAnimateStore((s) => s.muscleTestAmplitude)
+  const muscleTestPhasePerSeg = useAnimateStore((s) => s.muscleTestPhasePerSeg)
+  const setMuscleTestRunning = useAnimateStore((s) => s.setMuscleTestRunning)
+  const setMuscleTestFreq = useAnimateStore((s) => s.setMuscleTestFreq)
+  const setMuscleTestAmplitude = useAnimateStore((s) => s.setMuscleTestAmplitude)
+  const setMuscleTestPhasePerSeg = useAnimateStore((s) => s.setMuscleTestPhasePerSeg)
 
   const chainJoints = useMemo(() => {
     const chain = flattenSkeleton(buildSkeletonTree(groups))
@@ -148,6 +164,118 @@ function SimulateTab() {
         <DiagnosticRow label="Kinetic energy" value={simDiagnostics.kineticEnergy.toExponential(2)} />
         <DiagnosticRow label="COM drift" value={simDiagnostics.comDriftFromStart.toExponential(2)} />
         <DiagnosticRow label="Max joint / cap" value={`${(simDiagnostics.maxJointFracOfCap * 100).toFixed(0)}%`} />
+      </div>
+
+      <div className="flex flex-col gap-2 pt-2 border-t border-white/10">
+        <p className="text-white/40 text-[10px] uppercase tracking-widest">CPG (Phase B1)</p>
+        <PoseSlider
+          label="drive"
+          value={cpgDrive}
+          min={0}
+          max={2}
+          step={0.01}
+          onChange={setCpgDrive}
+          format={(v) => v.toFixed(2)}
+        />
+        <PoseSlider
+          label="excitability"
+          value={cpgExcitability}
+          min={0}
+          max={2}
+          step={0.01}
+          onChange={setCpgExcitability}
+          format={(v) => v.toFixed(2)}
+        />
+        <div className="flex gap-2">
+          <button
+            onClick={() => setCpgRunning(!cpgRunning)}
+            className={cn(
+              'flex-1 py-1.5 rounded-md transition-colors',
+              cpgRunning
+                ? 'bg-violet-600/40 text-violet-200'
+                : 'bg-white/10 text-white/70 hover:text-white'
+            )}
+          >
+            {cpgRunning ? 'Pause CPG' : 'Run CPG'}
+          </button>
+          <button
+            onClick={() => setCpgRecording(!cpgRecording)}
+            disabled={!cpgRunning}
+            className={cn(
+              'flex-1 py-1.5 rounded-md transition-colors',
+              cpgRecording
+                ? 'bg-rose-600/40 text-rose-200 animate-pulse'
+                : 'bg-white/10 text-white/70 hover:text-white disabled:opacity-40 disabled:hover:text-white/70'
+            )}
+          >
+            {cpgRecording ? 'Stop' : 'Record'}
+          </button>
+        </div>
+        <p className="text-white/30 text-[10px] leading-relaxed">
+          Axial double chain (Knüsel 2020). Body stays at rest; wave appears in capture as
+          diagonal stripes (head→tail). Expected ν ≈ drive·exc·1.1 Hz.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2 pt-2 border-t border-white/10">
+        <p className="text-white/40 text-[10px] uppercase tracking-widest">Muscle test (Phase B2)</p>
+        <PoseSlider
+          label="frequency (Hz)"
+          value={muscleTestFreq}
+          min={0}
+          max={3}
+          step={0.05}
+          onChange={setMuscleTestFreq}
+          format={(v) => v.toFixed(2)}
+        />
+        <PoseSlider
+          label="amplitude"
+          value={muscleTestAmplitude}
+          min={0}
+          max={50}
+          step={0.5}
+          onChange={setMuscleTestAmplitude}
+          format={(v) => v.toFixed(1)}
+        />
+        <PoseSlider
+          label="phase / segment"
+          value={muscleTestPhasePerSeg}
+          min={0}
+          max={Math.PI}
+          step={0.01}
+          onChange={setMuscleTestPhasePerSeg}
+          format={(v) => `${(v * RAD_TO_DEG).toFixed(0)}°`}
+        />
+        <div className="flex gap-2">
+          <button
+            onClick={() => setMuscleTestRunning(!muscleTestRunning)}
+            className={cn(
+              'flex-1 py-1.5 rounded-md transition-colors',
+              muscleTestRunning
+                ? 'bg-amber-600/40 text-amber-200'
+                : 'bg-white/10 text-white/70 hover:text-white'
+            )}
+          >
+            {muscleTestRunning ? 'Pause muscle test' : 'Run muscle test'}
+          </button>
+          <button
+            onClick={() => setSimRecording(!simRecording)}
+            disabled={!muscleTestRunning}
+            className={cn(
+              'flex-1 py-1.5 rounded-md transition-colors',
+              simRecording
+                ? 'bg-rose-600/40 text-rose-200 animate-pulse'
+                : 'bg-white/10 text-white/70 hover:text-white disabled:opacity-40 disabled:hover:text-white/70'
+            )}
+          >
+            {simRecording ? 'Stop' : 'Record'}
+          </button>
+        </div>
+        <p className="text-white/30 text-[10px] leading-relaxed">
+          Ekeberg α=0.4, β=1.2, γ=0.2, δ=0.1 (Table 5). Drives joints with a clean test
+          sinusoid (no CPG). Pause → β·γ·φ stiffness springs joints back toward 0.
+          Default amp=20 compensates for our rig&apos;s mass (paper assumes lighter body).
+        </p>
       </div>
 
       <div

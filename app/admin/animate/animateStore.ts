@@ -36,6 +36,14 @@ interface AnimateStore {
   simDiagnostics: SimDiagnostics
   simRecording: boolean
   lastCapturePath: string | null
+  cpgDrive: number
+  cpgExcitability: number
+  cpgRunning: boolean
+  cpgRecording: boolean
+  muscleTestRunning: boolean
+  muscleTestFreq: number
+  muscleTestAmplitude: number
+  muscleTestPhasePerSeg: number
 
   setAnimateTab: (tab: AnimateTab) => void
   setCalibratingGroup: (id: string | null) => void
@@ -56,6 +64,14 @@ interface AnimateStore {
   setSimDiagnostics: (d: SimDiagnostics) => void
   setSimRecording: (recording: boolean) => void
   setLastCapturePath: (path: string | null) => void
+  setCpgDrive: (v: number) => void
+  setCpgExcitability: (v: number) => void
+  setCpgRunning: (v: boolean) => void
+  setCpgRecording: (v: boolean) => void
+  setMuscleTestRunning: (v: boolean) => void
+  setMuscleTestFreq: (v: number) => void
+  setMuscleTestAmplitude: (v: number) => void
+  setMuscleTestPhasePerSeg: (v: number) => void
 }
 
 export const useAnimateStore = create<AnimateStore>()((set) => ({
@@ -74,12 +90,27 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   simDiagnostics: { kineticEnergy: 0, comX: 0, comZ: 0, comDriftFromStart: 0, maxJointFracOfCap: 0 },
   simRecording: false,
   lastCapturePath: null,
+  cpgDrive: 1.0,
+  cpgExcitability: 1.0,
+  cpgRunning: false,
+  cpgRecording: false,
+  muscleTestRunning: false,
+  muscleTestFreq: 0.8,
+  muscleTestAmplitude: 20,
+  muscleTestPhasePerSeg: 0,
 
   setAnimateTab: (tab) => {
     if (tab === 'simulate') {
       set({ animateTab: tab, calibratingGroupId: null, calibratingYaw: 0, calibratingPitch: 0 })
     } else {
-      set({ animateTab: tab, simRunning: false, simRecording: false })
+      set({
+        animateTab: tab,
+        simRunning: false,
+        simRecording: false,
+        cpgRunning: false,
+        cpgRecording: false,
+        muscleTestRunning: false,
+      })
     }
   },
 
@@ -133,4 +164,21 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
     set(recording ? { simRecording: true, lastCapturePath: null } : { simRecording: false }),
 
   setLastCapturePath: (path) => set({ lastCapturePath: path }),
+
+  setCpgDrive: (v) => set({ cpgDrive: v }),
+
+  setCpgExcitability: (v) => set({ cpgExcitability: v }),
+
+  setCpgRunning: (v) => set({ cpgRunning: v }),
+
+  setCpgRecording: (v) =>
+    set(v ? { cpgRecording: true, lastCapturePath: null } : { cpgRecording: false }),
+
+  setMuscleTestRunning: (v) => set({ muscleTestRunning: v }),
+
+  setMuscleTestFreq: (v) => set({ muscleTestFreq: v }),
+
+  setMuscleTestAmplitude: (v) => set({ muscleTestAmplitude: v }),
+
+  setMuscleTestPhasePerSeg: (v) => set({ muscleTestPhasePerSeg: v }),
 }))

@@ -22,7 +22,21 @@ import {
   serializeCapture,
   subsampleSamples,
   CaptureSample,
+  buildCpgCaptureSpec,
+  buildCpgSample,
+  CpgCaptureSample,
+  serializeCpgCapture,
+  subsampleCpgSamples,
 } from './diagnostics'
+import { buildCpgSpec, CpgSpec, CpgState, initCpgState, stepCpg } from './cpg'
+import {
+  createDelayBuffer,
+  ekebergTorque,
+  MuscleDelayBuffer,
+  pushAndReadDelayed,
+  testActivation,
+} from './muscles'
+import { FIXED_SUBSTEP_SECONDS } from './solver'
 
 const SLERP_RATE = 12
 const Y_AXIS = new THREE.Vector3(0, 1, 0)
@@ -32,6 +46,7 @@ const PERTURB_MAGNITUDE = 1.5
 const DIAGNOSTICS_INTERVAL = 0.1
 const RECORD_INTERVAL = 0.05
 const MAX_OUTPUT_SAMPLES = 160
+const CPG_MAX_OUTPUT_SAMPLES = 200
 
 interface JointCapEntry {
   groupId: string
@@ -48,6 +63,30 @@ interface SolverHandle {
   recordTime: number
   recordAccum: number
   recordSamples: CaptureSample[]
+}
+
+interface CpgHandle {
+  spec: CpgSpec
+  bodySpec: BodySpec
+  state: CpgState
+  recordTime: number
+  recordAccum: number
+  recordSamples: CpgCaptureSample[]
+  recordDrive: number
+  recordExcitability: number
+}
+
+interface MuscleHandle {
+  spec: BodySpec
+  state: SolverState
+  startCom: { x: number; z: number }
+  diagAccum: number
+  recordBaseCom: { x: number; z: number }
+  recordTime: number
+  recordAccum: number
+  recordSamples: CaptureSample[]
+  delayBuffers: MuscleDelayBuffer[]
+  testTime: number
 }
 
 function postCapture(markdown: string): void {
@@ -111,6 +150,7 @@ export function useLocomotion(
   }, [skeletonGroups])
 
   const bodySpec = useMemo(() => buildBodySpec(groups, segments), [groups, segments])
+  const cpgSpec = useMemo(() => (bodySpec ? buildCpgSpec(bodySpec) : null), [bodySpec])
 
   const handleRef = useRef<SolverHandle | null>(null)
   const wasRunningRef = useRef(false)
@@ -118,6 +158,15 @@ export function useLocomotion(
   const lastResetRef = useRef(0)
   const lastKickRef = useRef(0)
   const lastPerturbRef = useRef(0)
+
+  const cpgRef = useRef<CpgHandle | null>(null)
+  const wasCpgRunningRef = useRef(false)
+  const wasCpgRecordingRef = useRef(false)
+
+  const muscleRef = useRef<MuscleHandle | null>(null)
+  const wasMuscleRunningRef = useRef(false)
+  const wasMuscleRecordingRef = useRef(false)
+  const muscleReleasingRef = useRef(false)
 
   function seedFromManualPose(spec: BodySpec): SolverState {
     const state = initSolverState(spec)
@@ -144,6 +193,14 @@ export function useLocomotion(
     const s = scratch.current
 
     const running = !calibrating && store.simRunning && !!bodySpec
+    if (wasMuscleRunningRef.current && !store.muscleTestRunning && !calibrating && !running) {
+      muscleReleasingRef.current = true
+    }
+    if (store.muscleTestRunning || running || calibrating) {
+      muscleReleasingRef.current = false
+    }
+    const muscleRunning =
+      !calibrating && !running && (store.muscleTestRunning || muscleReleasingRef.current) && !!bodySpec
 
     if (running && bodySpec) {
       if (!wasRunningRef.current || !handleRef.current || handleRef.current.spec !== bodySpec) {
@@ -222,6 +279,112 @@ export function useLocomotion(
           )
         }
       }
+    } else if (muscleRunning && bodySpec) {
+      if (
+        !wasMuscleRunningRef.current ||
+        !muscleRef.current ||
+        muscleRef.current.spec !== bodySpec
+      ) {
+        const state = seedFromManualPose(bodySpec)
+        const startCom = centerOfMass(state, bodySpec)
+        const delayBuffers: MuscleDelayBuffer[] = []
+        for (let i = 0; i < bodySpec.joints.length; i++) {
+          delayBuffers.push(createDelayBuffer(FIXED_SUBSTEP_SECONDS))
+        }
+        muscleRef.current = {
+          spec: bodySpec,
+          state,
+          startCom,
+          diagAccum: 0,
+          recordBaseCom: startCom,
+          recordTime: 0,
+          recordAccum: RECORD_INTERVAL,
+          recordSamples: [],
+          delayBuffers,
+          testTime: 0,
+        }
+      }
+      const muscle = muscleRef.current
+      muscle.testTime += dt
+
+      const effectiveAmplitude = store.muscleTestRunning ? store.muscleTestAmplitude : 0
+
+      const torques: number[] = new Array(muscle.spec.joints.length)
+      for (let i = 0; i < muscle.spec.joints.length; i++) {
+        const joint = muscle.spec.joints[i]
+        const segmentIndex = joint.segmentIndex
+        const raw = testActivation(
+          muscle.testTime,
+          segmentIndex,
+          store.muscleTestFreq,
+          effectiveAmplitude,
+          store.muscleTestPhasePerSeg
+        )
+        const delayed = pushAndReadDelayed(muscle.delayBuffers[i], raw.mL, raw.mR)
+        torques[i] = ekebergTorque(
+          delayed.mL,
+          delayed.mR,
+          muscle.state.jointAngles[i],
+          muscle.state.jointRates[i]
+        )
+      }
+
+      if (muscleReleasingRef.current) {
+        let maxAbsAngle = 0
+        let maxAbsRate = 0
+        for (let i = 0; i < muscle.state.jointAngles.length; i++) {
+          const a = Math.abs(muscle.state.jointAngles[i])
+          const r = Math.abs(muscle.state.jointRates[i])
+          if (a > maxAbsAngle) maxAbsAngle = a
+          if (r > maxAbsRate) maxAbsRate = r
+        }
+        if (maxAbsAngle < 0.01 && maxAbsRate < 0.01) {
+          muscleReleasingRef.current = false
+        }
+      }
+
+      stepSolver(muscle.state, muscle.spec, dt, torques, 0.1)
+
+      if (headId) {
+        const headPivot = pivots.get(headId)
+        if (headPivot) headPivot.quaternion.identity()
+      }
+      for (let i = 0; i < muscle.spec.joints.length; i++) {
+        const groupId = muscle.spec.segments[muscle.spec.joints[i].segmentIndex].groupId
+        const pivot = pivots.get(groupId)
+        if (!pivot) continue
+        pivot.quaternion.setFromAxisAngle(Y_AXIS, muscle.state.jointAngles[i])
+      }
+
+      const root = rootRef?.current
+      if (root) {
+        root.position.set(muscle.state.rootX, 0, muscle.state.rootZ)
+        root.quaternion.setFromAxisAngle(Y_AXIS, muscle.state.rootHeadingY)
+      }
+
+      muscle.diagAccum += dt
+      if (muscle.diagAccum >= DIAGNOSTICS_INTERVAL) {
+        muscle.diagAccum -= DIAGNOSTICS_INTERVAL
+        const d = diagnostics(muscle.state, muscle.spec, muscle.startCom)
+        store.setSimDiagnostics(d)
+      }
+
+      if (store.simRecording && !wasMuscleRecordingRef.current) {
+        muscle.recordSamples = []
+        muscle.recordTime = 0
+        muscle.recordAccum = RECORD_INTERVAL
+        muscle.recordBaseCom = centerOfMass(muscle.state, muscle.spec)
+      }
+      if (store.simRecording) {
+        muscle.recordTime += dt
+        muscle.recordAccum += dt
+        if (muscle.recordAccum >= RECORD_INTERVAL) {
+          muscle.recordAccum = 0
+          muscle.recordSamples.push(
+            buildSample(muscle.recordTime, muscle.state, muscle.spec, muscle.recordBaseCom)
+          )
+        }
+      }
     } else if (calibrating) {
       const alpha = 1 - Math.exp(-SLERP_RATE * dt)
       for (const sg of skeletonGroups) {
@@ -263,7 +426,10 @@ export function useLocomotion(
       }
     }
 
-    if (wasRecordingRef.current && !store.simRecording) {
+    const aphaseRecording = running && store.simRecording
+    const muscleRecording = muscleRunning && store.simRecording
+
+    if (wasRecordingRef.current && !aphaseRecording) {
       const handle = handleRef.current
       if (handle && handle.recordSamples.length > 0) {
         const markdown = serializeCapture(
@@ -276,8 +442,72 @@ export function useLocomotion(
       }
     }
 
+    if (wasMuscleRecordingRef.current && !muscleRecording) {
+      const muscle = muscleRef.current
+      if (muscle && muscle.recordSamples.length > 0) {
+        const markdown = serializeCapture(
+          buildCaptureSpec(muscle.spec),
+          subsampleSamples(muscle.recordSamples, MAX_OUTPUT_SAMPLES)
+        )
+        postCapture(markdown)
+      } else {
+        store.setLastCapturePath('no muscle samples captured')
+      }
+    }
+
     wasRunningRef.current = running
-    wasRecordingRef.current = store.simRecording
+    wasRecordingRef.current = aphaseRecording
+    wasMuscleRunningRef.current = muscleRunning
+    wasMuscleRecordingRef.current = muscleRecording
+
+    const cpgRunning = store.cpgRunning && !calibrating && !!bodySpec && !!cpgSpec
+    if (cpgRunning && bodySpec && cpgSpec) {
+      if (!wasCpgRunningRef.current || !cpgRef.current || cpgRef.current.spec !== cpgSpec) {
+        cpgRef.current = {
+          spec: cpgSpec,
+          bodySpec,
+          state: initCpgState(cpgSpec),
+          recordTime: 0,
+          recordAccum: RECORD_INTERVAL,
+          recordSamples: [],
+          recordDrive: store.cpgDrive,
+          recordExcitability: store.cpgExcitability,
+        }
+      }
+      const cpg = cpgRef.current
+      stepCpg(cpg.state, cpg.spec, store.cpgDrive, store.cpgExcitability, dt)
+
+      if (store.cpgRecording && !wasCpgRecordingRef.current) {
+        cpg.recordSamples = []
+        cpg.recordTime = 0
+        cpg.recordAccum = 0
+        cpg.recordDrive = store.cpgDrive
+        cpg.recordExcitability = store.cpgExcitability
+        cpg.recordSamples.push(buildCpgSample(0, cpg.state, cpg.spec))
+      }
+      if (store.cpgRecording) {
+        cpg.recordTime += dt
+        cpg.recordSamples.push(buildCpgSample(cpg.recordTime, cpg.state, cpg.spec))
+      }
+    }
+
+    if (wasCpgRecordingRef.current && !store.cpgRecording) {
+      const cpg = cpgRef.current
+      if (cpg && cpg.recordSamples.length > 0) {
+        const markdown = serializeCpgCapture(
+          buildCpgCaptureSpec(cpg.spec, cpg.bodySpec),
+          subsampleCpgSamples(cpg.recordSamples, CPG_MAX_OUTPUT_SAMPLES),
+          cpg.recordDrive,
+          cpg.recordExcitability
+        )
+        postCapture(markdown)
+      } else {
+        store.setLastCapturePath('no CPG samples captured')
+      }
+    }
+
+    wasCpgRunningRef.current = cpgRunning
+    wasCpgRecordingRef.current = store.cpgRecording
 
     for (const leg of allLegs) {
       const mesh = pivots.get(leg.id)

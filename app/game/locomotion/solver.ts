@@ -239,14 +239,22 @@ function coriolisBias(
   return bias
 }
 
-function generalizedForces(spec: BodySpec, q: number[], qd: number[]): number[] {
+function generalizedForces(
+  spec: BodySpec,
+  q: number[],
+  qd: number[],
+  jointTorques?: number[],
+  jointDampingScale?: number
+): number[] {
   const dof = 3 + spec.joints.length
   const tau = new Array(dof).fill(0)
-  for (const joint of spec.joints) {
+  const dampingScale = jointDampingScale ?? 1
+  for (let i = 0; i < spec.joints.length; i++) {
+    const joint = spec.joints[i]
     const c = joint.coordIndex
     const angle = q[c]
     const rate = qd[c]
-    tau[c] -= JOINT_DAMPING * rate
+    tau[c] -= JOINT_DAMPING * dampingScale * rate
     if (angle > joint.yawForwardLimit) {
       const over = angle - joint.yawForwardLimit
       tau[c] -= LIMIT_STOP_STIFFNESS * over + LIMIT_STOP_DAMPING * rate
@@ -254,6 +262,7 @@ function generalizedForces(spec: BodySpec, q: number[], qd: number[]): number[] 
       const under = angle + joint.yawBackwardLimit
       tau[c] -= LIMIT_STOP_STIFFNESS * under + LIMIT_STOP_DAMPING * rate
     }
+    if (jointTorques) tau[c] += jointTorques[i] ?? 0
   }
   return tau
 }
@@ -297,25 +306,39 @@ function solveLinearSystem(matrix: number[][], rhs: number[]): number[] {
   return x
 }
 
-function integrateSubstep(spec: BodySpec, q: number[], qd: number[], h: number): void {
+function integrateSubstep(
+  spec: BodySpec,
+  q: number[],
+  qd: number[],
+  h: number,
+  jointTorques?: number[],
+  jointDampingScale?: number
+): void {
   const M = buildMassMatrix(spec, q)
   const derivs = massMatrixDerivatives(spec, q)
   const bias = coriolisBias(spec, qd, derivs)
-  const tau = generalizedForces(spec, q, qd)
+  const tau = generalizedForces(spec, q, qd, jointTorques, jointDampingScale)
   const rhs = tau.map((t, i) => t - bias[i])
   const accel = solveLinearSystem(M, rhs)
   for (let i = 0; i < qd.length; i++) qd[i] += h * accel[i]
   for (let i = 0; i < q.length; i++) q[i] += h * qd[i]
 }
 
-export function stepSolver(state: SolverState, spec: BodySpec, dt: number): void {
+export function stepSolver(
+  state: SolverState,
+  spec: BodySpec,
+  dt: number,
+  jointTorques?: number[],
+  jointDampingScale?: number
+): void {
   if (!Number.isFinite(dt) || dt <= 0) return
   const clamped = Math.min(dt, MAX_FRAME_SECONDS)
   const substeps = Math.max(1, Math.ceil(clamped / FIXED_SUBSTEP_SECONDS))
   const h = clamped / substeps
   const q = stateToCoords(state)
   const qd = stateToRates(state)
-  for (let s = 0; s < substeps; s++) integrateSubstep(spec, q, qd, h)
+  for (let s = 0; s < substeps; s++)
+    integrateSubstep(spec, q, qd, h, jointTorques, jointDampingScale)
   writeCoordsRates(state, q, qd)
 }
 
