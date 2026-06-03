@@ -98,6 +98,8 @@ function SimulateTab() {
   const setMuscleTestFreq = useAnimateStore((s) => s.setMuscleTestFreq)
   const setMuscleTestAmplitude = useAnimateStore((s) => s.setMuscleTestAmplitude)
   const setMuscleTestPhasePerSeg = useAnimateStore((s) => s.setMuscleTestPhasePerSeg)
+  const coupledRunning = useAnimateStore((s) => s.coupledRunning)
+  const setCoupledRunning = useAnimateStore((s) => s.setCoupledRunning)
 
   const chainJoints = useMemo(() => {
     const chain = flattenSkeleton(buildSkeletonTree(groups))
@@ -276,6 +278,39 @@ function SimulateTab() {
           sinusoid (no CPG). Pause → β·γ·φ stiffness springs joints back toward 0.
           Default amp=20 compensates for our rig&apos;s mass (paper assumes lighter body).
         </p>
+      </div>
+
+      <div className="flex flex-col gap-2 pt-2 border-t border-white/10">
+        <p className="text-white/40 text-[10px] uppercase tracking-widest">CPG drive (Phase B3)</p>
+        <p className="text-white/30 text-[10px] leading-relaxed">
+          Couples the CPG to the Ekeberg muscles into the body. Uses the drive +
+          excitability sliders above. Body undulates head→tail in place (no environment).
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setCoupledRunning(!coupledRunning)}
+            className={cn(
+              'flex-1 py-1.5 rounded-md transition-colors',
+              coupledRunning
+                ? 'bg-cyan-600/40 text-cyan-200'
+                : 'bg-white/10 text-white/70 hover:text-white'
+            )}
+          >
+            {coupledRunning ? 'Pause CPG drive' : 'Run CPG drive'}
+          </button>
+          <button
+            onClick={() => setSimRecording(!simRecording)}
+            disabled={!coupledRunning}
+            className={cn(
+              'flex-1 py-1.5 rounded-md transition-colors',
+              simRecording
+                ? 'bg-rose-600/40 text-rose-200 animate-pulse'
+                : 'bg-white/10 text-white/70 hover:text-white disabled:opacity-40 disabled:hover:text-white/70'
+            )}
+          >
+            {simRecording ? 'Stop' : 'Record'}
+          </button>
+        </div>
       </div>
 
       <div

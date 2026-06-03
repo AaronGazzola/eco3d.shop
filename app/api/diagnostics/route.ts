@@ -3,9 +3,12 @@ import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 
 export async function POST(req: NextRequest) {
-  if (process.env.NODE_ENV === 'production') {
+  const captureEnabled =
+    process.env.NODE_ENV !== 'production' ||
+    process.env.ENABLE_DIAGNOSTICS_CAPTURE === 'true'
+  if (!captureEnabled) {
     return NextResponse.json(
-      { error: 'Diagnostics capture is disabled in production' },
+      { error: 'Diagnostics capture is disabled' },
       { status: 403 }
     )
   }

@@ -27,8 +27,16 @@ import {
   CpgCaptureSample,
   serializeCpgCapture,
   subsampleCpgSamples,
+  serializeCoupledCapture,
 } from './diagnostics'
-import { buildCpgSpec, CpgSpec, CpgState, initCpgState, stepCpg } from './cpg'
+import {
+  buildCpgSpec,
+  CpgSpec,
+  CpgState,
+  initCpgState,
+  oscillatorOutput,
+  stepCpg,
+} from './cpg'
 import {
   createDelayBuffer,
   ekebergTorque,
@@ -47,6 +55,7 @@ const DIAGNOSTICS_INTERVAL = 0.1
 const RECORD_INTERVAL = 0.05
 const MAX_OUTPUT_SAMPLES = 160
 const CPG_MAX_OUTPUT_SAMPLES = 200
+const CPG_TO_MUSCLE_GAIN = 60
 
 interface JointCapEntry {
   groupId: string
@@ -87,6 +96,24 @@ interface MuscleHandle {
   recordSamples: CaptureSample[]
   delayBuffers: MuscleDelayBuffer[]
   testTime: number
+}
+
+interface CoupledHandle {
+  spec: BodySpec
+  cpgSpec: CpgSpec
+  bodyState: SolverState
+  cpgState: CpgState
+  startCom: { x: number; z: number }
+  diagAccum: number
+  recordBaseCom: { x: number; z: number }
+  recordTime: number
+  recordAccum: number
+  recordBodySamples: CaptureSample[]
+  recordCpgSamples: CpgCaptureSample[]
+  delayBuffers: MuscleDelayBuffer[]
+  jointToCpgSegment: number[]
+  recordDrive: number
+  recordExcitability: number
 }
 
 function postCapture(markdown: string): void {
@@ -168,6 +195,15 @@ export function useLocomotion(
   const wasMuscleRecordingRef = useRef(false)
   const muscleReleasingRef = useRef(false)
 
+  const coupledRef = useRef<CoupledHandle | null>(null)
+  const wasCoupledRunningRef = useRef(false)
+  const wasCoupledRecordingRef = useRef(false)
+
+  const jointToCpgSegment = useMemo(() => {
+    if (!bodySpec) return [] as number[]
+    return bodySpec.joints.map((j) => j.segmentIndex)
+  }, [bodySpec])
+
   function seedFromManualPose(spec: BodySpec): SolverState {
     const state = initSolverState(spec)
     const manualPose = useAnimateStore.getState().manualPose
@@ -193,14 +229,16 @@ export function useLocomotion(
     const s = scratch.current
 
     const running = !calibrating && store.simRunning && !!bodySpec
-    if (wasMuscleRunningRef.current && !store.muscleTestRunning && !calibrating && !running) {
+    const coupledRunning =
+      !calibrating && !running && store.coupledRunning && !!bodySpec && !!cpgSpec
+    if (wasMuscleRunningRef.current && !store.muscleTestRunning && !calibrating && !running && !coupledRunning) {
       muscleReleasingRef.current = true
     }
-    if (store.muscleTestRunning || running || calibrating) {
+    if (store.muscleTestRunning || running || calibrating || coupledRunning) {
       muscleReleasingRef.current = false
     }
     const muscleRunning =
-      !calibrating && !running && (store.muscleTestRunning || muscleReleasingRef.current) && !!bodySpec
+      !calibrating && !running && !coupledRunning && (store.muscleTestRunning || muscleReleasingRef.current) && !!bodySpec
 
     if (running && bodySpec) {
       if (!wasRunningRef.current || !handleRef.current || handleRef.current.spec !== bodySpec) {
@@ -276,6 +314,103 @@ export function useLocomotion(
           handle.recordAccum = 0
           handle.recordSamples.push(
             buildSample(handle.recordTime, handle.state, handle.spec, handle.recordBaseCom)
+          )
+        }
+      }
+    } else if (coupledRunning && bodySpec && cpgSpec) {
+      if (
+        !wasCoupledRunningRef.current ||
+        !coupledRef.current ||
+        coupledRef.current.spec !== bodySpec ||
+        coupledRef.current.cpgSpec !== cpgSpec
+      ) {
+        const bodyState = seedFromManualPose(bodySpec)
+        const startCom = centerOfMass(bodyState, bodySpec)
+        const delayBuffers: MuscleDelayBuffer[] = []
+        for (let i = 0; i < bodySpec.joints.length; i++) {
+          delayBuffers.push(createDelayBuffer(FIXED_SUBSTEP_SECONDS))
+        }
+        coupledRef.current = {
+          spec: bodySpec,
+          cpgSpec,
+          bodyState,
+          cpgState: initCpgState(cpgSpec),
+          startCom,
+          diagAccum: 0,
+          recordBaseCom: startCom,
+          recordTime: 0,
+          recordAccum: RECORD_INTERVAL,
+          recordBodySamples: [],
+          recordCpgSamples: [],
+          delayBuffers,
+          jointToCpgSegment,
+          recordDrive: store.cpgDrive,
+          recordExcitability: store.cpgExcitability,
+        }
+      }
+      const coupled = coupledRef.current
+
+      stepCpg(coupled.cpgState, coupled.cpgSpec, store.cpgDrive, store.cpgExcitability, dt)
+
+      const torques: number[] = new Array(coupled.spec.joints.length)
+      for (let i = 0; i < coupled.spec.joints.length; i++) {
+        const k = coupled.jointToCpgSegment[i]
+        const mL = oscillatorOutput(coupled.cpgState, k) * CPG_TO_MUSCLE_GAIN
+        const mR = oscillatorOutput(coupled.cpgState, k + coupled.cpgSpec.n) * CPG_TO_MUSCLE_GAIN
+        const delayed = pushAndReadDelayed(coupled.delayBuffers[i], mL, mR)
+        torques[i] = ekebergTorque(
+          delayed.mL,
+          delayed.mR,
+          coupled.bodyState.jointAngles[i],
+          coupled.bodyState.jointRates[i]
+        )
+      }
+
+      stepSolver(coupled.bodyState, coupled.spec, dt, torques, 0.1)
+
+      if (headId) {
+        const headPivot = pivots.get(headId)
+        if (headPivot) headPivot.quaternion.identity()
+      }
+      for (let i = 0; i < coupled.spec.joints.length; i++) {
+        const groupId = coupled.spec.segments[coupled.spec.joints[i].segmentIndex].groupId
+        const pivot = pivots.get(groupId)
+        if (!pivot) continue
+        pivot.quaternion.setFromAxisAngle(Y_AXIS, coupled.bodyState.jointAngles[i])
+      }
+
+      const root = rootRef?.current
+      if (root) {
+        root.position.set(coupled.bodyState.rootX, 0, coupled.bodyState.rootZ)
+        root.quaternion.setFromAxisAngle(Y_AXIS, coupled.bodyState.rootHeadingY)
+      }
+
+      coupled.diagAccum += dt
+      if (coupled.diagAccum >= DIAGNOSTICS_INTERVAL) {
+        coupled.diagAccum -= DIAGNOSTICS_INTERVAL
+        const d = diagnostics(coupled.bodyState, coupled.spec, coupled.startCom)
+        store.setSimDiagnostics(d)
+      }
+
+      if (store.simRecording && !wasCoupledRecordingRef.current) {
+        coupled.recordBodySamples = []
+        coupled.recordCpgSamples = []
+        coupled.recordTime = 0
+        coupled.recordAccum = RECORD_INTERVAL
+        coupled.recordBaseCom = centerOfMass(coupled.bodyState, coupled.spec)
+        coupled.recordDrive = store.cpgDrive
+        coupled.recordExcitability = store.cpgExcitability
+      }
+      if (store.simRecording) {
+        coupled.recordTime += dt
+        coupled.recordAccum += dt
+        if (coupled.recordAccum >= RECORD_INTERVAL) {
+          coupled.recordAccum = 0
+          coupled.recordBodySamples.push(
+            buildSample(coupled.recordTime, coupled.bodyState, coupled.spec, coupled.recordBaseCom)
+          )
+          coupled.recordCpgSamples.push(
+            buildCpgSample(coupled.recordTime, coupled.cpgState, coupled.cpgSpec)
           )
         }
       }
@@ -428,6 +563,7 @@ export function useLocomotion(
 
     const aphaseRecording = running && store.simRecording
     const muscleRecording = muscleRunning && store.simRecording
+    const coupledRecording = coupledRunning && store.simRecording
 
     if (wasRecordingRef.current && !aphaseRecording) {
       const handle = handleRef.current
@@ -455,12 +591,32 @@ export function useLocomotion(
       }
     }
 
+    if (wasCoupledRecordingRef.current && !coupledRecording) {
+      const coupled = coupledRef.current
+      if (coupled && coupled.recordBodySamples.length > 0) {
+        const markdown = serializeCoupledCapture(
+          buildCaptureSpec(coupled.spec),
+          subsampleSamples(coupled.recordBodySamples, MAX_OUTPUT_SAMPLES),
+          buildCpgCaptureSpec(coupled.cpgSpec, coupled.spec),
+          subsampleCpgSamples(coupled.recordCpgSamples, CPG_MAX_OUTPUT_SAMPLES),
+          coupled.recordDrive,
+          coupled.recordExcitability
+        )
+        postCapture(markdown)
+      } else {
+        store.setLastCapturePath('no coupled samples captured')
+      }
+    }
+
     wasRunningRef.current = running
     wasRecordingRef.current = aphaseRecording
     wasMuscleRunningRef.current = muscleRunning
     wasMuscleRecordingRef.current = muscleRecording
+    wasCoupledRunningRef.current = coupledRunning
+    wasCoupledRecordingRef.current = coupledRecording
 
-    const cpgRunning = store.cpgRunning && !calibrating && !!bodySpec && !!cpgSpec
+    const cpgRunning =
+      store.cpgRunning && !calibrating && !coupledRunning && !!bodySpec && !!cpgSpec
     if (cpgRunning && bodySpec && cpgSpec) {
       if (!wasCpgRunningRef.current || !cpgRef.current || cpgRef.current.spec !== cpgSpec) {
         cpgRef.current = {

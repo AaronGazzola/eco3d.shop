@@ -44,6 +44,7 @@ interface AnimateStore {
   muscleTestFreq: number
   muscleTestAmplitude: number
   muscleTestPhasePerSeg: number
+  coupledRunning: boolean
 
   setAnimateTab: (tab: AnimateTab) => void
   setCalibratingGroup: (id: string | null) => void
@@ -72,6 +73,7 @@ interface AnimateStore {
   setMuscleTestFreq: (v: number) => void
   setMuscleTestAmplitude: (v: number) => void
   setMuscleTestPhasePerSeg: (v: number) => void
+  setCoupledRunning: (v: boolean) => void
 }
 
 export const useAnimateStore = create<AnimateStore>()((set) => ({
@@ -98,6 +100,7 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   muscleTestFreq: 0.8,
   muscleTestAmplitude: 20,
   muscleTestPhasePerSeg: 0,
+  coupledRunning: false,
 
   setAnimateTab: (tab) => {
     if (tab === 'simulate') {
@@ -110,6 +113,7 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
         cpgRunning: false,
         cpgRecording: false,
         muscleTestRunning: false,
+        coupledRunning: false,
       })
     }
   },
@@ -150,7 +154,12 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   resetManualPose: () =>
     set({ manualPose: { rootX: 0, rootZ: 0, rootYawRad: 0, jointAnglesRad: {} } }),
 
-  setSimRunning: (running) => set({ simRunning: running }),
+  setSimRunning: (running) =>
+    set(
+      running
+        ? { simRunning: true, cpgRunning: false, muscleTestRunning: false, coupledRunning: false }
+        : { simRunning: false }
+    ),
 
   requestSimReset: () => set((state) => ({ simResetSignal: state.simResetSignal + 1 })),
 
@@ -169,16 +178,33 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
 
   setCpgExcitability: (v) => set({ cpgExcitability: v }),
 
-  setCpgRunning: (v) => set({ cpgRunning: v }),
+  setCpgRunning: (v) =>
+    set(
+      v
+        ? { cpgRunning: true, simRunning: false, muscleTestRunning: false, coupledRunning: false }
+        : { cpgRunning: false }
+    ),
 
   setCpgRecording: (v) =>
     set(v ? { cpgRecording: true, lastCapturePath: null } : { cpgRecording: false }),
 
-  setMuscleTestRunning: (v) => set({ muscleTestRunning: v }),
+  setMuscleTestRunning: (v) =>
+    set(
+      v
+        ? { muscleTestRunning: true, simRunning: false, cpgRunning: false, coupledRunning: false }
+        : { muscleTestRunning: false }
+    ),
 
   setMuscleTestFreq: (v) => set({ muscleTestFreq: v }),
 
   setMuscleTestAmplitude: (v) => set({ muscleTestAmplitude: v }),
 
   setMuscleTestPhasePerSeg: (v) => set({ muscleTestPhasePerSeg: v }),
+
+  setCoupledRunning: (v) =>
+    set(
+      v
+        ? { coupledRunning: true, simRunning: false, cpgRunning: false, muscleTestRunning: false }
+        : { coupledRunning: false }
+    ),
 }))

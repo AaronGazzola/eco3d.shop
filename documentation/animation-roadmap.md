@@ -685,3 +685,34 @@ reference.
   KE bounded, body wriggles in place (`maxCOMdrift = 5×10⁻⁴` over 18 s), Pause produces
   visible spring-back. The A4/muscle damping interplay open question in the design.md
   resolved in B2 itself via `jointDampingScale` (rather than deferred to B3).
+- **2026-06-04 (B3 implemented — Phase B complete)** —
+  `openspec/changes/add-cpg-muscle-coupling-phase-b3` couples the B1 CPG to the B2 Ekeberg
+  muscles into the A4 body solver: `useLocomotion.ts` gains a coupled branch that runs the
+  pipeline `stepCpg → oscillatorOutput · CPG_TO_MUSCLE_GAIN → delay buffer → ekebergTorque
+  → stepSolver(…, jointDampingScale=0.1)` each frame, with one clock and two integrators
+  (CPG state ≠ body state; `s=0`, no body feedback into CPG). `jointToCpgSegment[i] =
+  bodySpec.joints[i].segmentIndex` (the joint's child axial segment); off-by-one would
+  manifest as a wave that doesn't travel head→tail, so we pin the indexing once and reuse
+  it. Store gains `coupledRunning` plus mutual-exclusion setters (A-phase Run / CPG
+  preview / Muscle test / Coupled are now four modes, exactly one active at a time, with
+  `setAnimateTab('calibrate')` clearing all). The standalone CPG preview branch suppresses
+  itself while coupled runs so the CPG isn't double-stepped. Sidebar gains a **CPG drive
+  (Phase B3)** block with Run/Pause + co-located Record/Stop, reusing the B1 drive +
+  excitability sliders. `diagnostics.ts` gains `serializeCoupledCapture` that emits the
+  A3/A4 body section (per-joint angle, KE, COM, `maxJointFracOfCap`, node polyline, ASCII
+  top-down) followed by the B1 CPG space-time section, so the commanded wave and the
+  body's response are side-by-side in one file. **Empirical fix during the gate run:**
+  raw CPG output (`r·(1+cosθ)`, max ≈ 2 at `drive=1`) is the same magnitude as B2's
+  rejected `amp=1` baseline and produced ±1–4° per-joint motion at our rig's mass scale;
+  added `CPG_TO_MUSCLE_GAIN = 60` (matching the empirical B2 finding — Table 5 constants
+  stay paper-faithful, the gain absorbs the body-mass mismatch). At `gain=60, drive=1.0,
+  exc=1.0`, the verified behaviour: CPG space-time is a clean head→tail wave (max
+  activation 2.0 per segment); the body undulates with head-anchored / tail-whipping
+  amplitude (j0..j6 ±1–3°, j7 ±8°, j8 ±18°, j9 ±14°) — the classic undulation pattern of a
+  free chain whipping at its lighter end, expected without environment (Phase C). KE
+  bounded peak 16.4 → 3.5, `maxCOMdrift = 9×10⁻⁴` over 2.8 s, all joints inside caps,
+  no NaN. `BODY_WAVES = 1.58` (paper value) kept — the wave clearly travels through the
+  body; finer wave-count tuning is a Phase C concern once drag shapes the body's
+  response. **Phase B complete (B1 + B2 + B3): controller + actuation + coupling are
+  built, gated separately, and gated together.** Next: Phase C (environment / drag / net
+  thrust) — only then will the body translate.

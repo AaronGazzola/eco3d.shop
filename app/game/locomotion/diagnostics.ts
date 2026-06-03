@@ -504,3 +504,17 @@ export function serializeCpgCapture(
   return lines.join('\n')
 }
 
+export function serializeCoupledCapture(
+  bodySpec: CaptureSpec,
+  bodySamples: CaptureSample[],
+  cpgSpec: CpgCaptureSpec,
+  cpgSamples: CpgCaptureSample[],
+  drive: number,
+  excitability: number
+): string {
+  const header = `# Coupled CPG→muscle→body capture (Phase B3)\ngenerated: ${new Date().toISOString()}\ndrive: ${drive.toFixed(3)}   excitability: ${excitability.toFixed(3)}\n\n---\n`
+  const body = serializeCapture(bodySpec, bodySamples)
+  const cpg = serializeCpgCapture(cpgSpec, cpgSamples, drive, excitability)
+  return header + body + '\n\n---\n\n' + cpg
+}
+
