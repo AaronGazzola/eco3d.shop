@@ -1,5 +1,6 @@
 import { BodySpec } from './body'
 import { SolverDiagnostics, SolverState } from './types'
+import { computeEnvironmentTau } from './environment'
 
 export const FIXED_SUBSTEP_SECONDS = 0.002
 export const MAX_FRAME_SECONDS = 0.05
@@ -75,15 +76,16 @@ function writeCoordsRates(state: SolverState, q: number[], qd: number[]): void {
   }
 }
 
-interface Kinematics {
+export interface Kinematics {
   comX: number[]
   comZ: number[]
   jacLinX: number[][]
   jacLinZ: number[][]
   jacAng: number[][]
+  cumulativeHeading: number[]
 }
 
-function computeKinematics(spec: BodySpec, q: number[]): Kinematics {
+export function computeKinematics(spec: BodySpec, q: number[]): Kinematics {
   const segs = spec.segments
   const n = segs.length
   const dof = 3 + spec.joints.length
@@ -161,7 +163,7 @@ function computeKinematics(spec: BodySpec, q: number[]): Kinematics {
     }
   }
 
-  return { comX, comZ, jacLinX, jacLinZ, jacAng }
+  return { comX, comZ, jacLinX, jacLinZ, jacAng, cumulativeHeading }
 }
 
 function buildMassMatrix(spec: BodySpec, q: number[]): number[][] {
@@ -244,7 +246,8 @@ function generalizedForces(
   q: number[],
   qd: number[],
   jointTorques?: number[],
-  jointDampingScale?: number
+  jointDampingScale?: number,
+  environmentEnabled?: boolean
 ): number[] {
   const dof = 3 + spec.joints.length
   const tau = new Array(dof).fill(0)
@@ -263,6 +266,10 @@ function generalizedForces(
       tau[c] -= LIMIT_STOP_STIFFNESS * under + LIMIT_STOP_DAMPING * rate
     }
     if (jointTorques) tau[c] += jointTorques[i] ?? 0
+  }
+  if (environmentEnabled) {
+    const envTau = computeEnvironmentTau(spec, q, qd)
+    for (let c = 0; c < dof; c++) tau[c] += envTau[c]
   }
   return tau
 }
@@ -312,12 +319,13 @@ function integrateSubstep(
   qd: number[],
   h: number,
   jointTorques?: number[],
-  jointDampingScale?: number
+  jointDampingScale?: number,
+  environmentEnabled?: boolean
 ): void {
   const M = buildMassMatrix(spec, q)
   const derivs = massMatrixDerivatives(spec, q)
   const bias = coriolisBias(spec, qd, derivs)
-  const tau = generalizedForces(spec, q, qd, jointTorques, jointDampingScale)
+  const tau = generalizedForces(spec, q, qd, jointTorques, jointDampingScale, environmentEnabled)
   const rhs = tau.map((t, i) => t - bias[i])
   const accel = solveLinearSystem(M, rhs)
   for (let i = 0; i < qd.length; i++) qd[i] += h * accel[i]
@@ -329,7 +337,8 @@ export function stepSolver(
   spec: BodySpec,
   dt: number,
   jointTorques?: number[],
-  jointDampingScale?: number
+  jointDampingScale?: number,
+  environmentEnabled?: boolean
 ): void {
   if (!Number.isFinite(dt) || dt <= 0) return
   const clamped = Math.min(dt, MAX_FRAME_SECONDS)
@@ -338,7 +347,7 @@ export function stepSolver(
   const q = stateToCoords(state)
   const qd = stateToRates(state)
   for (let s = 0; s < substeps; s++)
-    integrateSubstep(spec, q, qd, h, jointTorques, jointDampingScale)
+    integrateSubstep(spec, q, qd, h, jointTorques, jointDampingScale, environmentEnabled)
   writeCoordsRates(state, q, qd)
 }
 

@@ -55,7 +55,7 @@ const DIAGNOSTICS_INTERVAL = 0.1
 const RECORD_INTERVAL = 0.05
 const MAX_OUTPUT_SAMPLES = 160
 const CPG_MAX_OUTPUT_SAMPLES = 200
-const CPG_TO_MUSCLE_GAIN = 60
+const CPG_TO_MUSCLE_GAIN = 80
 
 interface JointCapEntry {
   groupId: string
@@ -201,7 +201,8 @@ export function useLocomotion(
 
   const jointToCpgSegment = useMemo(() => {
     if (!bodySpec) return [] as number[]
-    return bodySpec.joints.map((j) => j.segmentIndex)
+    const n = bodySpec.segments.length
+    return bodySpec.joints.map((j) => n - 1 - j.segmentIndex)
   }, [bodySpec])
 
   function seedFromManualPose(spec: BodySpec): SolverState {
@@ -275,7 +276,7 @@ export function useLocomotion(
         perturbJointRates(handle.state, handle.spec, PERTURB_MAGNITUDE)
       }
 
-      stepSolver(handle.state, handle.spec, dt)
+      stepSolver(handle.state, handle.spec, dt, undefined, undefined, store.environmentEnabled)
 
       if (headId) {
         const headPivot = pivots.get(headId)
@@ -366,7 +367,7 @@ export function useLocomotion(
         )
       }
 
-      stepSolver(coupled.bodyState, coupled.spec, dt, torques, 0.1)
+      stepSolver(coupled.bodyState, coupled.spec, dt, torques, 0.1, store.environmentEnabled)
 
       if (headId) {
         const headPivot = pivots.get(headId)
@@ -478,7 +479,7 @@ export function useLocomotion(
         }
       }
 
-      stepSolver(muscle.state, muscle.spec, dt, torques, 0.1)
+      stepSolver(muscle.state, muscle.spec, dt, torques, 0.1, store.environmentEnabled)
 
       if (headId) {
         const headPivot = pivots.get(headId)

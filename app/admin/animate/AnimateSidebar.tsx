@@ -100,6 +100,8 @@ function SimulateTab() {
   const setMuscleTestPhasePerSeg = useAnimateStore((s) => s.setMuscleTestPhasePerSeg)
   const coupledRunning = useAnimateStore((s) => s.coupledRunning)
   const setCoupledRunning = useAnimateStore((s) => s.setCoupledRunning)
+  const environmentEnabled = useAnimateStore((s) => s.environmentEnabled)
+  const setEnvironmentEnabled = useAnimateStore((s) => s.setEnvironmentEnabled)
 
   const chainJoints = useMemo(() => {
     const chain = flattenSkeleton(buildSkeletonTree(groups))
@@ -109,6 +111,24 @@ function SimulateTab() {
 
   return (
     <div className="flex flex-col gap-4 p-4 text-xs text-white/60">
+      <div className="flex flex-col gap-2 pb-3 border-b border-white/10">
+        <p className="text-white/40 text-[10px] uppercase tracking-widest">Environment (Phase C)</p>
+        <button
+          onClick={() => setEnvironmentEnabled(!environmentEnabled)}
+          className={cn(
+            'py-1.5 rounded-md transition-colors',
+            environmentEnabled
+              ? 'bg-sky-600/40 text-sky-200'
+              : 'bg-white/10 text-white/70 hover:text-white'
+          )}
+        >
+          {environmentEnabled ? 'Drag ON' : 'Drag OFF'}
+        </button>
+        <p className="text-white/30 text-[10px] leading-relaxed">
+          Anisotropic swimming drag (C_n=12, C_t=1.0). Enables forward thrust under B3.
+        </p>
+      </div>
+
       <p className="text-white/40 text-[10px] uppercase tracking-widest">Simulate — Phase A4 (damping + limit stops)</p>
 
       <div className="flex flex-col gap-2">

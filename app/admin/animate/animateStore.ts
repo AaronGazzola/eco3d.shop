@@ -45,6 +45,7 @@ interface AnimateStore {
   muscleTestAmplitude: number
   muscleTestPhasePerSeg: number
   coupledRunning: boolean
+  environmentEnabled: boolean
 
   setAnimateTab: (tab: AnimateTab) => void
   setCalibratingGroup: (id: string | null) => void
@@ -74,6 +75,7 @@ interface AnimateStore {
   setMuscleTestAmplitude: (v: number) => void
   setMuscleTestPhasePerSeg: (v: number) => void
   setCoupledRunning: (v: boolean) => void
+  setEnvironmentEnabled: (v: boolean) => void
 }
 
 export const useAnimateStore = create<AnimateStore>()((set) => ({
@@ -101,6 +103,7 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   muscleTestAmplitude: 20,
   muscleTestPhasePerSeg: 0,
   coupledRunning: false,
+  environmentEnabled: false,
 
   setAnimateTab: (tab) => {
     if (tab === 'simulate') {
@@ -207,4 +210,6 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
         ? { coupledRunning: true, simRunning: false, cpgRunning: false, muscleTestRunning: false }
         : { coupledRunning: false }
     ),
+
+  setEnvironmentEnabled: (v) => set({ environmentEnabled: v }),
 }))

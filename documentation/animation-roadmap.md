@@ -716,3 +716,40 @@ reference.
   response. **Phase B complete (B1 + B2 + B3): controller + actuation + coupling are
   built, gated separately, and gated together.** Next: Phase C (environment / drag / net
   thrust) — only then will the body translate.
+- **2026-06-04 (Phase C implemented; rig-morphology limitation discovered)** —
+  `openspec/changes/add-environment-phase-c` adds the anisotropic resistive-force drag
+  environment: `app/game/locomotion/environment.ts` computes per-segment
+  `F_drag = −L · (C_n · v_⊥ + C_t · v_∥ · t̂)` and an angular drag `τ_drag = −L · C_ω · ω`
+  reusing the solver's existing kinematic Jacobians, then assembles a generalized-force
+  contribution `τ_env[c] = Σᵢ (Jᵥₓ[i]·Fₓ + Jᵥz[i]·F_z + Jω[i]·τ_drag)`. `stepSolver` gains
+  an optional `environmentEnabled?: boolean` threaded through `integrateSubstep` →
+  `generalizedForces` so drag is recomputed inside the substep loop and tracks the
+  substep-current `(q, qd)`. With the flag off, all prior A4/B2/B3 captures reproduce
+  unchanged. Store + sidebar add a single `environmentEnabled` toggle (default off,
+  independent of the four run modes, sticky across mode switches). The A-phase / muscle
+  test / coupled branches all pass the flag through to `stepSolver`. **Limitation
+  discovered during the gate run:** the implemented model is correct per the paper's
+  swimming math, but the **rig is a four-legged lizard with a head-heavy mass
+  distribution** (segment 0 head mass `78.7` vs tail segments `7–22`, ≈10× ratio).
+  Knüsel 2020 / Lighthill RFT assume the body bends as a **continuous travelling wave
+  with roughly uniform per-segment amplitude** — the wave's lateral velocity, integrated
+  along the entire body, produces forward thrust. With our rig the CPG-driven wave
+  collapses into a **head-anchored / tail-whip** mode: head + chest joints wag ±3°, tail
+  joints wag ±15–25°. That is not a coherent travelling wave; it is a paddle stroke.
+  Lateral-velocity integration along the body therefore gives near-zero net thrust, and
+  the tiny net drift that does appear is in the wrong direction relative to head heading
+  (tail-leading rather than head-leading). Tuning attempts: `(C_n, gain) = (12, 60)` →
+  tiny correct-direction drift `4×10⁻²` units (≈ 0.001 BL/s); `(60, 60)` → over-damped,
+  motion collapses; `(60, 240)` → chaotic standing-wave mode (every-other-joint flipping,
+  joint 6 saturates at `t=0.01`, KE peaks 418, drift 0.73 in wrong direction); `(30, 80)`
+  current — clean coordinated wave but still tail-whip-dominated, drift 0.34 in wrong
+  direction. No tuning of `C_n, C_t, C_ω, CPG_TO_MUSCLE_GAIN` produces clean head-leading
+  swimming, because the limitation is **morphological**, not parametric: the rig cannot
+  bend evenly enough along its length. **Phase C is therefore marked complete as
+  implemented (every spec requirement passes, every scenario is mechanically reproducible)
+  but the visual swimming gate is not achievable on this rig.** It would re-test on an
+  eel- or salamander-shaped rig with uniform per-segment mass. Final constants:
+  `DRAG_NORMAL = 30, DRAG_TANGENT = 2.5, DRAG_ANGULAR = 1.5, CPG_TO_MUSCLE_GAIN = 80`.
+  **Next: Phase D (limbs + ground contact + friction)** — the lizard rig was authored
+  for walking, not undulatory swimming. Phase D adds the actuation path the rig actually
+  matches.
