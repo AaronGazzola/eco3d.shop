@@ -1,16 +1,16 @@
 ## 1. Rapier bootstrap + spikes
 
-- [ ] 1.1 Add `@dimforge/rapier3d-compat` as a direct dependency (already transitive via `@react-three/rapier`); confirm it imports and `await RAPIER.init()` resolves in the app.
-- [ ] 1.2 Spike: confirm the cleanest API to (a) create a dynamic body with a capsule collider whose **mass = a chosen value** while the engine derives the inertia tensor; (b) create a revolute joint with angle limits; (c) read a revolute joint's `angle()` and the bodies' angular velocities for `φ̇`. Record the chosen calls in design.md Open Questions.
-- [ ] 1.3 Decide + document the fixed timestep (e.g. 1/120) and substep accumulator.
+- [x] 1.1 Add `@dimforge/rapier3d-compat` as a direct dependency (already transitive via `@react-three/rapier`); confirm it imports and `await RAPIER.init()` resolves in the app.
+- [x] 1.2 Spike: confirm the cleanest API to (a) create a dynamic body with a capsule collider whose **mass = a chosen value** while the engine derives the inertia tensor; (b) create a revolute joint with angle limits; (c) read a revolute joint's `angle()` and the bodies' angular velocities for `φ̇`. Record the chosen calls in design.md Open Questions.
+- [x] 1.3 Decide + document the fixed timestep (1/120, fixed substep accumulator) (e.g. 1/120) and substep accumulator.
 
 ## 2. 3D body construction (`body3d.ts`)
 
-- [ ] 2.1 Move `DEFAULT_AXIAL_WEIGHT`, `DEFAULT_LEG_WEIGHT`, `STD_SEGMENT_WIDTH`, `defaultWeightFor` out of `body.ts` into `body3d.ts`.
-- [ ] 2.2 Build the axial chain (`flattenSkeleton(buildSkeletonTree(groups))`, head/spine/tail; legs excluded) → one dynamic rigid body per segment at its rest world transform from node x/y/z, capsule collider (half-length from node spacing, radius from `STD_SEGMENT_WIDTH`), collider mass = `group.nodeWeight ?? defaultWeightFor(type)`.
-- [ ] 2.3 Revolute joints head→tail at each `parent.nodeBack`, axis = segment local up, limits `[−yawBackwardLimit, +yawForwardLimit]` from `effectiveAngleCaps`. Head = free root body.
-- [ ] 2.4 Expose handles: ordered body list, joint list, and a `jointToCpgSegment[i] = segmentIndex` map (the proven non-reversed mapping). Build is deterministic for equal `(groups, segments)`.
-- [ ] 2.5 `npx tsc --noEmit` and `npx eslint` pass.
+- [x] 2.1 Move `DEFAULT_AXIAL_WEIGHT`, `DEFAULT_LEG_WEIGHT`, `STD_SEGMENT_WIDTH`, `defaultWeightFor` out of `body.ts` into `body3d.ts`.
+- [x] 2.2 Build the axial chain (`flattenSkeleton(buildSkeletonTree(groups))`, head/spine/tail; legs excluded) → one dynamic rigid body per segment at its rest world transform from node x/y/z, capsule collider (half-length from node spacing, radius from `STD_SEGMENT_WIDTH`), collider mass = `group.nodeWeight ?? defaultWeightFor(type)`.
+- [x] 2.3 Revolute joints head→tail at each `parent.nodeBack`, axis = segment local up, limits `[−yawBackwardLimit, +yawForwardLimit]` from `effectiveAngleCaps`. Head = free root body.
+- [x] 2.4 Expose handles: ordered body list, joint list, and a `jointToCpgSegment[i] = segmentIndex` map (the proven non-reversed mapping). Build is deterministic for equal `(groups, segments)`.
+- [x] 2.5 `npx tsc --noEmit` and `npx eslint` pass. **Validated headless** (`scripts/locomotion-3d-swim-check.ts`): the full CPG→Ekeberg→Rapier→3D-drag pipeline swims the 3D body HEAD-FIRST (COM Δx −18 over 10 s). Proves body3d construction + controller wiring + 3D drag logic before UI.
 
 ## 3. Controller → engine joints (`useLocomotion`)
 

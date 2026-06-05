@@ -70,6 +70,16 @@ Add `F` at the COM (`body.addForce`) and `τ` (`body.addTorque`). This is the ex
 - **Decision 4 (raw Rapier vs `@react-three/rapier`):** **raw `@dimforge/rapier3d-compat`** driven from `useLocomotion` — we need to step deterministically, inject custom drag forces, and read state for captures; the declarative R3F wrapper fights all three.
 - **Decision 5 (delete vs keep `solver.ts`):** **delete.** Two body engines is a maintenance and divergence trap; the planar solver has no role once the body is in Rapier, and git preserves it.
 
+## Spike findings (resolved — Rapier 0.12 compat, task 1.2)
+
+Confirmed headless (`scripts/rapier-spike.ts`):
+- World: `await RAPIER.init()`; `new RAPIER.World({x,y,z})`; `world.timestep = 1/120` (chosen fixed step).
+- Body: `RAPIER.RigidBodyDesc.dynamic().setTranslation(...).setRotation(quat)` → `world.createRigidBody`.
+- Collider: `RAPIER.ColliderDesc.capsule(halfHeight, radius).setMass(nodeWeight)` — engine derives the inertia tensor from the shape at that mass (`body.principalInertia()` confirmed). **Orient the capsule along the segment's forward (long) axis**, perpendicular to the yaw joint axis: the default capsule lies along local Y and its inertia about that long axis is tiny (~0.045 vs ~0.32 perpendicular). If the long axis coincided with the yaw axis, yaw would rotate about the thin axis and snap to its limits. So set the collider's local rotation so its axis = segment forward, and the revolute axis = segment up.
+- Joint: `RAPIER.JointData.revolute(anchor1Local, anchor2Local, axisLocal)` → `world.createImpulseJoint(jd, parent, child, true)`; then `joint.setLimits(−yawBack, +yawFwd)` — limits are **not** on `JointData`; the setter clamps (verified).
+- Joint angle: **compute from body quaternions** (relative rotation about the axis) — no `joint.angle()` in 0.12. Rate `φ̇`: `child.angvel() − parent.angvel()` projected on the world axis.
+- Forces: `body.addForce({x,y,z}, true)` / `body.addTorque({x,y,z}, true)` each step before `world.step()`. Internal torque pair (`+τ` child, `−τ` parent) bent the joint without flinging the bodies — the intended model.
+
 ## Open Questions
 
 - **Out-of-plane drift.** With gravity off and full 3D freedom, does the body stay roughly in its starting (horizontal) plane during swimming, or does it slowly tumble/drift in pitch/roll? The axial joints are pure yaw, and the drag is symmetric, so it *should* stay planar — but confirm at the gate. If it drifts, options: a weak restoring drag toward the swim plane, or accept gentle 3D wander (it is, after all, a 3D swimmer now).
