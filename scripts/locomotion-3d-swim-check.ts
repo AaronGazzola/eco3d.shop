@@ -49,7 +49,7 @@ async function main() {
   console.log('seg lengths:', body.segLength.map((l) => l.toFixed(2)).join(' '))
   console.log('masses:', body.bodies.map((b) => b.mass().toFixed(2)).join(' '))
 
-  const cpgSpec = buildCpgSpec({ segments: body.segLength.map((l) => ({ length: l })) } as never)
+  const cpgSpec = buildCpgSpec(body.segLength)
   const cpgState = initCpgState(cpgSpec)
   const delay = body.joints.map(() => createDelayBuffer(TIMESTEP))
 

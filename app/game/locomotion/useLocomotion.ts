@@ -1,61 +1,39 @@
 'use client'
 
-import { RefObject, useMemo, useRef } from 'react'
+import { RefObject, useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import RAPIER from '@dimforge/rapier3d-compat'
 import { BodyGroup, SegmentData } from '@/app/admin/_lib/types'
 import { useAnimateStore } from '@/app/admin/animate/animateStore'
 import { buildSkeletonTree, effectiveAngleCaps, flattenSkeleton } from './chain'
-import { buildBodySpec, BodySpec } from './body'
+import { axialLengths, buildBody3D, Body3D, jointAngle, jointRate, worldAxis } from './body3d'
+import { applyEnvironment3D } from './environment'
 import {
-  centerOfMass,
-  diagnostics,
-  initSolverState,
-  perturbJointRates,
-  seedRootVelocity,
-  stepSolver,
-} from './solver'
-import { SolverState } from './types'
-import {
-  buildCaptureSpec,
-  buildSample,
-  serializeCapture,
-  subsampleSamples,
+  buildCaptureSpec3D,
+  buildSample3D,
   CaptureSample,
   buildCpgCaptureSpec,
   buildCpgSample,
   CpgCaptureSample,
   serializeCpgCapture,
   subsampleCpgSamples,
+  subsampleSamples,
   serializeCoupledCapture,
 } from './diagnostics'
-import {
-  buildCpgSpec,
-  CpgSpec,
-  CpgState,
-  initCpgState,
-  oscillatorOutput,
-  stepCpg,
-} from './cpg'
-import {
-  createDelayBuffer,
-  ekebergTorque,
-  MuscleDelayBuffer,
-  pushAndReadDelayed,
-  testActivation,
-} from './muscles'
-import { FIXED_SUBSTEP_SECONDS } from './solver'
+import { buildCpgSpec, CpgSpec, CpgState, initCpgState, oscillatorOutput, stepCpg } from './cpg'
+import { createDelayBuffer, ekebergTorque, MuscleDelayBuffer, pushAndReadDelayed } from './muscles'
 
 const SLERP_RATE = 12
 const Y_AXIS = new THREE.Vector3(0, 1, 0)
 const Z_AXIS = new THREE.Vector3(0, 0, 1)
-const KICK_ROOT_VELOCITY = 0.5
-const PERTURB_MAGNITUDE = 1.5
+const TIMESTEP = 1 / 120
+const MAX_FRAME = 0.05
+const CPG_TO_MUSCLE_GAIN = 12
 const DIAGNOSTICS_INTERVAL = 0.1
 const RECORD_INTERVAL = 0.05
 const MAX_OUTPUT_SAMPLES = 160
 const CPG_MAX_OUTPUT_SAMPLES = 200
-const CPG_TO_MUSCLE_GAIN = 12
 
 interface JointCapEntry {
   groupId: string
@@ -63,57 +41,44 @@ interface JointCapEntry {
   yawBackward: number
 }
 
-interface SolverHandle {
-  spec: BodySpec
-  state: SolverState
-  startCom: { x: number; z: number }
+interface CoupledHandle {
+  groups: BodyGroup[]
+  world: RAPIER.World
+  body: Body3D
+  cpgSpec: CpgSpec
+  cpgState: CpgState
+  delayBuffers: MuscleDelayBuffer[]
+  acc: number
+  baseCom: { x: number; y: number; z: number }
   diagAccum: number
-  recordBaseCom: { x: number; z: number }
   recordTime: number
   recordAccum: number
-  recordSamples: CaptureSample[]
+  recordBaseCom: { x: number; y: number; z: number }
+  recordBodySamples: CaptureSample[]
+  recordCpgSamples: CpgCaptureSample[]
+  recordDrive: number
+  recordExcitability: number
 }
 
 interface CpgHandle {
   spec: CpgSpec
-  bodySpec: BodySpec
+  segLengths: number[]
   state: CpgState
   recordTime: number
-  recordAccum: number
   recordSamples: CpgCaptureSample[]
   recordDrive: number
   recordExcitability: number
 }
 
-interface MuscleHandle {
-  spec: BodySpec
-  state: SolverState
-  startCom: { x: number; z: number }
-  diagAccum: number
-  recordBaseCom: { x: number; z: number }
-  recordTime: number
-  recordAccum: number
-  recordSamples: CaptureSample[]
-  delayBuffers: MuscleDelayBuffer[]
-  testTime: number
-}
-
-interface CoupledHandle {
-  spec: BodySpec
-  cpgSpec: CpgSpec
-  bodyState: SolverState
-  cpgState: CpgState
-  startCom: { x: number; z: number }
-  diagAccum: number
-  recordBaseCom: { x: number; z: number }
-  recordTime: number
-  recordAccum: number
-  recordBodySamples: CaptureSample[]
-  recordCpgSamples: CpgCaptureSample[]
-  delayBuffers: MuscleDelayBuffer[]
-  jointToCpgSegment: number[]
-  recordDrive: number
-  recordExcitability: number
+function comOf(body: Body3D): { x: number; y: number; z: number } {
+  let m = 0, x = 0, y = 0, z = 0
+  for (const b of body.bodies) {
+    const p = b.translation()
+    const bm = b.mass()
+    m += bm; x += bm * p.x; y += bm * p.y; z += bm * p.z
+  }
+  if (m <= 0) m = 1
+  return { x: x / m, y: y / m, z: z / m }
 }
 
 function postCapture(markdown: string): void {
@@ -123,15 +88,10 @@ function postCapture(markdown: string): void {
     body: JSON.stringify({ markdown }),
   })
     .then(async (res) => {
-      if (!res.ok) {
-        const text = await res.text()
-        throw new Error(`Capture upload failed: ${res.status} ${text}`)
-      }
+      if (!res.ok) throw new Error(`Capture upload failed: ${res.status} ${await res.text()}`)
       return res.json()
     })
-    .then((data) => {
-      useAnimateStore.getState().setLastCapturePath(data.path)
-    })
+    .then((data) => useAnimateStore.getState().setLastCapturePath(data.path))
     .catch((err) => {
       console.error(err)
       useAnimateStore.getState().setLastCapturePath('failed — see console')
@@ -141,7 +101,7 @@ function postCapture(markdown: string): void {
 export function useLocomotion(
   pivotsRef: RefObject<Map<string, THREE.Group>>,
   groups: BodyGroup[],
-  segments: SegmentData[] = [],
+  _segments: SegmentData[] = [],
   rootRef?: RefObject<THREE.Group | null>
 ) {
   const targetQuat = useRef(new THREE.Quaternion())
@@ -151,12 +111,11 @@ export function useLocomotion(
     qLeg: new THREE.Quaternion(),
     v1: new THREE.Vector3(),
     v2: new THREE.Vector3(),
+    fwd: new THREE.Vector3(),
+    q: new THREE.Quaternion(),
   })
 
-  const skeletonGroups = useMemo(
-    () => flattenSkeleton(buildSkeletonTree(groups)),
-    [groups]
-  )
+  const skeletonGroups = useMemo(() => flattenSkeleton(buildSkeletonTree(groups)), [groups])
   const allLegs = useMemo(
     () => groups.filter((g) => g.type === 'leg-left' || g.type === 'leg-right'),
     [groups]
@@ -167,54 +126,53 @@ export function useLocomotion(
     for (let i = 1; i < skeletonGroups.length; i++) {
       const g = skeletonGroups[i]
       const caps = effectiveAngleCaps(g)
-      out.push({
-        groupId: g.id,
-        yawForward: caps.yaw,
-        yawBackward: caps.yawBack ?? caps.yaw,
-      })
+      out.push({ groupId: g.id, yawForward: caps.yaw, yawBackward: caps.yawBack ?? caps.yaw })
     }
     return out
   }, [skeletonGroups])
 
-  const bodySpec = useMemo(() => buildBodySpec(groups, segments), [groups, segments])
-  const cpgSpec = useMemo(() => (bodySpec ? buildCpgSpec(bodySpec) : null), [bodySpec])
+  const segLengths = useMemo(() => axialLengths(groups), [groups])
+  const cpgSpec = useMemo(() => (segLengths.length > 0 ? buildCpgSpec(segLengths) : null), [segLengths])
 
-  const handleRef = useRef<SolverHandle | null>(null)
-  const wasRunningRef = useRef(false)
-  const wasRecordingRef = useRef(false)
-  const lastResetRef = useRef(0)
-  const lastKickRef = useRef(0)
-  const lastPerturbRef = useRef(0)
-
-  const cpgRef = useRef<CpgHandle | null>(null)
-  const wasCpgRunningRef = useRef(false)
-  const wasCpgRecordingRef = useRef(false)
-
-  const muscleRef = useRef<MuscleHandle | null>(null)
-  const wasMuscleRunningRef = useRef(false)
-  const wasMuscleRecordingRef = useRef(false)
-  const muscleReleasingRef = useRef(false)
+  const rapierReady = useRef(false)
+  useEffect(() => {
+    let live = true
+    RAPIER.init().then(() => { if (live) rapierReady.current = true })
+    return () => { live = false }
+  }, [])
 
   const coupledRef = useRef<CoupledHandle | null>(null)
   const wasCoupledRunningRef = useRef(false)
   const wasCoupledRecordingRef = useRef(false)
 
-  const jointToCpgSegment = useMemo(() => {
-    if (!bodySpec) return [] as number[]
-    return bodySpec.joints.map((j) => j.segmentIndex)
-  }, [bodySpec])
+  const cpgRef = useRef<CpgHandle | null>(null)
+  const wasCpgRunningRef = useRef(false)
+  const wasCpgRecordingRef = useRef(false)
 
-  function seedFromManualPose(spec: BodySpec): SolverState {
-    const state = initSolverState(spec)
-    const manualPose = useAnimateStore.getState().manualPose
-    state.rootX = manualPose.rootX
-    state.rootZ = manualPose.rootZ
-    state.rootHeadingY = manualPose.rootYawRad
-    for (let i = 0; i < spec.joints.length; i++) {
-      const groupId = spec.segments[spec.joints[i].segmentIndex].groupId
-      state.jointAngles[i] = manualPose.jointAnglesRad[groupId] ?? 0
+  function freeCoupled() {
+    if (coupledRef.current) {
+      coupledRef.current.world.free()
+      coupledRef.current = null
     }
-    return state
+  }
+  useEffect(() => () => freeCoupled(), [])
+
+  function buildCoupled(): CoupledHandle | null {
+    if (!rapierReady.current) return null
+    const world = new RAPIER.World({ x: 0, y: 0, z: 0 })
+    world.timestep = TIMESTEP
+    const body = buildBody3D(world, groups)
+    if (!body) { world.free(); return null }
+    const spec = buildCpgSpec(body.segLength)
+    const baseCom = comOf(body)
+    return {
+      groups, world, body, cpgSpec: spec, cpgState: initCpgState(spec),
+      delayBuffers: body.joints.map(() => createDelayBuffer(TIMESTEP)),
+      acc: 0, baseCom, diagAccum: 0,
+      recordTime: 0, recordAccum: RECORD_INTERVAL, recordBaseCom: baseCom,
+      recordBodySamples: [], recordCpgSamples: [],
+      recordDrive: 0, recordExcitability: 0,
+    }
   }
 
   useFrame((_, dt) => {
@@ -228,296 +186,92 @@ export function useLocomotion(
     const calibratingPitch = store.calibratingPitch
     const s = scratch.current
 
-    const running = !calibrating && store.simRunning && !!bodySpec
-    const coupledRunning =
-      !calibrating && !running && store.coupledRunning && !!bodySpec && !!cpgSpec
-    if (wasMuscleRunningRef.current && !store.muscleTestRunning && !calibrating && !running && !coupledRunning) {
-      muscleReleasingRef.current = true
-    }
-    if (store.muscleTestRunning || running || calibrating || coupledRunning) {
-      muscleReleasingRef.current = false
-    }
-    const muscleRunning =
-      !calibrating && !running && !coupledRunning && (store.muscleTestRunning || muscleReleasingRef.current) && !!bodySpec
+    const coupledRunning = !calibrating && store.coupledRunning && !!cpgSpec && rapierReady.current
 
-    if (running && bodySpec) {
-      if (!wasRunningRef.current || !handleRef.current || handleRef.current.spec !== bodySpec) {
-        const state = seedFromManualPose(bodySpec)
-        const startCom = centerOfMass(state, bodySpec)
-        handleRef.current = {
-          spec: bodySpec,
-          state,
-          startCom,
-          diagAccum: 0,
-          recordBaseCom: startCom,
-          recordTime: 0,
-          recordAccum: RECORD_INTERVAL,
-          recordSamples: [],
+    if (coupledRunning) {
+      if (!coupledRef.current || coupledRef.current.groups !== groups) {
+        freeCoupled()
+        coupledRef.current = buildCoupled()
+      }
+      const c = coupledRef.current
+      if (c) {
+        const drive = store.cpgDrive
+        const exc = store.cpgExcitability
+        let acc = c.acc + Math.min(dt, MAX_FRAME)
+        while (acc >= TIMESTEP) {
+          stepCpg(c.cpgState, c.cpgSpec, drive, exc, TIMESTEP)
+          for (let i = 0; i < c.body.joints.length; i++) {
+            const jt = c.body.joints[i]
+            const k = jt.cpgSegment
+            const mL = oscillatorOutput(c.cpgState, k) * CPG_TO_MUSCLE_GAIN
+            const mR = oscillatorOutput(c.cpgState, k + c.cpgSpec.n) * CPG_TO_MUSCLE_GAIN
+            const d = pushAndReadDelayed(c.delayBuffers[i], mL, mR)
+            const phi = jointAngle(jt, c.body.bodies)
+            const phiDot = jointRate(jt, c.body.bodies)
+            const tau = ekebergTorque(d.mL, d.mR, phi, phiDot)
+            const ax = worldAxis(jt, c.body.bodies)
+            c.body.bodies[jt.childIndex].addTorque({ x: ax.x * tau, y: ax.y * tau, z: ax.z * tau }, true)
+            c.body.bodies[jt.parentIndex].addTorque({ x: -ax.x * tau, y: -ax.y * tau, z: -ax.z * tau }, true)
+          }
+          if (store.environmentEnabled) applyEnvironment3D(c.body)
+          c.world.step()
+          acc -= TIMESTEP
         }
-        lastResetRef.current = store.simResetSignal
-        lastKickRef.current = store.simKickSignal
-        lastPerturbRef.current = store.simPerturbSignal
-      }
-      const handle = handleRef.current
+        c.acc = acc
 
-      if (store.simResetSignal !== lastResetRef.current) {
-        lastResetRef.current = store.simResetSignal
-        handle.state = seedFromManualPose(handle.spec)
-        handle.startCom = centerOfMass(handle.state, handle.spec)
-        handle.diagAccum = 0
-      }
-      if (store.simKickSignal !== lastKickRef.current) {
-        lastKickRef.current = store.simKickSignal
-        seedRootVelocity(handle.state, KICK_ROOT_VELOCITY, 0)
-      }
-      if (store.simPerturbSignal !== lastPerturbRef.current) {
-        lastPerturbRef.current = store.simPerturbSignal
-        perturbJointRates(handle.state, handle.spec, PERTURB_MAGNITUDE)
-      }
-
-      stepSolver(handle.state, handle.spec, dt, undefined, undefined, store.environmentEnabled)
-
-      if (headId) {
-        const headPivot = pivots.get(headId)
-        if (headPivot) headPivot.quaternion.identity()
-      }
-      for (let i = 0; i < handle.spec.joints.length; i++) {
-        const groupId = handle.spec.segments[handle.spec.joints[i].segmentIndex].groupId
-        const pivot = pivots.get(groupId)
-        if (!pivot) continue
-        pivot.quaternion.setFromAxisAngle(Y_AXIS, handle.state.jointAngles[i])
-      }
-
-      const root = rootRef?.current
-      if (root) {
-        root.position.set(handle.state.rootX, 0, handle.state.rootZ)
-        root.quaternion.setFromAxisAngle(Y_AXIS, handle.state.rootHeadingY)
-      }
-
-      handle.diagAccum += dt
-      if (handle.diagAccum >= DIAGNOSTICS_INTERVAL) {
-        handle.diagAccum -= DIAGNOSTICS_INTERVAL
-        const d = diagnostics(handle.state, handle.spec, handle.startCom)
-        store.setSimDiagnostics(d)
-      }
-
-      if (store.simRecording && !wasRecordingRef.current) {
-        handle.recordSamples = []
-        handle.recordTime = 0
-        handle.recordAccum = RECORD_INTERVAL
-        handle.recordBaseCom = centerOfMass(handle.state, handle.spec)
-      }
-      if (store.simRecording) {
-        handle.recordTime += dt
-        handle.recordAccum += dt
-        if (handle.recordAccum >= RECORD_INTERVAL) {
-          handle.recordAccum = 0
-          handle.recordSamples.push(
-            buildSample(handle.recordTime, handle.state, handle.spec, handle.recordBaseCom)
-          )
+        // render from engine: root = head node pose, pivots = joint yaws
+        if (headId) {
+          const headPivot = pivots.get(headId)
+          if (headPivot) headPivot.quaternion.identity()
         }
-      }
-    } else if (coupledRunning && bodySpec && cpgSpec) {
-      if (
-        !wasCoupledRunningRef.current ||
-        !coupledRef.current ||
-        coupledRef.current.spec !== bodySpec ||
-        coupledRef.current.cpgSpec !== cpgSpec
-      ) {
-        const bodyState = seedFromManualPose(bodySpec)
-        const startCom = centerOfMass(bodyState, bodySpec)
-        const delayBuffers: MuscleDelayBuffer[] = []
-        for (let i = 0; i < bodySpec.joints.length; i++) {
-          delayBuffers.push(createDelayBuffer(FIXED_SUBSTEP_SECONDS))
+        for (let i = 0; i < c.body.joints.length; i++) {
+          const jt = c.body.joints[i]
+          const groupId = c.body.groupIds[jt.childIndex]
+          const pivot = pivots.get(groupId)
+          if (!pivot) continue
+          pivot.quaternion.setFromAxisAngle(Y_AXIS, jointAngle(jt, c.body.bodies))
         }
-        coupledRef.current = {
-          spec: bodySpec,
-          cpgSpec,
-          bodyState,
-          cpgState: initCpgState(cpgSpec),
-          startCom,
-          diagAccum: 0,
-          recordBaseCom: startCom,
-          recordTime: 0,
-          recordAccum: RECORD_INTERVAL,
-          recordBodySamples: [],
-          recordCpgSamples: [],
-          delayBuffers,
-          jointToCpgSegment,
-          recordDrive: store.cpgDrive,
-          recordExcitability: store.cpgExcitability,
+        const root = rootRef?.current
+        if (root) {
+          const head = c.body.bodies[0]
+          const hp = head.translation()
+          const hq = head.rotation()
+          s.q.set(hq.x, hq.y, hq.z, hq.w)
+          s.fwd.set(1, 0, 0).applyQuaternion(s.q).multiplyScalar(c.body.segLength[0] / 2)
+          root.position.set(hp.x - s.fwd.x, hp.y - s.fwd.y, hp.z - s.fwd.z)
+          root.quaternion.copy(s.q)
         }
-      }
-      const coupled = coupledRef.current
 
-      stepCpg(coupled.cpgState, coupled.cpgSpec, store.cpgDrive, store.cpgExcitability, dt)
-
-      const torques: number[] = new Array(coupled.spec.joints.length)
-      for (let i = 0; i < coupled.spec.joints.length; i++) {
-        const k = coupled.jointToCpgSegment[i]
-        const mL = oscillatorOutput(coupled.cpgState, k) * CPG_TO_MUSCLE_GAIN
-        const mR = oscillatorOutput(coupled.cpgState, k + coupled.cpgSpec.n) * CPG_TO_MUSCLE_GAIN
-        const delayed = pushAndReadDelayed(coupled.delayBuffers[i], mL, mR)
-        torques[i] = ekebergTorque(
-          delayed.mL,
-          delayed.mR,
-          coupled.bodyState.jointAngles[i],
-          coupled.bodyState.jointRates[i]
-        )
-      }
-
-      stepSolver(coupled.bodyState, coupled.spec, dt, torques, 0.1, store.environmentEnabled)
-
-      if (headId) {
-        const headPivot = pivots.get(headId)
-        if (headPivot) headPivot.quaternion.identity()
-      }
-      for (let i = 0; i < coupled.spec.joints.length; i++) {
-        const groupId = coupled.spec.segments[coupled.spec.joints[i].segmentIndex].groupId
-        const pivot = pivots.get(groupId)
-        if (!pivot) continue
-        pivot.quaternion.setFromAxisAngle(Y_AXIS, coupled.bodyState.jointAngles[i])
-      }
-
-      const root = rootRef?.current
-      if (root) {
-        root.position.set(coupled.bodyState.rootX, 0, coupled.bodyState.rootZ)
-        root.quaternion.setFromAxisAngle(Y_AXIS, coupled.bodyState.rootHeadingY)
-      }
-
-      coupled.diagAccum += dt
-      if (coupled.diagAccum >= DIAGNOSTICS_INTERVAL) {
-        coupled.diagAccum -= DIAGNOSTICS_INTERVAL
-        const d = diagnostics(coupled.bodyState, coupled.spec, coupled.startCom)
-        store.setSimDiagnostics(d)
-      }
-
-      if (store.simRecording && !wasCoupledRecordingRef.current) {
-        coupled.recordBodySamples = []
-        coupled.recordCpgSamples = []
-        coupled.recordTime = 0
-        coupled.recordAccum = RECORD_INTERVAL
-        coupled.recordBaseCom = centerOfMass(coupled.bodyState, coupled.spec)
-        coupled.recordDrive = store.cpgDrive
-        coupled.recordExcitability = store.cpgExcitability
-      }
-      if (store.simRecording) {
-        coupled.recordTime += dt
-        coupled.recordAccum += dt
-        if (coupled.recordAccum >= RECORD_INTERVAL) {
-          coupled.recordAccum = 0
-          coupled.recordBodySamples.push(
-            buildSample(coupled.recordTime, coupled.bodyState, coupled.spec, coupled.recordBaseCom)
-          )
-          coupled.recordCpgSamples.push(
-            buildCpgSample(coupled.recordTime, coupled.cpgState, coupled.cpgSpec)
-          )
+        c.diagAccum += dt
+        if (c.diagAccum >= DIAGNOSTICS_INTERVAL) {
+          c.diagAccum -= DIAGNOSTICS_INTERVAL
+          const samp = buildSample3D(0, c.body, c.baseCom)
+          store.setSimDiagnostics({
+            kineticEnergy: samp.kineticEnergy,
+            comX: samp.comX,
+            comZ: samp.comZ,
+            comDriftFromStart: samp.comDrift,
+            maxJointFracOfCap: samp.maxJointFracOfCap,
+          })
         }
-      }
-    } else if (muscleRunning && bodySpec) {
-      if (
-        !wasMuscleRunningRef.current ||
-        !muscleRef.current ||
-        muscleRef.current.spec !== bodySpec
-      ) {
-        const state = seedFromManualPose(bodySpec)
-        const startCom = centerOfMass(state, bodySpec)
-        const delayBuffers: MuscleDelayBuffer[] = []
-        for (let i = 0; i < bodySpec.joints.length; i++) {
-          delayBuffers.push(createDelayBuffer(FIXED_SUBSTEP_SECONDS))
+
+        if (store.simRecording && !wasCoupledRecordingRef.current) {
+          c.recordBodySamples = []
+          c.recordCpgSamples = []
+          c.recordTime = 0
+          c.recordAccum = RECORD_INTERVAL
+          c.recordBaseCom = comOf(c.body)
+          c.recordDrive = drive
+          c.recordExcitability = exc
         }
-        muscleRef.current = {
-          spec: bodySpec,
-          state,
-          startCom,
-          diagAccum: 0,
-          recordBaseCom: startCom,
-          recordTime: 0,
-          recordAccum: RECORD_INTERVAL,
-          recordSamples: [],
-          delayBuffers,
-          testTime: 0,
-        }
-      }
-      const muscle = muscleRef.current
-      muscle.testTime += dt
-
-      const effectiveAmplitude = store.muscleTestRunning ? store.muscleTestAmplitude : 0
-
-      const torques: number[] = new Array(muscle.spec.joints.length)
-      for (let i = 0; i < muscle.spec.joints.length; i++) {
-        const joint = muscle.spec.joints[i]
-        const segmentIndex = joint.segmentIndex
-        const raw = testActivation(
-          muscle.testTime,
-          segmentIndex,
-          store.muscleTestFreq,
-          effectiveAmplitude,
-          store.muscleTestPhasePerSeg
-        )
-        const delayed = pushAndReadDelayed(muscle.delayBuffers[i], raw.mL, raw.mR)
-        torques[i] = ekebergTorque(
-          delayed.mL,
-          delayed.mR,
-          muscle.state.jointAngles[i],
-          muscle.state.jointRates[i]
-        )
-      }
-
-      if (muscleReleasingRef.current) {
-        let maxAbsAngle = 0
-        let maxAbsRate = 0
-        for (let i = 0; i < muscle.state.jointAngles.length; i++) {
-          const a = Math.abs(muscle.state.jointAngles[i])
-          const r = Math.abs(muscle.state.jointRates[i])
-          if (a > maxAbsAngle) maxAbsAngle = a
-          if (r > maxAbsRate) maxAbsRate = r
-        }
-        if (maxAbsAngle < 0.01 && maxAbsRate < 0.01) {
-          muscleReleasingRef.current = false
-        }
-      }
-
-      stepSolver(muscle.state, muscle.spec, dt, torques, 0.1, store.environmentEnabled)
-
-      if (headId) {
-        const headPivot = pivots.get(headId)
-        if (headPivot) headPivot.quaternion.identity()
-      }
-      for (let i = 0; i < muscle.spec.joints.length; i++) {
-        const groupId = muscle.spec.segments[muscle.spec.joints[i].segmentIndex].groupId
-        const pivot = pivots.get(groupId)
-        if (!pivot) continue
-        pivot.quaternion.setFromAxisAngle(Y_AXIS, muscle.state.jointAngles[i])
-      }
-
-      const root = rootRef?.current
-      if (root) {
-        root.position.set(muscle.state.rootX, 0, muscle.state.rootZ)
-        root.quaternion.setFromAxisAngle(Y_AXIS, muscle.state.rootHeadingY)
-      }
-
-      muscle.diagAccum += dt
-      if (muscle.diagAccum >= DIAGNOSTICS_INTERVAL) {
-        muscle.diagAccum -= DIAGNOSTICS_INTERVAL
-        const d = diagnostics(muscle.state, muscle.spec, muscle.startCom)
-        store.setSimDiagnostics(d)
-      }
-
-      if (store.simRecording && !wasMuscleRecordingRef.current) {
-        muscle.recordSamples = []
-        muscle.recordTime = 0
-        muscle.recordAccum = RECORD_INTERVAL
-        muscle.recordBaseCom = centerOfMass(muscle.state, muscle.spec)
-      }
-      if (store.simRecording) {
-        muscle.recordTime += dt
-        muscle.recordAccum += dt
-        if (muscle.recordAccum >= RECORD_INTERVAL) {
-          muscle.recordAccum = 0
-          muscle.recordSamples.push(
-            buildSample(muscle.recordTime, muscle.state, muscle.spec, muscle.recordBaseCom)
-          )
+        if (store.simRecording) {
+          c.recordTime += dt
+          c.recordAccum += dt
+          if (c.recordAccum >= RECORD_INTERVAL) {
+            c.recordAccum = 0
+            c.recordBodySamples.push(buildSample3D(c.recordTime, c.body, c.recordBaseCom))
+            c.recordCpgSamples.push(buildCpgSample(c.recordTime, c.cpgState, c.cpgSpec))
+          }
         }
       }
     } else if (calibrating) {
@@ -534,7 +288,6 @@ export function useLocomotion(
         }
         pivot.quaternion.slerp(targetQuat.current, alpha)
       }
-
       const root = rootRef?.current
       if (root) {
         root.position.set(0, 0, 0)
@@ -553,7 +306,6 @@ export function useLocomotion(
         const clamped = Math.max(-cap.yawBackward, Math.min(cap.yawForward, raw))
         pivot.quaternion.setFromAxisAngle(Y_AXIS, clamped)
       }
-
       const root = rootRef?.current
       if (root) {
         root.position.set(manualPose.rootX, 0, manualPose.rootZ)
@@ -561,70 +313,37 @@ export function useLocomotion(
       }
     }
 
-    const aphaseRecording = running && store.simRecording
-    const muscleRecording = muscleRunning && store.simRecording
+    if (!coupledRunning) freeCoupled()
+
     const coupledRecording = coupledRunning && store.simRecording
-
-    if (wasRecordingRef.current && !aphaseRecording) {
-      const handle = handleRef.current
-      if (handle && handle.recordSamples.length > 0) {
-        const markdown = serializeCapture(
-          buildCaptureSpec(handle.spec),
-          subsampleSamples(handle.recordSamples, MAX_OUTPUT_SAMPLES)
-        )
-        postCapture(markdown)
-      } else {
-        store.setLastCapturePath('no samples captured')
-      }
-    }
-
-    if (wasMuscleRecordingRef.current && !muscleRecording) {
-      const muscle = muscleRef.current
-      if (muscle && muscle.recordSamples.length > 0) {
-        const markdown = serializeCapture(
-          buildCaptureSpec(muscle.spec),
-          subsampleSamples(muscle.recordSamples, MAX_OUTPUT_SAMPLES)
-        )
-        postCapture(markdown)
-      } else {
-        store.setLastCapturePath('no muscle samples captured')
-      }
-    }
-
     if (wasCoupledRecordingRef.current && !coupledRecording) {
-      const coupled = coupledRef.current
-      if (coupled && coupled.recordBodySamples.length > 0) {
+      const c = coupledRef.current
+      if (c && c.recordBodySamples.length > 0) {
         const markdown = serializeCoupledCapture(
-          buildCaptureSpec(coupled.spec),
-          subsampleSamples(coupled.recordBodySamples, MAX_OUTPUT_SAMPLES),
-          buildCpgCaptureSpec(coupled.cpgSpec, coupled.spec),
-          subsampleCpgSamples(coupled.recordCpgSamples, CPG_MAX_OUTPUT_SAMPLES),
-          coupled.recordDrive,
-          coupled.recordExcitability
+          buildCaptureSpec3D(c.body),
+          subsampleSamples(c.recordBodySamples, MAX_OUTPUT_SAMPLES),
+          buildCpgCaptureSpec(c.cpgSpec, c.body.segLength),
+          subsampleCpgSamples(c.recordCpgSamples, CPG_MAX_OUTPUT_SAMPLES),
+          c.recordDrive,
+          c.recordExcitability
         )
         postCapture(markdown)
       } else {
         store.setLastCapturePath('no coupled samples captured')
       }
     }
-
-    wasRunningRef.current = running
-    wasRecordingRef.current = aphaseRecording
-    wasMuscleRunningRef.current = muscleRunning
-    wasMuscleRecordingRef.current = muscleRecording
     wasCoupledRunningRef.current = coupledRunning
     wasCoupledRecordingRef.current = coupledRecording
 
-    const cpgRunning =
-      store.cpgRunning && !calibrating && !coupledRunning && !!bodySpec && !!cpgSpec
-    if (cpgRunning && bodySpec && cpgSpec) {
+    // CPG preview (signal only, no body)
+    const cpgRunning = store.cpgRunning && !calibrating && !coupledRunning && !!cpgSpec
+    if (cpgRunning && cpgSpec) {
       if (!wasCpgRunningRef.current || !cpgRef.current || cpgRef.current.spec !== cpgSpec) {
         cpgRef.current = {
           spec: cpgSpec,
-          bodySpec,
+          segLengths,
           state: initCpgState(cpgSpec),
           recordTime: 0,
-          recordAccum: RECORD_INTERVAL,
           recordSamples: [],
           recordDrive: store.cpgDrive,
           recordExcitability: store.cpgExcitability,
@@ -632,11 +351,9 @@ export function useLocomotion(
       }
       const cpg = cpgRef.current
       stepCpg(cpg.state, cpg.spec, store.cpgDrive, store.cpgExcitability, dt)
-
       if (store.cpgRecording && !wasCpgRecordingRef.current) {
         cpg.recordSamples = []
         cpg.recordTime = 0
-        cpg.recordAccum = 0
         cpg.recordDrive = store.cpgDrive
         cpg.recordExcitability = store.cpgExcitability
         cpg.recordSamples.push(buildCpgSample(0, cpg.state, cpg.spec))
@@ -646,12 +363,11 @@ export function useLocomotion(
         cpg.recordSamples.push(buildCpgSample(cpg.recordTime, cpg.state, cpg.spec))
       }
     }
-
     if (wasCpgRecordingRef.current && !store.cpgRecording) {
       const cpg = cpgRef.current
       if (cpg && cpg.recordSamples.length > 0) {
         const markdown = serializeCpgCapture(
-          buildCpgCaptureSpec(cpg.spec, cpg.bodySpec),
+          buildCpgCaptureSpec(cpg.spec, cpg.segLengths),
           subsampleCpgSamples(cpg.recordSamples, CPG_MAX_OUTPUT_SAMPLES),
           cpg.recordDrive,
           cpg.recordExcitability
@@ -661,10 +377,10 @@ export function useLocomotion(
         store.setLastCapturePath('no CPG samples captured')
       }
     }
-
     wasCpgRunningRef.current = cpgRunning
     wasCpgRecordingRef.current = store.cpgRecording
 
+    // legs are render-only passengers (Phase D will simulate them)
     for (const leg of allLegs) {
       const mesh = pivots.get(leg.id)
       if (!mesh) continue
@@ -680,9 +396,7 @@ export function useLocomotion(
           ? groups.find((g) => g.id === calibratingLeg.attachedToSpineId)
           : null
         const hipNode =
-          calibratingLeg.type === 'leg-left'
-            ? parentSpine?.nodeHipLeft
-            : parentSpine?.nodeHipRight
+          calibratingLeg.type === 'leg-left' ? parentSpine?.nodeHipLeft : parentSpine?.nodeHipRight
         const legMesh = pivots.get(calibratingLeg.id)
         if (legMesh && hipNode) {
           s.v1.set(hipNode.x, hipNode.y ?? 0, hipNode.z)

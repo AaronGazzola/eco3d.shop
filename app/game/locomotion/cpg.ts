@@ -1,5 +1,3 @@
-import { BodySpec } from './body'
-
 export const A_GAIN = 5
 export const B_SAT = 500
 export const E_AXIAL = 1.1
@@ -30,8 +28,8 @@ export interface CpgState {
   amplitudes: number[]
 }
 
-export function buildCpgSpec(bodySpec: BodySpec): CpgSpec {
-  const n = bodySpec.segments.length
+export function buildCpgSpec(segmentLengths: number[]): CpgSpec {
+  const n = segmentLengths.length
   const e: number[] = new Array(2 * n).fill(E_AXIAL)
   const dTh: number[] = new Array(2 * n).fill(D_TH_AXIAL)
   const couplings: CpgCoupling[] = []
@@ -44,11 +42,11 @@ export function buildCpgSpec(bodySpec: BodySpec): CpgSpec {
   const perIntervalPhi: number[] = new Array(Math.max(0, n - 1)).fill(0)
   if (n >= 2) {
     let totalLen = 0
-    for (let k = 0; k < n - 1; k++) totalLen += bodySpec.segments[k].length
+    for (let k = 0; k < n - 1; k++) totalLen += segmentLengths[k]
     if (totalLen <= 1e-9) totalLen = n - 1
 
     for (let k = 0; k < n - 1; k++) {
-      const phi = ((bodySpec.segments[k].length / totalLen) * TWO_PI * BODY_WAVES)
+      const phi = ((segmentLengths[k] / totalLen) * TWO_PI * BODY_WAVES)
       perIntervalPhi[k] = phi
 
       couplings.push({ from: k, to: k + 1, w: 5, phi })

@@ -14,32 +14,32 @@
 
 ## 3. Controller → engine joints (`useLocomotion`)
 
-- [ ] 3.1 Stand up the Rapier world (gravity 0), build the body via `body3d.ts` when coupled mode starts; guard the whole loop until `RAPIER.init()` + rig are ready.
-- [ ] 3.2 Per fixed substep: `stepCpg`; for each joint read `φᵢ`, `φ̇ᵢ`; compute `mL/mR = oscillatorOutput(segmentIndex / +n)·CPG_TO_MUSCLE_GAIN` → 10 ms delay → `ekebergTorque` → apply `+τ·axis` to child, `−τ·axis` to parent; then `world.step()`.
-- [ ] 3.3 Reuse the tuned defaults (drive 2.0, exc 0.09, gain 12); the CPG/muscle modules are imported unchanged.
-- [ ] 3.4 `npx tsc --noEmit` and `npx eslint` pass.
+- [x] 3.1 Stand up the Rapier world (gravity 0), build the body via `body3d.ts` when coupled mode starts; guard the whole loop until `RAPIER.init()` + rig are ready.
+- [x] 3.2 Per fixed substep: `stepCpg`; for each joint read `φᵢ`, `φ̇ᵢ`; compute `mL/mR = oscillatorOutput(segmentIndex / +n)·CPG_TO_MUSCLE_GAIN` → 10 ms delay → `ekebergTorque` → apply `+τ·axis` to child, `−τ·axis` to parent; then `world.step()`.
+- [x] 3.3 Reuse the tuned defaults (drive 2.0, exc 0.09, gain 12); the CPG/muscle modules are imported unchanged.
+- [x] 3.4 `npx tsc --noEmit` and `npx eslint` pass.
 
 ## 4. 3D drag (`environment.ts`)
 
-- [ ] 4.1 Replace the planar generalized-force drag with the 3D per-body version: `v_∥ = (v·t̂)t̂`, `v_⊥ = v − v_∥`, `F = −L(C_n·v_⊥ + C_t·v_∥)`, `τ = −L·C_ω·ω`; apply via `body.addForce`/`addTorque` each step when `environmentEnabled`.
-- [ ] 4.2 Keep `DRAG_NORMAL/TANGENT/ANGULAR = 0.6/0.05/0.03` as the starting values; ratio ≥10:1 preserved.
-- [ ] 4.3 `npx tsc --noEmit` and `npx eslint` pass.
+- [x] 4.1 Replace the planar generalized-force drag with the 3D per-body version: `v_∥ = (v·t̂)t̂`, `v_⊥ = v − v_∥`, `F = −L(C_n·v_⊥ + C_t·v_∥)`, `τ = −L·C_ω·ω`; apply via `body.addForce`/`addTorque` each step when `environmentEnabled`.
+- [x] 4.2 Keep `DRAG_NORMAL/TANGENT/ANGULAR = 0.6/0.05/0.03` as the starting values; ratio ≥10:1 preserved.
+- [x] 4.3 `npx tsc --noEmit` and `npx eslint` pass.
 
 ## 5. Render from engine
 
-- [ ] 5.1 Write the rig root frame from the head body's world transform and each chain pivot's local yaw from its revolute joint angle (reuse the existing root + per-joint render path; source from Rapier instead of the planar solver). Meshes + legs stay passengers.
+- [x] 5.1 Write the rig root frame from the head body's world transform and each chain pivot's local yaw from its revolute joint angle (reuse the existing root + per-joint render path; source from Rapier instead of the planar solver). Meshes + legs stay passengers.
 - [ ] 5.2 Confirm in-studio the rig follows the body (no NaN, no detached meshes).
 
 ## 6. Diagnostics (3D)
 
-- [ ] 6.1 Update `serializeCoupledCapture` to read 3D state: root pose, per-joint angle, mass-weighted COM (from body translations), node polyline; snout-projected COM drift as the gate metric.
+- [x] 6.1 Update `serializeCoupledCapture` to read 3D state: root pose, per-joint angle, mass-weighted COM (from body translations), node polyline; snout-projected COM drift as the gate metric.
 - [ ] 6.2 Verify two identical runs reproduce a matching capture on this machine (or, if not bit-exact, that the head-first monotonic drift is stable).
 
 ## 7. Retire the planar solver
 
-- [ ] 7.1 Delete `app/game/locomotion/solver.ts` and the planar `buildBodySpec`/`PlanarSegment`/`PlanarJoint` path in `body.ts`; update all imports to the 3D API.
-- [ ] 7.2 Update or retire `scripts/locomotion-drag-direction.ts` (it tested the planar drag mapping; re-point at the 3D drag or remove).
-- [ ] 7.3 `npx tsc --noEmit` and `npx eslint` pass across the repo (no dangling planar-solver imports).
+- [x] 7.1 Delete `app/game/locomotion/solver.ts` and the planar `buildBodySpec`/`PlanarSegment`/`PlanarJoint` path in `body.ts`; update all imports to the 3D API.
+- [x] 7.2 Update or retire `scripts/locomotion-drag-direction.ts` (it tested the planar drag mapping; re-point at the 3D drag or remove).
+- [x] 7.3 `npx tsc --noEmit` and `npx eslint` pass across the repo (no dangling planar-solver imports).
 
 ## 8. Visual gate — 3D swimming
 

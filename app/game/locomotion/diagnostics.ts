@@ -1,9 +1,11 @@
-import { BodySpec } from './body'
-import { SolverState } from './types'
-import { centerOfMass, kineticEnergy, nodePositions } from './solver'
+import { Body3D, jointAngle } from './body3d'
 import { CpgSpec, CpgState, signedActivation } from './cpg'
 
 const RAD_TO_DEG = 180 / Math.PI
+
+function yawOf(q: { x: number; y: number; z: number; w: number }): number {
+  return Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.z * q.z))
+}
 
 export interface CaptureSpecSegment {
   index: number
@@ -49,74 +51,84 @@ export interface CaptureSample {
   nan: boolean
   joints: CaptureJointSample[]
   nodes: { x: number; z: number }[]
+  comY: number
 }
 
-export function buildCaptureSpec(spec: BodySpec): CaptureSpec {
+export function buildCaptureSpec3D(body: Body3D): CaptureSpec {
   return {
-    segments: spec.segments.map((s, i) => ({
+    segments: body.bodies.map((b, i) => {
+      const I = b.principalInertia()
+      return {
+        index: i,
+        groupId: body.groupIds[i],
+        length: body.segLength[i],
+        mass: b.mass(),
+        inertia: I.y,
+      }
+    }),
+    joints: body.joints.map((j, i) => ({
       index: i,
-      groupId: s.groupId,
-      length: s.length,
-      mass: s.mass,
-      inertia: s.inertiaAboutComY,
+      segmentIndex: j.childIndex,
+      capForwardDeg: j.capForward * RAD_TO_DEG,
+      capBackwardDeg: j.capBackward * RAD_TO_DEG,
     })),
-    joints: spec.joints.map((j, i) => ({
-      index: i,
-      segmentIndex: j.segmentIndex,
-      capForwardDeg: j.yawForwardLimit * RAD_TO_DEG,
-      capBackwardDeg: j.yawBackwardLimit * RAD_TO_DEG,
-    })),
-    restRootX: spec.restRootX,
-    restRootZ: spec.restRootZ,
+    restRootX: 0,
+    restRootZ: 0,
   }
 }
 
-export function buildSample(
+// 3D body sampled top-down (x→right, z→down) so the existing serializers + swim gate work;
+// comY carries the out-of-plane (vertical) drift.
+export function buildSample3D(
   t: number,
-  state: SolverState,
-  spec: BodySpec,
-  baseCom: { x: number; z: number }
+  body: Body3D,
+  baseCom: { x: number; y: number; z: number }
 ): CaptureSample {
-  const com = centerOfMass(state, spec)
-  const nodes = nodePositions(state, spec)
+  let mTot = 0, cx = 0, cy = 0, cz = 0, ke = 0
+  let nan = false
+  const nodes: { x: number; z: number }[] = []
+  for (const b of body.bodies) {
+    const p = b.translation()
+    const v = b.linvel()
+    const m = b.mass()
+    mTot += m
+    cx += m * p.x; cy += m * p.y; cz += m * p.z
+    ke += 0.5 * m * (v.x * v.x + v.y * v.y + v.z * v.z)
+    nodes.push({ x: p.x, z: p.z })
+    if (!Number.isFinite(p.x) || !Number.isFinite(p.y) || !Number.isFinite(p.z)) nan = true
+  }
+  if (mTot <= 0) mTot = 1
+  cx /= mTot; cy /= mTot; cz /= mTot
+
   const joints: CaptureJointSample[] = []
   let maxFrac = 0
-  let nan =
-    !Number.isFinite(state.rootX) ||
-    !Number.isFinite(state.rootZ) ||
-    !Number.isFinite(state.rootHeadingY)
-
-  for (let i = 0; i < spec.joints.length; i++) {
-    const j = spec.joints[i]
-    const raw = state.jointAngles[i]
-    const capF = j.yawForwardLimit
-    const capB = j.yawBackwardLimit
-    const cap = raw >= 0 ? capF : capB
+  for (const j of body.joints) {
+    const raw = jointAngle(j, body.bodies)
+    const cap = raw >= 0 ? j.capForward : j.capBackward
     const frac = cap > 1e-6 ? Math.abs(raw) / cap : 0
     if (frac > maxFrac) maxFrac = frac
     if (!Number.isFinite(raw)) nan = true
-    joints.push({
-      rawDeg: raw * RAD_TO_DEG,
-      clampedDeg: raw * RAD_TO_DEG,
-      fracOfCap: frac,
-      clamped: false,
-    })
+    joints.push({ rawDeg: raw * RAD_TO_DEG, clampedDeg: raw * RAD_TO_DEG, fracOfCap: frac, clamped: false })
   }
 
-  const ke = kineticEnergy(state, spec)
+  const head = body.bodies[0]
+  const hp = head.translation()
+  const hv = head.linvel()
+  const hq = head.rotation()
   if (!Number.isFinite(ke)) nan = true
 
   return {
     t,
-    rootX: state.rootX,
-    rootZ: state.rootZ,
-    headingDeg: state.rootHeadingY * RAD_TO_DEG,
-    rootVelX: state.rootVelX,
-    rootVelZ: state.rootVelZ,
+    rootX: hp.x,
+    rootZ: hp.z,
+    headingDeg: yawOf(hq) * RAD_TO_DEG,
+    rootVelX: hv.x,
+    rootVelZ: hv.z,
     kineticEnergy: ke,
-    comX: com.x,
-    comZ: com.z,
-    comDrift: Math.hypot(com.x - baseCom.x, com.z - baseCom.z),
+    comX: cx,
+    comZ: cz,
+    comY: cy,
+    comDrift: Math.hypot(cx - baseCom.x, cz - baseCom.z),
     maxJointFracOfCap: maxFrac,
     nan,
     joints,
@@ -138,13 +150,13 @@ export interface CpgCaptureSample {
   phases: number[]
 }
 
-export function buildCpgCaptureSpec(spec: CpgSpec, bodySpec: BodySpec): CpgCaptureSpec {
+export function buildCpgCaptureSpec(spec: CpgSpec, segmentLengths: number[]): CpgCaptureSpec {
   return {
     n: spec.n,
     excitabilityE: spec.e[0] ?? 0,
     saturationDth: spec.dTh[0] ?? 0,
     bodyWaves: 1.58,
-    segmentLengths: bodySpec.segments.map((s) => s.length),
+    segmentLengths: segmentLengths.slice(),
   }
 }
 
@@ -279,6 +291,12 @@ export function serializeCapture(spec: CaptureSpec, samples: CaptureSample[]): s
     }
   }
   const finalKE = samples.length > 0 ? samples[samples.length - 1].kineticEnergy : 0
+  const baseY = samples.length > 0 ? samples[0].comY : 0
+  let maxOutOfPlane = 0
+  for (const s of samples) {
+    const d = Math.abs((s.comY ?? 0) - baseY)
+    if (Number.isFinite(d) && d > maxOutOfPlane) maxOutOfPlane = d
+  }
 
   lines.push('# Locomotion capture')
   lines.push(`generated: ${new Date().toISOString()}`)
@@ -292,6 +310,7 @@ export function serializeCapture(spec: CaptureSpec, samples: CaptureSample[]): s
   lines.push(`peakKE: ${e(peakKE)} @ t=${f(peakKEt, 2)}s`)
   lines.push(`finalKE: ${e(finalKE)}`)
   lines.push(`maxCOMdrift: ${e(maxDrift)} @ t=${f(maxDriftT, 2)}s`)
+  lines.push(`outOfPlaneY (vertical drift): ${e(maxOutOfPlane)}`)
   lines.push(
     `firstJointToSaturate: ${firstSat ? `joint ${firstSat.joint} @ t=${f(firstSat.t, 2)}s` : 'none (stayed within caps)'}`
   )

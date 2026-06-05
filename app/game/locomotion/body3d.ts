@@ -1,17 +1,8 @@
 import RAPIER from '@dimforge/rapier3d-compat'
 import { Vector3, Quaternion, Matrix4 } from 'three'
-import { BodyGroup, BodyGroupType } from '@/app/admin/_lib/types'
+import { BodyGroup } from '@/app/admin/_lib/types'
 import { buildSkeletonTree, flattenSkeleton, effectiveAngleCaps } from './chain'
-
-export const DEFAULT_AXIAL_WEIGHT = 1.5
-export const DEFAULT_LEG_WEIGHT = 0.4
-export const STD_SEGMENT_WIDTH = 0.5
-
-export function defaultWeightFor(type: BodyGroupType): number {
-  return type === 'leg-left' || type === 'leg-right'
-    ? DEFAULT_LEG_WEIGHT
-    : DEFAULT_AXIAL_WEIGHT
-}
+import { STD_SEGMENT_WIDTH, defaultWeightFor } from './weights'
 
 const WORLD_UP = new Vector3(0, 1, 0)
 
@@ -21,6 +12,26 @@ export interface Body3DJoint {
   childIndex: number
   cpgSegment: number
   restAxisLocal: { x: number; y: number; z: number }
+  capForward: number
+  capBackward: number
+}
+
+// Axial segment lengths from node spacing — no Rapier, for buildCpgSpec / diagnostics.
+export function axialLengths(groups: BodyGroup[]): number[] {
+  const chain = flattenSkeleton(buildSkeletonTree(groups))
+  const out: number[] = []
+  for (let i = 0; i < chain.length; i++) {
+    const g = chain[i]
+    const parent = i > 0 ? chain[i - 1] : null
+    const n = parent ? parent.nodeBack : (g.nodeFront ?? g.nodeBack)
+    const e = g.nodeBack
+    if (!n || !e) continue
+    const dx = e.x - n.x
+    const dy = (e.y ?? 0) - (n.y ?? 0)
+    const dz = e.z - n.z
+    out.push(Math.max(Math.hypot(dx, dy, dz), 1e-3))
+  }
+  return out
 }
 
 export interface Body3D {
@@ -129,7 +140,10 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[]): Body3D | 
     const back = caps.yawBack ?? caps.yaw
     if (typeof joint.setLimits === 'function') joint.setLimits(-back, fwd)
 
-    joints.push({ joint, parentIndex: i - 1, childIndex: i, cpgSegment: i, restAxisLocal: axisLocal })
+    joints.push({
+      joint, parentIndex: i - 1, childIndex: i, cpgSegment: i,
+      restAxisLocal: axisLocal, capForward: fwd, capBackward: back,
+    })
     jointToCpgSegment.push(i)
   }
 
