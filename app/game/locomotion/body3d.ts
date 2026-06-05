@@ -1,10 +1,15 @@
 import RAPIER from '@dimforge/rapier3d-compat'
-import { Vector3, Quaternion, Matrix4 } from 'three'
+import { Vector3, Quaternion } from 'three'
 import { BodyGroup } from '@/app/admin/_lib/types'
 import { buildSkeletonTree, flattenSkeleton, effectiveAngleCaps } from './chain'
 import { STD_SEGMENT_WIDTH, defaultWeightFor } from './weights'
 
-const WORLD_UP = new Vector3(0, 1, 0)
+const CAPSULE_Y = new Vector3(0, 1, 0)
+
+// Rotation taking the capsule's default +Y long axis onto the segment's forward direction.
+function capsuleRotation(forward: Vector3): Quaternion {
+  return new Quaternion().setFromUnitVectors(CAPSULE_Y, forward.clone().normalize())
+}
 
 export interface Body3DJoint {
   joint: RAPIER.ImpulseJoint
@@ -47,20 +52,6 @@ function nodeVec(n: { x: number; y?: number; z: number } | undefined): Vector3 |
   return new Vector3(n.x, n.y ?? 0, n.z)
 }
 
-// Quaternion whose local +X = forward, local +Y ≈ world up (so the yaw axis is local +Y).
-function segmentQuat(forward: Vector3): Quaternion {
-  const x = forward.clone().normalize()
-  let up = WORLD_UP.clone()
-  if (Math.abs(x.dot(up)) > 0.99) up = new Vector3(0, 0, 1)
-  const z = new Vector3().crossVectors(x, up).normalize()
-  const y = new Vector3().crossVectors(z, x).normalize()
-  const m = new Matrix4().makeBasis(x, y, z)
-  return new Quaternion().setFromRotationMatrix(m)
-}
-
-// Capsule's local axis is +Y by default; rotate it to lie along local +X (the segment forward).
-const CAPSULE_Y_TO_X = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), new Vector3(1, 0, 0))
-
 export function buildBody3D(world: RAPIER.World, groups: BodyGroup[]): Body3D | null {
   const chain = flattenSkeleton(buildSkeletonTree(groups))
   if (chain.length === 0) return null
@@ -85,9 +76,12 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[]): Body3D | 
   const bodies: RAPIER.RigidBody[] = []
   const segLength: number[] = []
   const groupIds: string[] = []
-  const quats: Quaternion[] = []
+  const dirs: Vector3[] = []
   const centers: Vector3[] = []
 
+  // All bodies stay WORLD-ALIGNED (identity rotation); only the capsule collider is rotated to
+  // the segment forward. This keeps every revolute joint's yaw axis = world up, so a curved 3D
+  // rest pose does not make adjacent joint axes disagree (which would snap the chain violently).
   for (let i = 0; i < usable.length; i++) {
     const g = usable[i]
     const node = nodes[i]
@@ -95,29 +89,27 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[]): Body3D | 
     let dir = new Vector3().subVectors(end, node)
     let length = dir.length()
     if (length < 1e-4) {
-      // degenerate node spacing: reuse the previous segment's forward + length
-      dir = i > 0 ? new Vector3(1, 0, 0).applyQuaternion(quats[i - 1]) : new Vector3(1, 0, 0)
+      dir = i > 0 ? dirs[i - 1].clone() : new Vector3(1, 0, 0)
       length = i > 0 ? segLength[i - 1] : 1
     }
-    const q = segmentQuat(dir)
-    const center = new Vector3().addVectors(node, dir.clone().setLength(length / 2))
+    dir.normalize()
+    const center = new Vector3().addVectors(node, dir.clone().multiplyScalar(length / 2))
 
-    const bd = RAPIER.RigidBodyDesc.dynamic()
-      .setTranslation(center.x, center.y, center.z)
-      .setRotation({ x: q.x, y: q.y, z: q.z, w: q.w })
+    const bd = RAPIER.RigidBodyDesc.dynamic().setTranslation(center.x, center.y, center.z)
     const body = world.createRigidBody(bd)
 
     const halfHeight = Math.max(length / 2 - radius, 1e-3)
     const mass = g.nodeWeight ?? defaultWeightFor(g.type)
+    const capQ = capsuleRotation(dir)
     const cd = RAPIER.ColliderDesc.capsule(halfHeight, radius)
-      .setRotation({ x: CAPSULE_Y_TO_X.x, y: CAPSULE_Y_TO_X.y, z: CAPSULE_Y_TO_X.z, w: CAPSULE_Y_TO_X.w })
+      .setRotation({ x: capQ.x, y: capQ.y, z: capQ.z, w: capQ.w })
       .setMass(mass)
     world.createCollider(cd, body)
 
     bodies.push(body)
     segLength.push(length)
     groupIds.push(g.id)
-    quats.push(q)
+    dirs.push(dir)
     centers.push(center)
   }
 
@@ -125,10 +117,10 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[]): Body3D | 
   const jointToCpgSegment: number[] = []
   for (let i = 1; i < usable.length; i++) {
     const node = nodes[i] // = group[i-1].nodeBack, the shared joint location
-    // anchors in each body's local frame
-    const a1 = node.clone().sub(centers[i - 1]).applyQuaternion(quats[i - 1].clone().invert())
-    const a2 = node.clone().sub(centers[i]).applyQuaternion(quats[i].clone().invert())
-    const axisLocal = { x: 0, y: 1, z: 0 } // local up = yaw axis
+    // bodies are world-aligned, so local anchors are just world offsets from each body center
+    const a1 = node.clone().sub(centers[i - 1])
+    const a2 = node.clone().sub(centers[i])
+    const axisLocal = { x: 0, y: 1, z: 0 } // world up = yaw axis (consistent for all bodies)
     const jd = RAPIER.JointData.revolute(
       { x: a1.x, y: a1.y, z: a1.z },
       { x: a2.x, y: a2.y, z: a2.z },

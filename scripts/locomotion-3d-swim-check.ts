@@ -12,20 +12,27 @@ const DRIVE = 2.0
 const EXC = 0.09
 const TIMESTEP = 1 / 120
 const Cn = 0.6, Ct = 0.05, Cw = 0.03
+const JOINT_DAMP = 2 // matches the planar coupled mode's effective joint damping
 
-function buildRigGroups(): BodyGroup[] {
+// curveZ/curveY add a curved 3D rest pose (the real rig is not a straight line).
+function buildRigGroups(curveZ = 0, curveY = 0): BodyGroup[] {
   const groups: BodyGroup[] = []
+  const pts: { x: number; y: number; z: number }[] = []
   let x = 0
-  const ends: number[] = []
-  for (let i = 0; i < RIG_LEN.length; i++) { x += RIG_LEN[i]; ends.push(x) }
+  pts.push({ x: 0, y: 0, z: 0 })
+  for (let i = 0; i < RIG_LEN.length; i++) {
+    x += RIG_LEN[i]
+    const t = x / 21
+    pts.push({ x, y: curveY * Math.sin(t * Math.PI), z: curveZ * Math.sin(t * Math.PI * 2) })
+  }
   for (let i = 0; i < RIG_LEN.length; i++) {
     const type = i === 0 ? 'head' : i === RIG_LEN.length - 1 ? 'tail' : 'spine'
     const g: BodyGroup = {
       id: `g${i}`, name: `g${i}`, segmentIds: [], color: '#fff', type,
-      nodeBack: { x: ends[i], y: 0, z: 0 },
+      nodeBack: pts[i + 1],
       angleCaps: { yaw: (CAP_DEG[i] * Math.PI) / 180, pitchUp: 1, pitchDown: 1 },
     }
-    if (i === 0) g.nodeFront = { x: 0, y: 0, z: 0 }
+    if (i === 0) g.nodeFront = pts[0]
     groups.push(g)
   }
   return groups
@@ -37,75 +44,81 @@ function comX(bodies: RAPIER.RigidBody[]): number {
   return s / bodies.length
 }
 
-async function main() {
-  await RAPIER.init()
+function kineticEnergy(bodies: RAPIER.RigidBody[]): number {
+  let ke = 0
+  for (const b of bodies) {
+    const v = b.linvel()
+    ke += 0.5 * b.mass() * (v.x * v.x + v.y * v.y + v.z * v.z)
+  }
+  return ke
+}
+
+function runCase(label: string, groups: BodyGroup[], dragOn = true, gain = GAIN) {
   const world = new RAPIER.World({ x: 0, y: 0, z: 0 })
   world.timestep = TIMESTEP
-
-  const groups = buildRigGroups()
   const body = buildBody3D(world, groups)
-  if (!body) { console.log('build failed'); return }
-  console.log(`built ${body.bodies.length} bodies, ${body.joints.length} joints`)
-  console.log('seg lengths:', body.segLength.map((l) => l.toFixed(2)).join(' '))
-  console.log('masses:', body.bodies.map((b) => b.mass().toFixed(2)).join(' '))
+  if (!body) { console.log(`${label}: build failed`); return }
 
   const cpgSpec = buildCpgSpec(body.segLength)
   const cpgState = initCpgState(cpgSpec)
   const delay = body.joints.map(() => createDelayBuffer(TIMESTEP))
-
   const startCom = comX(body.bodies)
-  const startHead = body.bodies[0].translation().x
-  let maxJoint = 0
-  let blew = false
-
-  const totalT = 10
-  const steps = Math.round(totalT / TIMESTEP)
+  let maxJoint = 0, peakKE = 0, finalKE = 0, blew = false
   const fwd = new Vector3()
+  const steps = Math.round(10 / TIMESTEP)
   for (let s = 0; s < steps; s++) {
     stepCpg(cpgState, cpgSpec, DRIVE, EXC, TIMESTEP)
     for (let j = 0; j < body.joints.length; j++) {
       const jt = body.joints[j]
       const k = body.jointToCpgSegment[j]
-      const mL = oscillatorOutput(cpgState, k) * GAIN
-      const mR = oscillatorOutput(cpgState, k + cpgSpec.n) * GAIN
+      const mL = oscillatorOutput(cpgState, k) * gain
+      const mR = oscillatorOutput(cpgState, k + cpgSpec.n) * gain
       const d = pushAndReadDelayed(delay[j], mL, mR)
       const phi = jointAngle(jt, body.bodies)
       const phiDot = jointRate(jt, body.bodies)
-      const tau = ekebergTorque(d.mL, d.mR, phi, phiDot)
+      const tau = ekebergTorque(d.mL, d.mR, phi, phiDot) - JOINT_DAMP * phiDot
       maxJoint = Math.max(maxJoint, Math.abs(phi))
       const ax = worldAxis(jt, body.bodies)
       body.bodies[jt.childIndex].addTorque({ x: ax.x * tau, y: ax.y * tau, z: ax.z * tau }, true)
       body.bodies[jt.parentIndex].addTorque({ x: -ax.x * tau, y: -ax.y * tau, z: -ax.z * tau }, true)
     }
-    // 3D anisotropic drag
-    for (let i = 0; i < body.bodies.length; i++) {
+    if (dragOn) for (let i = 0; i < body.bodies.length; i++) {
       const b = body.bodies[i]
       const L = body.segLength[i]
       const v = b.linvel()
       const r = b.rotation()
       fwd.set(1, 0, 0).applyQuaternion(new Quaternion(r.x, r.y, r.z, r.w))
       const vPar = v.x * fwd.x + v.y * fwd.y + v.z * fwd.z
-      const fx = -L * (Cn * (v.x - vPar * fwd.x) + Ct * vPar * fwd.x)
-      const fy = -L * (Cn * (v.y - vPar * fwd.y) + Ct * vPar * fwd.y)
-      const fz = -L * (Cn * (v.z - vPar * fwd.z) + Ct * vPar * fwd.z)
-      b.addForce({ x: fx, y: fy, z: fz }, true)
+      b.addForce({
+        x: -L * (Cn * (v.x - vPar * fwd.x) + Ct * vPar * fwd.x),
+        y: -L * (Cn * (v.y - vPar * fwd.y) + Ct * vPar * fwd.y),
+        z: -L * (Cn * (v.z - vPar * fwd.z) + Ct * vPar * fwd.z),
+      }, true)
       const w = b.angvel()
       b.addTorque({ x: -L * Cw * w.x, y: -L * Cw * w.y, z: -L * Cw * w.z }, true)
     }
     world.step()
-    if (!Number.isFinite(comX(body.bodies))) { blew = true; console.log(`BLEW UP at t=${(s * TIMESTEP).toFixed(2)}`); break }
+    const ke = kineticEnergy(body.bodies)
+    peakKE = Math.max(peakKE, ke)
+    finalKE = ke
+    if (!Number.isFinite(comX(body.bodies))) { blew = true; break }
   }
-
-  if (blew) return
   const endCom = comX(body.bodies)
-  const endHead = body.bodies[0].translation().x
-  const tail = body.bodies[body.bodies.length - 1].translation()
-  console.log(`\nmax joint angle: ${(maxJoint * 180 / Math.PI).toFixed(1)} deg`)
-  console.log(`COM  x: ${startCom.toFixed(2)} -> ${endCom.toFixed(2)}  (Δ ${(endCom - startCom).toFixed(3)})`)
-  console.log(`HEAD x: ${startHead.toFixed(2)} -> ${endHead.toFixed(2)}`)
-  console.log(`(head is the -x end; snout faces -x, so Δx < 0 = HEAD-FIRST / forward)`)
-  console.log(`tail body pos: (${tail.x.toFixed(2)}, ${tail.y.toFixed(2)}, ${tail.z.toFixed(2)})  [y,z show out-of-plane drift]`)
-  console.log(`VERDICT: ${endCom - startCom < 0 ? 'HEAD-FIRST (correct)' : 'TAIL-FIRST (wrong)'}`)
+  const dx = endCom - startCom
+  console.log(`${label.padEnd(34)} gain=${String(gain).padStart(2)}  maxJ=${(maxJoint * 180 / Math.PI).toFixed(0).padStart(3)}°  peakKE=${peakKE.toExponential(1)}  finalKE=${finalKE.toExponential(1)}  Δx=${dx.toFixed(2).padStart(7)}  ${blew ? 'DIVERGED' : dx < 0 ? 'HEAD-FIRST' : 'tail-first'}`)
+  world.free()
+}
+
+async function main() {
+  await RAPIER.init()
+  console.log(`fine gain sweep, drag ON (want maxJ ≲ cap, finalKE low/bounded, HEAD-FIRST)\n`)
+  for (const g of [0.5, 0.8, 1, 1.2, 1.5]) runCase('curved-z drag ON', buildRigGroups(1.5, 0), true, g)
+  console.log('')
+  const G = 1
+  runCase('straight  drag OFF', buildRigGroups(0, 0), false, G)
+  runCase('curved-z  drag OFF', buildRigGroups(1.5, 0), false, G)
+  runCase('straight  drag ON', buildRigGroups(0, 0), true, G)
+  runCase('curved-3D drag ON', buildRigGroups(1.5, 0.8), true, G)
 }
 
 main().catch((e) => { console.error('ERROR', e); process.exit(1) })

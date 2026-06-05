@@ -80,6 +80,13 @@ Confirmed headless (`scripts/rapier-spike.ts`):
 - Joint angle: **compute from body quaternions** (relative rotation about the axis) — no `joint.angle()` in 0.12. Rate `φ̇`: `child.angvel() − parent.angvel()` projected on the world axis.
 - Forces: `body.addForce({x,y,z}, true)` / `body.addTorque({x,y,z}, true)` each step before `world.step()`. Internal torque pair (`+τ` child, `−τ` parent) bent the joint without flinging the bodies — the intended model.
 
+## Stability findings (real-rig debugging, 2026-06-06)
+
+The first browser run on the real (curved 3D) rig went unstable (peakKE ~9000, head spinning, joints at 130% of caps). Three fixes, all validated headless on straight + curved + 3D-curved rigs (`scripts/locomotion-3d-swim-check.ts`):
+1. **World-aligned bodies.** Orienting each rigid *body* to its own segment direction made adjacent revolute joints' yaw axes disagree on a curved rest pose, so the joints snapped violently at startup. Fix: all bodies keep identity orientation; only the **capsule collider** is rotated to the segment forward. Every joint's yaw axis is then world-up and consistent. (Straight rigs hid this because all segments share one orientation.)
+2. **Joint damping.** The planar coupled mode added an effective ~2 N·m·s/rad of joint damping (`jointDampingScale`); the 3D port only had Ekeberg's δ=0.1. Added `JOINT_DAMPING_3D = 2` as a `−D·φ̇` torque per joint.
+3. **Gain re-tune 12 → 1.** Rapier's revolute *limits are soft* — the planar gain of 12 blew straight through them (joints to 88° vs 45° caps) into chaos (KE 1e5+, direction even flipping run-to-run). At **gain ~1** the body stays in the controlled regime (peakKE ~140, maxJ ~43°) and swims head-first consistently across all rig curvatures. The planar tuning does not transfer; thrust speed is deferred (AZ-33).
+
 ## Open Questions
 
 - **Out-of-plane drift.** With gravity off and full 3D freedom, does the body stay roughly in its starting (horizontal) plane during swimming, or does it slowly tumble/drift in pitch/roll? The axial joints are pure yaw, and the drag is symmetric, so it *should* stay planar — but confirm at the gate. If it drifts, options: a weak restoring drag toward the swim plane, or accept gentle 3D wander (it is, after all, a 3D swimmer now).

@@ -29,7 +29,8 @@ const Y_AXIS = new THREE.Vector3(0, 1, 0)
 const Z_AXIS = new THREE.Vector3(0, 0, 1)
 const TIMESTEP = 1 / 120
 const MAX_FRAME = 0.05
-const CPG_TO_MUSCLE_GAIN = 12
+const CPG_TO_MUSCLE_GAIN = 1
+const JOINT_DAMPING_3D = 2
 const DIAGNOSTICS_INTERVAL = 0.1
 const RECORD_INTERVAL = 0.05
 const MAX_OUTPUT_SAMPLES = 160
@@ -208,7 +209,7 @@ export function useLocomotion(
             const d = pushAndReadDelayed(c.delayBuffers[i], mL, mR)
             const phi = jointAngle(jt, c.body.bodies)
             const phiDot = jointRate(jt, c.body.bodies)
-            const tau = ekebergTorque(d.mL, d.mR, phi, phiDot)
+            const tau = ekebergTorque(d.mL, d.mR, phi, phiDot) - JOINT_DAMPING_3D * phiDot
             const ax = worldAxis(jt, c.body.bodies)
             c.body.bodies[jt.childIndex].addTorque({ x: ax.x * tau, y: ax.y * tau, z: ax.z * tau }, true)
             c.body.bodies[jt.parentIndex].addTorque({ x: -ax.x * tau, y: -ax.y * tau, z: -ax.z * tau }, true)
