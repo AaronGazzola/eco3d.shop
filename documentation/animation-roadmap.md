@@ -457,14 +457,20 @@ A dated log of decisions, with reasoning. Settled one at a time as we work throu
 
 **Locked:**
 
-1. **Dimensionality → planar (2D, top-down).** _2026-05-27._ The paper's robot runs with its
-   axial joints "restricted to the horizontal plane" (PDF p.8) — the locomotion physics is
-   fundamentally in-plane yaw. Planar is both faithful to the paper and far more tractable
-   in-browser. (Forced by Part 4: we must commit to how the body is built.)
-2. **Solver → custom reduced-order integrator.** _2026-05-27._ We need the paper's exact
-   force laws — Ekeberg torque, anisotropic resistive-force hydrodynamics, friction. A
-   general physics library does not provide resistive-force hydrodynamics out of the box and
-   is heavier than required. A custom integrator implements the model directly.
+1. **Dimensionality → planar (2D, top-down).** _2026-05-27._ **⚠ SUPERSEDED by Decision 8
+   (2026-06-06): full 3D.** The paper's robot runs with its axial joints "restricted to the
+   horizontal plane" (PDF p.8) — the locomotion physics is fundamentally in-plane yaw. Planar
+   is both faithful to the paper and far more tractable in-browser. (Forced by Part 4: we must
+   commit to how the body is built.) *Reversed because planar cannot represent foot lift /
+   emergent ground contact (Decision 4) and blocks 3D movement (climbing); the rig nodes
+   already carry Y.*
+2. **Solver → custom reduced-order integrator.** _2026-05-27._ **⚠ SUPERSEDED by Decision 8
+   (2026-06-06): Rapier physics engine.** We need the paper's exact force laws — Ekeberg
+   torque, anisotropic resistive-force hydrodynamics, friction. A general physics library does
+   not provide resistive-force hydrodynamics out of the box and is heavier than required. A
+   custom integrator implements the model directly. *Reversed: the paper's body ran in ODE /
+   Webots (reference §4) — a physics engine is the *faithful* choice; we keep RFT as custom
+   external forces applied to the engine bodies.*
 3. **Environment first → swimming.** _2026-05-27._ Cleanest "wiggle → thrust": limbs
    saturate and fold away (Part 2), so there is no gait/leg coordination to get right yet.
    Walking (limbs + contact + friction) comes after, in Phase D.
@@ -519,6 +525,29 @@ A dated log of decisions, with reasoning. Settled one at a time as we work throu
      default, configurable per model.
    This matches the paper, which used **uniform segments** (PDF Methods, "uniform" runs).
    (Settled in an explore session; implemented via the Phase C re-open change — see §4.)
+8. **Dimensionality & solver → full 3D on the Rapier physics engine (supersedes Decisions 1
+   & 2).** _2026-06-06._ The body is rebuilt as a chain of **3D rigid bodies in Rapier**
+   (`@dimforge/rapier3d-compat`, WASM, run in deterministic fixed-step mode), one body per
+   segment (mass from `nodeWeight`, geometry/inertia from a collider sized by node spacing +
+   `STD_SEGMENT_WIDTH`), joined by joints whose axes and limits come from the node skeleton +
+   `angleCaps`. **Why this is the *faithful* choice, not a compromise:** the paper's body ran
+   in **ODE via Webots** (reference §4); planar + a custom integrator were the pragmatic
+   deviations. **Why now:** (a) planar fundamentally cannot represent foot lift / emergent
+   ground contact, so walking was never faithfully achievable in 2D (the planar "phase-gated
+   stance" idea was a workaround); (b) the end goal needs **3D movement including climbing by
+   surface adhesion**, which requires the body to operate in any orientation under gravity +
+   arbitrary-surface contact — exactly what an engine provides; (c) the rig nodes already
+   carry **Y**, so the 3D rest pose is authored (`buildBodySpec` currently discards it).
+   **What carries over unchanged:** the controller — CPG (`cpg.ts`), Ekeberg torque
+   (`muscles.ts`), the transfer function (to build), `nodeWeight`, `angleCaps`, the studio
+   Simulate scaffolding, and the diagnostic-capture methodology. **What re-platforms:** the
+   body dynamics (custom planar `solver.ts` → Rapier), and the swimming **RFT drag**, which
+   stays a custom per-segment external force but is now generalized to 3D and applied to the
+   Rapier bodies. **Determinism:** Rapier runs at a fixed timestep in deterministic mode so
+   captures stay reproducible (the whole gate methodology depends on it). **Gravity:** off for
+   the 3D swimming re-proof (neutral-buoyancy water); on for walking. **Adhesion** (climbing)
+   is a later phase — foot/body contact anchors with an adhesion force — but the 3D engine is
+   the substrate that makes it possible. (Settled in an explore session, 2026-06-06.)
 
 ---
 
@@ -549,9 +578,19 @@ begins. This is the current draft, refined as understanding firms up.
     solver (with the 10 ms activation delay). Gate: the body undulates in a head→tail
     travelling wave in place (no environment → no net thrust). Tune `BODY_WAVES` here.
 - **Phase C — Swimming:** add hydrodynamic reactive + resistive forces (L5 water); verify
-  it swims forward — the first emergent locomotion.
-- **Phase D — Walking:** add limbs (transfer function + limb joints) + ground contact +
-  friction (L5 land); verify terrestrial stepping.
+  it swims forward — the first emergent locomotion. **Done (planar)** — `add-uniform-mass-model`
+  shipped forward head-first swimming; the reversed CPG→joint mapping was the real blocker.
+- **Phase C-3D — Re-platform onto Rapier; re-prove swimming in 3D (Decision 8).** _Next._
+  Rebuild the body as 3D Rapier rigid bodies from the node skeleton (using node Y), wire the
+  proven CPG → Ekeberg torque controller onto the engine's axial joints, generalize the RFT
+  drag to 3D as external forces, render the rig from the engine transforms, retire the custom
+  planar `solver.ts`. Gravity off (neutral-buoyancy). **Legs stay passengers.** Gate: the body
+  swims forward head-first in 3D, reproducing the planar result. This is the new foundation —
+  like Phase A was — and everything below depends on it.
+- **Phase D — Walking:** with the 3D engine in place, add limbs as real 3D joints + turn on
+  gravity + ground contact + friction; **foot lift / plant / slip emerge from the physics**
+  (Decision 4, now actually achievable). Transfer function (phase → hip position, 77% stance)
+  + diagonal-trot interlimb couplings. Verify terrestrial stepping.
 - **Phase E — Turning + behaviors:** differential drive; behavior presets matching Table 4.
 - **Phase F — Attractor tracking:** the thin "brain" layer — attractor → drive magnitude +
   left/right bias; head tracks the target; body and feet orient and move toward it.
