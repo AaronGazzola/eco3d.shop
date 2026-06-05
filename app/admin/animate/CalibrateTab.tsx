@@ -6,6 +6,7 @@ import { useSharedStore } from '../_lib/sharedStore'
 import { useAnimateStore } from './animateStore'
 import { BodyGroup, AngleCaps } from '../_lib/types'
 import { effectiveAngleCaps } from '@/app/game/locomotion/chain'
+import { defaultWeightFor } from '@/app/game/locomotion/body'
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -73,7 +74,7 @@ function SnapButton({ onClick, title }: { onClick: () => void; title: string }) 
       type="button"
       onClick={onClick}
       title={title}
-      className="h-6 w-6 flex items-center justify-center rounded border border-white/15 text-white/50 hover:bg-white/10 hover:text-white/90 transition-colors"
+      className="h-6 w-6 flex items-center justify-center rounded border border-white/15 text-white/60 hover:bg-white/10 hover:text-white/90 transition-colors"
     >
       <Crosshair className="size-3" />
     </button>
@@ -83,6 +84,7 @@ function SnapButton({ onClick, title }: { onClick: () => void; title: string }) 
 function GroupCalibrator({ group }: { group: BodyGroup }) {
   const caps = effectiveAngleCaps(group)
   const setGroupAngleCaps = useSharedStore((s) => s.setGroupAngleCaps)
+  const setGroupNodeWeight = useSharedStore((s) => s.setGroupNodeWeight)
   const groups = useSharedStore((s) => s.groups)
   const calibratingYaw = useAnimateStore((s) => s.calibratingYaw)
   const calibratingPitch = useAnimateStore((s) => s.calibratingPitch)
@@ -137,8 +139,36 @@ function GroupCalibrator({ group }: { group: BodyGroup }) {
     [caps, group.id, setGroupAngleCaps, isLeg, mirrored, pairedLeg]
   )
 
+  const weight = group.nodeWeight ?? defaultWeightFor(group.type)
+
   return (
     <div className="flex flex-col gap-3 pl-3 pr-1 pb-2">
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-white/55">
+          <span>Weight (kg){isLeg ? ' — all legs' : ''}</span>
+          <input
+            type="number"
+            value={weight}
+            min={0.1}
+            max={10}
+            step={0.1}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value)
+              if (Number.isFinite(v)) setGroupNodeWeight(group.id, clamp(v, 0.1, 10))
+            }}
+            className="w-16 h-6 rounded bg-white/5 border border-white/15 text-white/90 text-[11px] text-center font-mono outline-none focus:border-violet-400/60"
+          />
+        </div>
+        <input
+          type="range"
+          value={weight}
+          min={0.1}
+          max={10}
+          step={0.1}
+          onChange={(e) => setGroupNodeWeight(group.id, clamp(parseFloat(e.target.value), 0.1, 10))}
+          className="w-full accent-violet-400"
+        />
+      </div>
       {isLeg && pairKey && pairedLeg && (
         <label className="flex items-center gap-2 text-[11px] text-white/70 cursor-pointer select-none">
           <Checkbox
@@ -146,16 +176,16 @@ function GroupCalibrator({ group }: { group: BodyGroup }) {
             onCheckedChange={(checked) => setLegPairMirrored(pairKey, checked === true)}
           />
           <span>Mirror legs</span>
-          <span className="text-white/30">(pair with {pairedLeg.name})</span>
+          <span className="text-white/45">(pair with {pairedLeg.name})</span>
         </label>
       )}
       <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-white/40">
+        <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-white/55">
           <span>{isLeg ? 'Yaw (← back / fwd →, independent)' : 'Yaw (L/R, symmetric)'}</span>
           <div className="flex items-center gap-1.5">
             {isLeg ? (
               <>
-                <span className="text-white/50">←</span>
+                <span className="text-white/60">←</span>
                 <DegInput
                   value={yawBackwardDeg}
                   min={0}
@@ -172,7 +202,7 @@ function GroupCalibrator({ group }: { group: BodyGroup }) {
                     updateCaps({ yawBack: mag })
                   }}
                 />
-                <span className="text-white/50">→</span>
+                <span className="text-white/60">→</span>
                 <DegInput
                   value={yawForwardDeg}
                   min={0}
@@ -202,7 +232,7 @@ function GroupCalibrator({ group }: { group: BodyGroup }) {
                     else if (calibratingYaw < -rad(v)) setCalibratingYaw(-rad(v))
                   }}
                 />
-                <span className="text-white/40">°</span>
+                <span className="text-white/55">°</span>
                 <SnapButton
                   title="Set yaw cap to current slider position"
                   onClick={() => {
@@ -236,10 +266,10 @@ function GroupCalibrator({ group }: { group: BodyGroup }) {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-white/40">
+        <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-white/55">
           <span>Pitch (↑ / ↓, independent)</span>
           <div className="flex items-center gap-1.5">
-            <span className="text-white/50">↓</span>
+            <span className="text-white/60">↓</span>
             <DegInput
               value={pitchDownDeg}
               min={0}
@@ -256,7 +286,7 @@ function GroupCalibrator({ group }: { group: BodyGroup }) {
                 updateCaps({ pitchDown: mag })
               }}
             />
-            <span className="text-white/50">↑</span>
+            <span className="text-white/60">↑</span>
             <DegInput
               value={pitchUpDeg}
               min={0}
@@ -338,7 +368,7 @@ export function CalibrateTab() {
 
   if (orderedGroups.length === 0) {
     return (
-      <div className="p-4 text-xs text-white/40">
+      <div className="p-4 text-xs text-white/55">
         Define head + spine groups in Step 2 to calibrate joint limits.
       </div>
     )
@@ -350,7 +380,7 @@ export function CalibrateTab() {
     <div className="flex flex-col h-full">
       <div className="flex flex-col gap-2 p-4 text-xs text-white/70 flex-1 min-h-0 overflow-y-auto">
         <div className="flex items-center justify-between">
-          <p className="text-white/40 text-[10px] uppercase tracking-widest">
+          <p className="text-white/55 text-[10px] uppercase tracking-widest">
             Calibrate joint limits
           </p>
           <button
@@ -360,13 +390,13 @@ export function CalibrateTab() {
               'text-[10px] rounded px-2 py-0.5 border transition-colors',
               calibratingGroupId
                 ? 'border-white/20 text-white/70 hover:bg-white/10'
-                : 'border-white/10 text-white/25'
+                : 'border-white/10 text-white/40'
             )}
           >
             Reset sliders
           </button>
         </div>
-        <p className="text-white/40 text-[10px] leading-relaxed">
+        <p className="text-white/55 text-[10px] leading-relaxed">
           Expand a node to set its bend caps and preview the rotation live. Only one node at a time.
         </p>
         <Accordion
@@ -389,7 +419,7 @@ export function CalibrateTab() {
                     style={{ backgroundColor: g.color }}
                   />
                   <span className="text-xs text-white/80 truncate">{g.name}</span>
-                  <span className="text-[10px] text-white/30 ml-auto mr-2 shrink-0">
+                  <span className="text-[10px] text-white/45 ml-auto mr-2 shrink-0">
                     {g.type}
                   </span>
                 </div>
@@ -411,11 +441,11 @@ export function CalibrateTab() {
           {saving ? 'Saving…' : 'Save Calibration'}
         </Button>
         {!stlKey ? (
-          <p className="text-[10px] text-white/30 text-center pt-1">
+          <p className="text-[10px] text-white/45 text-center pt-1">
             Load or save a model in Step 2 first.
           </p>
         ) : configName.trim().length === 0 ? (
-          <p className="text-[10px] text-white/30 text-center pt-1">
+          <p className="text-[10px] text-white/45 text-center pt-1">
             Name the configuration in Step 2 before saving.
           </p>
         ) : null}

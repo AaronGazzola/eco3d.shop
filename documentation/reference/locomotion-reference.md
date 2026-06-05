@@ -234,8 +234,11 @@ forces — faithfully (§4, §5, and `documentation/locomotion.md §2–§3`).
 
 **Where we necessarily differ (bounded, and not in the controller):**
 - **Body parameters come from our rig**, not the salamander robot: segment length from
-  node spacing, mass/inertia from each segment's mesh, joint axes at the nodes, joint
-  limits = the studio `angleCaps`. (How we adapt to any model.)
+  node spacing, **mass from an authored per-node weight (default uniform, mesh-decoupled)
+  with inertia derived from weight + length** (roadmap Decision 7 — the paper likewise used
+  uniform segments; mesh-derived mass was replaced after its ≈10:1 head:tail ratio broke the
+  Phase C swimming gate), joint axes at the nodes, joint limits = the studio `angleCaps`.
+  (How we adapt to any model.)
 - **Output is the node skeleton**, not motors/Webots: the integrated joint angles drive
   the pivots (clamped to caps); the body's world pose drives the root frame.
 - **Reduced dimensionality / custom solver** is a likely engineering choice (planar,

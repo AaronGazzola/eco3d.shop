@@ -55,7 +55,7 @@ const DIAGNOSTICS_INTERVAL = 0.1
 const RECORD_INTERVAL = 0.05
 const MAX_OUTPUT_SAMPLES = 160
 const CPG_MAX_OUTPUT_SAMPLES = 200
-const CPG_TO_MUSCLE_GAIN = 80
+const CPG_TO_MUSCLE_GAIN = 12
 
 interface JointCapEntry {
   groupId: string
@@ -201,8 +201,7 @@ export function useLocomotion(
 
   const jointToCpgSegment = useMemo(() => {
     if (!bodySpec) return [] as number[]
-    const n = bodySpec.segments.length
-    return bodySpec.joints.map((j) => n - 1 - j.segmentIndex)
+    return bodySpec.joints.map((j) => j.segmentIndex)
   }, [bodySpec])
 
   function seedFromManualPose(spec: BodySpec): SolverState {

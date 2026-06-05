@@ -79,6 +79,7 @@ interface SharedStore {
   setGroupAttachment: (groupId: string, spineGroupId: string) => void
   setGroupNode: (groupId: string, nodeType: NodeType, x: number, y: number, z: number) => void
   setGroupAngleCaps: (groupId: string, caps: AngleCaps) => void
+  setGroupNodeWeight: (groupId: string, weight: number) => void
 }
 
 export const useSharedStore = create<SharedStore>()(
@@ -191,6 +192,22 @@ export const useSharedStore = create<SharedStore>()(
         set((state) => ({
           groups: state.groups.map((g) => (g.id === groupId ? { ...g, angleCaps: caps } : g)),
         })),
+
+      setGroupNodeWeight: (groupId, weight) =>
+        set((state) => {
+          const target = state.groups.find((g) => g.id === groupId)
+          const gangLegs = target?.type === 'leg-left' || target?.type === 'leg-right'
+          return {
+            groups: state.groups.map((g) => {
+              if (gangLegs) {
+                return g.type === 'leg-left' || g.type === 'leg-right'
+                  ? { ...g, nodeWeight: weight }
+                  : g
+              }
+              return g.id === groupId ? { ...g, nodeWeight: weight } : g
+            }),
+          }
+        }),
     }),
     {
       name: 'studio-store',

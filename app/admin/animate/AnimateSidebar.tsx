@@ -51,7 +51,7 @@ function PoseSlider({
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-full accent-violet-500"
       />
-      {hint ? <span className="text-white/30 text-[9px] font-mono">{hint}</span> : null}
+      {hint ? <span className="text-white/45 text-[9px] font-mono">{hint}</span> : null}
     </div>
   )
 }
@@ -59,7 +59,7 @@ function PoseSlider({
 function DiagnosticRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-white/40">{label}</span>
+      <span className="text-white/55">{label}</span>
       <span className="font-mono text-white/70">{value}</span>
     </div>
   )
@@ -112,7 +112,7 @@ function SimulateTab() {
   return (
     <div className="flex flex-col gap-4 p-4 text-xs text-white/60">
       <div className="flex flex-col gap-2 pb-3 border-b border-white/10">
-        <p className="text-white/40 text-[10px] uppercase tracking-widest">Environment (Phase C)</p>
+        <p className="text-white/55 text-[10px] uppercase tracking-widest">Environment (Phase C)</p>
         <button
           onClick={() => setEnvironmentEnabled(!environmentEnabled)}
           className={cn(
@@ -124,12 +124,12 @@ function SimulateTab() {
         >
           {environmentEnabled ? 'Drag ON' : 'Drag OFF'}
         </button>
-        <p className="text-white/30 text-[10px] leading-relaxed">
+        <p className="text-white/45 text-[10px] leading-relaxed">
           Anisotropic swimming drag (C_n=12, C_t=1.0). Enables forward thrust under B3.
         </p>
       </div>
 
-      <p className="text-white/40 text-[10px] uppercase tracking-widest">Simulate — Phase A4 (damping + limit stops)</p>
+      <p className="text-white/55 text-[10px] uppercase tracking-widest">Simulate — Phase A4 (damping + limit stops)</p>
 
       <div className="flex flex-col gap-2">
         <div className="flex gap-2">
@@ -182,14 +182,14 @@ function SimulateTab() {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <p className="text-white/40 text-[10px] uppercase tracking-widest">Diagnostics</p>
+        <p className="text-white/55 text-[10px] uppercase tracking-widest">Diagnostics</p>
         <DiagnosticRow label="Kinetic energy" value={simDiagnostics.kineticEnergy.toExponential(2)} />
         <DiagnosticRow label="COM drift" value={simDiagnostics.comDriftFromStart.toExponential(2)} />
         <DiagnosticRow label="Max joint / cap" value={`${(simDiagnostics.maxJointFracOfCap * 100).toFixed(0)}%`} />
       </div>
 
       <div className="flex flex-col gap-2 pt-2 border-t border-white/10">
-        <p className="text-white/40 text-[10px] uppercase tracking-widest">CPG (Phase B1)</p>
+        <p className="text-white/55 text-[10px] uppercase tracking-widest">CPG (Phase B1)</p>
         <PoseSlider
           label="drive"
           value={cpgDrive}
@@ -233,14 +233,14 @@ function SimulateTab() {
             {cpgRecording ? 'Stop' : 'Record'}
           </button>
         </div>
-        <p className="text-white/30 text-[10px] leading-relaxed">
+        <p className="text-white/45 text-[10px] leading-relaxed">
           Axial double chain (Knüsel 2020). Body stays at rest; wave appears in capture as
           diagonal stripes (head→tail). Expected ν ≈ drive·exc·1.1 Hz.
         </p>
       </div>
 
       <div className="flex flex-col gap-2 pt-2 border-t border-white/10">
-        <p className="text-white/40 text-[10px] uppercase tracking-widest">Muscle test (Phase B2)</p>
+        <p className="text-white/55 text-[10px] uppercase tracking-widest">Muscle test (Phase B2)</p>
         <PoseSlider
           label="frequency (Hz)"
           value={muscleTestFreq}
@@ -293,7 +293,7 @@ function SimulateTab() {
             {simRecording ? 'Stop' : 'Record'}
           </button>
         </div>
-        <p className="text-white/30 text-[10px] leading-relaxed">
+        <p className="text-white/45 text-[10px] leading-relaxed">
           Ekeberg α=0.4, β=1.2, γ=0.2, δ=0.1 (Table 5). Drives joints with a clean test
           sinusoid (no CPG). Pause → β·γ·φ stiffness springs joints back toward 0.
           Default amp=20 compensates for our rig&apos;s mass (paper assumes lighter body).
@@ -301,8 +301,8 @@ function SimulateTab() {
       </div>
 
       <div className="flex flex-col gap-2 pt-2 border-t border-white/10">
-        <p className="text-white/40 text-[10px] uppercase tracking-widest">CPG drive (Phase B3)</p>
-        <p className="text-white/30 text-[10px] leading-relaxed">
+        <p className="text-white/55 text-[10px] uppercase tracking-widest">CPG drive (Phase B3)</p>
+        <p className="text-white/45 text-[10px] leading-relaxed">
           Couples the CPG to the Ekeberg muscles into the body. Uses the drive +
           excitability sliders above. Body undulates head→tail in place (no environment).
         </p>
@@ -340,7 +340,7 @@ function SimulateTab() {
         )}
       >
       <div className="flex flex-col gap-3">
-        <p className="text-white/40 text-[10px] uppercase tracking-widest">Root</p>
+        <p className="text-white/55 text-[10px] uppercase tracking-widest">Root</p>
         <PoseSlider
           label="x"
           value={manualPose.rootX}
@@ -372,7 +372,7 @@ function SimulateTab() {
 
       {chainJoints.length > 0 ? (
         <div className="flex flex-col gap-3">
-          <p className="text-white/40 text-[10px] uppercase tracking-widest">Chain joints</p>
+          <p className="text-white/55 text-[10px] uppercase tracking-widest">Chain joints</p>
           {chainJoints.map((g) => {
             const caps = effectiveAngleCaps(g)
             const yawFwdDeg = caps.yaw * RAD_TO_DEG
@@ -395,7 +395,7 @@ function SimulateTab() {
           })}
         </div>
       ) : (
-        <p className="text-white/40 text-[10px] leading-relaxed">
+        <p className="text-white/55 text-[10px] leading-relaxed">
           Load a rig with at least a head + one downstream chain group to see joint sliders.
         </p>
       )}
@@ -408,7 +408,7 @@ function SimulateTab() {
       </button>
       </div>
 
-      <p className="leading-relaxed text-white/40 text-[10px]">
+      <p className="leading-relaxed text-white/55 text-[10px]">
         Passive solver (Phase A4): joint damping + soft limit stops. Run, then Kick joints
         — the chain should whip and settle to rest with KE → 0 and Max joint / cap ≤ 100%.
         Pose a joint past its cap and Run to watch the limit stop pull it back. See{' '}
@@ -432,7 +432,7 @@ export function AnimateSidebar() {
               'flex-1 py-1 text-xs rounded-md transition-colors',
               activeTab === 'simulate'
                 ? 'bg-white/15 text-white'
-                : 'text-white/40 hover:text-white/70'
+                : 'text-white/55 hover:text-white/70'
             )}
           >
             Simulate
@@ -443,7 +443,7 @@ export function AnimateSidebar() {
               'flex-1 py-1 text-xs rounded-md transition-colors',
               activeTab === 'calibrate'
                 ? 'bg-amber-600/40 text-amber-300'
-                : 'text-white/40 hover:text-white/70'
+                : 'text-white/55 hover:text-white/70'
             )}
           >
             Calibrate

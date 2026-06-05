@@ -1,9 +1,9 @@
 import { BodySpec } from './body'
 import { computeKinematics } from './solver'
 
-export const DRAG_NORMAL = 30
-export const DRAG_TANGENT = 2.5
-export const DRAG_ANGULAR = 1.5
+export const DRAG_NORMAL = 0.6
+export const DRAG_TANGENT = 0.05
+export const DRAG_ANGULAR = 0.03
 
 export function computeEnvironmentTau(
   spec: BodySpec,

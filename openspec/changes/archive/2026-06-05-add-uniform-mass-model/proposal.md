@@ -1,0 +1,26 @@
+## Why
+
+Phase C's swimming gate could not pass because the body's segment **masses are derived from the 3D mesh** — `buildBodySpec` sets `mass = density × mesh-AABB volume` ([body.ts:130-132](app/game/locomotion/body.ts#L130-L132)). The large head mesh becomes ≈78.7 kg against 7–22 kg tail segments (≈10:1), so internal muscle torques cannot move the head (Newton's third law) and the CPG wave collapses into a head-anchored / tail-whip paddle that nets near-zero, wrong-direction thrust. The "morphological limitation" logged in the roadmap is this leak: the 3D art is silently driving the dynamics.
+
+This change severs that leak (roadmap **Decision 7**, 2026-06-04). Mass becomes an **authored per-node weight** — default uniform across all axial nodes, independent of the mesh — with inertia derived from that weight and the (still dynamic) segment length. The mesh returns to being a pure render passenger. This matches the source paper, which used **uniform segments**, and it re-opens the Phase C swimming gate on a body the controller can actually drive. The realistic-scale anchor (head ≈ a medium-dog head, ~1.5 kg, vs the current 78.7 kg) makes the studio numbers human-meaningful and ~50× lighter, which is the regime where the traveling wave should finally produce clean head-leading thrust.
+
+## What Changes
+
+- **`BodyGroup` gains an authored `nodeWeight?: number`** (kilograms), beside `angleCaps`. It persists in the saved model config like the caps.
+- **`buildBodySpec` no longer reads mesh volume for mass.** Each `PlanarSegment.mass` is taken from the group's `nodeWeight`, falling back to a documented default (`DEFAULT_AXIAL_WEIGHT ≈ 1.5` for head/spine/tail, `DEFAULT_LEG_WEIGHT` for legs). `inertiaAboutComY` is derived from `mass` + the segment's `length` via a rod formula about the COM (`I ≈ m·(L² + W²)/12` with a standard cross-section width `W`), **not** from mesh extents. Length still comes from node spacing; the mesh no longer feeds the dynamics in either direction. **BREAKING** for the saved physical scale: every model's effective masses drop ~50× and become uniform.
+- **Calibrate tab authors per-node weight**, reusing the `LimitSlider` pattern used for angle caps. The 4 legs are **ganged** to one shared value (editing any leg sets all four). Defaults apply when a group has no authored `nodeWeight`.
+- **Environment drag + CPG→muscle gain are re-tuned** for the new uniform, ~50× lighter scale. The drag formula and its anisotropy ratio are unchanged (that is the physics); only the absolute magnitudes (`DRAG_NORMAL/TANGENT/ANGULAR`, `CPG_TO_MUSCLE_GAIN`) are re-fit to pass the gate.
+- **The swimming gate is re-attempted and is now expected to pass**: with B3 coupled drive + environment on, the uniform body translates **head-leading** in its heading direction (not tail-whip), superseding the Phase C morphological limitation.
+- **Fixes a pre-existing reversed CPG→joint mapping** ([useLocomotion.ts:205](app/game/locomotion/useLocomotion.ts#L205)): `jointToCpgSegment` was `n - 1 - segmentIndex`, which fed the CPG's head→tail wave onto the body tail→head and made it swim **backward**. This defect predates this change (Phase B3/C) but is the actual reason the swimming gate never passed, so it is corrected here. Verified by a headless test (`scripts/locomotion-drag-direction.ts`) proving the natural mapping swims forward and the reversed one backward.
+
+## Capabilities
+
+### Modified Capabilities
+- `locomotion`: replaces mesh-derived segment mass/inertia with an authored uniform per-node weight (inertia derived from weight + length); adds per-node weight authoring in Calibrate; re-tunes the drag/gain constants so emergent forward swimming actually passes on the (now uniform) rig.
+
+## Impact
+
+- **Edited files:** `app/admin/_lib/types.ts` (`nodeWeight?` on `BodyGroup`); `app/game/locomotion/body.ts` (mass from `nodeWeight` + defaults; inertia from weight + length; remove mesh-volume mass path); `app/admin/animate/CalibrateTab.tsx` + `app/admin/animate/LimitSlider.tsx` (per-node weight authoring, legs ganged); `app/admin/_lib/sharedStore.ts` (persist/edit `nodeWeight`); `app/game/locomotion/environment.ts` (re-tuned `DRAG_*` constants); `app/game/locomotion/useLocomotion.ts` (re-tuned `CPG_TO_MUSCLE_GAIN`; **fixed reversed `jointToCpgSegment`**); `app/admin/animate/animateStore.ts` (default `cpgDrive = 2.0`, `cpgExcitability = 0.09`); `scripts/locomotion-drag-direction.ts` (new headless swim-direction regression test).
+- **Untouched logic:** the CPG (`cpg.ts`), Ekeberg muscle math (`muscles.ts`), the solver's equations of motion (`solver.ts` — it already reads `mass`/`inertiaAboutComY` from the spec, so it needs no change), and the render mapping. The mesh→render path is unchanged; only the mesh→**mass** path is removed.
+- **Config migration:** existing saved configs have no `nodeWeight`; they fall back to the defaults (uniform), which is the intended new behaviour. No data migration script required.
+- **Supersedes:** the mass model of the archived `add-environment-phase-c` change and its unmet swimming gate. Roadmap Decision 7 + the amended "mass from the mesh" wording (Part 8 rule 2, L1, §1 rule 7, `locomotion.md` rule 4, reference §8) are already recorded.

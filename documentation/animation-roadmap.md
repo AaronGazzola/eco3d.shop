@@ -408,16 +408,18 @@ right leg** (always 4 legs). The adaptation rules (full reasoning in Part 3):
    adjacent pair (head→tail `w=5`, tail→head `w=1`) and each segment's left/right antiphase
    (`w=10`). Always 4 limb oscillators. Coupling **weights are per-connection constants —
    independent of N**. [paper, generalized]
-2. **Physical numbers from the rig.** Segment length from node spacing; mass/inertia from
-   each segment's mesh. The body dynamics adapt automatically. [ours/established]
+2. **Physical numbers from the rig.** Segment length from node spacing; **weight authored
+   per node (default uniform, mesh-decoupled), inertia derived from weight + length** — *not*
+   from the mesh (superseded; see Decision 7). The body dynamics adapt to node geometry
+   without the 3D art leaking in. [ours/Decision 7]
 3. **Length-weighted phase bias.** Hold the total head→tail phase lag constant and
    distribute it along the body in proportion to segment length, so the wave shape is
    invariant to node count/spacing. [interp/ours]
 4. **Hips/legs by position, not index.** Locate each girdle at its hip node and attach that
    leg's limb→axial coupling to the **nearest** spine segment. [paper, located by geometry]
 
-Only model-specific inputs: **N**, **node spacing**, **mesh-derived masses**, and **which
-spine segment each hip sits on**. Applies to **both swimming and walking** (one network):
+Only model-specific inputs: **N**, **node spacing**, **per-node authored weights (default
+uniform)**, and **which spine segment each hip sits on**. Applies to **both swimming and walking** (one network):
 the length-weighted bias shapes *swimming* most, while *walking* leans on the 4-limb
 coordination + hip placement.
 
@@ -425,8 +427,8 @@ coordination + hip placement.
 rig, in planar mode — Decision 1):
 
 - **Inputs read from the rig** (and nothing else): **N** → build N left/right axial
-  oscillator pairs + always 4 limb oscillators; **node spacing** → segment lengths; **segment
-  meshes** → mass + rotational inertia; **hip node positions** → attach each leg's coupling
+  oscillator pairs + always 4 limb oscillators; **node spacing** → segment lengths; **per-node
+  authored weights** → mass + (with length) rotational inertia; **hip node positions** → attach each leg's coupling
   to the nearest spine segment; **`angleCaps`** → joint-limit stops. **[ours]**
 - **Network is size-independent.** Coupling *weights* are per-connection constants (Table 2),
   unchanged by N. Only the **phase bias** scales with the rig — spread along the body in
@@ -488,6 +490,35 @@ A dated log of decisions, with reasoning. Settled one at a time as we work throu
    spatial wave shape is invariant to node count and spacing. `BODY_WAVES` is a single named
    constant, tunable when we eyeball the undulation in Phase B3. (See §1 Part 3 / Part 8.)
    The tail→head bias keeps the same length-weighting with the paper's 1:5 strength ratio.
+7. **Mass model → uniform per-node authored weight, mesh-decoupled; inertia derived from
+   weight + length.** _2026-06-04._ Supersedes the original "mass/inertia from each segment's
+   mesh" rule (Part 8 rule 2 / L1 / §1 rule 7 / reference §8). That rule **leaked the 3D art
+   into the dynamics**: each segment's mass was `BODY_DENSITY · (mesh bounding-box volume)`
+   ([body.ts:130-132](app/game/locomotion/body.ts#L130-L132)), so the large head mesh became
+   ≈78.7 kg against 7–22 kg tail segments (≈10:1). Internal muscle torques cannot move that
+   heavy head (Newton's third law), so the CPG wave collapsed into a head-anchored / tail-whip
+   paddle and the Phase C swimming gate could not pass — the "morphological limitation" logged
+   in §4 (2026-06-04) is *this leak*, not an intrinsic rig flaw. The new model:
+   - **Weight is authored per node, not derived from the mesh.** Default is a single uniform
+     constant shared by all axial nodes (head/spine/tail), identical between models and
+     independent of the STL art. The mesh becomes a pure render passenger — it no longer
+     feeds the dynamics in *either* direction (what `locomotion.md` rule 4 always intended).
+   - **Inertia is derived from weight + actual segment length** (rod `I ≈ m·L²/12` about the
+     COM, with a standard cross-section). Node spacing (kept dynamic) still shapes rotation;
+     node count stays dynamic; the mesh never enters the dynamics.
+   - **Configurable like angle caps.** A per-node weight control in the Calibrate tab reusing
+     `LimitSlider`; a new `nodeWeight?` field on `BodyGroup` beside `angleCaps`. The 4 legs
+     are **ganged** to one shared value (edit one → all four stay equal) with their own
+     default, separate from the axial default.
+   - **Realistic scale anchored on a medium-dog head.** Head ≈ 1.5 kg (was 78.7); uniform
+     axial nodes ≈ 1.5 kg each → ~16 kg total over ~11 nodes ≈ a medium dog's body mass.
+     ~50× lighter than the old scale, so every constant tuned at the old scale
+     (`CPG_TO_MUSCLE_GAIN`, `DRAG_NORMAL/TANGENT/ANGULAR`) is **re-fit from scratch** when
+     Phase C re-opens — the point being that a light, *uniform* body is the regime where the
+     traveling wave should finally net clean head-leading thrust. The dog-head anchor is a
+     default, configurable per model.
+   This matches the paper, which used **uniform segments** (PDF Methods, "uniform" runs).
+   (Settled in an explore session; implemented via the Phase C re-open change — see §4.)
 
 ---
 
@@ -753,3 +784,50 @@ reference.
   **Next: Phase D (limbs + ground contact + friction)** — the lizard rig was authored
   for walking, not undulatory swimming. Phase D adds the actuation path the rig actually
   matches.
+- **2026-06-04 (explore — mass model reworked; Phase C re-opens before Phase D)** — Traced
+  the "segment size affects locomotion" symptom to its root: animation never touches the
+  meshes (rule 4 holds in the render direction), but `buildBodySpec` derives each segment's
+  **mass from the mesh bounding-box volume** ([body.ts:130-132](app/game/locomotion/body.ts#L130-L132)),
+  so the 3D art leaks into the dynamics — the ≈10:1 head:tail mass ratio is what produced the
+  head-anchored tail-whip and blocked the Phase C swimming gate. **Locked Decision 7** (§2):
+  weight is authored per node (default uniform, mesh-decoupled, ~1.5 kg medium-dog-head
+  anchor), inertia derived from weight + length, configurable in Calibrate (reuse
+  `LimitSlider`; new `BodyGroup.nodeWeight?`; legs ganged). Amended the now-wrong
+  "mass/inertia from the mesh" wording in Part 8 rule 2, L1, §1 rule 7, `locomotion.md` rule 4,
+  and reference §8. **Decision: re-open Phase C (swimming) on the new uniform body before
+  Phase D.** Sketch of the Phase C re-open change (to be drafted as its own OpenSpec change
+  when we exit explore):
+  1. **Body model** — add `nodeWeight?` to `BodyGroup`; in `buildBodySpec` replace
+     mesh-volume mass with `nodeWeight` (default `DEFAULT_AXIAL_WEIGHT ≈ 1.5`, plus a leg
+     default), and derive `inertiaAboutComY` from weight + segment length (rod `m·L²/12` with
+     a standard cross-section) instead of mesh extents. Mesh stays render-only.
+  2. **Authoring UI** — a per-node weight slider in `CalibrateTab` reusing `LimitSlider`; the
+     4 legs share one ganged value; persists in the saved config like `angleCaps`.
+  3. **Re-tune** — re-fit `CPG_TO_MUSCLE_GAIN` and `DRAG_NORMAL/TANGENT/ANGULAR` from scratch
+     at the new ~50× lighter, uniform scale.
+  4. **Gate** — the swimming gate that Phase C could not pass: a clean head→tail traveling
+     wave that nets **head-leading** forward translation (not tail-whip), COM advancing along
+     heading. This is the gate Decision 7 exists to unblock.
+  Phase C's original change is left archived as-is; the re-open is a *new* change that
+  supersedes its mass model. Phase D follows once swimming passes.
+- **2026-06-05 (`add-uniform-mass-model` implemented; swimming passes — the real bug was a
+  reversed CPG→joint mapping)** — Implemented Decision 7: `BodyGroup.nodeWeight` authored in
+  Calibrate (legs ganged), `buildBodySpec` mass from weight (default uniform `1.5`) + inertia
+  from weight·length, mesh fully off the dynamics. Re-tuned at the new ~50× lighter scale:
+  `CPG_TO_MUSCLE_GAIN = 12`, `DRAG_NORMAL/TANGENT/ANGULAR = 0.6 / 0.05 / 0.03` (ratio 12 kept).
+  **But the uniform body still swam backward** — and a headless first-principles test
+  (`scripts/locomotion-drag-direction.ts`) isolated why: the drag is correct (a clean head→tail
+  wave nets head-first thrust), the free-body recoil is fine, morphology is fine, COM offset is
+  fine — the defect was a **reversed CPG→joint mapping** in `useLocomotion.ts:205`,
+  `jointToCpgSegment = n - 1 - segmentIndex`, which fed the head→tail CPG wave onto the body
+  **tail→head**, so it swam backward. This was **pre-existing** (added in Phase B3/C, probably
+  to mask the heavy-body tail-whip backward drift) — not caused by the mass change, but it was
+  the actual reason the Phase C swimming gate never passed. Fixed to `jointToCpgSegment =
+  segmentIndex`. **Result: the body swims forward (head-first), graceful, no sloshing.** Best
+  look at `cpgDrive = 2.0` (large amplitude) + `cpgExcitability = 0.09` (slow ~0.2 Hz beat) —
+  set as the new store defaults. Forward COM drift ~0.2 body-lengths over ~4 s; **direction +
+  monotonicity are the gate, absolute thrust speed is deferred** (joints currently ride their
+  caps at these settings — amplitude is cap-limited; thrust/look fine-tuning happens after
+  Phase D). The headless test is kept as a swim-direction regression guard. Next: finish/
+  archive this change, then **Phase D (walking — limbs + ground contact)**; legs are still
+  pure render passengers (no dynamics) until then.

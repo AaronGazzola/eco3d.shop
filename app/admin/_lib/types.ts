@@ -44,6 +44,7 @@ export interface BodyGroup {
   nodeHipRight?: { x: number; y?: number; z: number }
   nodeFoot?: { x: number; y?: number; z: number }
   angleCaps?: AngleCaps
+  nodeWeight?: number
 }
 
 export type CameraPreset = 'reset' | 'front' | 'top' | 'side'

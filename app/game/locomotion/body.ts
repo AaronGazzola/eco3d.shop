@@ -1,7 +1,17 @@
-import { BodyGroup, SegmentData } from '@/app/admin/_lib/types'
+import { BodyGroup, BodyGroupType, SegmentData } from '@/app/admin/_lib/types'
 import { buildSkeletonTree, flattenSkeleton, effectiveAngleCaps } from './chain'
 
 export const BODY_DENSITY = 1
+
+export const DEFAULT_AXIAL_WEIGHT = 1.5
+export const DEFAULT_LEG_WEIGHT = 0.4
+export const STD_SEGMENT_WIDTH = 0.5
+
+export function defaultWeightFor(type: BodyGroupType): number {
+  return type === 'leg-left' || type === 'leg-right'
+    ? DEFAULT_LEG_WEIGHT
+    : DEFAULT_AXIAL_WEIGHT
+}
 
 export interface PlanarSegment {
   groupId: string
@@ -122,14 +132,9 @@ export function buildBodySpec(groups: BodyGroup[], segments: SegmentData[]): Bod
       ? Math.hypot(next.x - center.x, next.z - center.z)
       : Math.hypot(stat.centroidX - center.x, stat.centroidZ - center.z) * 2
 
-    const fallbackExtent = Math.max(length, 1e-3)
-    const extentX = stat.vertexCount > 0 ? stat.extentX : fallbackExtent
-    const extentY = stat.vertexCount > 0 ? stat.extentY : fallbackExtent
-    const extentZ = stat.vertexCount > 0 ? stat.extentZ : fallbackExtent
-
-    const volume = Math.max(extentX * extentY * extentZ, 1e-6)
-    const mass = BODY_DENSITY * volume
-    const inertiaAboutComY = (mass * (extentX * extentX + extentZ * extentZ)) / 12
+    const mass = group.nodeWeight ?? defaultWeightFor(group.type)
+    const inertiaAboutComY =
+      (mass * (length * length + STD_SEGMENT_WIDTH * STD_SEGMENT_WIDTH)) / 12
 
     const restComX = stat.vertexCount > 0 ? stat.centroidX : center.x
     const restComZ = stat.vertexCount > 0 ? stat.centroidZ : center.z

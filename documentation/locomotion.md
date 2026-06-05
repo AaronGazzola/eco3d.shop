@@ -33,15 +33,19 @@ existing app; everything about locomotion itself comes from the paper.
 3. **Hips are welded to the spine.** `nodeHipLeft/Right` are fixed offsets in their owning
    spine group's local frame.
 4. **3D meshes are passengers.** STL segments are assigned to groups and rendered
-   positioned relative to the node skeleton. Animation never touches meshes directly.
+   positioned relative to the node skeleton. Animation never touches meshes directly — and
+   the mesh never feeds the *dynamics* either: physical weight is authored per node, not
+   derived from mesh size (roadmap Decision 7).
 5. **Angle caps are sacred.** Every joint angle written to a pivot is clamped to its
    `angleCaps`. Code may clamp tighter for a frame; it never raises, overrides, or
    substitutes caps. (In a torque-driven body these become joint-limit stops.)
 6. **Limbs stay attached** to their hips.
 7. **Adapts to any rig.** Variable spine counts and segment lengths; same
-   head→spine→tail topology with legs on hip sockets. Physical body parameters (segment
-   length, mass, inertia, joint axes) are **derived from the rig geometry**, never
-   hard-coded per model.
+   head→spine→tail topology with legs on hip sockets. Physical body parameters are derived
+   from the rig: segment length and joint axes from **node geometry**; **mass from an
+   authored per-node weight (default uniform across models, independent of the 3D mesh) and
+   inertia from that weight + length** (roadmap Decision 7). Never hard-coded per model, and
+   never read from the mesh art.
 
 Preserved app surfaces: node authoring (`app/admin/group/*`), the **Calibrate tab**,
 `LimitSlider`, angle-cap authoring, `sharedStore`, save/load config, mesh loading, and the
@@ -83,8 +87,10 @@ prescribed — it is the integrated result of forces.
 
 - **L0 — Foundation (keep):** node skeleton, caps, mesh-follows-nodes, calibrate, config.
 - **L1 — Physical body from the rig:** derive a multibody spec — segment lengths from node
-  spacing, mass/inertia from each segment's mesh, joint axes at the nodes (axial = 1-DOF
-  yaw; limb = 1-DOF at the hip), joint limits = the caps. (This is what makes it adapt.)
+  spacing, **mass from an authored per-node weight (default uniform, mesh-decoupled) and
+  inertia derived from that weight + length** (roadmap Decision 7 — *not* from the mesh),
+  joint axes at the nodes (axial = 1-DOF yaw; limb = 1-DOF at the hip), joint limits = the
+  caps. (This is what makes it adapt.)
 - **L2 — CPG controller:** the oscillator network (reference §2–§3, §7).
 - **L3 — Actuation:** Ekeberg muscles → axial torques; limb transfer function → limb
   targets (reference §4, §5).
