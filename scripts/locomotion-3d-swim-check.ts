@@ -109,16 +109,56 @@ function runCase(label: string, groups: BodyGroup[], dragOn = true, gain = GAIN)
   world.free()
 }
 
+function traceLongRun(label: string, groups: BodyGroup[], dragOn: boolean, gain: number, seconds: number) {
+  const world = new RAPIER.World({ x: 0, y: 0, z: 0 })
+  world.timestep = TIMESTEP
+  const body = buildBody3D(world, groups)!
+  // inertia + mass dump (settle the ~0.044 question): print yaw-axis effective inertia
+  console.log(`--- ${label} (gain ${gain}, drag ${dragOn ? 'ON' : 'OFF'}, ${seconds}s) ---`)
+  const I0 = body.bodies[0].principalInertia()
+  console.log(`  head: mass ${body.bodies[0].mass().toFixed(2)}  principalInertia (${I0.x.toFixed(3)}, ${I0.y.toFixed(3)}, ${I0.z.toFixed(3)})`)
+  const cpgSpec = buildCpgSpec(body.segLength)
+  const cpgState = initCpgState(cpgSpec)
+  const delay = body.joints.map(() => createDelayBuffer(TIMESTEP))
+  const fwd = new Vector3()
+  const steps = Math.round(seconds / TIMESTEP)
+  const marks = new Set([0, 2, 5, 10, 20, 30, 45, 60].map((s) => Math.round(s / TIMESTEP)))
+  for (let s = 0; s < steps; s++) {
+    stepCpg(cpgState, cpgSpec, DRIVE, EXC, TIMESTEP)
+    for (let j = 0; j < body.joints.length; j++) {
+      const jt = body.joints[j]
+      const k = body.jointToCpgSegment[j]
+      const mL = oscillatorOutput(cpgState, k) * gain
+      const mR = oscillatorOutput(cpgState, k + cpgSpec.n) * gain
+      const d = pushAndReadDelayed(delay[j], mL, mR)
+      const phi = jointAngle(jt, body.bodies)
+      const phiDot = jointRate(jt, body.bodies)
+      const tau = ekebergTorque(d.mL, d.mR, phi, phiDot) - JOINT_DAMP * phiDot
+      const ax = worldAxis(jt, body.bodies)
+      body.bodies[jt.childIndex].addTorque({ x: ax.x * tau, y: ax.y * tau, z: ax.z * tau }, true)
+      body.bodies[jt.parentIndex].addTorque({ x: -ax.x * tau, y: -ax.y * tau, z: -ax.z * tau }, true)
+    }
+    if (dragOn) for (let i = 0; i < body.bodies.length; i++) {
+      const b = body.bodies[i]; const L = body.segLength[i]; const v = b.linvel(); const r = b.rotation()
+      fwd.set(1, 0, 0).applyQuaternion(new Quaternion(r.x, r.y, r.z, r.w))
+      const vPar = v.x * fwd.x + v.y * fwd.y + v.z * fwd.z
+      b.addForce({ x: -L * (Cn * (v.x - vPar * fwd.x) + Ct * vPar * fwd.x), y: -L * (Cn * (v.y - vPar * fwd.y) + Ct * vPar * fwd.y), z: -L * (Cn * (v.z - vPar * fwd.z) + Ct * vPar * fwd.z) }, true)
+      const w = b.angvel(); b.addTorque({ x: -L * Cw * w.x, y: -L * Cw * w.y, z: -L * Cw * w.z }, true)
+    }
+    world.step()
+    if (marks.has(s)) {
+      const com = body.bodies.reduce((a, b) => { const p = b.translation(); return { x: a.x + p.x, y: a.y + p.y, z: a.z + p.z } }, { x: 0, y: 0, z: 0 })
+      console.log(`   t=${(s * TIMESTEP).toFixed(0).padStart(2)}s  KE=${kineticEnergy(body.bodies).toExponential(2)}  comY=${(com.y / 11).toFixed(3)}`)
+    }
+  }
+  world.free()
+}
+
 async function main() {
   await RAPIER.init()
-  console.log(`fine gain sweep, drag ON (want maxJ ≲ cap, finalKE low/bounded, HEAD-FIRST)\n`)
-  for (const g of [0.5, 0.8, 1, 1.2, 1.5]) runCase('curved-z drag ON', buildRigGroups(1.5, 0), true, g)
-  console.log('')
-  const G = 1
-  runCase('straight  drag OFF', buildRigGroups(0, 0), false, G)
-  runCase('curved-z  drag OFF', buildRigGroups(1.5, 0), false, G)
-  runCase('straight  drag ON', buildRigGroups(0, 0), true, G)
-  runCase('curved-3D drag ON', buildRigGroups(1.5, 0.8), true, G)
+  console.log('Long-run energy trace (does KE grow unbounded? does comY float up?)\n')
+  traceLongRun('curved-z', buildRigGroups(1.5, 0), true, 1, 60)
+  traceLongRun('curved-z', buildRigGroups(1.5, 0), false, 1, 60)
 }
 
 main().catch((e) => { console.error('ERROR', e); process.exit(1) })
