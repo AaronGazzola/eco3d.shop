@@ -20,13 +20,16 @@ and medium-transition are deferred.
 - **Limb CPG (4 oscillators).** Extend `cpg.ts` with four limb oscillators and the paper's Table 2
   interlimb couplings (rostrocaudal `w=3`, caudorostral `w=30`, lateral `w=10`, all `φ=π`) producing
   a **diagonal trot**, plus limb→axial (`w=30, φ=4`) and axial→limb (`w=2.5, φ=−4`) couplings that
-  lock the body wave to the legs.
-- **Limb transfer function.** Map each limb oscillator's phase → hip target angle (protraction during
-  swing, retraction during stance) + **foot lift during swing** so the foot clears the ground, with a
-  stance duty factor. Drive the hip with the same ForceBased-motor approach as the axial muscle.
-- **Physical legs (1-DOF hip + foot).** Promote the currently render-only leg groups to real bodies:
-  a 1-DOF hip joint at the existing hip node + a foot collider. (Knee/ankle are out of scope — the
-  paper drives one oscillator per limb.)
+  lock the body wave to the legs. Faithful limb params: excitability fore `e=0.8`, hind `e=0.5`;
+  limb saturation threshold `d_th≈1.27`.
+- **Limb transfer function (position control, not muscle).** Per the paper, the limb oscillator's
+  **phase is used directly as the desired leg position** through a **piecewise-linear transfer
+  function** at **77% stance / 23% swing** — *not* through the Ekeberg muscle (a deliberate paper
+  contrast). The 1-DOF hip is driven *toward* that target via the joint's ForceBased position motor.
+  (The exact piecewise formula is unspecified by the paper and is ours to design.)
+- **Physical legs (1-DOF hip + foot, emergent contact).** Promote the render-only leg groups to real
+  bodies: a **single 1-DOF hip joint** at the hip node + a foot collider. Foot plant/slip/lift
+  **emerges from the contact model** — no scripted lift, no second DOF (faithful to reference §5).
 - **Terrestrial environment.** A walk mode with **gravity ON** + a flat **ground plane** with friction
   (vs the swim's gravity-off neutral buoyancy). Body stays upright via leg support.
 - **Render + observe.** Render legs from their physics transforms; add a walk capture/gate to the
