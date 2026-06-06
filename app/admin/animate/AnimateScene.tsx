@@ -1,12 +1,30 @@
 'use client'
 
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { useSharedStore } from '../_lib/sharedStore'
 import { useAnimateStore } from './animateStore'
 import { CameraController, StudioCanvas } from '../_lib/StudioCanvas'
-import { ModelConfigRow } from '../_lib/types'
+import { CameraPreset, ModelConfigRow } from '../_lib/types'
 import { AnimatedModel } from '@/app/game/AnimatedModel'
+
+// Dev/observation hook: lets the headless observation harness (scripts/observe-swim.mjs) drive the
+// studio deterministically — set camera angle, start/stop the sim, toggle drag, tune the CPG, and
+// read live diagnostics — without scraping the DOM. Admin-studio only; see documentation/observation-loop.md.
+function useStudioObservationHook() {
+  useEffect(() => {
+    const w = window as unknown as { __studio?: Record<string, unknown> }
+    const store = useAnimateStore.getState
+    w.__studio = {
+      setCam: (p: CameraPreset) => store().setCameraPreset(p),
+      drive: (on = true) => store().setCoupledRunning(on),
+      drag: (on: boolean) => store().setEnvironmentEnabled(on),
+      tune: (drive: number, exc: number) => { store().setCpgDrive(drive); store().setCpgExcitability(exc) },
+      diag: () => store().simDiagnostics,
+    }
+    return () => { delete (w as { __studio?: unknown }).__studio }
+  }, [])
+}
 
 function SceneContent() {
   const segments = useSharedStore((s) => s.segments)
@@ -48,6 +66,7 @@ function SceneContent() {
 export function AnimateScene() {
   const cameraPreset = useAnimateStore((s) => s.cameraPreset)
   const setCameraPreset = useAnimateStore((s) => s.setCameraPreset)
+  useStudioObservationHook()
 
   return (
     <StudioCanvas>

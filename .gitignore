@@ -13,8 +13,13 @@
 # testing
 /coverage
 
-# locomotion diagnostic captures
+# locomotion diagnostic captures + observation frames
 /documentation/diagnostics/
+
+# observation harness: cached browser session (contains auth tokens) + transient server/build logs
+/scripts/.observe-auth.json
+/.next-server.log
+/.next-build.log
 
 # next.js
 /.next/
