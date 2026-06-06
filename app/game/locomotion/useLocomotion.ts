@@ -214,8 +214,8 @@ export function useLocomotion(
             c.body.bodies[jt.childIndex].addTorque({ x: ax.x * tau, y: ax.y * tau, z: ax.z * tau }, true)
             c.body.bodies[jt.parentIndex].addTorque({ x: -ax.x * tau, y: -ax.y * tau, z: -ax.z * tau }, true)
           }
-          if (store.environmentEnabled) applyEnvironment3D(c.body)
           c.world.step()
+          if (store.environmentEnabled) applyEnvironment3D(c.body, TIMESTEP)
           acc -= TIMESTEP
         }
         c.acc = acc

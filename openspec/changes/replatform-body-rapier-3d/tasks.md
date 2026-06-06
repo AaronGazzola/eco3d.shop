@@ -21,7 +21,7 @@
 
 ## 4. 3D drag (`environment.ts`)
 
-- [x] 4.1 Replace the planar generalized-force drag with the 3D per-body version: `v_∥ = (v·t̂)t̂`, `v_⊥ = v − v_∥`, `F = −L(C_n·v_⊥ + C_t·v_∥)`, `τ = −L·C_ω·ω`; apply via `body.addForce`/`addTorque` each step when `environmentEnabled`.
+- [x] 4.1 Replace the planar generalized-force drag with the 3D per-body version: `v_∥ = (v·t̂)t̂`, `v_⊥ = v − v_∥`. Applied as **semi-implicit (exponential) velocity damping post-step** — `v_∥ ·= exp(−C_t·L·dt/m)`, `v_⊥ ·= exp(−C_n·L·dt/m)`, `ω ·= exp(−C_ω·L·dt/I)` — not an explicit force (an explicit `F = −L(C_n·v_⊥ + C_t·v_∥)` ran energy away; see design Stability finding 4). `applyEnvironment3D(body, dt)` runs after `world.step()` when `environmentEnabled`.
 - [x] 4.2 Keep `DRAG_NORMAL/TANGENT/ANGULAR = 0.6/0.05/0.03` as the starting values; ratio ≥10:1 preserved.
 - [x] 4.3 `npx tsc --noEmit` and `npx eslint` pass.
 

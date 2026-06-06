@@ -1,9 +1,9 @@
 import RAPIER from '@dimforge/rapier3d-compat'
-import { Vector3, Quaternion } from 'three'
 import { BodyGroup } from '@/app/admin/_lib/types'
 import { buildBody3D, jointAngle, jointRate, worldAxis } from '@/app/game/locomotion/body3d'
 import { buildCpgSpec, initCpgState, stepCpg, oscillatorOutput } from '@/app/game/locomotion/cpg'
 import { ekebergTorque, createDelayBuffer, pushAndReadDelayed } from '@/app/game/locomotion/muscles'
+import { applyEnvironment3D } from '@/app/game/locomotion/environment'
 
 const RIG_LEN = [3.352, 1.268, 1.728, 1.185, 1.395, 1.255, 1.515, 1.802, 1.975, 1.946, 3.966]
 const CAP_DEG = [60, 21, 23, 37, 39, 28, 28, 22, 30, 30, 45] // head cap unused
@@ -11,7 +11,6 @@ const GAIN = 12
 const DRIVE = 2.0
 const EXC = 0.09
 const TIMESTEP = 1 / 120
-const Cn = 0.6, Ct = 0.05, Cw = 0.03
 const JOINT_DAMP = 2 // matches the planar coupled mode's effective joint damping
 
 // curveZ/curveY add a curved 3D rest pose (the real rig is not a straight line).
@@ -64,7 +63,6 @@ function runCase(label: string, groups: BodyGroup[], dragOn = true, gain = GAIN)
   const delay = body.joints.map(() => createDelayBuffer(TIMESTEP))
   const startCom = comX(body.bodies)
   let maxJoint = 0, peakKE = 0, finalKE = 0, blew = false
-  const fwd = new Vector3()
   const steps = Math.round(10 / TIMESTEP)
   for (let s = 0; s < steps; s++) {
     stepCpg(cpgState, cpgSpec, DRIVE, EXC, TIMESTEP)
@@ -82,22 +80,8 @@ function runCase(label: string, groups: BodyGroup[], dragOn = true, gain = GAIN)
       body.bodies[jt.childIndex].addTorque({ x: ax.x * tau, y: ax.y * tau, z: ax.z * tau }, true)
       body.bodies[jt.parentIndex].addTorque({ x: -ax.x * tau, y: -ax.y * tau, z: -ax.z * tau }, true)
     }
-    if (dragOn) for (let i = 0; i < body.bodies.length; i++) {
-      const b = body.bodies[i]
-      const L = body.segLength[i]
-      const v = b.linvel()
-      const r = b.rotation()
-      fwd.set(1, 0, 0).applyQuaternion(new Quaternion(r.x, r.y, r.z, r.w))
-      const vPar = v.x * fwd.x + v.y * fwd.y + v.z * fwd.z
-      b.addForce({
-        x: -L * (Cn * (v.x - vPar * fwd.x) + Ct * vPar * fwd.x),
-        y: -L * (Cn * (v.y - vPar * fwd.y) + Ct * vPar * fwd.y),
-        z: -L * (Cn * (v.z - vPar * fwd.z) + Ct * vPar * fwd.z),
-      }, true)
-      const w = b.angvel()
-      b.addTorque({ x: -L * Cw * w.x, y: -L * Cw * w.y, z: -L * Cw * w.z }, true)
-    }
     world.step()
+    if (dragOn) applyEnvironment3D(body, TIMESTEP)
     const ke = kineticEnergy(body.bodies)
     peakKE = Math.max(peakKE, ke)
     finalKE = ke
@@ -120,7 +104,6 @@ function traceLongRun(label: string, groups: BodyGroup[], dragOn: boolean, gain:
   const cpgSpec = buildCpgSpec(body.segLength)
   const cpgState = initCpgState(cpgSpec)
   const delay = body.joints.map(() => createDelayBuffer(TIMESTEP))
-  const fwd = new Vector3()
   const steps = Math.round(seconds / TIMESTEP)
   const marks = new Set([0, 2, 5, 10, 20, 30, 45, 60].map((s) => Math.round(s / TIMESTEP)))
   for (let s = 0; s < steps; s++) {
@@ -138,14 +121,8 @@ function traceLongRun(label: string, groups: BodyGroup[], dragOn: boolean, gain:
       body.bodies[jt.childIndex].addTorque({ x: ax.x * tau, y: ax.y * tau, z: ax.z * tau }, true)
       body.bodies[jt.parentIndex].addTorque({ x: -ax.x * tau, y: -ax.y * tau, z: -ax.z * tau }, true)
     }
-    if (dragOn) for (let i = 0; i < body.bodies.length; i++) {
-      const b = body.bodies[i]; const L = body.segLength[i]; const v = b.linvel(); const r = b.rotation()
-      fwd.set(1, 0, 0).applyQuaternion(new Quaternion(r.x, r.y, r.z, r.w))
-      const vPar = v.x * fwd.x + v.y * fwd.y + v.z * fwd.z
-      b.addForce({ x: -L * (Cn * (v.x - vPar * fwd.x) + Ct * vPar * fwd.x), y: -L * (Cn * (v.y - vPar * fwd.y) + Ct * vPar * fwd.y), z: -L * (Cn * (v.z - vPar * fwd.z) + Ct * vPar * fwd.z) }, true)
-      const w = b.angvel(); b.addTorque({ x: -L * Cw * w.x, y: -L * Cw * w.y, z: -L * Cw * w.z }, true)
-    }
     world.step()
+    if (dragOn) applyEnvironment3D(body, TIMESTEP)
     if (marks.has(s)) {
       const com = body.bodies.reduce((a, b) => { const p = b.translation(); return { x: a.x + p.x, y: a.y + p.y, z: a.z + p.z } }, { x: 0, y: 0, z: 0 })
       console.log(`   t=${(s * TIMESTEP).toFixed(0).padStart(2)}s  KE=${kineticEnergy(body.bodies).toExponential(2)}  comY=${(com.y / 11).toFixed(3)}`)

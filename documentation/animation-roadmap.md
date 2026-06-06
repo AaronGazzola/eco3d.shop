@@ -870,3 +870,28 @@ reference.
   Phase D). The headless test is kept as a swim-direction regression guard. Next: finish/
   archive this change, then **Phase D (walking — limbs + ground contact)**; legs are still
   pure render passengers (no dynamics) until then.
+- **2026-06-06 (`replatform-body-rapier-3d` implemented — Phase C-3D; Decision 8)** — The body
+  is rebuilt as a chain of **3D Rapier rigid bodies** (`body3d.ts`) from the node skeleton, the
+  proven CPG→Ekeberg controller drives the engine's **axial revolute joints** (yaw-only), the
+  RFT drag is generalized to 3D (`environment.ts`), and the rig renders from engine transforms;
+  the planar `solver.ts`/`body.ts` are deleted. Rapier world: gravity off (neutral buoyancy),
+  fixed timestep `1/120` with a substep accumulator, `f32` deterministic same-machine. Mass =
+  `nodeWeight` via `collider.setMass` (engine derives inertia; head yaw inertia ≈ 1.49). Four
+  stability fixes were needed to make the real curved rig behave (see the change's design.md
+  "Stability findings"): **(1) world-aligned bodies** — only the capsule collider is rotated to
+  the segment forward, so every joint's yaw axis stays world-up and a curved rest pose doesn't
+  snap; **(2) `JOINT_DAMPING_3D = 2`** to match the planar mode's effective joint damping;
+  **(3) gain 12 → 1** because Rapier's revolute limits are soft and the planar gain blew through
+  them; **(4) semi-implicit drag** — the resistive drag is applied as exponential velocity
+  damping (`v ·= exp(−C·L·dt/m)`) **after** `world.step()`, not as an explicit pre-step force.
+  The explicit force was dissipative at every sample yet ran kinetic energy away (KE 79,000 by
+  45 s, body floating/tumbling) because forward-Euler overshoots between steps — worse at high
+  `C_n`, so lowering `C_n` was not an option (it would kill the ≥10:1 anisotropy thrust needs).
+  The semi-implicit form is unconditionally stable and strictly dissipative at any coefficient,
+  so `0.6/0.05/0.03` hold and the body swims **head-first** with KE bounded (30–440 over 60 s)
+  and no out-of-plane float (`comY` pinned at 0). Validated headless on straight + curved +
+  3D-curved rigs (`scripts/locomotion-3d-swim-check.ts`). Remaining before archive: the
+  **browser visual gate** (task 8 — confirm in-studio the rig swims head-first and stays
+  bounded over a long run) and OpenSpec validation. Swim speed/feel tuning is deferred (AZ-33).
+  Next: pass the browser gate, archive, then **Phase D (walking — limbs + gravity + ground
+  contact)**.
