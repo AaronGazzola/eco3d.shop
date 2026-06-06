@@ -20,6 +20,10 @@ export interface Body3DJoint {
   restAxisLocal: { x: number; y: number; z: number }
   capForward: number
   capBackward: number
+  // local anchor offset from each body's center to the shared joint node (for integrity checks):
+  // the joint holds iff parentCenter+R_parent·anchorParent ≈ childCenter+R_child·anchorChild.
+  anchorParent: { x: number; y: number; z: number }
+  anchorChild: { x: number; y: number; z: number }
 }
 
 // Axial segment lengths from node spacing — no Rapier, for buildCpgSpec / diagnostics.
@@ -139,6 +143,8 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[]): Body3D | 
     joints.push({
       joint, parentIndex: i - 1, childIndex: i, cpgSegment: i,
       restAxisLocal: axisLocal, capForward: fwd, capBackward: back,
+      anchorParent: { x: a1.x, y: a1.y, z: a1.z },
+      anchorChild: { x: a2.x, y: a2.y, z: a2.z },
     })
     jointToCpgSegment.push(i)
   }

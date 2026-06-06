@@ -69,6 +69,12 @@ function SimulateTab() {
   const setCoupledRunning = useAnimateStore((s) => s.setCoupledRunning)
   const environmentEnabled = useAnimateStore((s) => s.environmentEnabled)
   const setEnvironmentEnabled = useAnimateStore((s) => s.setEnvironmentEnabled)
+  const muscleAlpha = useAnimateStore((s) => s.muscleAlpha)
+  const muscleBeta = useAnimateStore((s) => s.muscleBeta)
+  const muscleDamping = useAnimateStore((s) => s.muscleDamping)
+  const setMuscleAlpha = useAnimateStore((s) => s.setMuscleAlpha)
+  const setMuscleBeta = useAnimateStore((s) => s.setMuscleBeta)
+  const setMuscleDamping = useAnimateStore((s) => s.setMuscleDamping)
 
   return (
     <div className="flex flex-col gap-4 p-4 text-xs text-white/60">
@@ -145,11 +151,47 @@ function SimulateTab() {
         ) : null}
       </div>
 
+      <div className="flex flex-col gap-2 pt-2 border-t border-white/10">
+        <p className="text-white/55 text-[10px] uppercase tracking-widest">Muscle (Ekeberg)</p>
+        <PoseSlider
+          label="α active gain"
+          hint="paper 0.4 — drives the bend"
+          value={muscleAlpha}
+          min={0}
+          max={5}
+          step={0.05}
+          onChange={setMuscleAlpha}
+          format={(v) => v.toFixed(2)}
+        />
+        <PoseSlider
+          label="β stiffness"
+          hint="paper 1.2 — holds the joint back toward 0"
+          value={muscleBeta}
+          min={0}
+          max={20}
+          step={0.1}
+          onChange={setMuscleBeta}
+          format={(v) => v.toFixed(2)}
+        />
+        <PoseSlider
+          label="joint damping"
+          hint="default 2.0 — resists joint speed (reduces overshoot)"
+          value={muscleDamping}
+          min={0}
+          max={20}
+          step={0.1}
+          onChange={setMuscleDamping}
+          format={(v) => v.toFixed(2)}
+        />
+      </div>
+
       <div className="flex flex-col gap-1.5">
         <p className="text-white/55 text-[10px] uppercase tracking-widest">Diagnostics</p>
         <DiagnosticRow label="Kinetic energy" value={simDiagnostics.kineticEnergy.toExponential(2)} />
-        <DiagnosticRow label="COM drift" value={simDiagnostics.comDriftFromStart.toExponential(2)} />
+        <DiagnosticRow label="COM drift (forward)" value={simDiagnostics.comDriftFromStart.toExponential(2)} />
         <DiagnosticRow label="Max joint / cap" value={`${(simDiagnostics.maxJointFracOfCap * 100).toFixed(0)}%`} />
+        <DiagnosticRow label="comY (float)" value={simDiagnostics.comYDrift.toFixed(3)} />
+        <DiagnosticRow label="Max tilt (off-plane)" value={`${simDiagnostics.maxTiltDeg.toFixed(1)}°`} />
       </div>
 
       <div className="flex flex-col gap-2 pt-2 border-t border-white/10">

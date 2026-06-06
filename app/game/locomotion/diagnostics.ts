@@ -7,6 +7,21 @@ function yawOf(q: { x: number; y: number; z: number; w: number }): number {
   return Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.z * q.z))
 }
 
+// rotate vector v by quaternion q → world offset
+function rotateVec(
+  q: { x: number; y: number; z: number; w: number },
+  v: { x: number; y: number; z: number }
+): { x: number; y: number; z: number } {
+  const tx = 2 * (q.y * v.z - q.z * v.y)
+  const ty = 2 * (q.z * v.x - q.x * v.z)
+  const tz = 2 * (q.x * v.y - q.y * v.x)
+  return {
+    x: v.x + q.w * tx + (q.y * tz - q.z * ty),
+    y: v.y + q.w * ty + (q.z * tx - q.x * tz),
+    z: v.z + q.w * tz + (q.x * ty - q.y * tx),
+  }
+}
+
 export interface CaptureSpecSegment {
   index: number
   groupId: string
@@ -53,6 +68,7 @@ export interface CaptureSample {
   nodes: { x: number; z: number }[]
   comY: number
   maxTiltDeg: number
+  maxJointGap: number
 }
 
 export function buildCaptureSpec3D(body: Body3D): CaptureSpec {
@@ -118,6 +134,22 @@ export function buildSample3D(
     joints.push({ rawDeg: raw * RAD_TO_DEG, clampedDeg: raw * RAD_TO_DEG, fracOfCap: frac, clamped: false })
   }
 
+  // joint integrity: distance between each joint's two anchor points (≈0 if the skeleton is rigid)
+  let maxJointGap = 0
+  for (const j of body.joints) {
+    const cp = body.bodies[j.parentIndex].translation()
+    const qp = body.bodies[j.parentIndex].rotation()
+    const cc = body.bodies[j.childIndex].translation()
+    const qc = body.bodies[j.childIndex].rotation()
+    const ap = rotateVec(qp, j.anchorParent)
+    const ac = rotateVec(qc, j.anchorChild)
+    const gx = cp.x + ap.x - (cc.x + ac.x)
+    const gy = cp.y + ap.y - (cc.y + ac.y)
+    const gz = cp.z + ap.z - (cc.z + ac.z)
+    const gap = Math.hypot(gx, gy, gz)
+    if (gap > maxJointGap) maxJointGap = gap
+  }
+
   const head = body.bodies[0]
   const hp = head.translation()
   const hv = head.linvel()
@@ -141,6 +173,7 @@ export function buildSample3D(
     joints,
     nodes,
     maxTiltDeg: maxTilt * RAD_TO_DEG,
+    maxJointGap,
   }
 }
 
@@ -301,9 +334,12 @@ export function serializeCapture(spec: CaptureSpec, samples: CaptureSample[]): s
   const finalKE = samples.length > 0 ? samples[samples.length - 1].kineticEnergy : 0
   const baseY = samples.length > 0 ? samples[0].comY : 0
   let maxOutOfPlane = 0
+  let maxJointGapOverall = 0
   for (const s of samples) {
     const d = Math.abs((s.comY ?? 0) - baseY)
     if (Number.isFinite(d) && d > maxOutOfPlane) maxOutOfPlane = d
+    const g = s.maxJointGap ?? 0
+    if (Number.isFinite(g) && g > maxJointGapOverall) maxJointGapOverall = g
   }
 
   lines.push('# Locomotion capture')
@@ -319,6 +355,7 @@ export function serializeCapture(spec: CaptureSpec, samples: CaptureSample[]): s
   lines.push(`finalKE: ${e(finalKE)}`)
   lines.push(`maxCOMdrift: ${e(maxDrift)} @ t=${f(maxDriftT, 2)}s`)
   lines.push(`outOfPlaneY (vertical drift): ${e(maxOutOfPlane)}`)
+  lines.push(`maxJointGap (skeleton stretch — should be ~0): ${e(maxJointGapOverall)}`)
   lines.push(
     `firstJointToSaturate: ${firstSat ? `joint ${firstSat.joint} @ t=${f(firstSat.t, 2)}s` : 'none (stayed within caps)'}`
   )
@@ -340,9 +377,9 @@ export function serializeCapture(spec: CaptureSpec, samples: CaptureSample[]): s
   }
   lines.push('')
 
-  lines.push('## scalars (t,s ; head/vel in deg & world units ; comY & tilt° = out-of-plane)')
+  lines.push('## scalars (t,s ; head/vel in deg & world units ; comY/tilt°/gap = out-of-plane & skeleton)')
   lines.push(
-    `${pad('t', 7)}${pad('rootX', 9)}${pad('rootZ', 9)}${pad('head°', 8)}${pad('KE', 11)}${pad('drift', 11)}${pad('maxJ%', 7)}${pad('comY', 9)}tilt°`
+    `${pad('t', 7)}${pad('rootX', 9)}${pad('rootZ', 9)}${pad('head°', 8)}${pad('KE', 11)}${pad('drift', 11)}${pad('maxJ%', 7)}${pad('comY', 9)}${pad('tilt°', 8)}gap`
   )
   const baseComY = samples.length > 0 ? samples[0].comY : 0
   for (const s of samples) {
@@ -355,7 +392,8 @@ export function serializeCapture(spec: CaptureSpec, samples: CaptureSample[]): s
         pad(e(s.comDrift), 11) +
         pad(f(s.maxJointFracOfCap * 100, 0), 7) +
         pad(f(s.comY - baseComY, 3), 9) +
-        f(s.maxTiltDeg ?? 0, 1)
+        pad(f(s.maxTiltDeg ?? 0, 1), 8) +
+        f(s.maxJointGap ?? 0, 3)
     )
   }
   lines.push('')

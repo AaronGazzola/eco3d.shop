@@ -40,6 +40,9 @@ interface AnimateStore {
   cpgRecording: boolean
   coupledRunning: boolean
   environmentEnabled: boolean
+  muscleAlpha: number
+  muscleBeta: number
+  muscleDamping: number
 
   setAnimateTab: (tab: AnimateTab) => void
   setCalibratingGroup: (id: string | null) => void
@@ -62,6 +65,9 @@ interface AnimateStore {
   setCpgRecording: (v: boolean) => void
   setCoupledRunning: (v: boolean) => void
   setEnvironmentEnabled: (v: boolean) => void
+  setMuscleAlpha: (v: number) => void
+  setMuscleBeta: (v: number) => void
+  setMuscleDamping: (v: number) => void
 }
 
 export const useAnimateStore = create<AnimateStore>()((set) => ({
@@ -82,6 +88,9 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   cpgRecording: false,
   coupledRunning: false,
   environmentEnabled: false,
+  muscleAlpha: 0.4,
+  muscleBeta: 1.2,
+  muscleDamping: 2.0,
 
   setAnimateTab: (tab) => {
     if (tab === 'simulate') {
@@ -154,4 +163,8 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
     set(v ? { coupledRunning: true, cpgRunning: false } : { coupledRunning: false }),
 
   setEnvironmentEnabled: (v) => set({ environmentEnabled: v }),
+
+  setMuscleAlpha: (v) => set({ muscleAlpha: v }),
+  setMuscleBeta: (v) => set({ muscleBeta: v }),
+  setMuscleDamping: (v) => set({ muscleDamping: v }),
 }))

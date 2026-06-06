@@ -127,6 +127,50 @@ if (CMD === 'login') {
   console.log(`saved ${rows.length}×${ANGLES.length} frames + contact-sheet.png to ${OUT}/`)
 } else if (CMD === 'sweep') {
   await runSweep()
+} else if (CMD === 'msweep') {
+  // Muscle sweep: hold drive/exc, vary the Ekeberg muscle as "alpha:beta:damping" args. Tests
+  // whether a stronger/stiffer muscle stops the joints slamming their caps.
+  const drive = Number(process.env.MS_DRIVE ?? 3)
+  const exc = Number(process.env.MS_EXC ?? 0.15)
+  const combos = REST.length ? REST.map((s) => s.split(':').map(Number)) : [[0.4, 1.2, 2], [0.4, 4, 2], [0.4, 8, 2], [0.4, 4, 6], [2, 8, 6], [4, 12, 8]]
+  await loadRig()
+  const secs = 8
+  const summary = []
+  for (const [alpha, beta, damping] of combos) {
+    await page.evaluate(({ alpha, beta, damping, drive, exc }) => {
+      window.__studio.muscle(alpha, beta, damping)
+      window.__studio.tune(drive, exc)
+      window.__studio.drag(true)
+      window.__studio.drive(true)
+    }, { alpha, beta, damping, drive, exc })
+    let peakMaxJ = 0, sumMaxJ = 0, n = 0, drift = 0, peakKE = 0
+    for (let t = 1; t <= secs; t++) {
+      await page.waitForTimeout(1000)
+      const d = await page.evaluate(() => window.__studio.diag())
+      peakMaxJ = Math.max(peakMaxJ, d.maxJointFracOfCap); sumMaxJ += d.maxJointFracOfCap; n++
+      drift = d.comDriftFromStart; peakKE = Math.max(peakKE, d.kineticEnergy)
+    }
+    const tag = `a${alpha}_b${beta}_d${damping}`
+    const files = {}
+    for (const a of ['top', 'front']) {
+      await page.evaluate((a) => window.__studio.setCam(a), a)
+      await page.waitForTimeout(300)
+      files[a] = `ms_${tag}_${a}.png`
+      await page.screenshot({ path: `${OUT}/${files[a]}`, clip: { x: 0, y: 0, width: 980, height: 900 } })
+    }
+    await page.evaluate(() => window.__studio.drive(false)); await page.waitForTimeout(800)
+    summary.push({ alpha, beta, damping, peakMaxJ: Math.round(peakMaxJ * 100), avgMaxJ: Math.round((sumMaxJ / n) * 100), drift: Number(drift.toFixed(2)), files })
+    console.log(`α=${alpha} β=${beta} damp=${damping}  peakMaxJ=${Math.round(peakMaxJ * 100)}%  avgMaxJ=${Math.round((sumMaxJ / n) * 100)}%  drift=${drift.toFixed(2)}  peakKE=${peakKE.toFixed(0)}`)
+  }
+  // sheet (reuse sweep layout but label by muscle)
+  const dataUrl = (f) => 'data:image/png;base64,' + readFileSync(`${OUT}/${f}`).toString('base64')
+  const html = `<html><body style="margin:0;background:#222;font-family:monospace;color:#ddd"><div style="display:grid;grid-template-columns:170px 1fr 1fr;gap:2px">
+    <div></div><div style="text-align:center;padding:4px">top</div><div style="text-align:center;padding:4px">front</div>
+    ${summary.map((r) => `<div style="font-size:12px;padding:6px">α=${r.alpha} β=${r.beta}<br>damp=${r.damping}<br>peakJ=${r.peakMaxJ}%<br>drift=${r.drift}</div><img src="${dataUrl(r.files.top)}" style="width:100%;display:block"><img src="${dataUrl(r.files.front)}" style="width:100%;display:block">`).join('')}
+  </div></body></html>`
+  const p2 = await ctx.newPage(); await p2.setContent(html); await p2.waitForTimeout(300)
+  await p2.screenshot({ path: `${OUT}/msweep-sheet.png`, fullPage: true }); await p2.close()
+  console.log(`saved msweep-sheet.png to ${OUT}/`)
 } else if (CMD === 'fine') {
   // High-rate onset capture: front view every ~0.3s for the first N seconds, to SEE the moment the
   // coordinated first impulse decoheres / the body leaves the plane. Builds a horizontal strip.

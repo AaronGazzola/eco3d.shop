@@ -11,8 +11,18 @@ export interface MuscleActivation {
   mR: number
 }
 
-export function ekebergTorque(mL: number, mR: number, phi: number, phiDot: number): number {
-  return ALPHA * (mL - mR) - BETA * (mL + mR + GAMMA) * phi - DELTA * phiDot
+// α (active gain) and β (stiffness) default to the paper's Table 5 values but are tunable at
+// runtime (the paper itself scales them — ×10 for struggling, a tail taper) to re-calibrate the
+// muscle to our body's mass scale.
+export function ekebergTorque(
+  mL: number,
+  mR: number,
+  phi: number,
+  phiDot: number,
+  alpha: number = ALPHA,
+  beta: number = BETA
+): number {
+  return alpha * (mL - mR) - beta * (mL + mR + GAMMA) * phi - DELTA * phiDot
 }
 
 export interface MuscleDelayBuffer {
