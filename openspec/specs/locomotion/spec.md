@@ -5,62 +5,29 @@ TBD - created by archiving change add-fk-renderer-phase-a2. Update Purpose after
 ## Requirements
 ### Requirement: Body spec is derived from the rig
 
-The system SHALL provide `buildBodySpec(groups, segments)` returning a `BodySpec | null`.
+The system SHALL build the locomotion body as a **3D chain of Rapier rigid bodies** from the node skeleton, using the nodes' full `x/y/z` (the authored 3D rest pose). A builder (`body3d.ts`) SHALL walk the axial chain `flattenSkeleton(buildSkeletonTree(groups))` (head → spine → tail; legs excluded) and produce:
 
-The rig's canonical node convention (mirrored by the group editor at `/admin/group` — see `NodeOverlay.tsx`'s `getCanonicalNodes`) places each chain joint at the **parent's `nodeBack`**. Only the head exposes a `nodeFront` (its snout, not a joint). All non-head chain groups carry a `nodeBack` that simultaneously marks the joint to the next downstream segment.
+- One **dynamic rigid body** per axial segment, placed at the segment's rest world transform (position from the node skeleton; orientation aligning the segment's local long axis toward the next node).
+- A **capsule collider** per body, half-length from node spacing and radius from `STD_SEGMENT_WIDTH`. The collider's **mass SHALL be set to the group's `nodeWeight`** (default `DEFAULT_AXIAL_WEIGHT` for head/spine/tail) — never derived from mesh geometry. The engine SHALL derive the rotational inertia tensor from the capsule shape + that mass.
+- For each non-head segment, a **revolute joint** to its parent, anchored at the shared node (`parent.nodeBack`), with axis = the segment's local up (yaw undulation) and angle **limits** `[−yawBackwardLimit, +yawForwardLimit]` from `effectiveAngleCaps`.
+- The head segment is the free **root** body (no joint above it).
 
-The rotation center for each chain segment SHALL therefore be resolved in this order: (1) the *parent* chain segment's `nodeBack` (the canonical joint location), (2) the segment's own `nodeBack` as a fallback when no parent exists or the parent has no `nodeBack`, (3) the segment's own `nodeFront` as a final fallback. Any stale `nodeFront` value on a non-head chain segment SHALL NOT participate in pivot selection — it is treated as residue from earlier rig conventions and ignored.
+The mesh SHALL NOT feed any dynamics quantity (mass, inertia, collider size all come from `nodeWeight` + node geometry + `STD_SEGMENT_WIDTH`).
 
-When the rig has at least one chain group whose center can be resolved this way, the function SHALL return a non-null `BodySpec`. When no chain group resolves, the function SHALL return `null`.
+#### Scenario: One rigid body per axial segment, mass from nodeWeight
 
-Each `PlanarSegment` SHALL carry the segment's `groupId`, `length` (distance to the next chain segment's rotation center, with a mesh-extent fallback at the tail), `mass`, `inertiaAboutComY`, and rest-pose XZ positions of both the rotation center and the mesh centroid.
+- **WHEN** the body is built for a rig whose chain is head → spine1 → spine2 → tail with no authored `nodeWeight`
+- **THEN** four dynamic rigid bodies exist in head→tail order, each with mass `DEFAULT_AXIAL_WEIGHT`, and three revolute joints connect them
 
-`mass` SHALL be the group's authored `nodeWeight` (kilograms) when present, otherwise a documented default for the group's type (`DEFAULT_AXIAL_WEIGHT` for head/spine/tail, `DEFAULT_LEG_WEIGHT` for legs). `mass` SHALL NOT be derived from mesh geometry — segment mass is independent of the 3D mesh size, so resizing or swapping a segment's mesh SHALL NOT change its mass.
+#### Scenario: Joint limits come from angle caps
 
-`inertiaAboutComY` SHALL be derived from `mass` and the segment's `length` via a rigid-rod-about-COM formula with a documented standard cross-section width `W`: `inertiaAboutComY = mass · (length² + W²) / 12`. It SHALL NOT be derived from mesh extents.
+- **WHEN** the body is built for a rig whose `spine1.angleCaps.yaw` is `0.5 rad`
+- **THEN** the revolute joint feeding `spine1` has a yaw limit of `±0.5 rad` (the engine stops it at the cap)
 
-The mesh centroid MAY still be read to position `restComX`/`restComZ` (a render quantity); the mesh SHALL NOT otherwise feed any dynamics quantity.
+#### Scenario: Mesh size does not affect the body
 
-Each `PlanarJoint` SHALL carry `segmentIndex` (the child segment's index in the chain), `coordIndex = 3 + (segmentIndex - 1)`, `yawForwardLimit`, and `yawBackwardLimit` taken from `effectiveAngleCaps(childGroup)`.
-
-The output SHALL be deterministic for the same input — equal `groups` and `segments` produce equal `BodySpec` values, segment ordering follows `flattenSkeleton(buildSkeletonTree(groups))`.
-
-#### Scenario: A chainless rig returns null
-
-- **WHEN** `buildBodySpec` is called with `groups` containing no `head` group
-- **THEN** the function returns `null` without throwing
-
-#### Scenario: Chain segments map to PlanarSegments in head→tail order
-
-- **WHEN** `buildBodySpec` is called with a rig whose chain is head → spine1 → spine2 → tail
-- **THEN** the returned `BodySpec.segments` has length 4 with `groupId` values in that order
-
-#### Scenario: A joint inherits its child segment's angle caps
-
-- **WHEN** `buildBodySpec` is called for a rig whose `spine1.angleCaps` is `{ yaw: 0.5, pitchUp: 0.3, pitchDown: 0.3 }`
-- **THEN** the joint at `segmentIndex === 1` has `yawForwardLimit === 0.5` and `yawBackwardLimit === 0.5`
-
-#### Scenario: Mass comes from nodeWeight, not the mesh
-
-- **GIVEN** two rigs identical except that one head group's mesh is scaled 2× larger in every dimension
-- **WHEN** `buildBodySpec` is called on each with no `nodeWeight` authored
-- **THEN** both head `PlanarSegment.mass` values are equal to `DEFAULT_AXIAL_WEIGHT` (the larger mesh does not produce a larger mass)
-
-#### Scenario: Default masses are uniform across axial segments
-
-- **WHEN** `buildBodySpec` is called for a rig whose chain groups carry no `nodeWeight`
-- **THEN** every head/spine/tail `PlanarSegment.mass` equals `DEFAULT_AXIAL_WEIGHT` and no axial segment is more than a small multiple heavier than any other (no ~10:1 head-to-tail ratio)
-
-#### Scenario: Authored nodeWeight overrides the default
-
-- **GIVEN** a spine group with `nodeWeight = 3.0`
-- **WHEN** `buildBodySpec` is called
-- **THEN** that segment's `PlanarSegment.mass === 3.0` and its `inertiaAboutComY === 3.0 · (length² + W²) / 12`
-
-#### Scenario: Inertia tracks segment length at fixed mass
-
-- **GIVEN** two segments of equal `mass` but where segment A's `length` is twice segment B's
-- **THEN** segment A's `inertiaAboutComY` is larger than segment B's (inertia is derived from length, so dynamic node spacing still shapes rotation)
+- **GIVEN** two rigs identical except one segment's mesh is scaled 2× larger
+- **THEN** that segment's rigid-body mass, collider size, and inertia are identical between the two rigs
 
 ### Requirement: Per-node weight is authored in Calibrate
 
@@ -176,40 +143,6 @@ The Simulate tab SHALL NOT render Run / Pause, Perturb, Reset (the solver one), 
 - **WHEN** the user clicks **Reset pose**
 - **THEN** `manualPose.rootX`, `rootZ`, `rootYawRad` are `0` and `jointAnglesRad` is `{}`
 
-### Requirement: Zero-force planar multibody solver
-
-The system SHALL provide a planar multibody integrator at `app/game/locomotion/solver.ts` exposing `initSolverState(spec): SolverState`, `stepSolver(state, spec, dt): void`, `seedRootVelocity(state, vx, vz): void`, `perturbJointRates(state, spec, magnitude): void`, `centerOfMass(state, spec)`, `kineticEnergy(state, spec)`, `nodePositions(state, spec)`, and `diagnostics(state, spec, baseCom)`.
-
-`SolverState` (defined in `types.ts`) SHALL carry generalized coordinates and rates: `rootX`, `rootZ`, `rootHeadingY`, `rootVelX`, `rootVelZ`, `rootHeadingRateY`, `jointAngles: number[]` (one per joint), and `jointRates: number[]` (matching length).
-
-`stepSolver` SHALL build the full coupled mass matrix from per-segment translational and rotational Jacobians, compute Coriolis/centrifugal bias via finite-difference derivatives of the mass matrix, solve `M · qdd = τ − c` for accelerations, and integrate via semi-implicit Euler at a fixed sub-step of 2 ms. Frame timesteps larger than 50 ms SHALL be clamped to 50 ms before sub-stepping.
-
-The generalized-force term `τ` SHALL include, per joint coordinate: (a) viscous joint damping `−JOINT_DAMPING · jointRate`; and (b) a one-sided penalty limit stop — when the joint angle exceeds `yawForwardLimit`, `τ −= LIMIT_STOP_STIFFNESS · (angle − yawForwardLimit) + LIMIT_STOP_DAMPING · jointRate`; when it falls below `−yawBackwardLimit`, the mirror term applies. `JOINT_DAMPING`, `LIMIT_STOP_STIFFNESS`, and `LIMIT_STOP_DAMPING` SHALL be non-zero constants. `τ` SHALL contain no actuation or environment forces in this change.
-
-#### Scenario: Solver state initializes to rest at the spec's rest configuration
-
-- **GIVEN** a non-null `BodySpec` produced by `buildBodySpec`
-- **WHEN** `initSolverState(spec)` is called
-- **THEN** the returned state has `rootX === 0`, `rootZ === 0`, `rootHeadingY === 0`, all rates zero, all `jointAngles` zero, and `jointAngles.length === spec.joints.length`
-
-#### Scenario: Stepping at rest within caps is a no-op
-
-- **GIVEN** a `SolverState` whose rates and joint angles are all zero (rest, inside all caps)
-- **WHEN** `stepSolver(state, spec, dt)` is called for `dt === 0.016`
-- **THEN** the state's positions and rates remain (to within floating-point round-off) at zero — joint damping and limit stops produce no force at rest inside caps
-
-#### Scenario: A joint posed beyond its cap is pushed back inside
-
-- **GIVEN** a `SolverState` with one `jointAngles[i]` set well beyond that joint's `yawForwardLimit` and all rates zero
-- **WHEN** `stepSolver` is run repeatedly until kinetic energy returns below a small threshold
-- **THEN** that joint's final angle is `≤ yawForwardLimit + epsilon` (the penalty stop has pulled it back inside the cap) and all rates have decayed toward zero
-
-#### Scenario: An excited chain settles to rest
-
-- **GIVEN** a `SolverState` at rest, then `perturbJointRates(state, spec, 1.5)` applied
-- **WHEN** `stepSolver` is run for several seconds of simulated time
-- **THEN** `kineticEnergy(state, spec)` decays monotonically (apart from brief limit-stop transients) toward ≈ 0, and every joint angle ends within `[−yawBackwardLimit, +yawForwardLimit]` to within epsilon
-
 ### Requirement: Animate store carries simulation and recording state
 
 The `animateStore` SHALL expose:
@@ -263,38 +196,6 @@ When `simRunning` is `false`, the A2 manual-pose path SHALL render the scene unc
 - **WHEN** `setSimRunning(false)` is called and one frame is rendered
 - **THEN** the bound root group's `position.x` is `0` (back to the manual-pose path), not `3.5`
 
-### Requirement: Kick translation seeds a fixed root velocity
-
-When `simKickSignal` changes value (increment), `useLocomotion` SHALL call `seedRootVelocity(state, KICK_ROOT_VELOCITY, 0)` exactly once on the current solver state, where `KICK_ROOT_VELOCITY` is a documented constant (default `0.5` world units per second). No other state field SHALL change.
-
-Each click of the Kick translation button in the Simulate sidebar SHALL increment `simKickSignal` by one and therefore seed the velocity once. Clicking it twice in succession SHALL therefore double the seeded velocity.
-
-#### Scenario: One kick seeds rootVelX and leaves everything else unchanged
-
-- **GIVEN** a solver state with all coordinates and rates at zero, and a chain with one joint
-- **WHEN** the user clicks Kick translation once
-- **THEN** `state.rootVelX === 0.5`, `state.rootVelZ === 0`, `state.rootHeadingRateY === 0`, every joint rate is `0`, every joint angle is `0`, and `state.rootX/Z` are unchanged at `0`
-
-#### Scenario: Two kicks double the seeded velocity
-
-- **GIVEN** a solver state freshly initialized with all zeros
-- **WHEN** the user clicks Kick translation twice in succession (before the first frame steps)
-- **THEN** `state.rootVelX === 1.0`
-
-### Requirement: Free body drifts in a straight line
-
-When the solver is running, has been kicked exactly once with `KICK_ROOT_VELOCITY = 0.5`, and has all joint angles and joint rates at zero, the body SHALL drift along world `+x` at a constant rate.
-
-After one simulated second of running, `state.rootX` SHALL be `0.5 ± 1e-3`, `state.rootZ` SHALL be `0 ± 1e-3`, `state.rootHeadingY` SHALL be `0 ± 1e-3`, every joint angle SHALL remain `0 ± 1e-3`, and `kineticEnergy(state, spec)` SHALL equal its value immediately after the kick to within `1e-3` of relative error.
-
-This is the A3 visual gate.
-
-#### Scenario: One-second straight-line drift
-
-- **GIVEN** the rig is loaded, `simRunning === true` from rest, and Kick translation has been clicked once
-- **WHEN** approximately 1 second of frames elapses (assumed steady ~60 Hz)
-- **THEN** the rendered root group's `position.x` is approximately `0.5`, `position.z` is approximately `0`, the body's orientation is unchanged, and the chain has not bent
-
 ### Requirement: Solver diagnostics push to the store every 100 ms
 
 While the solver is running, `useLocomotion` SHALL accumulate frame `dt` into a diagnostics timer; whenever the accumulator passes `0.1` seconds it SHALL invoke `setSimDiagnostics({ kineticEnergy, comX, comZ, comDriftFromStart, maxJointFracOfCap })` with values derived from the current solver state and the COM at the most recent solver-start moment, then subtract `0.1` from the accumulator.
@@ -347,18 +248,6 @@ While `simRunning` is `true`, the manual pose sliders SHALL be visibly disabled 
 - **GIVEN** the Simulate tab is open with a rig loaded
 - **WHEN** the user clicks Run
 - **THEN** the manual pose sliders and the Reset pose button visibly dim and stop accepting input; Run / Pause, Reset, Kick translation, Kick joints, and Record / Stop remain active
-
-### Requirement: Kick joints perturbs the chain without injecting net momentum
-
-When `simPerturbSignal` changes value (increment), `useLocomotion` SHALL call `perturbJointRates(state, spec, PERTURB_MAGNITUDE)` exactly once on the current solver state, where `PERTURB_MAGNITUDE` is a documented constant (default `1.5` rad/s). `perturbJointRates` SHALL seed alternating joint rates (`+magnitude`, `−magnitude`, …) and set the root rates so that the body's net linear and angular momentum remain zero — the chain whips internally but its center of mass does not translate.
-
-Each click of the **Kick joints** button in the Simulate sidebar SHALL increment `simPerturbSignal` by one.
-
-#### Scenario: Joint kick leaves COM stationary
-
-- **GIVEN** a solver state at rest with COM at `C`
-- **WHEN** `perturbJointRates(state, spec, 1.5)` is applied and the solver steps forward
-- **THEN** the joints acquire non-zero rates, but the COM does not drift away from `C` beyond a small numerical tolerance over the settling window (no net momentum injected)
 
 ### Requirement: CPG axial double-chain network
 
@@ -441,6 +330,7 @@ The Simulate tab in `AnimateSidebar` SHALL render a **CPG (Phase B1)** section c
 - **GIVEN** the Simulate tab with a rig loaded
 - **WHEN** the user moves the drive slider and clicks Run CPG
 - **THEN** `cpgDrive` updates and the CPG begins stepping (verifiable by a subsequent capture), with the solver controls still present
+
 ### Requirement: Ekeberg axial muscle torque
 
 The system SHALL provide an Ekeberg virtual-muscle model at `app/game/locomotion/muscles.ts`. For an axial joint with physical angle `φ`, angular rate `φ̇`, and segment muscle activations `Mˡ`, `Mʳ`, the joint torque SHALL be:
@@ -458,21 +348,6 @@ with constants from reference Table 5 (simulation column): `α=0.4`, `β=1.2`, `
 
 - **GIVEN** a joint at `φ>0` with both activations driven to 0 (`Mˡ=Mʳ=0`)
 - **THEN** the torque is `−β·γ·φ − δ·φ̇` — a negative (restoring) torque proportional to the angle, i.e. a spring pulling the joint back toward 0
-
-### Requirement: Solver accepts external joint torques
-
-`stepSolver(state, spec, dt, jointTorques?)` SHALL accept an optional `jointTorques: number[]` (one entry per joint, ordered to match `spec.joints`). When provided, each `jointTorques[i]` SHALL be added to the generalized force at `spec.joints[i].coordIndex`, alongside the existing joint damping and penalty limit stops. When omitted (or all-zero), `stepSolver` SHALL behave identically to its Phase A4 form.
-
-#### Scenario: Omitted torques reproduce A4 behaviour
-
-- **GIVEN** a perturbed chain stepped with no `jointTorques` argument
-- **THEN** it settles to rest exactly as in Phase A4 (damping + limit stops only)
-
-#### Scenario: A constant torque holds a joint off-zero
-
-- **GIVEN** a single joint fed a constant positive `jointTorques[i]` within its cap range, all activations such that the muscle stiffness is small
-- **WHEN** the solver steps to equilibrium
-- **THEN** that joint settles at a non-zero angle where the applied torque balances joint damping + any stiffness, rather than returning to 0
 
 ### Requirement: Muscle test mode drives the body from a test sinusoid
 
@@ -502,6 +377,7 @@ The Simulate tab in `AnimateSidebar` SHALL render a **Muscle test (Phase B2)** s
 - **GIVEN** the Simulate tab with a rig loaded
 - **WHEN** the user clicks Run on the Muscle test block
 - **THEN** the body begins to flex under muscle torque, with the solver, CPG, and muscle-test controls all present
+
 ### Requirement: Coupled CPG → muscle → body drive
 
 `useLocomotion` SHALL provide a coupled driving mode that, each frame while active (Simulate tab, not calibrating, `bodySpec` present): (1) steps the CPG via `stepCpg(cpgState, cpgSpec, drive, excitability, dt)`; (2) for each axial joint `i`, reads the mapped CPG segment `k`'s left/right oscillator outputs as muscle activations, passes them through the per-segment 10 ms activation delay, and computes the Ekeberg torque using the current solver joint angle and rate; (3) steps the body via `stepSolver(state, spec, dt, jointTorques)`; (4) writes the resulting joint angles and root pose to the rig. The CPG and body SHALL be separate integrators sharing the frame clock; the CPG SHALL NOT read body state.
@@ -552,46 +428,29 @@ The Simulate tab SHALL render a **CPG drive (Phase B3)** control: a Run/Pause to
 - **GIVEN** the Simulate tab with a rig loaded
 - **WHEN** the user clicks Run on the CPG drive (Phase B3) control
 - **THEN** the body undulates under CPG drive and the other driving modes are not simultaneously active
+
 ### Requirement: Anisotropic resistive-force environment
 
-The system SHALL provide an environment module at `app/game/locomotion/environment.ts` that computes a per-segment anisotropic resistive drag on the axial chain. For each axial segment `i` with length `L_i`, tangent direction `t̂_i = (cos θ_i, sin θ_i)` (where `θ_i` is the segment's cumulative heading), world-frame COM velocity `v_i = (jacLinX[i] · qd, jacLinZ[i] · qd)`, and angular rate `ω_i = jacAng[i] · qd`, the drag SHALL be:
+The system SHALL provide a 3D anisotropic resistive drag (`environment.ts`) applied as **external forces on the Rapier bodies**. For each axial body with world COM velocity `v`, segment long-axis unit `t̂` (from the body's orientation), length `L`, and angular velocity `ω`:
 
 ```
-v_∥ = v_i · t̂_i
-v_⊥ = v_i − v_∥ · t̂_i
-F_drag_i = −L_i · (C_n · v_⊥ + C_t · v_∥ · t̂_i)
-τ_drag_i = −L_i · C_ω · ω_i
+v_∥ = (v · t̂) · t̂          (along-body)
+v_⊥ = v − v_∥              (perpendicular plane — a 3-vector)
+F   = −L · (C_n · v_⊥ + C_t · v_∥)
+τ   = −L · C_ω · ω
 ```
 
-The coefficients `C_n` (`DRAG_NORMAL`), `C_t` (`DRAG_TANGENT`), and `C_ω` (`DRAG_ANGULAR`) SHALL be documented constants **re-fit for the uniform per-node mass scale** (the prior Phase C values `30 / 2.5 / 1.5` were fit to the ~50× heavier mesh-derived masses and over-damp the uniform body; current values `0.6 / 0.05 / 0.03`). The absolute magnitudes are tuned against the swimming gate; the **anisotropy ratio** `C_n / C_t` SHALL be preserved at a slender-body value (≥ ~10:1) because that ratio — not the absolute scale — is what converts undulation into forward thrust. `computeEnvironmentTau(spec, q, qd)` SHALL return a `dof`-length generalized-force vector built by `τ_env[c] = Σ_i (jacLinX[i][c]·F_drag_i.x + jacLinZ[i][c]·F_drag_i.z + jacAng[i][c]·τ_drag_i)`.
+`F` SHALL be added at the body COM and `τ` as an external torque, each step before `world.step()`. Constants `C_n`/`C_t`/`C_ω` (`DRAG_NORMAL/TANGENT/ANGULAR`) are documented and re-confirmed at the 3D gate; the anisotropy ratio `C_n / C_t` SHALL be preserved at ≥ ~10:1. The drag is purely velocity-dependent (zero at rest) and dissipative.
 
 #### Scenario: Stationary body has zero drag
 
-- **GIVEN** a body at rest (`qd = 0`)
-- **THEN** `computeEnvironmentTau` returns the zero vector (drag is purely velocity-dependent)
+- **GIVEN** all bodies at rest
+- **THEN** the drag contributes zero force and zero torque
 
-#### Scenario: Sideways-moving segment feels stronger drag than along-axis
+#### Scenario: Sideways drag exceeds along-axis drag
 
-- **GIVEN** a single segment moving at unit speed perpendicular to its tangent
-- **WHEN** compared to the same segment moving at unit speed along its tangent
-- **THEN** the magnitude of the perpendicular drag force is `C_n / C_t` times larger than the along-axis drag force, and `C_n / C_t ≥ ~10` (this anisotropy is what produces forward thrust from undulation)
-
-### Requirement: Solver accepts an environment-enabled flag
-
-`stepSolver(state, spec, dt, jointTorques?, jointDampingScale?, environmentEnabled?)` SHALL accept an optional `environmentEnabled: boolean`. When `true`, `generalizedForces` SHALL add `computeEnvironmentTau(spec, q, qd)` to its returned generalized-force vector after the existing damping, limit-stop, and joint-torque terms. When omitted or `false`, behaviour SHALL be byte-for-byte identical to the prior A4/B2/B3 solver.
-
-The drag SHALL be recomputed inside the sub-step loop so it tracks the sub-step-current `(q, qd)`.
-
-#### Scenario: Environment off reproduces A4 behaviour
-
-- **GIVEN** a perturbed chain stepped with `environmentEnabled` omitted
-- **THEN** it settles to rest identically to its Phase A4 behaviour (no drag contribution)
-
-#### Scenario: Environment on dissipates kinetic energy
-
-- **GIVEN** a freely coasting body with non-zero `qd` and `environmentEnabled = true`
-- **WHEN** the solver steps with no actuation
-- **THEN** the body's kinetic energy strictly decreases (drag is dissipative, `F · v ≤ 0` per segment)
+- **GIVEN** a body moving at unit speed perpendicular to its long axis vs along it
+- **THEN** the perpendicular drag force magnitude is `C_n / C_t` (≥ ~10) times the along-axis magnitude
 
 ### Requirement: Environment toggle in the store
 
@@ -606,20 +465,18 @@ Switching the active tab to Calibrate SHALL NOT reset `environmentEnabled` — t
 
 ### Requirement: Emergent forward translation under coupled drive
 
-When B3 coupled drive is running with the environment toggle on (default `cpgDrive = 2.0`, `cpgExcitability = 0.09`, re-tuned default constants), the body SHALL translate monotonically in its **head-first** direction. With the uniform per-node mass model and the correct CPG→joint spatial mapping, the body bends as a head→tail travelling wave that nets a head-leading push: the body's center-of-mass displacement projected onto the snout (head-forward) axis SHALL be positive (head leading, not tail leading) and SHALL grow monotonically over time. Over a recording of at least 3 seconds the capture's `maxCOMdrift` SHALL be a clear non-zero forward drift (order ~0.2 body-lengths at the default settings; the absolute magnitude is a tuning concern deferred past the next phase — direction and monotonicity are the gate).
+When the coupled drive runs in the 3D Rapier world with the drag environment on (default `cpgDrive = 2.0`, `cpgExcitability = 0.09`, gain 12, gravity off), the body SHALL translate **head-first**. The CPG → Ekeberg torque pipeline (with the non-reversed `jointToCpgSegment = segmentIndex` mapping) drives the revolute joints into a head→tail travelling wave; the 3D drag converts it to a head-leading push. Over a recording of at least 3 seconds, the body's center-of-mass displacement projected on the snout (head-forward) axis SHALL be positive and grow monotonically. Absolute speed is a deferred tuning concern (AZ-33); direction + monotonicity are the gate, reproducing the planar swimming result in 3D.
 
-The CPG space-time section in the same capture SHALL still show a clean head→tail traveling wave: the body's motion does not feed back into the CPG (`s = 0`), so adding the environment does not alter the commanded wave.
+#### Scenario: 3D coupled drive swims forward, head-first
 
-#### Scenario: B3 + environment swims forward
-
-- **GIVEN** a rig loaded with B3 coupled drive running and `environmentEnabled = true`
+- **GIVEN** the 3D body with coupled drive running and drag on
 - **WHEN** the user records ≥ 3 seconds
-- **THEN** the snout-projected COM motion increases monotonically in the **head-forward** direction (real head-leading translation, not wriggle and not tail-leading drift); the absolute drift magnitude is a deferred tuning concern
+- **THEN** the snout-projected COM motion increases monotonically (head leading, not tail-first)
 
-#### Scenario: B3 + environment off matches Phase B
+#### Scenario: Drag off → no net translation
 
-- **GIVEN** a B3 coupled run with `environmentEnabled = false`
-- **THEN** the body wriggles in place exactly as in Phase B (`maxCOMdrift ≪ body-length`), confirming the toggle controls the only Phase C addition
+- **GIVEN** the 3D coupled drive with drag off
+- **THEN** the body undulates without net forward COM translation (internal torques alone cannot translate the COM)
 
 ### Requirement: Sidebar exposes the environment toggle
 
@@ -645,3 +502,33 @@ In the coupled drive, each body joint SHALL be driven by the CPG segment that ma
 
 - **GIVEN** the same pipeline with `jointToCpgSegment[i] = n - 1 - segmentIndex`
 - **THEN** the body's center of mass drifts tail-first (backward), reproducing the prior defect (verified headless in `scripts/locomotion-drag-direction.ts`)
+
+### Requirement: Deterministic fixed-step physics world
+
+The system SHALL run one `RAPIER.World` with `gravity = (0, 0, 0)` (neutral-buoyancy water) at a **fixed timestep**, stepped a whole number of fixed substeps per frame with accumulated `dt` clamped, so that a given run reproduces its diagnostic capture on the same machine/build. `RAPIER.init()` SHALL complete before the world is built; the frame loop SHALL no-op until the world and rig are ready. No nondeterministic inputs (`Math.random`, wall-clock time) SHALL enter the step loop.
+
+#### Scenario: World steps at a fixed timestep
+
+- **GIVEN** a built 3D body
+- **WHEN** the simulation runs for frames of varying real `dt`
+- **THEN** the world advances in fixed-size substeps (frame-rate-independent), and two identical runs produce matching captures on the same machine
+
+#### Scenario: Loop is inert until ready
+
+- **GIVEN** `RAPIER.init()` has not resolved or no rig is loaded
+- **THEN** the frame loop performs no stepping and does not throw
+
+### Requirement: Controller torque drives the engine revolute joints
+
+Each step, for each axial joint the system SHALL read the joint angle `φᵢ` and rate `φ̇ᵢ` from the engine, run the unchanged `stepCpg → oscillatorOutput·CPG_TO_MUSCLE_GAIN → 10 ms delay → ekebergTorque(mL, mR, φᵢ, φ̇ᵢ)` pipeline, and apply the resulting torque `τᵢ` as an **internal joint torque** (`+τᵢ·axis` to the child body, `−τᵢ·axis` to the parent). Because the torque is internal (equal and opposite), it SHALL NOT translate the body's center of mass on its own. The render path SHALL be driven from engine transforms: root frame from the head body's world pose, each chain pivot's local yaw from its revolute joint angle.
+
+#### Scenario: Internal torque cannot move the COM
+
+- **GIVEN** the coupled torque applied with drag off
+- **THEN** the body's center of mass does not translate (only its shape changes)
+
+#### Scenario: Render follows the engine
+
+- **WHEN** the engine advances the body
+- **THEN** the rig's root frame and per-joint pivot yaws are written from the corresponding Rapier body/joint transforms each frame
+

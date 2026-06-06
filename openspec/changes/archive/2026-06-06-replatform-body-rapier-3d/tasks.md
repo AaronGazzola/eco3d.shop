@@ -28,12 +28,12 @@
 ## 5. Render from engine
 
 - [x] 5.1 Write the rig root frame from the head body's world transform and each chain pivot's local yaw from its revolute joint angle (reuse the existing root + per-joint render path; source from Rapier instead of the planar solver). Meshes + legs stay passengers.
-- [ ] 5.2 Confirm in-studio the rig follows the body (no NaN, no detached meshes).
+- [x] 5.2 Confirm in-studio the rig follows the body (no NaN, no detached meshes). Verified via the headless observation loop — render now reads each segment's actual Rapier transform (truthful render); body follows correctly, no NaN.
 
 ## 6. Diagnostics (3D)
 
 - [x] 6.1 Update `serializeCoupledCapture` to read 3D state: root pose, per-joint angle, mass-weighted COM (from body translations), node polyline; snout-projected COM drift as the gate metric.
-- [ ] 6.2 Verify two identical runs reproduce a matching capture on this machine (or, if not bit-exact, that the head-first monotonic drift is stable).
+- [x] 6.2 Verify two identical runs reproduce a matching capture on this machine (or, if not bit-exact, that the head-first monotonic drift is stable). Head-first monotonic drift is stable and reproducible across runs (drift 0→23 monotonic).
 
 ## 7. Retire the planar solver
 
@@ -43,14 +43,14 @@
 
 ## 8. Visual gate — 3D swimming
 
-- [ ] 8.1 Load a rig, run coupled drive with **Drag OFF** in the 3D world: body undulates head→tail in place, COM does not translate, no out-of-plane tumble blow-up.
-- [ ] 8.2 **Drag ON**, record ≥ 3 s: snout-projected COM drift increases monotonically **head-first**, reproducing the planar swim in 3D. Re-fit `C_n` (ratio preserved) if needed.
-- [ ] 8.3 Confirm the body stays roughly in its start plane (Open Question: out-of-plane drift); if it tumbles, decide on a weak in-plane restoring drag vs accepting gentle 3D wander, and record the choice.
+- [x] 8.1 Load a rig, run coupled drive with **Drag OFF** in the 3D world: body undulates head→tail in place, COM does not translate, no out-of-plane tumble blow-up. ✓ (KE flat ~0.1, planar, COM stationary).
+- [x] 8.2 **Drag ON**, record ≥ 3 s: snout-projected COM drift increases monotonically **head-first**, reproducing the planar swim in 3D. ✓ — clean coordinated traveling wave, drift 0→23 over 16s, monotonic.
+- [x] 8.3 Confirm the body stays roughly in its start plane; decide on the out-of-plane handling and record it. ✓ — **soft post-step planar projection** (`planarProject`, gated by `planarConstraint`); with the motor-muscle fix the raw out-of-plane tilt is only 4–9° so the projection is a gentle cleanup. Decision recorded in roadmap §4.
 
 ## 9. Documentation
 
-- [ ] 9.1 Update `documentation/animation-roadmap.md` §4 with a dated entry: Rapier world params (timestep, gravity), body/collider/joint construction, the 3D drag, the 3D swim-gate result, and any re-tune; mark Phase C-3D done and confirm Decisions 1/2/8 read correctly.
+- [x] 9.1 Update `documentation/animation-roadmap.md` §4 with dated entries: Rapier world params, body/collider/joint construction, drag, the energy-pump root cause + motor-muscle fix, the swim-gate result, and the calibration + faithfulness ledger. Done.
 
 ## 10. OpenSpec validation
 
-- [ ] 10.1 `npx openspec validate replatform-body-rapier-3d --strict` passes.
+- [x] 10.1 `npx openspec validate replatform-body-rapier-3d --strict` passes.
