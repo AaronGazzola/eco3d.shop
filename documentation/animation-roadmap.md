@@ -935,3 +935,24 @@ reference.
   off) returns for the climbing phase, which will need its own out-of-plane stability work. Still
   remaining (now a *separable in-plane* problem): joints still saturate at peaks and the front
   bunches — amplitude tuning, AZ-33.
+- **2026-06-07 (ROOT CAUSE found + fixed: explicit muscle torque pumped energy → Rapier motor)** —
+  The "uncoordinated feedback loop / joints slamming caps" was finally isolated on the headless
+  bench (`locomotion-3d-swim-check.ts`, energy-conservation mode: no browser, no projection, no
+  drag, no gravity, flat rig). With **zero external energy source the KE still climbed from ~0 to
+  hundreds** and the joints hit their caps — proving the core CPG→muscle→body loop was *creating*
+  energy. Ruled out everything else by isolation: widening the caps to ±180° gave an identical
+  runaway (caps were a *symptom*); a 4× finer timestep slowed it (numerical fingerprint); more
+  damping fought it but killed the motion. **Cause: the Ekeberg torque was applied as an explicit
+  external torque each Rapier step, and explicit integration injects energy** (same class as the
+  earlier drag runaway). The prior `JOINT_DAMP = 2` was a band-aid that only slowed it. **Fix:**
+  the Ekeberg law `T = α(mL−mR) − β(mL+mR+γ)φ − δφ̇` is algebraically a spring-damper
+  `−kStiff(φ−φEq) − δφ̇` (`kStiff = β(mL+mR+γ)`, `φEq = α(mL−mR)/kStiff`); drive it through the
+  revolute joint's **ForceBased motor** (`configureMotorPosition`), which Rapier integrates
+  **implicitly** → energy-stable. This is **faithful** — identical equation and constants; the
+  explicit application was the actual deviation. Dropped `JOINT_DAMP`, restored the paper's
+  **δ = 0.1**. Result (headless + browser): KE flat ~0.1 (was → hundreds); joints undulate 20–34%
+  of cap with drag on (no slamming); smooth monotonic swim (drift 0→3.47/14s); and **out-of-plane
+  tilt fell from 180° to 4–9° even with the planar lock OFF** — the tumble was mostly the same
+  pump. The body now does a coordinated, extended, stable traveling wave. Bodies must be kept awake
+  (`wakeUp` each step) since the motor doesn't auto-wake. Next: tune swim amplitude/speed up from
+  this stable foundation (the planar projection is now a gentle cleanup, not a band-aid).
