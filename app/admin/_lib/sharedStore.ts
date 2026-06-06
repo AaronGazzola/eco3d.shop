@@ -80,6 +80,7 @@ interface SharedStore {
   setGroupNode: (groupId: string, nodeType: NodeType, x: number, y: number, z: number) => void
   setGroupAngleCaps: (groupId: string, caps: AngleCaps) => void
   setGroupNodeWeight: (groupId: string, weight: number) => void
+  setAllNodeWeights: (weight: number) => void
 }
 
 export const useSharedStore = create<SharedStore>()(
@@ -208,6 +209,11 @@ export const useSharedStore = create<SharedStore>()(
             }),
           }
         }),
+
+      setAllNodeWeights: (weight) =>
+        set((state) => ({
+          groups: state.groups.map((g) => ({ ...g, nodeWeight: weight })),
+        })),
     }),
     {
       name: 'studio-store',

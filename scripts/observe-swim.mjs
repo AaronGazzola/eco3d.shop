@@ -125,6 +125,14 @@ if (CMD === 'login') {
   await page.evaluate(() => window.__studio.drive(false))
   await buildContactSheet(rows)
   console.log(`saved ${rows.length}×${ANGLES.length} frames + contact-sheet.png to ${OUT}/`)
+} else if (CMD === 'calib') {
+  await loadRig()
+  try {
+    await page.getByRole('button', { name: 'Calibrate', exact: true }).click({ timeout: 8000 })
+  } catch (e) { console.log('calibrate click failed:', String(e).slice(0, 120)) }
+  await page.waitForTimeout(1200)
+  await page.screenshot({ path: `${OUT}/calibrate.png`, fullPage: true })
+  console.log('saved calibrate.png')
 } else if (CMD === 'sweep') {
   await runSweep()
 } else if (CMD === 'msweep') {

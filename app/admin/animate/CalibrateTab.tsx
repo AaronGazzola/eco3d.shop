@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useCallback } from 'react'
+import { useMemo, useCallback, useState } from 'react'
 import { Crosshair } from 'lucide-react'
 import { useSharedStore } from '../_lib/sharedStore'
 import { useAnimateStore } from './animateStore'
@@ -322,6 +322,7 @@ function GroupCalibrator({ group }: { group: BodyGroup }) {
 
 export function CalibrateTab() {
   const groups = useSharedStore((s) => s.groups)
+  const setAllNodeWeights = useSharedStore((s) => s.setAllNodeWeights)
   const configName = useSharedStore((s) => s.configName)
   const stlKey = useSharedStore((s) => s.stlKey)
   const calibratingGroupId = useAnimateStore((s) => s.calibratingGroupId)
@@ -330,6 +331,20 @@ export function CalibrateTab() {
   const setCalibratingPitch = useAnimateStore((s) => s.setCalibratingPitch)
 
   const { mutate: saveConfig, isPending: saving } = useSaveConfig()
+
+  const initialWeight = useMemo(() => {
+    const axial = groups.find((g) => g.type === 'head' || g.type === 'spine' || g.type === 'tail')
+    return axial?.nodeWeight ?? defaultWeightFor('spine')
+  }, [groups])
+  const [globalWeight, setGlobalWeight] = useState(initialWeight)
+  const applyGlobalWeight = useCallback(
+    (v: number) => {
+      const c = clamp(v, 0.1, 10)
+      setGlobalWeight(c)
+      setAllNodeWeights(c)
+    },
+    [setAllNodeWeights]
+  )
 
   const handleResetSliders = useCallback(() => {
     setCalibratingYaw(0)
@@ -399,6 +414,38 @@ export function CalibrateTab() {
         <p className="text-white/55 text-[10px] leading-relaxed">
           Expand a node to set its bend caps and preview the rotation live. Only one node at a time.
         </p>
+
+        <div className="flex flex-col gap-1.5 pb-3 mt-1 border-b border-white/10">
+          <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-white/55">
+            <span>All node weights (kg)</span>
+            <input
+              type="number"
+              value={globalWeight}
+              min={0.1}
+              max={10}
+              step={0.1}
+              onChange={(e) => {
+                const v = parseFloat(e.target.value)
+                if (Number.isFinite(v)) applyGlobalWeight(v)
+              }}
+              className="w-16 h-6 rounded bg-white/5 border border-white/15 text-white/90 text-[11px] text-center font-mono outline-none focus:border-violet-400/60"
+            />
+          </div>
+          <input
+            type="range"
+            value={globalWeight}
+            min={0.1}
+            max={10}
+            step={0.1}
+            onChange={(e) => applyGlobalWeight(parseFloat(e.target.value))}
+            className="w-full accent-violet-400"
+          />
+          <span className="text-white/45 text-[9px] leading-relaxed">
+            Sets every node (head, spine, tail, legs) to this weight at once. Individual nodes can
+            still be overridden below.
+          </span>
+        </div>
+
         <Accordion
           type="single"
           collapsible
