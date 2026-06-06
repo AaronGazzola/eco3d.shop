@@ -3,6 +3,7 @@
 import { RefObject, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { ModelConfigRow, SegmentData, BodyGroup } from '../admin/_lib/types'
+import { useAnimateStore } from '../admin/animate/animateStore'
 import { useLocomotion } from './locomotion/useLocomotion'
 import { buildSkeletonTree, flattenSkeleton, SkeletonNode } from './locomotion/chain'
 
@@ -272,6 +273,52 @@ function ChainNode({
   )
 }
 
+// During locomotion each chain segment is drawn directly from its Rapier body transform: the
+// group's matrix is set every frame by useLocomotion (matrixAutoUpdate off), so what is rendered
+// is exactly what the physics simulates — no kinematic-puppet reconstruction. Attached legs ride
+// inside it as passengers.
+function BodyMount({
+  group,
+  segmentMap,
+  showNodes,
+  opacity,
+  bodyRefs,
+  pivotsRef,
+  legs,
+}: {
+  group: BodyGroup
+  segmentMap: Map<string, SegmentData>
+  showNodes: boolean
+  opacity: number
+  bodyRefs: RefObject<Map<string, THREE.Group>>
+  pivotsRef: RefObject<Map<string, THREE.Group>>
+  legs: BodyGroup[]
+}) {
+  return (
+    <group
+      matrixAutoUpdate={false}
+      ref={(node) => {
+        const m = bodyRefs.current
+        if (!m) return
+        if (node) m.set(group.id, node)
+        else m.delete(group.id)
+      }}
+    >
+      <GroupBody group={group} segmentMap={segmentMap} showNodes={showNodes} opacity={opacity} />
+      {legs.map((leg) => (
+        <LegMount
+          key={leg.id}
+          group={leg}
+          segmentMap={segmentMap}
+          showNodes={showNodes}
+          pivotsRef={pivotsRef}
+          opacity={opacity}
+        />
+      ))}
+    </group>
+  )
+}
+
 export function AnimatedModel({
   modelConfig,
   segments,
@@ -287,6 +334,8 @@ export function AnimatedModel({
 }) {
   const segmentMap = useMemo(() => new Map(segments.map((s) => [s.id, s])), [segments])
   const pivotsRef = useRef<Map<string, THREE.Group>>(new Map())
+  const bodyRefs = useRef<Map<string, THREE.Group>>(new Map())
+  const coupledRunning = useAnimateStore((s) => s.coupledRunning)
 
   const skeletonTree = useMemo(() => buildSkeletonTree(modelConfig.groups), [modelConfig.groups])
   const skeletonGroups = useMemo(() => flattenSkeleton(skeletonTree), [skeletonTree])
@@ -312,7 +361,7 @@ export function AnimatedModel({
     return { legsBySpineId: byParent, orphanLegs: orphans }
   }, [modelConfig.groups, chainIds])
 
-  useLocomotion(pivotsRef, modelConfig.groups, segments, rootRef)
+  useLocomotion(pivotsRef, bodyRefs, modelConfig.groups, segments, rootRef)
 
   return (
     <group ref={rootRef}>
@@ -335,17 +384,30 @@ export function AnimatedModel({
           opacity={opacity}
         />
       ))}
-      {skeletonTree && (
-        <ChainNode
-          node={skeletonTree}
-          segmentMap={segmentMap}
-          showNodes={showNodes}
-          pivotsRef={pivotsRef}
-          opacity={opacity}
-          legsBySpineId={legsBySpineId}
-          parentNodeBack={null}
-        />
-      )}
+      {coupledRunning
+        ? skeletonGroups.map((g) => (
+            <BodyMount
+              key={g.id}
+              group={g}
+              segmentMap={segmentMap}
+              showNodes={showNodes}
+              opacity={opacity}
+              bodyRefs={bodyRefs}
+              pivotsRef={pivotsRef}
+              legs={legsBySpineId.get(g.id) ?? []}
+            />
+          ))
+        : skeletonTree && (
+            <ChainNode
+              node={skeletonTree}
+              segmentMap={segmentMap}
+              showNodes={showNodes}
+              pivotsRef={pivotsRef}
+              opacity={opacity}
+              legsBySpineId={legsBySpineId}
+              parentNodeBack={null}
+            />
+          )}
     </group>
   )
 }

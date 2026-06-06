@@ -45,6 +45,9 @@ export interface Body3D {
   segLength: number[]
   groupIds: string[]
   jointToCpgSegment: number[]
+  // rest center of each body in model/node space — used to render meshes (which live in model
+  // space) at the body's current transform: world = T·R·translate(−restCenter).
+  restCenters: { x: number; y: number; z: number }[]
 }
 
 function nodeVec(n: { x: number; y?: number; z: number } | undefined): Vector3 | null {
@@ -139,7 +142,8 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[]): Body3D | 
     jointToCpgSegment.push(i)
   }
 
-  return { bodies, joints, segLength, groupIds, jointToCpgSegment }
+  const restCenters = centers.map((c) => ({ x: c.x, y: c.y, z: c.z }))
+  return { bodies, joints, segLength, groupIds, jointToCpgSegment, restCenters }
 }
 
 // Signed joint angle about its yaw axis, from the two bodies' current rotations.

@@ -101,6 +101,7 @@ function postCapture(markdown: string): void {
 
 export function useLocomotion(
   pivotsRef: RefObject<Map<string, THREE.Group>>,
+  bodyRefs: RefObject<Map<string, THREE.Group>>,
   groups: BodyGroup[],
   _segments: SegmentData[] = [],
   rootRef?: RefObject<THREE.Group | null>
@@ -114,6 +115,9 @@ export function useLocomotion(
     v2: new THREE.Vector3(),
     fwd: new THREE.Vector3(),
     q: new THREE.Quaternion(),
+    mat: new THREE.Matrix4(),
+    matT: new THREE.Matrix4(),
+    one: new THREE.Vector3(1, 1, 1),
   })
 
   const skeletonGroups = useMemo(() => flattenSkeleton(buildSkeletonTree(groups)), [groups])
@@ -220,27 +224,32 @@ export function useLocomotion(
         }
         c.acc = acc
 
-        // render from engine: root = head node pose, pivots = joint yaws
-        if (headId) {
-          const headPivot = pivots.get(headId)
-          if (headPivot) headPivot.quaternion.identity()
-        }
-        for (let i = 0; i < c.body.joints.length; i++) {
-          const jt = c.body.joints[i]
-          const groupId = c.body.groupIds[jt.childIndex]
-          const pivot = pivots.get(groupId)
-          if (!pivot) continue
-          pivot.quaternion.setFromAxisAngle(Y_AXIS, jointAngle(jt, c.body.bodies))
+        // TRUTHFUL render: draw each chain segment at its actual Rapier body transform. The mesh
+        // lives in model space, so its group matrix = Translate(t)·Rotate(q)·Translate(−restCenter).
+        // What is drawn is exactly what the physics simulates — no kinematic-puppet reconstruction.
+        const segGroups = bodyRefs.current
+        if (segGroups) {
+          for (let i = 0; i < c.body.bodies.length; i++) {
+            const groupId = c.body.groupIds[i]
+            const g = segGroups.get(groupId)
+            if (!g) continue
+            const b = c.body.bodies[i]
+            const t = b.translation()
+            const q = b.rotation()
+            const rc = c.body.restCenters[i]
+            s.q.set(q.x, q.y, q.z, q.w)
+            s.v1.set(t.x, t.y, t.z)
+            s.mat.compose(s.v1, s.q, s.one)
+            s.matT.makeTranslation(-rc.x, -rc.y, -rc.z)
+            s.mat.multiply(s.matT)
+            g.matrix.copy(s.mat)
+            g.matrixWorldNeedsUpdate = true
+          }
         }
         const root = rootRef?.current
         if (root) {
-          const head = c.body.bodies[0]
-          const hp = head.translation()
-          const hq = head.rotation()
-          s.q.set(hq.x, hq.y, hq.z, hq.w)
-          s.fwd.set(1, 0, 0).applyQuaternion(s.q).multiplyScalar(c.body.segLength[0] / 2)
-          root.position.set(hp.x - s.fwd.x, hp.y - s.fwd.y, hp.z - s.fwd.z)
-          root.quaternion.copy(s.q)
+          root.position.set(0, 0, 0)
+          root.quaternion.identity()
         }
 
         c.diagAccum += dt
