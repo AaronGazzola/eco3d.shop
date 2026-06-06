@@ -913,3 +913,25 @@ reference.
   wave). Remaining for AZ-33: front-end bunching, occasional joint-cap saturation, slow late-run
   yaw wander, and leg passengers splaying (Phase D). The observation loop is now the standard way
   to evaluate any locomotion change.
+- **2026-06-06 (root-cause: out-of-plane instability; planar projection fix)** — The swim was
+  still "going crazy / floating off the floor / uncoordinated after the first impulse." Instrumented
+  the diagnostics with **per-body tilt° (off-horizontal) and comY (vertical drift)** — previously the
+  live diagnostics had no vertical metric at all, so floating was invisible. Fine-grained onset
+  capture (0.3s cadence, via `observe-swim.mjs fine`) gave the mechanism unambiguously:
+  the body **tips out of the horizontal plane within ~0.6s** (tilt 0.8°→6.5°→16°) — *before* any
+  joint hits its cap — and this is **internal** (identical with drag OFF). The float and the
+  decoherence are both **downstream of the tilt**: with drag on, thrust along the now-tilted body
+  has a vertical component → it "swims upward" (comY climbs only when drag is on); and the
+  yaw-only joint angle/rate readback + torque axis become invalid off-plane → the wave decoheres
+  and caps get slammed. Root cause: nothing constrains the swimmer to its plane (gravity off, free
+  6-DOF head), and the actuation torque (about each body's own tilting up-axis) + the non-horizontal
+  rig seed the tilt. **Isolating experiment:** hard per-body DOF locks (`setEnabledTranslations/
+  Rotations`) — *enforced* planarity (tilt/comY→0) but **over-constrained the revolute chain and
+  blew up** (KE 1e23, NaN). **Fix:** a **soft post-step planar projection** (`planarProject` in
+  body3d, called like the drag after `world.step()`): per body zero the out-of-plane velocity, snap
+  height to rest, strip pitch/roll (keep yaw). Result: **tilt = 0.0° and comY = 0.000 for the whole
+  run**, no explosion, and forward drift *improved* (~11.5 over 14s). Floating and floor-orientation
+  loss are resolved; the body stays flat and swims. `PLANAR_SWIM` flag gates it — full 6-DOF (flag
+  off) returns for the climbing phase, which will need its own out-of-plane stability work. Still
+  remaining (now a *separable in-plane* problem): joints still saturate at peaks and the front
+  bunches — amplitude tuning, AZ-33.

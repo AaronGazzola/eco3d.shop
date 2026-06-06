@@ -7,7 +7,7 @@ import RAPIER from '@dimforge/rapier3d-compat'
 import { BodyGroup, SegmentData } from '@/app/admin/_lib/types'
 import { useAnimateStore } from '@/app/admin/animate/animateStore'
 import { buildSkeletonTree, effectiveAngleCaps, flattenSkeleton } from './chain'
-import { axialLengths, buildBody3D, Body3D, jointAngle, jointRate, worldAxis } from './body3d'
+import { axialLengths, buildBody3D, Body3D, jointAngle, jointRate, worldAxis, planarProject, PLANAR_SWIM } from './body3d'
 import { applyEnvironment3D } from './environment'
 import {
   buildCaptureSpec3D,
@@ -220,6 +220,7 @@ export function useLocomotion(
           }
           c.world.step()
           if (store.environmentEnabled) applyEnvironment3D(c.body, TIMESTEP)
+          if (PLANAR_SWIM) planarProject(c.body)
           acc -= TIMESTEP
         }
         c.acc = acc
@@ -262,6 +263,8 @@ export function useLocomotion(
             comZ: samp.comZ,
             comDriftFromStart: samp.comDrift,
             maxJointFracOfCap: samp.maxJointFracOfCap,
+            comYDrift: samp.comY - c.baseCom.y,
+            maxTiltDeg: samp.maxTiltDeg,
           })
         }
 

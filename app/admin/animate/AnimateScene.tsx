@@ -20,6 +20,7 @@ function useStudioObservationHook() {
       drive: (on = true) => store().setCoupledRunning(on),
       drag: (on: boolean) => store().setEnvironmentEnabled(on),
       tune: (drive: number, exc: number) => { store().setCpgDrive(drive); store().setCpgExcitability(exc) },
+      record: (on: boolean) => store().setSimRecording(on),
       diag: () => store().simDiagnostics,
     }
     return () => { delete (w as { __studio?: unknown }).__studio }

@@ -18,6 +18,8 @@ export interface SimDiagnostics {
   comZ: number
   comDriftFromStart: number
   maxJointFracOfCap: number
+  comYDrift: number
+  maxTiltDeg: number
 }
 
 interface AnimateStore {
@@ -71,7 +73,7 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   cameraPreset: null,
   modelOpacity: 1,
   manualPose: { rootX: 0, rootZ: 0, rootYawRad: 0, jointAnglesRad: {} },
-  simDiagnostics: { kineticEnergy: 0, comX: 0, comZ: 0, comDriftFromStart: 0, maxJointFracOfCap: 0 },
+  simDiagnostics: { kineticEnergy: 0, comX: 0, comZ: 0, comDriftFromStart: 0, maxJointFracOfCap: 0, comYDrift: 0, maxTiltDeg: 0 },
   simRecording: false,
   lastCapturePath: null,
   cpgDrive: 3.0,

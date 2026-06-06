@@ -52,6 +52,7 @@ export interface CaptureSample {
   joints: CaptureJointSample[]
   nodes: { x: number; z: number }[]
   comY: number
+  maxTiltDeg: number
 }
 
 export function buildCaptureSpec3D(body: Body3D): CaptureSpec {
@@ -86,6 +87,7 @@ export function buildSample3D(
 ): CaptureSample {
   let mTot = 0, cx = 0, cy = 0, cz = 0, ke = 0
   let nan = false
+  let maxTilt = 0
   const nodes: { x: number; z: number }[] = []
   for (const b of body.bodies) {
     const p = b.translation()
@@ -95,6 +97,11 @@ export function buildSample3D(
     cx += m * p.x; cy += m * p.y; cz += m * p.z
     ke += 0.5 * m * (v.x * v.x + v.y * v.y + v.z * v.z)
     nodes.push({ x: p.x, z: p.z })
+    // tilt of this body off horizontal = angle between its up-axis ((0,1,0)·q) and world up
+    const q = b.rotation()
+    const upY = 1 - 2 * (q.x * q.x + q.z * q.z)
+    const tilt = Math.acos(Math.max(-1, Math.min(1, upY)))
+    if (tilt > maxTilt) maxTilt = tilt
     if (!Number.isFinite(p.x) || !Number.isFinite(p.y) || !Number.isFinite(p.z)) nan = true
   }
   if (mTot <= 0) mTot = 1
@@ -133,6 +140,7 @@ export function buildSample3D(
     nan,
     joints,
     nodes,
+    maxTiltDeg: maxTilt * RAD_TO_DEG,
   }
 }
 
@@ -332,10 +340,11 @@ export function serializeCapture(spec: CaptureSpec, samples: CaptureSample[]): s
   }
   lines.push('')
 
-  lines.push('## scalars (t,s ; head/vel in deg & world units)')
+  lines.push('## scalars (t,s ; head/vel in deg & world units ; comY & tilt° = out-of-plane)')
   lines.push(
-    `${pad('t', 7)}${pad('rootX', 9)}${pad('rootZ', 9)}${pad('head°', 8)}${pad('KE', 11)}${pad('drift', 11)}maxJ%`
+    `${pad('t', 7)}${pad('rootX', 9)}${pad('rootZ', 9)}${pad('head°', 8)}${pad('KE', 11)}${pad('drift', 11)}${pad('maxJ%', 7)}${pad('comY', 9)}tilt°`
   )
+  const baseComY = samples.length > 0 ? samples[0].comY : 0
   for (const s of samples) {
     lines.push(
       pad(f(s.t, 2), 7) +
@@ -344,7 +353,9 @@ export function serializeCapture(spec: CaptureSpec, samples: CaptureSample[]): s
         pad(f(s.headingDeg, 1), 8) +
         pad(e(s.kineticEnergy), 11) +
         pad(e(s.comDrift), 11) +
-        f(s.maxJointFracOfCap * 100, 0)
+        pad(f(s.maxJointFracOfCap * 100, 0), 7) +
+        pad(f(s.comY - baseComY, 3), 9) +
+        f(s.maxTiltDeg ?? 0, 1)
     )
   }
   lines.push('')

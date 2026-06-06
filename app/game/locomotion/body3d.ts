@@ -6,6 +6,7 @@ import { STD_SEGMENT_WIDTH, defaultWeightFor } from './weights'
 
 const CAPSULE_Y = new Vector3(0, 1, 0)
 
+
 // Rotation taking the capsule's default +Y long axis onto the segment's forward direction.
 function capsuleRotation(forward: Vector3): Quaternion {
   return new Quaternion().setFromUnitVectors(CAPSULE_Y, forward.clone().normalize())
@@ -144,6 +145,33 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[]): Body3D | 
 
   const restCenters = centers.map((c) => ({ x: c.x, y: c.y, z: c.z }))
   return { bodies, joints, segLength, groupIds, jointToCpgSegment, restCenters }
+}
+
+// Swimming is a planar undulation. The internal torque/inertia dynamics otherwise tilt the body out
+// of plane within ~0.6s, which decoheres the wave and (under drag) makes it "swim upward" off the
+// floor. We keep it planar with a SOFT post-step projection (planarProject) rather than hard per-body
+// DOF locks — hard locks over-constrain the revolute chain on a non-planar rig and blow it up. Full
+// 6-DOF returns in the climbing phase.
+export const PLANAR_SWIM = true
+
+// Soft post-step planar projection: keep the swim in its horizontal plane without over-constraining
+// the revolute chain. Per body, zero the out-of-plane velocity (Y-linear, pitch/roll-angular), snap
+// the height back to rest, and strip pitch/roll from the orientation (keep yaw only). Applied like
+// the drag, after world.step(). Cheap, can't inject solver forces, and holds the body planar so the
+// controller's yaw-only angle/rate readback stays valid.
+export function planarProject(body: Body3D): void {
+  for (let i = 0; i < body.bodies.length; i++) {
+    const b = body.bodies[i]
+    const v = b.linvel()
+    b.setLinvel({ x: v.x, y: 0, z: v.z }, true)
+    const w = b.angvel()
+    b.setAngvel({ x: 0, y: w.y, z: 0 }, true)
+    const t = b.translation()
+    b.setTranslation({ x: t.x, y: body.restCenters[i].y, z: t.z }, false)
+    const q = b.rotation()
+    const yaw = Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.z * q.z))
+    b.setRotation({ x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) }, false)
+  }
 }
 
 // Signed joint angle about its yaw axis, from the two bodies' current rotations.

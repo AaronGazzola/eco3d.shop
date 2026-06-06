@@ -120,11 +120,125 @@ if (CMD === 'login') {
     }
     const d = await page.evaluate(() => window.__studio.diag())
     rows.push({ t, files, d })
-    console.log(`t=${t}s  KE=${d.kineticEnergy.toExponential(2)}  drift=${d.comDriftFromStart.toFixed(3)}  maxJ=${Math.round(d.maxJointFracOfCap * 100)}%`)
+    console.log(`t=${t}s  KE=${d.kineticEnergy.toExponential(2)}  drift=${d.comDriftFromStart.toFixed(3)}  maxJ=${Math.round(d.maxJointFracOfCap * 100)}%  comY=${(d.comYDrift ?? 0).toFixed(3)}  tilt=${(d.maxTiltDeg ?? 0).toFixed(1)}°`)
   }
   await page.evaluate(() => window.__studio.drive(false))
   await buildContactSheet(rows)
   console.log(`saved ${rows.length}×${ANGLES.length} frames + contact-sheet.png to ${OUT}/`)
+} else if (CMD === 'sweep') {
+  await runSweep()
+} else if (CMD === 'fine') {
+  // High-rate onset capture: front view every ~0.3s for the first N seconds, to SEE the moment the
+  // coordinated first impulse decoheres / the body leaves the plane. Builds a horizontal strip.
+  const seconds = Number(REST[0] ?? 5)
+  const drag = (REST[1] ?? 'on') === 'on'
+  const drive = REST[2] != null ? Number(REST[2]) : null
+  const exc = REST[3] != null ? Number(REST[3]) : null
+  await loadRig()
+  await page.evaluate(({ drag, drive, exc }) => {
+    if (drive != null && exc != null) window.__studio.tune(drive, exc)
+    window.__studio.drag(drag)
+    window.__studio.setCam('front')
+  }, { drag, drive, exc })
+  await page.waitForTimeout(400)
+  await page.evaluate(() => window.__studio.drive(true))
+  const dtms = 300
+  const n = Math.round((seconds * 1000) / dtms)
+  const frames = []
+  for (let i = 0; i < n; i++) {
+    await page.waitForTimeout(dtms)
+    const f = `fine_${String(i).padStart(2, '0')}.png`
+    await page.screenshot({ path: `${OUT}/${f}`, clip: { x: 0, y: 0, width: 980, height: 760 } })
+    const d = await page.evaluate(() => window.__studio.diag())
+    frames.push({ t: ((i + 1) * dtms) / 1000, f, d })
+    console.log(`t=${(((i + 1) * dtms) / 1000).toFixed(1)}s  KE=${d.kineticEnergy.toExponential(2)}  drift=${d.comDriftFromStart.toFixed(3)}  maxJ=${Math.round(d.maxJointFracOfCap * 100)}%  comY=${(d.comYDrift ?? 0).toFixed(3)}  tilt=${(d.maxTiltDeg ?? 0).toFixed(1)}°`)
+  }
+  await page.evaluate(() => window.__studio.drive(false))
+  // strip montage
+  const dataUrl = (f) => 'data:image/png;base64,' + readFileSync(`${OUT}/${f}`).toString('base64')
+  const html = `<html><body style="margin:0;background:#222;font-family:monospace;color:#ddd"><div style="display:flex;flex-wrap:wrap">
+    ${frames.map((fr) => `<div style="width:240px"><div style="font-size:11px;padding:2px">t=${fr.t.toFixed(1)} cY=${(fr.d.comYDrift ?? 0).toFixed(2)} tilt=${(fr.d.maxTiltDeg ?? 0).toFixed(0)}° J=${Math.round(fr.d.maxJointFracOfCap * 100)}%</div><img src="${dataUrl(fr.f)}" style="width:100%;display:block"></div>`).join('')}
+  </div></body></html>`
+  const p2 = await ctx.newPage(); await p2.setContent(html); await p2.waitForTimeout(300)
+  await p2.screenshot({ path: `${OUT}/fine-strip.png`, fullPage: true }); await p2.close()
+  console.log(`saved fine-strip.png (${n} frames) to ${OUT}/`)
+} else if (CMD === 'record') {
+  // Drive a full recorded capture (per-joint angles, comY, tilt over time) to documentation/diagnostics/.
+  const seconds = Number(REST[0] ?? 6)
+  const drag = (REST[1] ?? 'on') === 'on'
+  const drive = REST[2] != null ? Number(REST[2]) : null
+  const exc = REST[3] != null ? Number(REST[3]) : null
+  await loadRig()
+  await page.evaluate(({ drag, drive, exc }) => {
+    if (drive != null && exc != null) window.__studio.tune(drive, exc)
+    window.__studio.drag(drag)
+    window.__studio.drive(true)
+    window.__studio.record(true)
+  }, { drag, drive, exc })
+  await page.waitForTimeout(seconds * 1000)
+  await page.evaluate(() => window.__studio.record(false))
+  await page.waitForTimeout(2000)
+  console.log('recording stopped; read the newest capture-*.md under documentation/diagnostics/')
+}
+
+async function runSweep() {
+  // combos as "drive:exc" args, else a default grid. One browser, rig loaded once; each combo
+  // starts fresh from rest (stopping the sim frees the Rapier world).
+  const combos = REST.length
+    ? REST.map((s) => s.split(':').map(Number))
+    : [[2.0, 0.09], [1.0, 0.09], [0.5, 0.09], [1.0, 0.06], [0.5, 0.06], [0.25, 0.06]]
+  await loadRig()
+  const secs = 8
+  const summary = []
+  for (const [drive, exc] of combos) {
+    await page.evaluate(({ drive, exc }) => {
+      window.__studio.tune(drive, exc)
+      window.__studio.drag(true)
+      window.__studio.drive(true)
+    }, { drive, exc })
+    let peakMaxJ = 0, sumMaxJ = 0, n = 0, peakKE = 0, drift = 0
+    for (let t = 1; t <= secs; t++) {
+      await page.waitForTimeout(1000)
+      const d = await page.evaluate(() => window.__studio.diag())
+      peakMaxJ = Math.max(peakMaxJ, d.maxJointFracOfCap)
+      sumMaxJ += d.maxJointFracOfCap; n++
+      peakKE = Math.max(peakKE, d.kineticEnergy)
+      drift = d.comDriftFromStart
+    }
+    const tag = `d${drive}_e${exc}`
+    const files = {}
+    for (const a of ['top', 'front']) {
+      await page.evaluate((a) => window.__studio.setCam(a), a)
+      await page.waitForTimeout(300)
+      files[a] = `sweep_${tag}_${a}.png`
+      await page.screenshot({ path: `${OUT}/${files[a]}`, clip: { x: 0, y: 0, width: 980, height: 900 } })
+    }
+    await page.evaluate(() => window.__studio.drive(false))
+    await page.waitForTimeout(800)
+    const row = { drive, exc, peakMaxJ: Math.round(peakMaxJ * 100), avgMaxJ: Math.round((sumMaxJ / n) * 100), drift: Number(drift.toFixed(2)), peakKE: Number(peakKE.toFixed(0)), files }
+    summary.push(row)
+    console.log(`drive=${drive}  exc=${exc}  peakMaxJ=${row.peakMaxJ}%  avgMaxJ=${row.avgMaxJ}%  drift=${row.drift}  peakKE=${row.peakKE}`)
+  }
+  await buildSweepSheet(summary)
+  console.log(`\nsaved sweep-sheet.png + per-combo sweep_*.png to ${OUT}/`)
+}
+
+async function buildSweepSheet(rows) {
+  const dataUrl = (f) => 'data:image/png;base64,' + readFileSync(`${OUT}/${f}`).toString('base64')
+  const html = `<html><body style="margin:0;background:#222;font-family:monospace;color:#ddd">
+  <div style="display:grid;grid-template-columns:150px 1fr 1fr;gap:2px">
+    <div></div><div style="text-align:center;padding:4px">top (wave)</div><div style="text-align:center;padding:4px">front (lift-off)</div>
+    ${rows.map((r) => `
+      <div style="font-size:12px;padding:6px">drive=${r.drive}<br>exc=${r.exc}<br>peakJ=${r.peakMaxJ}%<br>avgJ=${r.avgMaxJ}%<br>drift=${r.drift}</div>
+      <img src="${dataUrl(r.files.top)}" style="width:100%;display:block">
+      <img src="${dataUrl(r.files.front)}" style="width:100%;display:block">
+    `).join('')}
+  </div></body></html>`
+  const p2 = await ctx.newPage()
+  await p2.setContent(html)
+  await p2.waitForTimeout(300)
+  await p2.screenshot({ path: `${OUT}/sweep-sheet.png`, fullPage: true })
+  await p2.close()
 }
 
 async function buildContactSheet(rows) {
