@@ -162,9 +162,13 @@ dynamics, as it does in the paper.
 - The limb oscillator's **phase `θᵢ` is used directly** as the desired leg position,
   through a piecewise-linear transfer function tuned to a **77% stance / 23% swing**
   duty factor (duty factor = fraction of the cycle the foot is on the ground).
-- The paper gives the *target* (77% duty) but **not the transfer-function formula** in
-  the main text — so we design our own piecewise-linear map from phase to leg angle
-  that hits 77% stance. That choice is ours, not the paper's.
+- ✅ The paper **does** describe the transfer function (§"Limb Joints", PDF p.7): *"the
+  oscillator phase θᵢ is used directly as a representation of the desired position, with a
+  piece-wise linear transfer function that **modulates the swing and stance rotation speeds**
+  such as to obtain a duty factor of 77%."* So the **construction is the paper's** — a
+  piece-wise-linear, asymmetric (slow-stance / fast-swing) phase→angle map. The exact slopes are
+  then determined by the 77/23 split + the leg's rotation **amplitude**; only the amplitude is a
+  free tuning choice. (Earlier note "the formula is ours" was an overstatement — corrected.)
 - **Backward stepping**: use `−θᵢ` instead of `θᵢ` (flips rotation direction).
 - Foot-ground contact in the paper emerges from physics. We recreate that: the limb is a
   **simulated 1-DOF joint** driven toward the transfer-function position, and the foot's

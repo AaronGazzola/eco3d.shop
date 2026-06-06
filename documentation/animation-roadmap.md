@@ -587,10 +587,23 @@ begins. This is the current draft, refined as understanding firms up.
   planar `solver.ts`. Gravity off (neutral-buoyancy). **Legs stay passengers.** Gate: the body
   swims forward head-first in 3D, reproducing the planar result. This is the new foundation —
   like Phase A was — and everything below depends on it.
-- **Phase D — Walking:** with the 3D engine in place, add limbs as real 3D joints + turn on
-  gravity + ground contact + friction; **foot lift / plant / slip emerge from the physics**
-  (Decision 4, now actually achievable). Transfer function (phase → hip position, 77% stance)
-  + diagonal-trot interlimb couplings. Verify terrestrial stepping.
+- **Phase D — Walking.** Split, mirroring B, into **signal → actuation → coupling**, each with its
+  own gate:
+  - **D1 — Limb CPG (signal).** Four limb oscillators (one each — position-driven, not L/R pairs) +
+    Table 2 interlimb couplings (lateral `w=10`, rostrocaudal `w=3`, caudorostral `w=30`, all `φ=π`)
+    → diagonal trot; limb↔axial couplings (limb→axial `w=30, φ=4`; axial→limb `w=2.5, φ=−4`) at the
+    girdles; faithful limb params (`e` fore `0.8` / hind `0.5`, `d_th` `1.27`). No legs. Gate: a CPG
+    capture shows the diagonal-trot phases emerging, the trunk pulled toward a standing wave, and the
+    limbs saturating first at high drive.
+  - **D2 — Limb actuation (one leg steps).** The paper's **piece-wise-linear transfer function** —
+    limb phase → desired 1-DOF *rotational* hip position, modulating swing vs stance rotation speeds
+    to a **77% duty factor** (reference "Limb Joints" section; the construction is the paper's, only
+    the leg amplitude is ours) — driving a single physical hip on the ground under gravity, isolated
+    with a test oscillator (like B2's test sinusoid). **Position-driven via the joint motor, NOT the
+    Ekeberg muscle.** Gate: one leg steps — slow stance plant that grips/propels, fast swing; foot
+    lift/slip **emerges from contact** (1-DOF, no scripted lift, no second DOF).
+  - **D3 — Terrestrial coupled walking.** Couple D1 → D2 across the four legs + the axial wave;
+    gravity + ground + friction. Gate: diagonal-trot walk, forward, upright, energy bounded.
 - **Phase E — Turning + behaviors:** differential drive; behavior presets matching Table 4.
 - **Phase F — Attractor tracking:** the thin "brain" layer — attractor → drive magnitude +
   left/right bias; head tracks the target; body and feet orient and move toward it.
