@@ -7,7 +7,7 @@ import RAPIER from '@dimforge/rapier3d-compat'
 import { BodyGroup, SegmentData } from '@/app/admin/_lib/types'
 import { useAnimateStore } from '@/app/admin/animate/animateStore'
 import { buildSkeletonTree, effectiveAngleCaps, flattenSkeleton } from './chain'
-import { axialLengths, buildBody3D, Body3D, jointAngle, jointRate, worldAxis, planarProject, PLANAR_SWIM } from './body3d'
+import { axialLengths, buildBody3D, Body3D, jointAngle, jointRate, worldAxis, planarProject } from './body3d'
 import { applyEnvironment3D } from './environment'
 import {
   buildCaptureSpec3D,
@@ -204,6 +204,7 @@ export function useLocomotion(
         const alpha = store.muscleAlpha
         const beta = store.muscleBeta
         const jointDamping = store.muscleDamping
+        const planar = store.planarConstraint
         let acc = c.acc + Math.min(dt, MAX_FRAME)
         while (acc >= TIMESTEP) {
           stepCpg(c.cpgState, c.cpgSpec, drive, exc, TIMESTEP)
@@ -222,7 +223,7 @@ export function useLocomotion(
           }
           c.world.step()
           if (store.environmentEnabled) applyEnvironment3D(c.body, TIMESTEP)
-          if (PLANAR_SWIM) planarProject(c.body)
+          if (planar) planarProject(c.body)
           acc -= TIMESTEP
         }
         c.acc = acc

@@ -186,12 +186,17 @@ if (CMD === 'login') {
   const drag = (REST[1] ?? 'on') === 'on'
   const drive = REST[2] != null ? Number(REST[2]) : null
   const exc = REST[3] != null ? Number(REST[3]) : null
+  const planar = (process.env.PLANAR ?? 'on') === 'on'
+  const tag = process.env.TAG ?? 'fine'
+  const cam = process.env.CAM ?? 'front'
   await loadRig()
-  await page.evaluate(({ drag, drive, exc }) => {
+  await page.evaluate(({ drag, drive, exc, planar, cam }) => {
     if (drive != null && exc != null) window.__studio.tune(drive, exc)
     window.__studio.drag(drag)
-    window.__studio.setCam('front')
-  }, { drag, drive, exc })
+    window.__studio.planar(planar)
+    window.__studio.setCam(cam)
+  }, { drag, drive, exc, planar, cam })
+  console.log(`planar=${planar ? 'ON' : 'OFF'} tag=${tag}`)
   await page.waitForTimeout(400)
   await page.evaluate(() => window.__studio.drive(true))
   const dtms = 300
@@ -199,7 +204,7 @@ if (CMD === 'login') {
   const frames = []
   for (let i = 0; i < n; i++) {
     await page.waitForTimeout(dtms)
-    const f = `fine_${String(i).padStart(2, '0')}.png`
+    const f = `${tag}_${String(i).padStart(2, '0')}.png`
     await page.screenshot({ path: `${OUT}/${f}`, clip: { x: 0, y: 0, width: 980, height: 760 } })
     const d = await page.evaluate(() => window.__studio.diag())
     frames.push({ t: ((i + 1) * dtms) / 1000, f, d })
@@ -212,8 +217,8 @@ if (CMD === 'login') {
     ${frames.map((fr) => `<div style="width:240px"><div style="font-size:11px;padding:2px">t=${fr.t.toFixed(1)} cY=${(fr.d.comYDrift ?? 0).toFixed(2)} tilt=${(fr.d.maxTiltDeg ?? 0).toFixed(0)}° J=${Math.round(fr.d.maxJointFracOfCap * 100)}%</div><img src="${dataUrl(fr.f)}" style="width:100%;display:block"></div>`).join('')}
   </div></body></html>`
   const p2 = await ctx.newPage(); await p2.setContent(html); await p2.waitForTimeout(300)
-  await p2.screenshot({ path: `${OUT}/fine-strip.png`, fullPage: true }); await p2.close()
-  console.log(`saved fine-strip.png (${n} frames) to ${OUT}/`)
+  await p2.screenshot({ path: `${OUT}/${tag}-strip.png`, fullPage: true }); await p2.close()
+  console.log(`saved ${tag}-strip.png (${n} frames) to ${OUT}/`)
 } else if (CMD === 'record') {
   // Drive a full recorded capture (per-joint angles, comY, tilt over time) to documentation/diagnostics/.
   const seconds = Number(REST[0] ?? 6)
