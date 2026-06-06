@@ -160,8 +160,8 @@ function SimulateTab() {
           </button>
         </div>
         <p className="text-white/45 text-[10px] leading-relaxed">
-          CPG → Ekeberg muscles → 3D Rapier body. Drag off → undulates in place; Drag on →
-          swims forward, head-first. Best look at drive 2.0 / excitability 0.09.
+          CPG → Ekeberg muscles (via Rapier joint motor) → 3D body. Drag off → undulates in place;
+          Drag on → swims forward, head-first. Calibrated defaults: drive 2.0 / exc 0.15 / α 1.0.
         </p>
         {lastCapturePath ? (
           <p className="text-emerald-300/70 text-[10px] break-all font-mono">{lastCapturePath}</p>
@@ -172,7 +172,7 @@ function SimulateTab() {
         <p className="text-white/55 text-[10px] uppercase tracking-widest">Muscle (Ekeberg)</p>
         <PoseSlider
           label="α active gain"
-          hint="paper 0.4 — drives the bend"
+          hint="paper 0.4, calibrated 1.0 for our body scale — drives the bend"
           value={muscleAlpha}
           min={0}
           max={5}

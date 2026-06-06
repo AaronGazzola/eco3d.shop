@@ -956,3 +956,21 @@ reference.
   pump. The body now does a coordinated, extended, stable traveling wave. Bodies must be kept awake
   (`wakeUp` each step) since the motor doesn't auto-wake. Next: tune swim amplitude/speed up from
   this stable foundation (the planar projection is now a gentle cleanup, not a band-aid).
+- **2026-06-07 (swim calibrated on the stable foundation)** — With the energy pump gone, tuned via
+  the observation loop. Frequency is *not* the lever (raising it collapses amplitude — the body
+  can't undulate faster than its mechanical bandwidth); **amplitude is**, via the muscle active
+  gain α. Swept α at the best (low) frequency: α 0.4→1.0 takes drift 2.3→8.7 with the joints using
+  their *full* range (peak 100%, avg 95%) but **not pinned**; α≥1.3 just rides the cap for marginal
+  gain. New calibrated store defaults: **`cpgDrive = 2.0`** (was 3.0 — 2.0 gives more amplitude
+  R=2 and sits safely below the d_th=3 saturation cliff, where 3.5 goes dead), `cpgExcitability =
+  0.15`, **`muscleAlpha = 1.0`**, `muscleBeta = 1.2`, `muscleDamping = 0.1`. Result: clean,
+  coordinated, extended traveling-wave swim, KE flat ~1.5, planar, **drift 23 over 16s** (travels
+  >1 body length). **Faithfulness ledger** — *unchanged from the paper:* CPG double-chain +
+  Table 2 couplings, Ekeberg muscle equation, β=1.2, γ=0.2, δ=0.1, e_axial=1.1, d_th=3,
+  BODY_WAVES=1.58, 10 ms muscle delay. *Adapted to our engine/body scale (logic & design intact):*
+  (1) muscle integrated via Rapier's ForceBased motor instead of an explicit torque — same equation,
+  energy-stable; (2) **α = 1.0 vs the paper's 0.4** — α is a *tuned* gain the paper calls "optimal
+  for [its] robot"; our heavier uniform-mass body + our drag have a different optimum; (3) the
+  `excitability` knob runs the body-wave slower than the paper's ν=d·e because our body can't follow
+  the paper's rate; (4) soft planar projection + `wakeUp`. Remaining cosmetic/non-foundational
+  (AZ-33): chunky meshes overlap at bends (thin colliders vs fat meshes), some head yaw.
