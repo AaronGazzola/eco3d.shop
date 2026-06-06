@@ -895,3 +895,21 @@ reference.
   bounded over a long run) and OpenSpec validation. Swim speed/feel tuning is deferred (AZ-33).
   Next: pass the browser gate, archive, then **Phase D (walking — limbs + gravity + ground
   contact)**.
+- **2026-06-06 (observation loop built; truthful render fix; swim drive re-tuned)** — Built a
+  repeatable **visual observation loop** (`documentation/observation-loop.md`, `npm run observe`,
+  `scripts/observe-swim.mjs`): a headless chromium drives the real studio and screenshots the 3D
+  canvas from front/top/3-4 angles over time, so behaviour is *seen*, not inferred from top-down
+  numbers that are blind to vertical lift-off. Using it immediately exposed that the studio drew a
+  **kinematic puppet** (joint yaw-angles hung under a root set to the head body's full 3D tilt),
+  not the simulated body — so the head tilting swung the whole drawn creature into the air and it
+  *looked* like it flew off and went insane, while the physics stayed bounded and low. Fixed: each
+  chain segment is now drawn at its **actual Rapier body transform** (`AnimatedModel` BodyMount +
+  `useLocomotion`), so the render equals the simulation. With that, the body verifiably stays
+  grounded and bounded. Then ran a **drive/excitability tuning sweep** through the loop: the old
+  defaults (drive 2.0, exc 0.09, ~0.2 Hz) gave a slow, tightly-curled, cap-saturated undulation;
+  **drive 3.0 / exc 0.15 (~0.5 Hz)** roughly triples forward drift with a cleaner, more extended
+  traveling wave, still grounded and bounded — set as the new store defaults. The CPG is finicky
+  (e.g. 3.5/0.13 and 4/0.12 are dead zones — no oscillation; exc ≳ 0.18 collapses to a standing
+  wave). Remaining for AZ-33: front-end bunching, occasional joint-cap saturation, slow late-run
+  yaw wander, and leg passengers splaying (Phase D). The observation loop is now the standard way
+  to evaluate any locomotion change.

@@ -8,8 +8,8 @@ import { applyEnvironment3D } from '@/app/game/locomotion/environment'
 const RIG_LEN = [3.352, 1.268, 1.728, 1.185, 1.395, 1.255, 1.515, 1.802, 1.975, 1.946, 3.966]
 const CAP_DEG = [60, 21, 23, 37, 39, 28, 28, 22, 30, 30, 45] // head cap unused
 const GAIN = 12
-const DRIVE = 2.0
-const EXC = 0.09
+const DRIVE = 3.0
+const EXC = 0.15
 const TIMESTEP = 1 / 120
 const JOINT_DAMP = 2 // matches the planar coupled mode's effective joint damping
 
