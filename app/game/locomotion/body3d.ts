@@ -139,6 +139,9 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[]): Body3D | 
     const fwd = caps.yaw
     const back = caps.yawBack ?? caps.yaw
     if (typeof joint.setLimits === 'function') joint.setLimits(-back, fwd)
+    // The Ekeberg muscle is driven through this joint's ForceBased motor (implicit, energy-stable)
+    // rather than an explicit external torque (which numerically injects energy). See useLocomotion.
+    if (typeof joint.configureMotorModel === 'function') joint.configureMotorModel(RAPIER.MotorModel.ForceBased)
 
     joints.push({
       joint, parentIndex: i - 1, childIndex: i, cpgSegment: i,

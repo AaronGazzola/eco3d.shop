@@ -92,7 +92,7 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   environmentEnabled: false,
   muscleAlpha: 0.4,
   muscleBeta: 1.2,
-  muscleDamping: 2.0,
+  muscleDamping: 0.1,
   planarConstraint: true,
 
   setAnimateTab: (tab) => {

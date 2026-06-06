@@ -7,7 +7,7 @@ import RAPIER from '@dimforge/rapier3d-compat'
 import { BodyGroup, SegmentData } from '@/app/admin/_lib/types'
 import { useAnimateStore } from '@/app/admin/animate/animateStore'
 import { buildSkeletonTree, effectiveAngleCaps, flattenSkeleton } from './chain'
-import { axialLengths, buildBody3D, Body3D, jointAngle, jointRate, worldAxis, planarProject } from './body3d'
+import { axialLengths, buildBody3D, Body3D, planarProject } from './body3d'
 import { applyEnvironment3D } from './environment'
 import {
   buildCaptureSpec3D,
@@ -22,7 +22,7 @@ import {
   serializeCoupledCapture,
 } from './diagnostics'
 import { buildCpgSpec, CpgSpec, CpgState, initCpgState, oscillatorOutput, stepCpg } from './cpg'
-import { createDelayBuffer, ekebergTorque, MuscleDelayBuffer, pushAndReadDelayed } from './muscles'
+import { createDelayBuffer, GAMMA, MuscleDelayBuffer, pushAndReadDelayed } from './muscles'
 
 const SLERP_RATE = 12
 const Y_AXIS = new THREE.Vector3(0, 1, 0)
@@ -214,13 +214,14 @@ export function useLocomotion(
             const mL = oscillatorOutput(c.cpgState, k) * CPG_TO_MUSCLE_GAIN
             const mR = oscillatorOutput(c.cpgState, k + c.cpgSpec.n) * CPG_TO_MUSCLE_GAIN
             const d = pushAndReadDelayed(c.delayBuffers[i], mL, mR)
-            const phi = jointAngle(jt, c.body.bodies)
-            const phiDot = jointRate(jt, c.body.bodies)
-            const tau = ekebergTorque(d.mL, d.mR, phi, phiDot, alpha, beta) - jointDamping * phiDot
-            const ax = worldAxis(jt, c.body.bodies)
-            c.body.bodies[jt.childIndex].addTorque({ x: ax.x * tau, y: ax.y * tau, z: ax.z * tau }, true)
-            c.body.bodies[jt.parentIndex].addTorque({ x: -ax.x * tau, y: -ax.y * tau, z: -ax.z * tau }, true)
+            // Ekeberg muscle as a spring-damper applied via Rapier's implicit ForceBased motor:
+            // T = α(mL−mR) − β(mL+mR+γ)φ − δφ̇ = −kStiff(φ−φEq) − δφ̇. Implicit integration → no
+            // numerical energy injection (an explicit external torque pumps energy and runs away).
+            const kStiff = beta * (d.mL + d.mR + GAMMA)
+            const phiEq = kStiff > 1e-9 ? (alpha * (d.mL - d.mR)) / kStiff : 0
+            ;(jt.joint as RAPIER.RevoluteImpulseJoint).configureMotorPosition(phiEq, kStiff, jointDamping)
           }
+          for (const b of c.body.bodies) b.wakeUp() // motor doesn't auto-wake; keep the chain awake
           c.world.step()
           if (store.environmentEnabled) applyEnvironment3D(c.body, TIMESTEP)
           if (planar) planarProject(c.body)

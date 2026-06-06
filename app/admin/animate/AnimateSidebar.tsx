@@ -191,12 +191,12 @@ function SimulateTab() {
           format={(v) => v.toFixed(2)}
         />
         <PoseSlider
-          label="joint damping"
-          hint="default 2.0 — resists joint speed (reduces overshoot)"
+          label="δ damping"
+          hint="paper 0.1 — motor damping (was a 2.0 band-aid before the motor fix)"
           value={muscleDamping}
           min={0}
           max={20}
-          step={0.1}
+          step={0.05}
           onChange={setMuscleDamping}
           format={(v) => v.toFixed(2)}
         />

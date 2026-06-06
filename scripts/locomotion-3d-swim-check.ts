@@ -2,7 +2,7 @@ import RAPIER from '@dimforge/rapier3d-compat'
 import { BodyGroup } from '@/app/admin/_lib/types'
 import { buildBody3D, jointAngle, jointRate, worldAxis } from '@/app/game/locomotion/body3d'
 import { buildCpgSpec, initCpgState, stepCpg, oscillatorOutput } from '@/app/game/locomotion/cpg'
-import { ekebergTorque, createDelayBuffer, pushAndReadDelayed } from '@/app/game/locomotion/muscles'
+import { ekebergTorque, createDelayBuffer, pushAndReadDelayed, ALPHA, BETA, GAMMA, DELTA } from '@/app/game/locomotion/muscles'
 import { applyEnvironment3D } from '@/app/game/locomotion/environment'
 
 const RIG_LEN = [3.352, 1.268, 1.728, 1.185, 1.395, 1.255, 1.515, 1.802, 1.975, 1.946, 3.966]
@@ -93,10 +93,21 @@ function runCase(label: string, groups: BodyGroup[], dragOn = true, gain = GAIN)
   world.free()
 }
 
-function traceLongRun(label: string, groups: BodyGroup[], dragOn: boolean, gain: number, seconds: number) {
+function traceLongRun(label: string, groups: BodyGroup[], dragOn: boolean, gain: number, seconds: number, noLimits = false, useMotor = false) {
   const world = new RAPIER.World({ x: 0, y: 0, z: 0 })
   world.timestep = TIMESTEP
   const body = buildBody3D(world, groups)!
+  if (noLimits) {
+    for (const jt of body.joints) {
+      const j = jt.joint as unknown as { setLimits?: (lo: number, hi: number) => void }
+      if (j.setLimits) j.setLimits(-Math.PI, Math.PI)
+    }
+  }
+  if (useMotor) {
+    for (const jt of body.joints) {
+      (jt.joint as RAPIER.RevoluteImpulseJoint).configureMotorModel(RAPIER.MotorModel.ForceBased)
+    }
+  }
   // inertia + mass dump (settle the ~0.044 question): print yaw-axis effective inertia
   console.log(`--- ${label} (gain ${gain}, drag ${dragOn ? 'ON' : 'OFF'}, ${seconds}s) ---`)
   const I0 = body.bodies[0].principalInertia()
@@ -105,9 +116,10 @@ function traceLongRun(label: string, groups: BodyGroup[], dragOn: boolean, gain:
   const cpgState = initCpgState(cpgSpec)
   const delay = body.joints.map(() => createDelayBuffer(TIMESTEP))
   const steps = Math.round(seconds / TIMESTEP)
-  const marks = new Set([0, 2, 5, 10, 20, 30, 45, 60].map((s) => Math.round(s / TIMESTEP)))
+  const markEvery = Math.round(1 / TIMESTEP)
   for (let s = 0; s < steps; s++) {
     stepCpg(cpgState, cpgSpec, DRIVE, EXC, TIMESTEP)
+    let maxJfrac = 0
     for (let j = 0; j < body.joints.length; j++) {
       const jt = body.joints[j]
       const k = body.jointToCpgSegment[j]
@@ -116,16 +128,26 @@ function traceLongRun(label: string, groups: BodyGroup[], dragOn: boolean, gain:
       const d = pushAndReadDelayed(delay[j], mL, mR)
       const phi = jointAngle(jt, body.bodies)
       const phiDot = jointRate(jt, body.bodies)
-      const tau = ekebergTorque(d.mL, d.mR, phi, phiDot) - JOINT_DAMP * phiDot
-      const ax = worldAxis(jt, body.bodies)
-      body.bodies[jt.childIndex].addTorque({ x: ax.x * tau, y: ax.y * tau, z: ax.z * tau }, true)
-      body.bodies[jt.parentIndex].addTorque({ x: -ax.x * tau, y: -ax.y * tau, z: -ax.z * tau }, true)
+      const cap = phi >= 0 ? jt.capForward : jt.capBackward
+      if (cap > 1e-6) maxJfrac = Math.max(maxJfrac, Math.abs(phi) / cap)
+      if (useMotor) {
+        // Ekeberg torque rewritten as a spring-damper, applied via Rapier's implicit motor.
+        // T = α(mL−mR) − β(mL+mR+γ)φ − δφ̇  =  −k(φ−φEq) − δφ̇,  k=β(mL+mR+γ), φEq=α(mL−mR)/k.
+        const kStiff = BETA * (d.mL + d.mR + GAMMA)
+        const phiEq = kStiff > 1e-9 ? (ALPHA * (d.mL - d.mR)) / kStiff : 0
+        ;(jt.joint as RAPIER.RevoluteImpulseJoint).configureMotorPosition(phiEq, kStiff, DELTA)
+      } else {
+        const tau = ekebergTorque(d.mL, d.mR, phi, phiDot) - JOINT_DAMP * phiDot
+        const ax = worldAxis(jt, body.bodies)
+        body.bodies[jt.childIndex].addTorque({ x: ax.x * tau, y: ax.y * tau, z: ax.z * tau }, true)
+        body.bodies[jt.parentIndex].addTorque({ x: -ax.x * tau, y: -ax.y * tau, z: -ax.z * tau }, true)
+      }
     }
+    if (useMotor) for (const b of body.bodies) b.wakeUp()
     world.step()
     if (dragOn) applyEnvironment3D(body, TIMESTEP)
-    if (marks.has(s)) {
-      const com = body.bodies.reduce((a, b) => { const p = b.translation(); return { x: a.x + p.x, y: a.y + p.y, z: a.z + p.z } }, { x: 0, y: 0, z: 0 })
-      console.log(`   t=${(s * TIMESTEP).toFixed(0).padStart(2)}s  KE=${kineticEnergy(body.bodies).toExponential(2)}  comY=${(com.y / 11).toFixed(3)}`)
+    if (s % markEvery === 0) {
+      console.log(`   t=${(s * TIMESTEP).toFixed(0).padStart(2)}s  KE=${kineticEnergy(body.bodies).toExponential(2)}  maxJ=${(maxJfrac * 100).toFixed(0)}%`)
     }
   }
   world.free()
@@ -133,9 +155,13 @@ function traceLongRun(label: string, groups: BodyGroup[], dragOn: boolean, gain:
 
 async function main() {
   await RAPIER.init()
-  console.log('Long-run energy trace (does KE grow unbounded? does comY float up?)\n')
-  traceLongRun('curved-z', buildRigGroups(1.5, 0), true, 1, 60)
-  traceLongRun('curved-z', buildRigGroups(1.5, 0), false, 1, 60)
+  console.log(`Energy-conservation test (drag OFF, gravity OFF → KE should NOT grow). DRIVE=${DRIVE} EXC=${EXC} gain=1\n`)
+  console.log('=== EXPLICIT torque (current, +JOINT_DAMP=2) — the energy pump ===')
+  traceLongRun('explicit', buildRigGroups(0, 0), false, 1, 20)
+  console.log('\n=== MOTOR (implicit, paper δ=0.1 only, no JOINT_DAMP) — should stay energy-stable ===')
+  traceLongRun('motor', buildRigGroups(0, 0), false, 1, 20, false, true)
+  console.log('\n=== MOTOR on curved rig (real-dragon shape) ===')
+  traceLongRun('motor-curved', buildRigGroups(1.5, 0), false, 1, 20, false, true)
 }
 
 main().catch((e) => { console.error('ERROR', e); process.exit(1) })
