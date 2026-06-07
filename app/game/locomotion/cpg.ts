@@ -1,8 +1,21 @@
+import { BodyGroup } from '@/app/admin/_lib/types'
+import { buildSkeletonTree, flattenSkeleton } from './chain'
+import { findFrontHip, findRearHip, findLegsForHip } from './legs'
+
 export const A_GAIN = 5
 export const B_SAT = 500
 export const E_AXIAL = 1.1
 export const D_TH_AXIAL = 3
+export const E_FORE = 0.8
+export const E_HIND = 0.5
+export const D_TH_LIMB = 1.27
 export const BODY_WAVES = 1.58
+
+export const LIMB_LF = 0
+export const LIMB_RF = 1
+export const LIMB_LH = 2
+export const LIMB_RH = 3
+export const LIMB_COUNT = 4
 
 const CPG_SUBSTEP = 0.002
 const CPG_MAX_DT = 0.05
@@ -15,12 +28,19 @@ export interface CpgCoupling {
   phi: number
 }
 
+export interface CpgLimbWiring {
+  kFore: number
+  kHind: number
+}
+
 export interface CpgSpec {
   n: number
+  limbs: number
   e: number[]
   dTh: number[]
   couplings: CpgCoupling[]
   initialPhases: number[]
+  limbWiring: CpgLimbWiring | null
 }
 
 export interface CpgState {
@@ -28,10 +48,35 @@ export interface CpgState {
   amplitudes: number[]
 }
 
-export function buildCpgSpec(segmentLengths: number[]): CpgSpec {
+function identifyLimbWiring(
+  groups: BodyGroup[] | undefined,
+  chainGroupIds: string[] | undefined
+): CpgLimbWiring | null {
+  if (!groups || groups.length === 0) return null
+  const front = findFrontHip(groups)
+  const rear = findRearHip(groups)
+  if (!front || !rear) return null
+  const fLegs = findLegsForHip(groups, front.id)
+  const rLegs = findLegsForHip(groups, rear.id)
+  if (!fLegs.left || !fLegs.right || !rLegs.left || !rLegs.right) return null
+  const ids = chainGroupIds ?? flattenSkeleton(buildSkeletonTree(groups)).map((g) => g.id)
+  const kFore = ids.indexOf(front.id)
+  const kHind = ids.indexOf(rear.id)
+  if (kFore < 0 || kHind < 0) return null
+  return { kFore, kHind }
+}
+
+export function buildCpgSpec(
+  segmentLengths: number[],
+  groups?: BodyGroup[],
+  chainGroupIds?: string[]
+): CpgSpec {
   const n = segmentLengths.length
-  const e: number[] = new Array(2 * n).fill(E_AXIAL)
-  const dTh: number[] = new Array(2 * n).fill(D_TH_AXIAL)
+  const limbWiring = identifyLimbWiring(groups, chainGroupIds)
+  const limbs = limbWiring ? LIMB_COUNT : 0
+  const size = 2 * n + limbs
+  const e: number[] = new Array(size).fill(E_AXIAL)
+  const dTh: number[] = new Array(size).fill(D_TH_AXIAL)
   const couplings: CpgCoupling[] = []
 
   for (let k = 0; k < n; k++) {
@@ -57,7 +102,41 @@ export function buildCpgSpec(segmentLengths: number[]): CpgSpec {
     }
   }
 
-  const initialPhases: number[] = new Array(2 * n).fill(0)
+  if (limbWiring) {
+    const base = 2 * n
+    const LF = base + LIMB_LF
+    const RF = base + LIMB_RF
+    const LH = base + LIMB_LH
+    const RH = base + LIMB_RH
+    e[LF] = E_FORE; e[RF] = E_FORE; e[LH] = E_HIND; e[RH] = E_HIND
+    dTh[LF] = D_TH_LIMB; dTh[RF] = D_TH_LIMB; dTh[LH] = D_TH_LIMB; dTh[RH] = D_TH_LIMB
+
+    const interlimb: Array<[number, number, number]> = [
+      [LF, RF, 10], [RF, LF, 10],
+      [LH, RH, 10], [RH, LH, 10],
+      [LF, LH, 3],  [RF, RH, 3],
+      [LH, LF, 30], [RH, RF, 30],
+    ]
+    for (const [from, to, w] of interlimb) {
+      couplings.push({ from, to, w, phi: Math.PI })
+    }
+
+    const { kFore, kHind } = limbWiring
+    const axForeL = kFore
+    const axForeR = kFore + n
+    const axHindL = kHind
+    const axHindR = kHind + n
+    const limbToAxial: Array<[number, number]> = [
+      [LF, axForeL], [RF, axForeR],
+      [LH, axHindL], [RH, axHindR],
+    ]
+    for (const [limb, ax] of limbToAxial) {
+      couplings.push({ from: limb, to: ax, w: 30, phi: 4 })
+      couplings.push({ from: ax, to: limb, w: 2.5, phi: -4 })
+    }
+  }
+
+  const initialPhases: number[] = new Array(size).fill(0)
   let cumulative = 0
   for (let k = 0; k < n; k++) {
     const wrapped = ((cumulative % TWO_PI) + TWO_PI) % TWO_PI
@@ -65,12 +144,19 @@ export function buildCpgSpec(segmentLengths: number[]): CpgSpec {
     initialPhases[k + n] = (wrapped + Math.PI) % TWO_PI
     if (k < n - 1) cumulative -= perIntervalPhi[k]
   }
+  if (limbWiring) {
+    const base = 2 * n
+    initialPhases[base + LIMB_LF] = 0
+    initialPhases[base + LIMB_RF] = Math.PI / 2
+    initialPhases[base + LIMB_LH] = Math.PI
+    initialPhases[base + LIMB_RH] = (3 * Math.PI) / 2
+  }
 
-  return { n, e, dTh, couplings, initialPhases }
+  return { n, limbs, e, dTh, couplings, initialPhases, limbWiring }
 }
 
 export function initCpgState(spec: CpgSpec): CpgState {
-  const size = 2 * spec.n
+  const size = 2 * spec.n + spec.limbs
   return {
     phases: spec.initialPhases.slice(),
     amplitudes: new Array(size).fill(0),
@@ -97,7 +183,7 @@ export function stepCpg(
 
   const subSteps = Math.max(1, Math.ceil(clampedDt / CPG_SUBSTEP))
   const h = clampedDt / subSteps
-  const size = 2 * spec.n
+  const size = 2 * spec.n + spec.limbs
 
   const phases = state.phases
   const amplitudes = state.amplitudes
@@ -138,4 +224,14 @@ export function oscillatorOutput(state: CpgState, i: number): number {
 
 export function signedActivation(state: CpgState, spec: CpgSpec, k: number): number {
   return oscillatorOutput(state, k) - oscillatorOutput(state, k + spec.n)
+}
+
+export function limbOutput(state: CpgState, spec: CpgSpec, limbIdx: number): number {
+  if (spec.limbs === 0) return 0
+  return oscillatorOutput(state, 2 * spec.n + limbIdx)
+}
+
+export function limbPhase(state: CpgState, spec: CpgSpec, limbIdx: number): number {
+  if (spec.limbs === 0) return 0
+  return state.phases[2 * spec.n + limbIdx]
 }

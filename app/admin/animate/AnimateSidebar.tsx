@@ -71,6 +71,8 @@ function SimulateTab() {
   const setEnvironmentEnabled = useAnimateStore((s) => s.setEnvironmentEnabled)
   const planarConstraint = useAnimateStore((s) => s.planarConstraint)
   const setPlanarConstraint = useAnimateStore((s) => s.setPlanarConstraint)
+  const coupledMode = useAnimateStore((s) => s.coupledMode)
+  const setCoupledMode = useAnimateStore((s) => s.setCoupledMode)
   const muscleAlpha = useAnimateStore((s) => s.muscleAlpha)
   const muscleBeta = useAnimateStore((s) => s.muscleBeta)
   const muscleDamping = useAnimateStore((s) => s.muscleDamping)
@@ -116,6 +118,36 @@ function SimulateTab() {
 
       <div className="flex flex-col gap-2">
         <p className="text-white/55 text-[10px] uppercase tracking-widest">Locomotion — CPG drive (3D)</p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setCoupledMode('swim')}
+            disabled={coupledRunning}
+            className={cn(
+              'flex-1 py-1.5 rounded-md transition-colors',
+              coupledMode === 'swim'
+                ? 'bg-sky-600/40 text-sky-200'
+                : 'bg-white/10 text-white/70 hover:text-white disabled:opacity-40 disabled:hover:text-white/70'
+            )}
+          >
+            Swim
+          </button>
+          <button
+            onClick={() => setCoupledMode('walk')}
+            disabled={coupledRunning}
+            className={cn(
+              'flex-1 py-1.5 rounded-md transition-colors',
+              coupledMode === 'walk'
+                ? 'bg-emerald-600/40 text-emerald-200'
+                : 'bg-white/10 text-white/70 hover:text-white disabled:opacity-40 disabled:hover:text-white/70'
+            )}
+          >
+            Walk
+          </button>
+        </div>
+        <p className="text-white/45 text-[10px] leading-relaxed">
+          Swim: gravity off, planar lock, no legs. Walk: gravity on, ground plane, four hips actuated
+          via D1+D2. Switching modes pauses then needs Run again.
+        </p>
         <PoseSlider
           label="drive"
           value={cpgDrive}

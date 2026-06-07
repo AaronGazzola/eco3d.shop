@@ -44,6 +44,7 @@ interface AnimateStore {
   muscleBeta: number
   muscleDamping: number
   planarConstraint: boolean
+  coupledMode: 'swim' | 'walk'
 
   setAnimateTab: (tab: AnimateTab) => void
   setCalibratingGroup: (id: string | null) => void
@@ -70,6 +71,7 @@ interface AnimateStore {
   setMuscleBeta: (v: number) => void
   setMuscleDamping: (v: number) => void
   setPlanarConstraint: (v: boolean) => void
+  setCoupledMode: (v: 'swim' | 'walk') => void
 }
 
 export const useAnimateStore = create<AnimateStore>()((set) => ({
@@ -94,6 +96,7 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   muscleBeta: 1.2,
   muscleDamping: 0.1,
   planarConstraint: true,
+  coupledMode: 'swim',
 
   setAnimateTab: (tab) => {
     if (tab === 'simulate') {
@@ -171,4 +174,5 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   setMuscleBeta: (v) => set({ muscleBeta: v }),
   setMuscleDamping: (v) => set({ muscleDamping: v }),
   setPlanarConstraint: (v) => set({ planarConstraint: v }),
+  setCoupledMode: (v) => set({ coupledMode: v }),
 }))

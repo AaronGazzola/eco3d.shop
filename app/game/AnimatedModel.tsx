@@ -336,6 +336,7 @@ export function AnimatedModel({
   const pivotsRef = useRef<Map<string, THREE.Group>>(new Map())
   const bodyRefs = useRef<Map<string, THREE.Group>>(new Map())
   const coupledRunning = useAnimateStore((s) => s.coupledRunning)
+  const coupledMode = useAnimateStore((s) => s.coupledMode)
 
   const skeletonTree = useMemo(() => buildSkeletonTree(modelConfig.groups), [modelConfig.groups])
   const skeletonGroups = useMemo(() => flattenSkeleton(skeletonTree), [skeletonTree])
@@ -385,18 +386,35 @@ export function AnimatedModel({
         />
       ))}
       {coupledRunning
-        ? skeletonGroups.map((g) => (
-            <BodyMount
-              key={g.id}
-              group={g}
-              segmentMap={segmentMap}
-              showNodes={showNodes}
-              opacity={opacity}
-              bodyRefs={bodyRefs}
-              pivotsRef={pivotsRef}
-              legs={legsBySpineId.get(g.id) ?? []}
-            />
-          ))
+        ? (
+            <>
+              {skeletonGroups.map((g) => (
+                <BodyMount
+                  key={g.id}
+                  group={g}
+                  segmentMap={segmentMap}
+                  showNodes={showNodes}
+                  opacity={opacity}
+                  bodyRefs={bodyRefs}
+                  pivotsRef={pivotsRef}
+                  legs={coupledMode === 'walk' ? [] : legsBySpineId.get(g.id) ?? []}
+                />
+              ))}
+              {coupledMode === 'walk' &&
+                Array.from(legsBySpineId.values()).flat().map((leg) => (
+                  <BodyMount
+                    key={leg.id}
+                    group={leg}
+                    segmentMap={segmentMap}
+                    showNodes={showNodes}
+                    opacity={opacity}
+                    bodyRefs={bodyRefs}
+                    pivotsRef={pivotsRef}
+                    legs={[]}
+                  />
+                ))}
+            </>
+          )
         : skeletonTree && (
             <ChainNode
               node={skeletonTree}

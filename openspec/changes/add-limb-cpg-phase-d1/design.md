@@ -33,16 +33,20 @@ limb oscillators and couplings, verify the gait rhythm, attach nothing physical 
 5. **Signal only — no body.** D1 changes `cpg.ts` (+ CPG capture/preview) only. No legs, no transfer
    function, no joints, no environment.
 
-## Open questions (resolve during the build)
+## Resolved during the build
 
-- **Limb→girdle wiring.** `buildCpgSpec` currently takes only `segmentLengths`; it now needs the
-  leg→spine attachment (which axial segment is each girdle, fore vs hind) to place the limb↔axial
-  couplings. Pass the chain groups (or a derived limb-attachment map) into `buildCpgSpec`.
-- **Limb→axial target: which oscillator(s)?** Each axial segment has L/R oscillators; decide whether
-  the limb couples to one side, both, or the segment's mean — pick what reproduces the standing-wave
-  pull; verify against the §3 description.
-- **Fore vs hind identification.** Map the rig's leg groups (`leg-left`/`leg-right` + their
-  `attachedToSpineId` order along the chain) to {LF, RF, LH, RH}.
+- **Limb→girdle wiring.** `buildCpgSpec` now takes `(segmentLengths, groups?, chainGroupIds?)`. When
+  the rig has both hips + four legs, it identifies `{LF, RF, LH, RH}` via `findFrontHip`/`findRearHip`
+  + `findLegsForHip` and locates each girdle's axial index by matching the hip's group id against
+  `chainGroupIds` (which the caller derives from the same chain `body3d` uses).
+- **Limb→axial target: ipsilateral, single side.** Each limb couples to *one* axial oscillator of
+  its girdle segment: LF, LH → the **left** axial (index `k`); RF, RH → the **right** axial
+  (index `k + n`). Rationale: preserves L/R symmetry (each side gets the same total drive from its
+  ipsilateral limb), matches the standard salamander-CPG interpretation, and avoids double-counting
+  the limb→axial weight that a bilateral coupling would introduce.
+- **Fore vs hind identification.** `findFrontHip` returns the first spine group with `nodeHipLeft`
+  or `nodeHipRight`; `findRearHip` returns the second. Chain order from `flattenSkeleton` is
+  `[head, ...spines, tail]` so fore is rostral, hind is caudal by construction.
 
 ## Gate
 

@@ -987,3 +987,42 @@ reference.
   `excitability` knob runs the body-wave slower than the paper's ν=d·e because our body can't follow
   the paper's rate; (4) soft planar projection + `wakeUp`. Remaining cosmetic/non-foundational
   (AZ-33): chunky meshes overlap at bends (thin colliders vs fat meshes), some head yaw.
+- **2026-06-07 (Phase D2 — limb actuation, one hip)** — `openspec/changes/add-limb-actuation-phase-d2`.
+  New `app/game/locomotion/limbActuation.ts` exports `phaseToTarget(phi, capStance, capSwing,
+  dutyStance=0.77)` — two linear pieces, continuous at the wrap, output in `[-capSwing,
+  +capStance]` — and `buildSingleHipWorld(world, capStance, capSwing)` — one static pelvis, one
+  dynamic thigh capsule, revolute joint with `setLimits` from caps and `configureMotorModel
+  (ForceBased)`, same energy-stable pattern as the swim axial joints. New headless gate
+  `scripts/locomotion-3d-walk-actuation-check.ts` reads `limbPhase(state, spec, LIMB_LF)` each
+  step, drives the hip via `configureMotorPosition(target, kStiff=300, delta=12)`, settles 4 s,
+  measures 6 s. **All three numeric gates PASS**: (4.2) tracking RMS 0.0999 rad / **5.73°**
+  vs the 0.15 rad ceiling; (4.3) `max|angle|` 35.14° vs ±35.00° cap (within the 2°
+  solver-tolerance band — Rapier's iterative solver lets the angle skim a fraction past a hard
+  limit on rebound); (4.4) realised stance fraction **0.813** vs target 0.77 ± 0.05, measured
+  as the time `|dangle/dt|` stays below the per-cycle peak-speed median (slow stance ramp vs
+  fast swing snap). Motor tuning: `kStiff=50, delta=1` lagged the fast swing reset by ~25° and
+  failed RMS; bumped to `300/12` to match the 0.29 s swing-snap inertia budget. **Spec
+  correction during build**: gate 4.4's first draft asserted "time at positive angle = 77 %",
+  which is wrong by construction — with symmetric caps the piecewise-linear ramp puts the angle
+  above zero for ~38 % of the cycle. Replaced with the angular-velocity-based measurement (the
+  faithful physical proxy in the absence of ground contact). Out of scope: four-leg coupling,
+  axial, ground/contact — those are D3.
+- **2026-06-07 (Phase D1 — limb CPG signal)** — `openspec/changes/add-limb-cpg-phase-d1`.
+  `buildCpgSpec` extended to take `(segmentLengths, groups?, chainGroupIds?)`; when the rig
+  has both girdles + four legs it appends four single limb oscillators (LF, RF, LH, RH) after
+  the `2n` axial pair, with faithful per-limb excitability (fore `0.8` / hind `0.5`) and
+  saturation threshold (`d_th = 1.27`). New Table 2 interlimb couplings (all `φ=π`): lateral
+  `w=10`, rostrocaudal fore→hind `w=3`, caudorostral hind→fore `w=30`. Limb↔axial wiring is
+  **ipsilateral, single-sided** (LF/LH ↔ left axial of girdle, RF/RH ↔ right): limb→axial
+  `w=30, φ=4`; axial→limb `w=2.5, φ=−4`. Diagnostics extended (`buildCpgCaptureSpec`,
+  `buildCpgSample`, `serializeCpgCapture`) to surface per-limb phases + outputs + a
+  diagonal-trot check block. New headless gate `scripts/locomotion-3d-walk-cpg-check.ts`
+  (no Rapier — signal only) settles the CPG for 12 s and measures over the next 4 s.
+  **All three gates PASS** at drive=1.0 (limbs active) vs drive=2.0 (limbs saturated, axis
+  still alive): (4.1) **diagonal trot emerges from couplings alone** — LF≈-2.11/RH≈-2.14
+  (Δ≈0.03), RF≈1.03/LH≈1.00 (Δ≈0.03), inter-diagonal Δ≈π; (4.2) **axial head→tail lag
+  collapses toward a standing wave when limbs are active** — wrapped lag −0.06 rad vs the
+  swim's 2.64 rad; (4.3) **limbs fold first** — limb max-|out| 1.07→0.00 across `d_th=1.27`
+  while axial max-|out| stays at 2.04. `npx tsc --noEmit` + `npx eslint` clean. **Out of scope:**
+  no transfer function, no physical legs, no hip joints, no ground/gravity/contact — those land
+  in D2 and D3.

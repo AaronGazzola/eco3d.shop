@@ -2,7 +2,11 @@ import RAPIER from '@dimforge/rapier3d-compat'
 import { Vector3, Quaternion } from 'three'
 import { BodyGroup } from '@/app/admin/_lib/types'
 import { buildSkeletonTree, flattenSkeleton, effectiveAngleCaps } from './chain'
+import { findFrontHip, findRearHip } from './legs'
+import { LIMB_LF, LIMB_RF, LIMB_LH, LIMB_RH } from './cpg'
 import { STD_SEGMENT_WIDTH, defaultWeightFor } from './weights'
+
+export type CoupledMode = 'swim' | 'walk'
 
 const CAPSULE_Y = new Vector3(0, 1, 0)
 
@@ -26,10 +30,11 @@ export interface Body3DJoint {
   anchorChild: { x: number; y: number; z: number }
 }
 
-// Axial segment lengths from node spacing — no Rapier, for buildCpgSpec / diagnostics.
-export function axialLengths(groups: BodyGroup[]): number[] {
+// Axial chain (lengths + group ids) from node spacing — no Rapier, for buildCpgSpec / diagnostics.
+export function axialChain(groups: BodyGroup[]): { lengths: number[]; groupIds: string[] } {
   const chain = flattenSkeleton(buildSkeletonTree(groups))
-  const out: number[] = []
+  const lengths: number[] = []
+  const groupIds: string[] = []
   for (let i = 0; i < chain.length; i++) {
     const g = chain[i]
     const parent = i > 0 ? chain[i - 1] : null
@@ -39,9 +44,22 @@ export function axialLengths(groups: BodyGroup[]): number[] {
     const dx = e.x - n.x
     const dy = (e.y ?? 0) - (n.y ?? 0)
     const dz = e.z - n.z
-    out.push(Math.max(Math.hypot(dx, dy, dz), 1e-3))
+    lengths.push(Math.max(Math.hypot(dx, dy, dz), 1e-3))
+    groupIds.push(g.id)
   }
-  return out
+  return { lengths, groupIds }
+}
+
+export function axialLengths(groups: BodyGroup[]): number[] {
+  return axialChain(groups).lengths
+}
+
+export interface Body3DHipJoint {
+  limbIdx: number
+  joint: RAPIER.RevoluteImpulseJoint
+  capStance: number
+  capSwing: number
+  thighIndex: number
 }
 
 export interface Body3D {
@@ -50,9 +68,10 @@ export interface Body3D {
   segLength: number[]
   groupIds: string[]
   jointToCpgSegment: number[]
-  // rest center of each body in model/node space — used to render meshes (which live in model
-  // space) at the body's current transform: world = T·R·translate(−restCenter).
   restCenters: { x: number; y: number; z: number }[]
+  hipJoints: Body3DHipJoint[]
+  groundBody: RAPIER.RigidBody | null
+  mode: CoupledMode
 }
 
 function nodeVec(n: { x: number; y?: number; z: number } | undefined): Vector3 | null {
@@ -60,7 +79,23 @@ function nodeVec(n: { x: number; y?: number; z: number } | undefined): Vector3 |
   return new Vector3(n.x, n.y ?? 0, n.z)
 }
 
-export function buildBody3D(world: RAPIER.World, groups: BodyGroup[]): Body3D | null {
+function limbIndexOf(groups: BodyGroup[], leg: BodyGroup): number | null {
+  const front = findFrontHip(groups)
+  const rear = findRearHip(groups)
+  if (front && leg.attachedToSpineId === front.id) {
+    return leg.type === 'leg-left' ? LIMB_LF : LIMB_RF
+  }
+  if (rear && leg.attachedToSpineId === rear.id) {
+    return leg.type === 'leg-left' ? LIMB_LH : LIMB_RH
+  }
+  return null
+}
+
+export function buildBody3D(
+  world: RAPIER.World,
+  groups: BodyGroup[],
+  mode: CoupledMode = 'swim'
+): Body3D | null {
   const chain = flattenSkeleton(buildSkeletonTree(groups))
   if (chain.length === 0) return null
 
@@ -153,7 +188,69 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[]): Body3D | 
   }
 
   const restCenters = centers.map((c) => ({ x: c.x, y: c.y, z: c.z }))
-  return { bodies, joints, segLength, groupIds, jointToCpgSegment, restCenters }
+
+  const hipJoints: Body3DHipJoint[] = []
+  let groundBody: RAPIER.RigidBody | null = null
+
+  if (mode === 'walk') {
+    const legGroups = groups.filter((g) => g.type === 'leg-left' || g.type === 'leg-right')
+    const radius = STD_SEGMENT_WIDTH / 2
+    for (const leg of legGroups) {
+      const limbIdx = limbIndexOf(groups, leg)
+      if (limbIdx === null) continue
+      const spineId = leg.attachedToSpineId
+      if (!spineId) continue
+      const parentIndex = groupIds.indexOf(spineId)
+      if (parentIndex < 0) continue
+      const hipNode = nodeVec(leg.nodeFront)
+      const footNode = nodeVec(leg.nodeBack)
+      if (!hipNode || !footNode) continue
+      const dir = new Vector3().subVectors(footNode, hipNode)
+      const length = dir.length()
+      if (length < 1e-4) continue
+      dir.normalize()
+      const center = new Vector3().addVectors(hipNode, dir.clone().multiplyScalar(length / 2))
+
+      const bd = RAPIER.RigidBodyDesc.dynamic().setTranslation(center.x, center.y, center.z)
+      const thigh = world.createRigidBody(bd)
+      const halfHeight = Math.max(length / 2 - radius, 1e-3)
+      const mass = leg.nodeWeight ?? defaultWeightFor(leg.type)
+      const capQ = capsuleRotation(dir)
+      const cd = RAPIER.ColliderDesc.capsule(halfHeight, radius)
+        .setRotation({ x: capQ.x, y: capQ.y, z: capQ.z, w: capQ.w })
+        .setMass(mass)
+      world.createCollider(cd, thigh)
+
+      const parentCenter = centers[parentIndex]
+      const aParent = { x: hipNode.x - parentCenter.x, y: hipNode.y - parentCenter.y, z: hipNode.z - parentCenter.z }
+      const aChild = { x: hipNode.x - center.x, y: hipNode.y - center.y, z: hipNode.z - center.z }
+      const jd = RAPIER.JointData.revolute(aParent, aChild, { x: 0, y: 1, z: 0 })
+      const joint = world.createImpulseJoint(jd, bodies[parentIndex], thigh, true) as RAPIER.RevoluteImpulseJoint
+      const caps = effectiveAngleCaps(leg)
+      const capStance = caps.yaw
+      const capSwing = caps.yawBack ?? caps.yaw
+      if (typeof joint.setLimits === 'function') joint.setLimits(-capSwing, capStance)
+      if (typeof joint.configureMotorModel === 'function') joint.configureMotorModel(RAPIER.MotorModel.ForceBased)
+
+      const thighIndex = bodies.length
+      bodies.push(thigh)
+      segLength.push(length)
+      groupIds.push(leg.id)
+      restCenters.push({ x: center.x, y: center.y, z: center.z })
+      hipJoints.push({ limbIdx, joint, capStance, capSwing, thighIndex })
+    }
+
+    let lowestY = Infinity
+    for (const rc of restCenters) if (rc.y - STD_SEGMENT_WIDTH < lowestY) lowestY = rc.y - STD_SEGMENT_WIDTH
+    if (!Number.isFinite(lowestY)) lowestY = -2
+    const groundY = lowestY - 0.05
+    const groundDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(0, groundY - 0.05, 0)
+    groundBody = world.createRigidBody(groundDesc)
+    const groundCollider = RAPIER.ColliderDesc.cuboid(50, 0.05, 50).setFriction(0.7)
+    world.createCollider(groundCollider, groundBody)
+  }
+
+  return { bodies, joints, segLength, groupIds, jointToCpgSegment, restCenters, hipJoints, groundBody, mode }
 }
 
 // Swimming is a planar undulation. The internal torque/inertia dynamics otherwise tilt the body out

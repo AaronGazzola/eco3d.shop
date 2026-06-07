@@ -7,7 +7,8 @@ import RAPIER from '@dimforge/rapier3d-compat'
 import { BodyGroup, SegmentData } from '@/app/admin/_lib/types'
 import { useAnimateStore } from '@/app/admin/animate/animateStore'
 import { buildSkeletonTree, effectiveAngleCaps, flattenSkeleton } from './chain'
-import { axialLengths, buildBody3D, Body3D, planarProject } from './body3d'
+import { axialChain, buildBody3D, Body3D, CoupledMode, planarProject } from './body3d'
+import { phaseToTarget } from './limbActuation'
 import { applyEnvironment3D } from './environment'
 import {
   buildCaptureSpec3D,
@@ -21,7 +22,7 @@ import {
   subsampleSamples,
   serializeCoupledCapture,
 } from './diagnostics'
-import { buildCpgSpec, CpgSpec, CpgState, initCpgState, oscillatorOutput, stepCpg } from './cpg'
+import { buildCpgSpec, CpgSpec, CpgState, initCpgState, limbPhase, oscillatorOutput, stepCpg } from './cpg'
 import { createDelayBuffer, GAMMA, MuscleDelayBuffer, pushAndReadDelayed } from './muscles'
 
 const SLERP_RATE = 12
@@ -34,6 +35,8 @@ const DIAGNOSTICS_INTERVAL = 0.1
 const RECORD_INTERVAL = 0.05
 const MAX_OUTPUT_SAMPLES = 160
 const CPG_MAX_OUTPUT_SAMPLES = 200
+const HIP_K_STIFF = 300
+const HIP_DELTA = 12
 
 interface JointCapEntry {
   groupId: string
@@ -43,6 +46,7 @@ interface JointCapEntry {
 
 interface CoupledHandle {
   groups: BodyGroup[]
+  mode: CoupledMode
   world: RAPIER.World
   body: Body3D
   cpgSpec: CpgSpec
@@ -135,8 +139,13 @@ export function useLocomotion(
     return out
   }, [skeletonGroups])
 
-  const segLengths = useMemo(() => axialLengths(groups), [groups])
-  const cpgSpec = useMemo(() => (segLengths.length > 0 ? buildCpgSpec(segLengths) : null), [segLengths])
+  const axial = useMemo(() => axialChain(groups), [groups])
+  const segLengths = axial.lengths
+  const chainGroupIds = axial.groupIds
+  const cpgSpec = useMemo(
+    () => (segLengths.length > 0 ? buildCpgSpec(segLengths, groups, chainGroupIds) : null),
+    [segLengths, groups, chainGroupIds]
+  )
 
   const rapierReady = useRef(false)
   useEffect(() => {
@@ -161,16 +170,17 @@ export function useLocomotion(
   }
   useEffect(() => () => freeCoupled(), [])
 
-  function buildCoupled(): CoupledHandle | null {
+  function buildCoupled(mode: CoupledMode): CoupledHandle | null {
     if (!rapierReady.current) return null
-    const world = new RAPIER.World({ x: 0, y: 0, z: 0 })
+    const gravity = mode === 'walk' ? { x: 0, y: -9.81, z: 0 } : { x: 0, y: 0, z: 0 }
+    const world = new RAPIER.World(gravity)
     world.timestep = TIMESTEP
-    const body = buildBody3D(world, groups)
+    const body = buildBody3D(world, groups, mode)
     if (!body) { world.free(); return null }
-    const spec = buildCpgSpec(body.segLength)
+    const spec = buildCpgSpec(body.segLength, groups, body.groupIds)
     const baseCom = comOf(body)
     return {
-      groups, world, body, cpgSpec: spec, cpgState: initCpgState(spec),
+      groups, mode, world, body, cpgSpec: spec, cpgState: initCpgState(spec),
       delayBuffers: body.joints.map(() => createDelayBuffer(TIMESTEP)),
       acc: 0, baseCom, diagAccum: 0,
       recordTime: 0, recordAccum: RECORD_INTERVAL, recordBaseCom: baseCom,
@@ -191,11 +201,12 @@ export function useLocomotion(
     const s = scratch.current
 
     const coupledRunning = !calibrating && store.coupledRunning && !!cpgSpec && rapierReady.current
+    const coupledMode = store.coupledMode
 
     if (coupledRunning) {
-      if (!coupledRef.current || coupledRef.current.groups !== groups) {
+      if (!coupledRef.current || coupledRef.current.groups !== groups || coupledRef.current.mode !== coupledMode) {
         freeCoupled()
-        coupledRef.current = buildCoupled()
+        coupledRef.current = buildCoupled(coupledMode)
       }
       const c = coupledRef.current
       if (c) {
@@ -204,7 +215,7 @@ export function useLocomotion(
         const alpha = store.muscleAlpha
         const beta = store.muscleBeta
         const jointDamping = store.muscleDamping
-        const planar = store.planarConstraint
+        const planar = store.planarConstraint && c.mode === 'swim'
         let acc = c.acc + Math.min(dt, MAX_FRAME)
         while (acc >= TIMESTEP) {
           stepCpg(c.cpgState, c.cpgSpec, drive, exc, TIMESTEP)
@@ -220,6 +231,13 @@ export function useLocomotion(
             const kStiff = beta * (d.mL + d.mR + GAMMA)
             const phiEq = kStiff > 1e-9 ? (alpha * (d.mL - d.mR)) / kStiff : 0
             ;(jt.joint as RAPIER.RevoluteImpulseJoint).configureMotorPosition(phiEq, kStiff, jointDamping)
+          }
+          if (c.mode === 'walk') {
+            for (const hip of c.body.hipJoints) {
+              const phi = limbPhase(c.cpgState, c.cpgSpec, hip.limbIdx)
+              const target = phaseToTarget(phi, hip.capStance, hip.capSwing)
+              hip.joint.configureMotorPosition(target, HIP_K_STIFF, HIP_DELTA)
+            }
           }
           for (const b of c.body.bodies) b.wakeUp() // motor doesn't auto-wake; keep the chain awake
           c.world.step()
