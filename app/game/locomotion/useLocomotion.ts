@@ -7,7 +7,7 @@ import RAPIER from '@dimforge/rapier3d-compat'
 import { BodyGroup, SegmentData } from '@/app/admin/_lib/types'
 import { useAnimateStore } from '@/app/admin/animate/animateStore'
 import { buildSkeletonTree, effectiveAngleCaps, flattenSkeleton } from './chain'
-import { axialLengths, buildBody3D, Body3D, CoupledMode } from './body3d'
+import { axialChain, buildBody3D, Body3D, CoupledMode } from './body3d'
 import { applyEnvironment3D } from './environment'
 import {
   buildCaptureSpec3D,
@@ -136,8 +136,14 @@ export function useLocomotion(
     return out
   }, [skeletonGroups])
 
-  const segLengths = useMemo(() => axialLengths(groups), [groups])
-  const cpgSpec = useMemo(() => (segLengths.length > 0 ? buildCpgSpec(segLengths) : null), [segLengths])
+  const axial = useMemo(() => axialChain(groups), [groups])
+  const segLengths = axial.lengths
+  const chainGroupIds = axial.groupIds
+  // Signal preview includes the four limb oscillators (D1) when the rig has both girdles + four legs.
+  const cpgSpec = useMemo(
+    () => (segLengths.length > 0 ? buildCpgSpec(segLengths, groups, chainGroupIds) : null),
+    [segLengths, groups, chainGroupIds]
+  )
 
   const rapierReady = useRef(false)
   useEffect(() => {

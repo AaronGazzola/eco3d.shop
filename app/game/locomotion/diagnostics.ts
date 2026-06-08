@@ -1,5 +1,5 @@
 import { Body3D, jointAngle } from './body3d'
-import { CpgSpec, CpgState, signedActivation } from './cpg'
+import { CpgSpec, CpgState, limbOutput, limbPhase, signedActivation } from './cpg'
 
 const RAD_TO_DEG = 180 / Math.PI
 
@@ -183,21 +183,36 @@ export interface CpgCaptureSpec {
   saturationDth: number
   bodyWaves: number
   segmentLengths: number[]
+  limbs: number
+  limbE: number[]
+  limbDth: number
+  kFore: number
+  kHind: number
 }
 
 export interface CpgCaptureSample {
   t: number
   signedActivations: number[]
   phases: number[]
+  limbPhases: number[]
+  limbOutputs: number[]
 }
 
 export function buildCpgCaptureSpec(spec: CpgSpec, segmentLengths: number[]): CpgCaptureSpec {
+  const limbE: number[] = []
+  for (let i = 0; i < spec.limbs; i++) limbE.push(spec.e[2 * spec.n + i] ?? 0)
+  const limbDth = spec.limbs > 0 ? spec.dTh[2 * spec.n] ?? 0 : 0
   return {
     n: spec.n,
     excitabilityE: spec.e[0] ?? 0,
     saturationDth: spec.dTh[0] ?? 0,
     bodyWaves: 1.58,
     segmentLengths: segmentLengths.slice(),
+    limbs: spec.limbs,
+    limbE,
+    limbDth,
+    kFore: spec.limbWiring?.kFore ?? -1,
+    kHind: spec.limbWiring?.kHind ?? -1,
   }
 }
 
@@ -206,10 +221,18 @@ export function buildCpgSample(t: number, state: CpgState, spec: CpgSpec): CpgCa
   for (let k = 0; k < spec.n; k++) {
     signedActivations.push(signedActivation(state, spec, k))
   }
+  const limbPhases: number[] = []
+  const limbOutputs: number[] = []
+  for (let i = 0; i < spec.limbs; i++) {
+    limbPhases.push(limbPhase(state, spec, i))
+    limbOutputs.push(limbOutput(state, spec, i))
+  }
   return {
     t,
     signedActivations,
     phases: state.phases.slice(),
+    limbPhases,
+    limbOutputs,
   }
 }
 
@@ -568,6 +591,54 @@ export function serializeCpgCapture(
   const segVals: string[] = [pad('max', 5)]
   for (let k = 0; k < spec.n; k++) segVals.push(pad(e(segMaxes[k]), 9))
   lines.push(segVals.join(''))
+
+  if (spec.limbs > 0) {
+    lines.push('')
+    lines.push('## limb rhythm (4 limbs: LF, RF, LH, RH ; phases in rad, outputs r·(1+cosφ))')
+    lines.push(
+      `limb e: fore=${f(spec.limbE[0] ?? 0, 3)}/${f(spec.limbE[1] ?? 0, 3)}  hind=${f(spec.limbE[2] ?? 0, 3)}/${f(spec.limbE[3] ?? 0, 3)}   d_th: ${f(spec.limbDth, 3)}   girdles: fore=axial[${spec.kFore}] hind=axial[${spec.kHind}]`
+    )
+    if (samples.length > 0) {
+      const last = samples[samples.length - 1]
+      const names = ['LF', 'RF', 'LH', 'RH']
+      const hdr: string[] = [pad('', 8)]
+      for (const nm of names) hdr.push(pad(nm, 10))
+      lines.push(hdr.join(''))
+      const phaseRow: string[] = [pad('phase', 8)]
+      for (let i = 0; i < spec.limbs; i++) phaseRow.push(pad(f(last.limbPhases[i] ?? 0, 3), 10))
+      lines.push(phaseRow.join(''))
+      const outRow: string[] = [pad('out', 8)]
+      for (let i = 0; i < spec.limbs; i++) outRow.push(pad(e(last.limbOutputs[i] ?? 0), 10))
+      lines.push(outRow.join(''))
+
+      const LF = 0, RF = 1, LH = 2, RH = 3
+      const diff = (a: number, b: number): number => {
+        const d = a - b
+        const wrapped = ((d + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI
+        return wrapped
+      }
+      const dLF_RH = diff(last.limbPhases[LF] ?? 0, last.limbPhases[RH] ?? 0)
+      const dRF_LH = diff(last.limbPhases[RF] ?? 0, last.limbPhases[LH] ?? 0)
+      const dDiag = diff(last.limbPhases[LF] ?? 0, last.limbPhases[RF] ?? 0)
+      const dHF_L = diff(last.limbPhases[LH] ?? 0, last.limbPhases[LF] ?? 0)
+      const dHF_R = diff(last.limbPhases[RH] ?? 0, last.limbPhases[RF] ?? 0)
+      lines.push('## diagonal-trot check (final sample — wrapped to [-π, π])')
+      lines.push(`  LF-RH (should ≈ 0):    ${f(dLF_RH, 3)}`)
+      lines.push(`  RF-LH (should ≈ 0):    ${f(dRF_LH, 3)}`)
+      lines.push(`  LF-RF (should ≈ ±π):   ${f(dDiag, 3)}`)
+      lines.push(`  LH-LF (hind leads fore, should ≈ ±π): ${f(dHF_L, 3)}`)
+      lines.push(`  RH-RF (hind leads fore, should ≈ ±π): ${f(dHF_R, 3)}`)
+
+      let maxLimbOut = 0
+      for (const s of samples) {
+        for (let i = 0; i < spec.limbs; i++) {
+          const v = Math.abs(s.limbOutputs[i] ?? 0)
+          if (Number.isFinite(v) && v > maxLimbOut) maxLimbOut = v
+        }
+      }
+      lines.push(`  maxAbsLimbOutput over capture: ${e(maxLimbOut)} (≈ 0 means limbs saturated)`)
+    }
+  }
 
   return lines.join('\n')
 }

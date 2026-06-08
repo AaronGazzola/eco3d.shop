@@ -31,9 +31,12 @@ export interface Body3DJoint {
 }
 
 // Axial segment lengths from node spacing — no Rapier, for buildCpgSpec / diagnostics.
-export function axialLengths(groups: BodyGroup[]): number[] {
+// Axial segment lengths + their group ids in head→tail chain order (no Rapier; for the CPG spec
+// and diagnostics). The group ids let the limb CPG attach each leg to its girdle's axial oscillator.
+export function axialChain(groups: BodyGroup[]): { lengths: number[]; groupIds: string[] } {
   const chain = flattenSkeleton(buildSkeletonTree(groups))
-  const out: number[] = []
+  const lengths: number[] = []
+  const groupIds: string[] = []
   for (let i = 0; i < chain.length; i++) {
     const g = chain[i]
     const parent = i > 0 ? chain[i - 1] : null
@@ -43,9 +46,14 @@ export function axialLengths(groups: BodyGroup[]): number[] {
     const dx = e.x - n.x
     const dy = (e.y ?? 0) - (n.y ?? 0)
     const dz = e.z - n.z
-    out.push(Math.max(Math.hypot(dx, dy, dz), 1e-3))
+    lengths.push(Math.max(Math.hypot(dx, dy, dz), 1e-3))
+    groupIds.push(g.id)
   }
-  return out
+  return { lengths, groupIds }
+}
+
+export function axialLengths(groups: BodyGroup[]): number[] {
+  return axialChain(groups).lengths
 }
 
 export interface Body3D {

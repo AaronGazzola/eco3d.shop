@@ -1028,3 +1028,17 @@ reference.
   foot-lift mechanism (robot hardware) — those are ours to choose and stay flagged. Cadence going
   forward: one spec at a time (F0 → D1 limb CPG → D2 actuation → D3 coupled). Remaining on F0: the
   manual visual gate is a user hand-off.
+- **2026-06-08 (Phase F0 archived; Phase D1 limb CPG implemented)** — F0 gate signed off (swim swims
+  with a small accepted lean; land stands on its legs; mode toggle rebuilds cleanly) and **archived**
+  (`2026-06-08-add-walking-foundation`; +5/~1 requirements merged into `specs/locomotion`). Started
+  **D1 (limb CPG signal)** by **porting the faithful limb CPG** from the abandoned walk branch (not
+  re-inventing): `buildCpgSpec(segmentLengths, groups?, chainGroupIds?)` appends four single limb
+  oscillators (LF/RF/LH/RH) with per-limb excitability (fore `0.8` / hind `0.5`) and `d_th = 1.27`;
+  Table 2 interlimb couplings (lateral `w=10`, fore→hind `w=3`, hind→fore `w=30`, all `φ=π`);
+  ipsilateral limb↔axial at the girdles (limb→axial `w=30, φ=4`; axial→limb `w=2.5, φ=−4`). Added
+  `axialChain` (lengths + group ids), wired the browser CPG preview to build limbs, ported the limb
+  diagnostics surfacing + the headless gate `locomotion-3d-walk-cpg-check.ts`. **Signal gates PASS**
+  (drive 1.0 vs 2.0): 4.1 diagonal trot emerges from the couplings alone (LF≈RH, RF≈LH, diagonals
+  antiphase, hind leads); 4.2 axial lag collapses toward a standing wave when limbs are active
+  (−0.06 vs swim 2.64); 4.3 limbs fold first across `d_th=1.27` (limb max 1.07→0, axial holds 2.04).
+  No body/legs/actuation (that's D2/D3). tsc + eslint clean.
