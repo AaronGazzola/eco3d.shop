@@ -173,6 +173,20 @@ dynamics, as it does in the paper.
 - Foot-ground contact in the paper emerges from physics. We recreate that: the limb is a
   **simulated 1-DOF joint** driven toward the transfer-function position, and the foot's
   contact/slip/lift **emerges from our contact model** — not a scripted plant/lift arc.
+- **Actuation = position control, NOT the Ekeberg muscle.** The paper sets leg positions with
+  PD controllers driving the 1-DOF limb joint to the transfer-function target ("The leg positions
+  are set by PD controllers"). Axial joints use the muscle torque (§4); limbs do not. We drive the
+  hip with a Rapier motor to the same target. The four limb oscillators are coordinated by the
+  Table 2 interlimb couplings (§3), so the **diagonal trot emerges** — it is not scripted.
+- **⚠ Paper-specified vs ours-to-choose (flagged deviation).** The paper specifies the limb
+  *control* (1 DOF, phase → transfer-function position, 77% duty by modulating rotation **speed**)
+  but **not** the limb's mechanical **rotation axis** or any explicit **foot-lift** mechanism —
+  those live in the robot hardware (Salamandra robotica II, a sprawled single-DOF leg), not in this
+  control paper. So the **hip-axis orientation and how the swing foot clears the ground are our
+  engineering choices**, tuned on our rig and documented here — not dictated by the paper.
+- **Our rig's leg geometry.** A leg spans the girdle's **hip socket** (`nodeHipLeft/Right` on the
+  parent spine group) to the leg's **`nodeFoot`**. Legs carry **no** `nodeFront/nodeBack` (an earlier
+  walk attempt read those undefined fields and mis-built the legs).
 
 ---
 
@@ -245,9 +259,10 @@ forces — faithfully (§4, §5, and `documentation/locomotion.md §2–§3`).
   (How we adapt to any model.)
 - **Output is the node skeleton**, not motors/Webots: the integrated joint angles drive
   the pivots (clamped to caps); the body's world pose drives the root frame.
-- **Reduced dimensionality / custom solver** is a likely engineering choice (planar,
-  custom integrator) to make the paper's force laws tractable in-browser — to be
-  finalized in the plan, not a change to the model itself.
+- **Full 3D on the Rapier physics engine** (roadmap Decision 8). The paper's body ran in 3D
+  (ODE/Webots); our earlier planar + custom-integrator plan was a tractability shortcut, now
+  dropped. We keep the paper's force laws — Ekeberg muscle via Rapier's implicit motor, RFT drag
+  as custom external forces, contact/friction from the engine — only the integrator changed.
 
 **We omit for v1 (optional in the paper):**
 - Proprioceptive feedback `sᵢ` (set to 0). It adapts gait to terrain; not needed first.
