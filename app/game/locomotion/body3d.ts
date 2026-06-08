@@ -88,8 +88,9 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[]): Body3D | 
   const centers: Vector3[] = []
 
   // All bodies stay WORLD-ALIGNED (identity rotation); only the capsule collider is rotated to
-  // the segment forward. This keeps every revolute joint's yaw axis = world up, so a curved 3D
-  // rest pose does not make adjacent joint axes disagree (which would snap the chain violently).
+  // the segment forward. World-aligned bodies mean each revolute joint specifies its axis as a
+  // single world vector that BOTH connected bodies share at rest — so there is no within-joint axis
+  // disagreement (which is what snaps the chain). Each joint may still carry its OWN tilted axis.
   for (let i = 0; i < usable.length; i++) {
     const g = usable[i]
     const node = nodes[i]
@@ -128,7 +129,19 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[]): Body3D | 
     // bodies are world-aligned, so local anchors are just world offsets from each body center
     const a1 = node.clone().sub(centers[i - 1])
     const a2 = node.clone().sub(centers[i])
-    const axisLocal = { x: 0, y: 1, z: 0 } // world up = yaw axis (consistent for all bodies)
+    // Bend axis = the child segment's LOCAL up: world-up with its along-segment component removed,
+    // i.e. the component of (0,1,0) perpendicular to the segment forward. For a horizontal segment
+    // this is exactly world-up; for a segment tilted by the rig's node heights it tilts with it.
+    // Because the capsule is axisymmetric about its forward, any perpendicular axis is a PRINCIPAL
+    // axis of its inertia — so the muscle torque about it produces a clean in-segment-plane bend
+    // with no roll/pitch leak (a world-up torque on a tilted segment is what drifted it off-plane).
+    // The axis lives in the body's local frame, so when a segment later pitches up/down the bend
+    // stays parallel to the segment, not the floor.
+    const f = dirs[i]
+    const axisV = new Vector3(0, 1, 0).addScaledVector(f, -f.y)
+    if (axisV.lengthSq() < 1e-8) axisV.set(0, 1, 0) // near-vertical segment: fall back to world up
+    axisV.normalize()
+    const axisLocal = { x: axisV.x, y: axisV.y, z: axisV.z }
     const jd = RAPIER.JointData.revolute(
       { x: a1.x, y: a1.y, z: a1.z },
       { x: a2.x, y: a2.y, z: a2.z },
@@ -153,45 +166,79 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[]): Body3D | 
   }
 
   const restCenters = centers.map((c) => ({ x: c.x, y: c.y, z: c.z }))
+
+  // FOUNDATION (GRAVITY_TEST land regime): build the legs as real capsules from each hip socket
+  // (on the parent girdle) down to the leg's nodeFoot, with foot contact + friction, so the body
+  // stands on them. Hips are RIGID (fixed) here — this is the standing foundation only; the paper's
+  // limb CPG + transfer function will drive motorized hips in the walking step. Floor sits just
+  // below the feet (y≈0).
+  if (GRAVITY_TEST) {
+    const legRadius = STD_SEGMENT_WIDTH / 2
+    let lowestFootY = Infinity
+    for (const leg of groups) {
+      if (leg.type !== 'leg-left' && leg.type !== 'leg-right') continue
+      const parent = groups.find((g) => g.id === leg.attachedToSpineId)
+      if (!parent) continue
+      const parentIndex = groupIds.indexOf(parent.id)
+      if (parentIndex < 0) continue
+      const socket = leg.type === 'leg-left' ? parent.nodeHipLeft : parent.nodeHipRight
+      const hip = nodeVec(socket)
+      const foot = nodeVec((leg as { nodeFoot?: { x: number; y?: number; z: number } }).nodeFoot)
+      if (!hip || !foot) continue
+      const dir = new Vector3().subVectors(foot, hip)
+      const len = dir.length()
+      if (len < 1e-3) continue
+      dir.normalize()
+      const center = new Vector3().addVectors(hip, dir.clone().multiplyScalar(len / 2))
+
+      const lbd = RAPIER.RigidBodyDesc.dynamic().setTranslation(center.x, center.y, center.z)
+      const legBody = world.createRigidBody(lbd)
+      const legHalf = Math.max(len / 2 - legRadius, 1e-3)
+      const legMass = leg.nodeWeight ?? defaultWeightFor(leg.type)
+      const legQ = capsuleRotation(dir)
+      const lcd = RAPIER.ColliderDesc.capsule(legHalf, legRadius)
+        .setRotation({ x: legQ.x, y: legQ.y, z: legQ.z, w: legQ.w })
+        .setMass(legMass)
+        .setFriction(0.9)
+      world.createCollider(lcd, legBody)
+
+      const pc = centers[parentIndex]
+      const a1 = { x: hip.x - pc.x, y: hip.y - pc.y, z: hip.z - pc.z }
+      const a2 = { x: hip.x - center.x, y: hip.y - center.y, z: hip.z - center.z }
+      const jd = RAPIER.JointData.fixed(a1, { x: 0, y: 0, z: 0, w: 1 }, a2, { x: 0, y: 0, z: 0, w: 1 })
+      world.createImpulseJoint(jd, bodies[parentIndex], legBody, true)
+
+      bodies.push(legBody)
+      segLength.push(len)
+      groupIds.push(leg.id)
+      restCenters.push({ x: center.x, y: center.y, z: center.z })
+      lowestFootY = Math.min(lowestFootY, foot.y)
+    }
+
+    if (!Number.isFinite(lowestFootY)) lowestFootY = 0
+    const groundTop = lowestFootY - legRadius - 0.02
+    const gd = RAPIER.RigidBodyDesc.fixed().setTranslation(0, groundTop - 0.05, 0)
+    const groundBody = world.createRigidBody(gd)
+    world.createCollider(RAPIER.ColliderDesc.cuboid(100, 0.05, 100).setFriction(0.9), groundBody)
+  }
+
   return { bodies, joints, segLength, groupIds, jointToCpgSegment, restCenters }
 }
 
-// Swimming is a planar undulation. The internal torque/inertia dynamics otherwise tilt the body out
-// of plane within ~0.6s, which decoheres the wave and (under drag) makes it "swim upward" off the
-// floor. We keep it planar with a SOFT post-step projection (planarProject) rather than hard per-body
-// DOF locks — hard locks over-constrain the revolute chain on a non-planar rig and blow it up. Full
-// 6-DOF returns in the climbing phase.
-export const PLANAR_SWIM = true
+// EXPERIMENT flag: gravity on + a ground plane (the land regime). Off = neutral-buoyancy swim.
+export const GRAVITY_TEST = true
 
-// Soft post-step planar projection: keep the swim in its horizontal plane without over-constraining
-// the revolute chain. Per body, zero the out-of-plane velocity (Y-linear, pitch/roll-angular), snap
-// the height back to rest, and strip pitch/roll from the orientation (keep yaw only). Applied like
-// the drag, after world.step(). Cheap, can't inject solver forces, and holds the body planar so the
-// controller's yaw-only angle/rate readback stays valid.
-export function planarProject(body: Body3D): void {
-  for (let i = 0; i < body.bodies.length; i++) {
-    const b = body.bodies[i]
-    const v = b.linvel()
-    b.setLinvel({ x: v.x, y: 0, z: v.z }, true)
-    const w = b.angvel()
-    b.setAngvel({ x: 0, y: w.y, z: 0 }, true)
-    const t = b.translation()
-    b.setTranslation({ x: t.x, y: body.restCenters[i].y, z: t.z }, false)
-    const q = b.rotation()
-    const yaw = Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.z * q.z))
-    b.setRotation({ x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) }, false)
-  }
-}
-
-// Signed joint angle about its yaw axis, from the two bodies' current rotations.
+// Signed joint angle about its bend axis, from the two bodies' current rotations. The revolute
+// constraint keeps the relative rotation aligned with restAxisLocal, so the signed angle is the
+// quaternion's vector part projected onto that axis. Reduces to the y-component for a world-up axis.
 export function jointAngle(j: Body3DJoint, bodies: RAPIER.RigidBody[]): number {
   const qp = bodies[j.parentIndex].rotation()
   const qc = bodies[j.childIndex].rotation()
   const qParent = new Quaternion(qp.x, qp.y, qp.z, qp.w)
   const qChild = new Quaternion(qc.x, qc.y, qc.z, qc.w)
   const qRel = qParent.invert().multiply(qChild)
-  // rotation about local Y → signed angle
-  return 2 * Math.atan2(qRel.y, qRel.w)
+  const a = j.restAxisLocal
+  return 2 * Math.atan2(qRel.x * a.x + qRel.y * a.y + qRel.z * a.z, qRel.w)
 }
 
 // Joint angular rate about its world axis.

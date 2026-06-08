@@ -43,7 +43,6 @@ interface AnimateStore {
   muscleAlpha: number
   muscleBeta: number
   muscleDamping: number
-  planarConstraint: boolean
 
   setAnimateTab: (tab: AnimateTab) => void
   setCalibratingGroup: (id: string | null) => void
@@ -69,7 +68,6 @@ interface AnimateStore {
   setMuscleAlpha: (v: number) => void
   setMuscleBeta: (v: number) => void
   setMuscleDamping: (v: number) => void
-  setPlanarConstraint: (v: boolean) => void
 }
 
 export const useAnimateStore = create<AnimateStore>()((set) => ({
@@ -93,7 +91,6 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   muscleAlpha: 1.0,
   muscleBeta: 1.2,
   muscleDamping: 0.1,
-  planarConstraint: true,
 
   setAnimateTab: (tab) => {
     if (tab === 'simulate') {
@@ -170,5 +167,4 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   setMuscleAlpha: (v) => set({ muscleAlpha: v }),
   setMuscleBeta: (v) => set({ muscleBeta: v }),
   setMuscleDamping: (v) => set({ muscleDamping: v }),
-  setPlanarConstraint: (v) => set({ planarConstraint: v }),
 }))

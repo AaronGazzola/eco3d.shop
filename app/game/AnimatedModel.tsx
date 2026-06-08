@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import { ModelConfigRow, SegmentData, BodyGroup } from '../admin/_lib/types'
 import { useAnimateStore } from '../admin/animate/animateStore'
 import { useLocomotion } from './locomotion/useLocomotion'
+import { GRAVITY_TEST } from './locomotion/body3d'
 import { buildSkeletonTree, flattenSkeleton, SkeletonNode } from './locomotion/chain'
 
 function mergeGroupPositions(segments: SegmentData[]): Float32Array {
@@ -385,18 +386,35 @@ export function AnimatedModel({
         />
       ))}
       {coupledRunning
-        ? skeletonGroups.map((g) => (
-            <BodyMount
-              key={g.id}
-              group={g}
-              segmentMap={segmentMap}
-              showNodes={showNodes}
-              opacity={opacity}
-              bodyRefs={bodyRefs}
-              pivotsRef={pivotsRef}
-              legs={legsBySpineId.get(g.id) ?? []}
-            />
-          ))
+        ? (
+            <>
+              {skeletonGroups.map((g) => (
+                <BodyMount
+                  key={g.id}
+                  group={g}
+                  segmentMap={segmentMap}
+                  showNodes={showNodes}
+                  opacity={opacity}
+                  bodyRefs={bodyRefs}
+                  pivotsRef={pivotsRef}
+                  legs={GRAVITY_TEST ? [] : legsBySpineId.get(g.id) ?? []}
+                />
+              ))}
+              {GRAVITY_TEST &&
+                Array.from(legsBySpineId.values()).flat().map((leg) => (
+                  <BodyMount
+                    key={leg.id}
+                    group={leg}
+                    segmentMap={segmentMap}
+                    showNodes={showNodes}
+                    opacity={opacity}
+                    bodyRefs={bodyRefs}
+                    pivotsRef={pivotsRef}
+                    legs={[]}
+                  />
+                ))}
+            </>
+          )
         : skeletonTree && (
             <ChainNode
               node={skeletonTree}

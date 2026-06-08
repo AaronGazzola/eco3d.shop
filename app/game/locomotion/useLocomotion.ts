@@ -7,7 +7,7 @@ import RAPIER from '@dimforge/rapier3d-compat'
 import { BodyGroup, SegmentData } from '@/app/admin/_lib/types'
 import { useAnimateStore } from '@/app/admin/animate/animateStore'
 import { buildSkeletonTree, effectiveAngleCaps, flattenSkeleton } from './chain'
-import { axialLengths, buildBody3D, Body3D, planarProject } from './body3d'
+import { axialLengths, buildBody3D, Body3D, GRAVITY_TEST } from './body3d'
 import { applyEnvironment3D } from './environment'
 import {
   buildCaptureSpec3D,
@@ -163,7 +163,7 @@ export function useLocomotion(
 
   function buildCoupled(): CoupledHandle | null {
     if (!rapierReady.current) return null
-    const world = new RAPIER.World({ x: 0, y: 0, z: 0 })
+    const world = new RAPIER.World({ x: 0, y: GRAVITY_TEST ? -9.81 : 0, z: 0 })
     world.timestep = TIMESTEP
     const body = buildBody3D(world, groups)
     if (!body) { world.free(); return null }
@@ -204,7 +204,6 @@ export function useLocomotion(
         const alpha = store.muscleAlpha
         const beta = store.muscleBeta
         const jointDamping = store.muscleDamping
-        const planar = store.planarConstraint
         let acc = c.acc + Math.min(dt, MAX_FRAME)
         while (acc >= TIMESTEP) {
           stepCpg(c.cpgState, c.cpgSpec, drive, exc, TIMESTEP)
@@ -224,7 +223,6 @@ export function useLocomotion(
           for (const b of c.body.bodies) b.wakeUp() // motor doesn't auto-wake; keep the chain awake
           c.world.step()
           if (store.environmentEnabled) applyEnvironment3D(c.body, TIMESTEP)
-          if (planar) planarProject(c.body)
           acc -= TIMESTEP
         }
         c.acc = acc

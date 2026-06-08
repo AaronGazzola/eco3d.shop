@@ -69,8 +69,6 @@ function SimulateTab() {
   const setCoupledRunning = useAnimateStore((s) => s.setCoupledRunning)
   const environmentEnabled = useAnimateStore((s) => s.environmentEnabled)
   const setEnvironmentEnabled = useAnimateStore((s) => s.setEnvironmentEnabled)
-  const planarConstraint = useAnimateStore((s) => s.planarConstraint)
-  const setPlanarConstraint = useAnimateStore((s) => s.setPlanarConstraint)
   const muscleAlpha = useAnimateStore((s) => s.muscleAlpha)
   const muscleBeta = useAnimateStore((s) => s.muscleBeta)
   const muscleDamping = useAnimateStore((s) => s.muscleDamping)
@@ -96,21 +94,6 @@ function SimulateTab() {
         <p className="text-white/45 text-[10px] leading-relaxed">
           3D anisotropic swimming drag (neutral-buoyancy water, gravity off). Enables forward
           thrust.
-        </p>
-        <button
-          onClick={() => setPlanarConstraint(!planarConstraint)}
-          className={cn(
-            'py-1.5 rounded-md transition-colors',
-            planarConstraint
-              ? 'bg-amber-600/40 text-amber-200'
-              : 'bg-white/10 text-white/70 hover:text-white'
-          )}
-        >
-          {planarConstraint ? 'Planar lock ON' : 'Planar lock OFF'}
-        </button>
-        <p className="text-white/45 text-[10px] leading-relaxed">
-          Post-step projection that forces the body into the horizontal plane (stops floating).
-          Toggle OFF to see the raw 3D physics (it will float/tilt).
         </p>
       </div>
 

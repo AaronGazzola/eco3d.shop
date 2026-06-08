@@ -186,17 +186,15 @@ if (CMD === 'login') {
   const drag = (REST[1] ?? 'on') === 'on'
   const drive = REST[2] != null ? Number(REST[2]) : null
   const exc = REST[3] != null ? Number(REST[3]) : null
-  const planar = (process.env.PLANAR ?? 'on') === 'on'
   const tag = process.env.TAG ?? 'fine'
   const cam = process.env.CAM ?? 'front'
   await loadRig()
-  await page.evaluate(({ drag, drive, exc, planar, cam }) => {
+  await page.evaluate(({ drag, drive, exc, cam }) => {
     if (drive != null && exc != null) window.__studio.tune(drive, exc)
     window.__studio.drag(drag)
-    window.__studio.planar(planar)
     window.__studio.setCam(cam)
-  }, { drag, drive, exc, planar, cam })
-  console.log(`planar=${planar ? 'ON' : 'OFF'} tag=${tag}`)
+  }, { drag, drive, exc, cam })
+  console.log(`tag=${tag}`)
   await page.waitForTimeout(400)
   await page.evaluate(() => window.__studio.drive(true))
   const dtms = 300

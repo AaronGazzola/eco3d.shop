@@ -21,7 +21,6 @@ function useStudioObservationHook() {
       drag: (on: boolean) => store().setEnvironmentEnabled(on),
       tune: (drive: number, exc: number) => { store().setCpgDrive(drive); store().setCpgExcitability(exc) },
       muscle: (alpha: number, beta: number, damping: number) => { store().setMuscleAlpha(alpha); store().setMuscleBeta(beta); store().setMuscleDamping(damping) },
-      planar: (on: boolean) => store().setPlanarConstraint(on),
       record: (on: boolean) => store().setSimRecording(on),
       diag: () => store().simDiagnostics,
     }

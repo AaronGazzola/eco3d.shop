@@ -31,6 +31,12 @@ live.
 Our own walkthrough of the paper, distilled as we go. Plain language, no shortcuts. Grows
 one section at a time.
 
+> **⚠ Planar-era note:** Parts 1–8 below were written when the plan was **planar (2D) on a custom
+> solver**. The dynamics are now **full 3D on the Rapier engine** (§2 **Decision 8**), with gravity +
+> ground contact for land. Where the text says "planar state," "one yaw angle per joint," or "custom
+> reduced-order solver," read it as the 3D-on-Rapier equivalent. The *control logic* (CPG, Ekeberg
+> muscle, transfer function) is unchanged — only the body/solver re-platformed.
+
 **Provenance tags:** **[paper]** = verified from the source (via `locomotion-reference.md`);
 **[interp]** = our explanation or intuition — consistent with the paper but not stated in
 it; **[ours]** = our design choice or addition, not in the paper. Metaphors and analogies
@@ -987,3 +993,25 @@ reference.
   `excitability` knob runs the body-wave slower than the paper's ν=d·e because our body can't follow
   the paper's rate; (4) soft planar projection + `wakeUp`. Remaining cosmetic/non-foundational
   (AZ-33): chunky meshes overlap at bends (thin colliders vs fat meshes), some head yaw.
+- **2026-06-08 (planar projection removed; tilt root-caused; gravity+floor standing foundation)** —
+  Exploratory branch `fix/local-plane-muscle-axis` (off main, **not yet an OpenSpec change** — to be
+  promoted). Removed the **soft planar projection** entirely (function, per-step call, store flag, UI
+  "Planar lock", studio hook): it was the last leftover crutch and the swim no longer needs it — with
+  the energy pump already gone, the body swims fully (drift ~23/16s) and stays roughly flat (comY ≈ 0)
+  on its own. **Root-caused the residual 3–9° out-of-plane tilt:** it is **not** drag (worse with drag
+  off), not joint-cap slamming (persists off-cap), but the **rig's non-coplanar rest spine** — the
+  authored node heights make the centerline zig-zag, so a flat lateral wave physically rocks the body.
+  Decisive test: zeroing the physics node heights drops tilt to **exactly 0.0°** with the swim otherwise
+  unchanged. (A segment-local hinge axis was tried — perpendicular-to-segment, a principal axis — and is
+  kept for future up/down flex, but it did **not** reduce the tilt; the cause is geometry, not the
+  torque axis.) **Gravity + a ground plane** then keep the body down and flat naturally (tilt 2–6°),
+  which is the real land foundation — the floor is genuine contact, not a forced projection. **Legs now
+  stand:** the rig is authored to stand (sprawled legs, `nodeFoot` at y≈0, body above; hips on the
+  spine's `nodeHipLeft/Right` sockets — **the old walk branch built legs from the wrong fields
+  `nodeFront/nodeBack`, which were undefined**). Built legs as real capsules from hip socket → `nodeFoot`
+  with foot contact + friction, **rigid (fixed) hips**, floor just below the feet; the dragon drops onto
+  its feet and rests stably (comY −0.14, tilt ~2°, KE≈0). A motorized-hip *test-sine* gait was prototyped
+  then **reverted** — improvised, not the paper's method. **Next (faithful):** read the paper's limb-joint
+  section to settle the hip axis + emergent lift, then drive the legs with the paper's **limb CPG +
+  piecewise-linear transfer function** (let the diagonal trot emerge from the couplings), and **promote
+  this foundation work into a proper OpenSpec change**. All gated by a temporary `GRAVITY_TEST` flag.

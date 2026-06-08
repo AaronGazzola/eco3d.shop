@@ -54,7 +54,7 @@ pivot/render scaffolding. Only the **Simulate tab** is being replaced.
 > **Note on the old "rule 6" (feet grounded during stance / lift during swing):** that was
 > a *kinematic stepping* rule. In the paper, limbs are 1-DOF sweeps and foot–ground contact
 > *emerges from the physics*. So in this direction, foot contact comes from the contact
-> model, not a scripted plant/lift. Reinterpretation to confirm before the limb phase.
+> model, not a scripted plant/lift. (Settled — roadmap Decision 4.)
 
 ---
 
@@ -94,8 +94,9 @@ prescribed — it is the integrated result of forces.
 - **L2 — CPG controller:** the oscillator network (reference §2–§3, §7).
 - **L3 — Actuation:** Ekeberg muscles → axial torques; limb transfer function → limb
   targets (reference §4, §5).
-- **L4 — Dynamics solver:** integrate equations of motion under actuation + joint limits +
-  damping → joint motion + the body's free-frame motion.
+- **L4 — Dynamics (Rapier engine):** the engine integrates the multibody under actuation +
+  joint limits + damping → joint motion + the body's free-frame motion (roadmap Decision 8;
+  replaces the originally-planned custom solver).
 - **L5 — Environment forces:** hydrodynamic (swim) / contact + friction (walk) (reference
   §5; the paper's Webots model uses reactive + resistive hydrodynamics).
 - **L6 — Render mapping:** sim joint angles → node-skeleton pivots (clamped to caps); body
@@ -105,14 +106,17 @@ prescribed — it is the integrated result of forces.
 
 ---
 
-## 4. Key architecture decisions (to finalize per the handover)
+## 4. Key architecture decisions (settled — full detail in roadmap §2)
 
-- **Dimensionality** — planar (2D top-down) vs full 3D. *Lean: planar first* (captures the
-  in-plane physics that produces locomotion; far more tractable in-browser).
-- **Solver** — custom reduced-order vs a physics library. *Lean: custom* (implements the
-  paper's exact force laws — Ekeberg muscles, resistive-force hydrodynamics, friction).
-- **Environment first** — water vs land. *Lean: swimming first* (cleanest "wiggle → thrust";
-  limbs fold, no leg/gait coordination yet).
+- **Dimensionality → full 3D** (roadmap **Decision 8**, supersedes the earlier planar lean).
+  The paper's body ran in 3D (ODE/Webots); planar was a tractability shortcut we have since
+  dropped. The body is a 3D chain; swimming is a horizontal-plane wave but runs in the 3D engine.
+- **Solver → the Rapier physics engine** (`@dimforge/rapier3d-compat`, deterministic fixed step;
+  roadmap **Decision 8**, supersedes the earlier custom-solver lean). We keep the paper's force
+  laws: the Ekeberg muscle is driven through Rapier's implicit ForceBased motor (energy-stable),
+  resistive-force hydrodynamics are custom external forces, and contact/friction come from the engine.
+- **Environment first → swimming** (roadmap Decision 3) — cleanest "wiggle → thrust"; limbs fold,
+  no gait yet. Walking (gravity + ground + legs) follows.
 
 > "Faithful" means **the same system/equations producing the same kind of emergent
 > locomotion, applied to our rig** — not a pixel-match of their specific salamander robot
