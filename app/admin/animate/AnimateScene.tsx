@@ -20,6 +20,7 @@ function useStudioObservationHook() {
       drive: (on = true) => store().setCoupledRunning(on),
       drag: (on: boolean) => store().setEnvironmentEnabled(on),
       tune: (drive: number, exc: number) => { store().setCpgDrive(drive); store().setCpgExcitability(exc) },
+      mode: (m: 'swim' | 'land') => store().setCoupledMode(m),
       muscle: (alpha: number, beta: number, damping: number) => { store().setMuscleAlpha(alpha); store().setMuscleBeta(beta); store().setMuscleDamping(damping) },
       record: (on: boolean) => store().setSimRecording(on),
       diag: () => store().simDiagnostics,

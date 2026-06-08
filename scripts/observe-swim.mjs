@@ -97,13 +97,15 @@ if (CMD === 'login') {
   const drive = REST[2] != null ? Number(REST[2]) : null
   const exc = REST[3] != null ? Number(REST[3]) : null
 
+  const mode = process.env.MODE ?? null // 'swim' | 'land'
   await loadRig()
-  await page.evaluate(({ drag, drive, exc }) => {
+  await page.evaluate(({ drag, drive, exc, mode }) => {
+    if (mode && window.__studio.mode) window.__studio.mode(mode)
     if (drive != null && exc != null) window.__studio.tune(drive, exc)
     window.__studio.drag(drag)
     window.__studio.drive(true)
-  }, { drag, drive, exc })
-  console.log(`running: drag=${drag ? 'ON' : 'OFF'} drive=${drive ?? 'default'} exc=${exc ?? 'default'} angles=${ANGLES.join(',')}`)
+  }, { drag, drive, exc, mode })
+  console.log(`running: mode=${mode ?? 'default'} drag=${drag ? 'ON' : 'OFF'} drive=${drive ?? 'default'} exc=${exc ?? 'default'} angles=${ANGLES.join(',')}`)
 
   const rows = []
   const camWait = 250

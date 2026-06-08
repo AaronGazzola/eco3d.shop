@@ -69,6 +69,8 @@ function SimulateTab() {
   const setCoupledRunning = useAnimateStore((s) => s.setCoupledRunning)
   const environmentEnabled = useAnimateStore((s) => s.environmentEnabled)
   const setEnvironmentEnabled = useAnimateStore((s) => s.setEnvironmentEnabled)
+  const coupledMode = useAnimateStore((s) => s.coupledMode)
+  const setCoupledMode = useAnimateStore((s) => s.setCoupledMode)
   const muscleAlpha = useAnimateStore((s) => s.muscleAlpha)
   const muscleBeta = useAnimateStore((s) => s.muscleBeta)
   const muscleDamping = useAnimateStore((s) => s.muscleDamping)
@@ -79,7 +81,29 @@ function SimulateTab() {
   return (
     <div className="flex flex-col gap-4 p-4 text-xs text-white/60">
       <div className="flex flex-col gap-2 pb-3 border-b border-white/10">
-        <p className="text-white/55 text-[10px] uppercase tracking-widest">Environment</p>
+        <p className="text-white/55 text-[10px] uppercase tracking-widest">Mode</p>
+        <div className="grid grid-cols-2 gap-1">
+          {(['swim', 'land'] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => setCoupledMode(m)}
+              disabled={coupledRunning}
+              className={cn(
+                'py-1.5 rounded-md transition-colors capitalize disabled:opacity-40',
+                coupledMode === m
+                  ? 'bg-emerald-600/40 text-emerald-200'
+                  : 'bg-white/10 text-white/70 hover:text-white'
+              )}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+        <p className="text-white/45 text-[10px] leading-relaxed">
+          Swim = neutral buoyancy (gravity off). Land = gravity + ground; legs become physics and the
+          body stands on them. Switching pauses — set mode before Run.
+        </p>
+        <p className="text-white/55 text-[10px] uppercase tracking-widest mt-1">Environment</p>
         <button
           onClick={() => setEnvironmentEnabled(!environmentEnabled)}
           className={cn(

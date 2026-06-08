@@ -6,6 +6,10 @@ import { STD_SEGMENT_WIDTH, defaultWeightFor } from './weights'
 
 const CAPSULE_Y = new Vector3(0, 1, 0)
 
+// Swim = neutral-buoyancy water (gravity off, legs are passengers). Land = gravity + a ground plane,
+// legs built as physics and the body stands on them.
+export type CoupledMode = 'swim' | 'land'
+
 
 // Rotation taking the capsule's default +Y long axis onto the segment's forward direction.
 function capsuleRotation(forward: Vector3): Quaternion {
@@ -60,7 +64,7 @@ function nodeVec(n: { x: number; y?: number; z: number } | undefined): Vector3 |
   return new Vector3(n.x, n.y ?? 0, n.z)
 }
 
-export function buildBody3D(world: RAPIER.World, groups: BodyGroup[]): Body3D | null {
+export function buildBody3D(world: RAPIER.World, groups: BodyGroup[], mode: CoupledMode = 'swim'): Body3D | null {
   const chain = flattenSkeleton(buildSkeletonTree(groups))
   if (chain.length === 0) return null
 
@@ -167,12 +171,11 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[]): Body3D | 
 
   const restCenters = centers.map((c) => ({ x: c.x, y: c.y, z: c.z }))
 
-  // FOUNDATION (GRAVITY_TEST land regime): build the legs as real capsules from each hip socket
-  // (on the parent girdle) down to the leg's nodeFoot, with foot contact + friction, so the body
-  // stands on them. Hips are RIGID (fixed) here — this is the standing foundation only; the paper's
-  // limb CPG + transfer function will drive motorized hips in the walking step. Floor sits just
-  // below the feet (y≈0).
-  if (GRAVITY_TEST) {
+  // LAND regime (Phase F0): build the legs as real capsules from each hip socket (on the parent
+  // girdle) down to the leg's nodeFoot, with foot contact + friction, so the body stands on them.
+  // Hips are RIGID (fixed) here — standing foundation only; the paper's limb CPG + transfer function
+  // will drive motorized hips in the walking step. Floor sits just below the feet (y≈0).
+  if (mode === 'land') {
     const legRadius = STD_SEGMENT_WIDTH / 2
     let lowestFootY = Infinity
     for (const leg of groups) {
@@ -224,9 +227,6 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[]): Body3D | 
 
   return { bodies, joints, segLength, groupIds, jointToCpgSegment, restCenters }
 }
-
-// EXPERIMENT flag: gravity on + a ground plane (the land regime). Off = neutral-buoyancy swim.
-export const GRAVITY_TEST = true
 
 // Signed joint angle about its bend axis, from the two bodies' current rotations. The revolute
 // constraint keeps the relative rotation aligned with restAxisLocal, so the signed angle is the

@@ -5,7 +5,6 @@ import * as THREE from 'three'
 import { ModelConfigRow, SegmentData, BodyGroup } from '../admin/_lib/types'
 import { useAnimateStore } from '../admin/animate/animateStore'
 import { useLocomotion } from './locomotion/useLocomotion'
-import { GRAVITY_TEST } from './locomotion/body3d'
 import { buildSkeletonTree, flattenSkeleton, SkeletonNode } from './locomotion/chain'
 
 function mergeGroupPositions(segments: SegmentData[]): Float32Array {
@@ -337,6 +336,8 @@ export function AnimatedModel({
   const pivotsRef = useRef<Map<string, THREE.Group>>(new Map())
   const bodyRefs = useRef<Map<string, THREE.Group>>(new Map())
   const coupledRunning = useAnimateStore((s) => s.coupledRunning)
+  const coupledMode = useAnimateStore((s) => s.coupledMode)
+  const landMode = coupledMode === 'land'
 
   const skeletonTree = useMemo(() => buildSkeletonTree(modelConfig.groups), [modelConfig.groups])
   const skeletonGroups = useMemo(() => flattenSkeleton(skeletonTree), [skeletonTree])
@@ -397,10 +398,10 @@ export function AnimatedModel({
                   opacity={opacity}
                   bodyRefs={bodyRefs}
                   pivotsRef={pivotsRef}
-                  legs={GRAVITY_TEST ? [] : legsBySpineId.get(g.id) ?? []}
+                  legs={landMode ? [] : legsBySpineId.get(g.id) ?? []}
                 />
               ))}
-              {GRAVITY_TEST &&
+              {landMode &&
                 Array.from(legsBySpineId.values()).flat().map((leg) => (
                   <BodyMount
                     key={leg.id}

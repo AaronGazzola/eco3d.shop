@@ -19,14 +19,14 @@ The remaining work productizes the spike into a real swim/land mode and verifies
 
 ## 3. Swim/land mode (replace the GRAVITY_TEST flag)
 
-- [ ] 3.1 Add `coupledMode: 'swim' | 'land'` (default `'swim'`) + `setCoupledMode` to `animateStore.ts`.
-- [ ] 3.2 `buildBody3D(world, groups, mode)`: take the mode; build legs + ground only in `'land'`.
+- [x] 3.1 Add `coupledMode: 'swim' | 'land'` (default `'swim'`) + `setCoupledMode` to `animateStore.ts`.
+- [x] 3.2 `buildBody3D(world, groups, mode)`: take the mode; build legs + ground only in `'land'`.
   Remove the `GRAVITY_TEST` const.
-- [ ] 3.3 In `useLocomotion.ts`, read `store.coupledMode`; set world gravity `(0,−9.81,0)` for land
+- [x] 3.3 In `useLocomotion.ts`, read `store.coupledMode`; set world gravity `(0,−9.81,0)` for land
   else `(0,0,0)`; rebuild the coupled handle when the mode changes (same path as on group change).
-- [ ] 3.4 Add a Swim/Land toggle to the Simulate sidebar and a `mode(m)` setter to `window.__studio`;
+- [x] 3.4 Add a Swim/Land toggle to the Simulate sidebar and a `mode(m)` setter to `window.__studio`;
   disable the toggle while a coupled run is active (mode switch needs a rebuild).
-- [ ] 3.5 In `AnimatedModel.tsx`, gate the physics-driven leg rendering on `coupledMode === 'land'`
+- [x] 3.5 In `AnimatedModel.tsx`, gate the physics-driven leg rendering on `coupledMode === 'land'`
   (replace the `GRAVITY_TEST` import/usage).
 
 ## 4. Legs + ground (done in spike; re-confirm after the mode refactor)
@@ -35,12 +35,13 @@ The remaining work productizes the spike into a real swim/land mode and verifies
   mass from `nodeWeight`, foot collider with friction, **rigid (fixed)** hip joint.
 - [x] 4.2 Place a static ground plane just below the lowest foot.
 - [x] 4.3 Render legs from their physics body transforms (sibling BodyMounts via `bodyRefs`).
-- [ ] 4.4 Re-verify 4.1–4.3 still hold once gated by `coupledMode` instead of `GRAVITY_TEST`.
+- [x] 4.4 Re-verify 4.1–4.3 still hold once gated by `coupledMode` instead of `GRAVITY_TEST`.
+  (Observed: land mode stands — comY −0.14, tilt ~2°, KE→~0; swim mode unregressed.)
 
 ## 5. Typecheck + lint
 
-- [ ] 5.1 `npx tsc --noEmit` passes.
-- [ ] 5.2 `npx eslint app/game/locomotion app/admin/animate` passes (no new warnings beyond the
+- [x] 5.1 `npx tsc --noEmit` passes.
+- [x] 5.2 `npx eslint app/game/locomotion app/admin/animate` passes (no new warnings beyond the
   pre-existing `_segments` unused-var).
 
 ## 6. Manual visual gate (browser) — HAND OFF TO USER
@@ -53,5 +54,5 @@ The remaining work productizes the spike into a real swim/land mode and verifies
 
 ## 7. Documentation + validation
 
-- [ ] 7.1 `documentation/animation-roadmap.md` §4: dated entry — mode toggle productized, gate result.
-- [ ] 7.2 `npx openspec validate add-walking-foundation --strict` passes.
+- [x] 7.1 `documentation/animation-roadmap.md` §4: dated entry — mode toggle productized, gate result.
+- [x] 7.2 `npx openspec validate add-walking-foundation --strict` passes.

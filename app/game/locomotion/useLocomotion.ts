@@ -7,7 +7,7 @@ import RAPIER from '@dimforge/rapier3d-compat'
 import { BodyGroup, SegmentData } from '@/app/admin/_lib/types'
 import { useAnimateStore } from '@/app/admin/animate/animateStore'
 import { buildSkeletonTree, effectiveAngleCaps, flattenSkeleton } from './chain'
-import { axialLengths, buildBody3D, Body3D, GRAVITY_TEST } from './body3d'
+import { axialLengths, buildBody3D, Body3D, CoupledMode } from './body3d'
 import { applyEnvironment3D } from './environment'
 import {
   buildCaptureSpec3D,
@@ -49,6 +49,7 @@ interface CoupledHandle {
   cpgState: CpgState
   delayBuffers: MuscleDelayBuffer[]
   acc: number
+  mode: CoupledMode
   baseCom: { x: number; y: number; z: number }
   diagAccum: number
   recordTime: number
@@ -161,18 +162,18 @@ export function useLocomotion(
   }
   useEffect(() => () => freeCoupled(), [])
 
-  function buildCoupled(): CoupledHandle | null {
+  function buildCoupled(mode: CoupledMode): CoupledHandle | null {
     if (!rapierReady.current) return null
-    const world = new RAPIER.World({ x: 0, y: GRAVITY_TEST ? -9.81 : 0, z: 0 })
+    const world = new RAPIER.World({ x: 0, y: mode === 'land' ? -9.81 : 0, z: 0 })
     world.timestep = TIMESTEP
-    const body = buildBody3D(world, groups)
+    const body = buildBody3D(world, groups, mode)
     if (!body) { world.free(); return null }
     const spec = buildCpgSpec(body.segLength)
     const baseCom = comOf(body)
     return {
       groups, world, body, cpgSpec: spec, cpgState: initCpgState(spec),
       delayBuffers: body.joints.map(() => createDelayBuffer(TIMESTEP)),
-      acc: 0, baseCom, diagAccum: 0,
+      acc: 0, mode, baseCom, diagAccum: 0,
       recordTime: 0, recordAccum: RECORD_INTERVAL, recordBaseCom: baseCom,
       recordBodySamples: [], recordCpgSamples: [],
       recordDrive: 0, recordExcitability: 0,
@@ -191,11 +192,12 @@ export function useLocomotion(
     const s = scratch.current
 
     const coupledRunning = !calibrating && store.coupledRunning && !!cpgSpec && rapierReady.current
+    const coupledMode = store.coupledMode
 
     if (coupledRunning) {
-      if (!coupledRef.current || coupledRef.current.groups !== groups) {
+      if (!coupledRef.current || coupledRef.current.groups !== groups || coupledRef.current.mode !== coupledMode) {
         freeCoupled()
-        coupledRef.current = buildCoupled()
+        coupledRef.current = buildCoupled(coupledMode)
       }
       const c = coupledRef.current
       if (c) {

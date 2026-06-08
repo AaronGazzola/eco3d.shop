@@ -1015,3 +1015,16 @@ reference.
   section to settle the hip axis + emergent lift, then drive the legs with the paper's **limb CPG +
   piecewise-linear transfer function** (let the diagonal trot emerge from the couplings), and **promote
   this foundation work into a proper OpenSpec change**. All gated by a temporary `GRAVITY_TEST` flag.
+- **2026-06-08 (Phase F0 specced + productized; paper limb section read)** — Promoted the foundation
+  spike into a proper OpenSpec change **`add-walking-foundation`** (proposal/design/specs/tasks,
+  `validate --strict` clean) — the missing rung between 3D swim and walking. Replaced the hardcoded
+  `GRAVITY_TEST` flag with a real **`coupledMode: 'swim' | 'land'`** (store + `__studio.mode` +
+  sidebar toggle, default swim); world gravity + ground + physics legs are built only in land mode.
+  Both verified via the observation loop: **swim unregressed** (drift ~10.7/8s, comY≈0, tilt 5–9°),
+  **land stands** (comY settles −0.14, tilt ~2°, KE→~0, sprawled lizard stance, no fall-through).
+  Read the paper's **Limb Joints** section and recorded the **paper-vs-ours split** in reference §5:
+  the paper fixes the limb *control* (1-DOF, phase→piecewise-linear transfer function, 77% duty by
+  speed, PD/position control, trot emerges from Table 2 couplings) but **not** the hip *axis* or any
+  foot-lift mechanism (robot hardware) — those are ours to choose and stay flagged. Cadence going
+  forward: one spec at a time (F0 → D1 limb CPG → D2 actuation → D3 coupled). Remaining on F0: the
+  manual visual gate is a user hand-off.
