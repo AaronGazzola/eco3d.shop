@@ -46,11 +46,11 @@ The remaining work productizes the spike into a real swim/land mode and verifies
 
 ## 6. Manual visual gate (browser) — HAND OFF TO USER
 
-- [ ] 6.1 Swim mode: confirm the body still swims forward head-first with no regression (no planar
-  projection), comY≈0, tilt bounded.
-- [ ] 6.2 Land mode at rest (no/low drive): the dragon drops onto its feet and rests — COM height
-  settles, tilt ≤ ~5°, KE decays, no fall-through, no tumble, no gross clipping.
-- [ ] 6.3 Toggle swim↔land a few times: each rebuild is clean (no NaN/explosion).
+- [x] 6.1 Swim mode: swims forward, no float/tumble. User confirmed a slow bounded lean to one side
+  (the accepted non-coplanar-spine residual, ~3–9°) — not a regression.
+- [x] 6.2 Land mode: the dragon drops onto its feet and rests (comY settles −0.14, tilt ~2°, KE→~0).
+  At drive>0 the body's axial wave wiggles the rigid front legs (expected — hips are welded this phase).
+- [x] 6.3 Toggle swim↔land: each rebuild is clean (no NaN/explosion). User confirmed.
 
 ## 7. Documentation + validation
 
