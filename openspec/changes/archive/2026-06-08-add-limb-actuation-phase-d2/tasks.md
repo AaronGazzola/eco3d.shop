@@ -43,10 +43,10 @@
 
 ## 7. Manual visual gate (browser) — HAND OFF TO USER
 
-- [ ] 7.1 Land mode, Step on (low freq): the legs visibly sweep — slow backward stance, fast forward
+- [x] 7.1 Land mode, Step on (low freq): the legs visibly sweep — slow backward stance, fast forward
   swing — in the diagonal-trot phasing. Foot **scrub** (no lift) is expected and acceptable for D2.
-  (Smoke-tested via harness: all four legs sweep, comY≈−0.13 stable; awaiting user eyeball.)
-- [ ] 7.2 Step off: the body stands still on its legs (no collapse). (Smoke-tested: stands, KE→0.)
+  (Confirmed via harness screenshots: all four legs sweep, comY≈−0.13 stable; user accepted.)
+- [x] 7.2 Step off: the body stands still on its legs (no collapse). (Confirmed: stands, KE→0.)
 
 ## 8. Documentation + validation
 
