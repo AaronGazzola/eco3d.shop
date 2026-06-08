@@ -73,8 +73,6 @@ function SimulateTab() {
   const setCoupledMode = useAnimateStore((s) => s.setCoupledMode)
   const stepEnabled = useAnimateStore((s) => s.stepEnabled)
   const setStepEnabled = useAnimateStore((s) => s.setStepEnabled)
-  const liftAmp = useAnimateStore((s) => s.liftAmp)
-  const setLiftAmp = useAnimateStore((s) => s.setLiftAmp)
   const muscleAlpha = useAnimateStore((s) => s.muscleAlpha)
   const muscleBeta = useAnimateStore((s) => s.muscleBeta)
   const muscleDamping = useAnimateStore((s) => s.muscleDamping)
@@ -118,17 +116,10 @@ function SimulateTab() {
             >
               {stepEnabled ? 'Walk ON' : 'Walk OFF'}
             </button>
-            <label className="flex items-center justify-between gap-2 text-[10px] text-white/55">
-              <span>foot lift {liftAmp.toFixed(2)} rad</span>
-              <input
-                type="range" min={0} max={1} step={0.05} value={liftAmp}
-                onChange={(e) => setLiftAmp(Number(e.target.value))}
-                className="flex-1"
-              />
-            </label>
             <p className="text-white/45 text-[10px] leading-relaxed">
               D3: legs driven by the limb CPG (sweep = 77%-duty transfer function; the trot emerges
-              from the couplings). Foot lift raises the leg during swing so it clears. Walk OFF = stand.
+              from the couplings). The tilted hip hinge turns the sweep into a step (foot lifts in
+              swing, plants in stance). Walk OFF = stand.
             </p>
           </>
         )}

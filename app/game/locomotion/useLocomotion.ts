@@ -35,24 +35,9 @@ const DIAGNOSTICS_INTERVAL = 0.1
 const RECORD_INTERVAL = 0.05
 const MAX_OUTPUT_SAMPLES = 160
 const CPG_MAX_OUTPUT_SAMPLES = 200
-// Motorized-hip drive (sweep matches the D2 single-hip bench tuning; lift is softer)
+// Motorized-hip drive (matches the D2 single-hip bench tuning)
 const HIP_K_STIFF = 300
 const HIP_DELTA = 12
-// Lift is about a HORIZONTAL axis, so it carries the body weight — it must be stiff enough to hold
-// the stance leg against gravity (a soft lift lets the legs deflect and the body sinks/tilts).
-const HIP_LIFT_K_STIFF = 3000
-const HIP_LIFT_DELTA = 80
-
-// Phase-gated lift: 0 across the stance window (first 77%), a smooth 0→1→0 bump across swing (last
-// 23%), so the foot lifts mid-swing and is planted during stance. Phase comes from the limb CPG.
-function liftRaise(phi: number): number {
-  const TWO_PI = Math.PI * 2
-  const wrapped = ((phi % TWO_PI) + TWO_PI) % TWO_PI
-  const stanceEnd = TWO_PI * 0.77
-  if (wrapped < stanceEnd) return 0
-  const t = (wrapped - stanceEnd) / (TWO_PI - stanceEnd)
-  return Math.sin(Math.PI * t)
-}
 
 interface JointCapEntry {
   groupId: string
@@ -239,7 +224,6 @@ export function useLocomotion(
         const beta = store.muscleBeta
         const jointDamping = store.muscleDamping
         const stepEnabled = store.stepEnabled
-        const liftAmp = store.liftAmp
         let acc = c.acc + Math.min(dt, MAX_FRAME)
         while (acc >= TIMESTEP) {
           stepCpg(c.cpgState, c.cpgSpec, drive, exc, TIMESTEP)
@@ -256,18 +240,14 @@ export function useLocomotion(
             const phiEq = kStiff > 1e-9 ? (alpha * (d.mL - d.mR)) / kStiff : 0
             ;(jt.joint as RAPIER.RevoluteImpulseJoint).configureMotorPosition(phiEq, kStiff, jointDamping)
           }
-          // D3: drive each 2-DOF hip from its LIMB CPG oscillator. Sweep = the transfer function on
-          // the limb phase (the diagonal trot emerges from the Table 2 couplings); lift = a
-          // phase-gated raise (up in swing, down in stance) so the foot clears. Both share the same
-          // CPG phase → in sync. Walking off → hold rest (0) so it stands. Position-driven.
+          // D3: drive each hip from its LIMB CPG oscillator through the transfer function. The
+          // diagonal trot emerges from the Table 2 couplings; the tilted hinge axis turns the sweep
+          // into a step (foot lifts in swing, plants in stance). Walking off → hold rest so it stands.
           if (c.body.hipJoints.length > 0) {
             for (const hip of c.body.hipJoints) {
               const phi = limbPhase(c.cpgState, c.cpgSpec, hip.limbIdx)
               const sweep = stepEnabled ? phaseToTarget(phi, hip.capStance, hip.capSwing) : 0
-              hip.sweepJoint.configureMotorPosition(sweep, HIP_K_STIFF, HIP_DELTA)
-              const liftSign = hip.limbIdx % 2 === 0 ? 1 : -1 // mirror left/right so both raise up
-              const lift = stepEnabled ? liftSign * liftAmp * liftRaise(phi) : 0
-              hip.liftJoint.configureMotorPosition(lift, HIP_LIFT_K_STIFF, HIP_LIFT_DELTA)
+              hip.joint.configureMotorPosition(sweep, HIP_K_STIFF, HIP_DELTA)
             }
           }
           for (const b of c.body.bodies) b.wakeUp() // motor doesn't auto-wake; keep the chain awake
