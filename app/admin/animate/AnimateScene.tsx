@@ -22,6 +22,7 @@ function useStudioObservationHook() {
       tune: (drive: number, exc: number) => { store().setCpgDrive(drive); store().setCpgExcitability(exc) },
       mode: (m: 'swim' | 'land') => store().setCoupledMode(m),
       step: (on: boolean, freqHz?: number) => { store().setStepEnabled(on); if (freqHz != null) store().setStepFreqHz(freqHz) },
+      lift: (amp: number) => store().setLiftAmp(amp),
       muscle: (alpha: number, beta: number, damping: number) => { store().setMuscleAlpha(alpha); store().setMuscleBeta(beta); store().setMuscleDamping(damping) },
       record: (on: boolean) => store().setSimRecording(on),
       diag: () => store().simDiagnostics,

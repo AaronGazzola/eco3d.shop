@@ -22,7 +22,7 @@ import {
   subsampleSamples,
   serializeCoupledCapture,
 } from './diagnostics'
-import { buildCpgSpec, CpgSpec, CpgState, initCpgState, LIMB_LF, LIMB_RH, oscillatorOutput, stepCpg } from './cpg'
+import { buildCpgSpec, CpgSpec, CpgState, initCpgState, limbPhase, oscillatorOutput, stepCpg } from './cpg'
 import { createDelayBuffer, GAMMA, MuscleDelayBuffer, pushAndReadDelayed } from './muscles'
 
 const SLERP_RATE = 12
@@ -35,9 +35,24 @@ const DIAGNOSTICS_INTERVAL = 0.1
 const RECORD_INTERVAL = 0.05
 const MAX_OUTPUT_SAMPLES = 160
 const CPG_MAX_OUTPUT_SAMPLES = 200
-// D2 motorized-hip drive (matches the D2 single-hip bench tuning)
+// Motorized-hip drive (sweep matches the D2 single-hip bench tuning; lift is softer)
 const HIP_K_STIFF = 300
 const HIP_DELTA = 12
+// Lift is about a HORIZONTAL axis, so it carries the body weight — it must be stiff enough to hold
+// the stance leg against gravity (a soft lift lets the legs deflect and the body sinks/tilts).
+const HIP_LIFT_K_STIFF = 3000
+const HIP_LIFT_DELTA = 80
+
+// Phase-gated lift: 0 across the stance window (first 77%), a smooth 0→1→0 bump across swing (last
+// 23%), so the foot lifts mid-swing and is planted during stance. Phase comes from the limb CPG.
+function liftRaise(phi: number): number {
+  const TWO_PI = Math.PI * 2
+  const wrapped = ((phi % TWO_PI) + TWO_PI) % TWO_PI
+  const stanceEnd = TWO_PI * 0.77
+  if (wrapped < stanceEnd) return 0
+  const t = (wrapped - stanceEnd) / (TWO_PI - stanceEnd)
+  return Math.sin(Math.PI * t)
+}
 
 interface JointCapEntry {
   groupId: string
@@ -179,7 +194,13 @@ export function useLocomotion(
     world.timestep = TIMESTEP
     const body = buildBody3D(world, groups, mode)
     if (!body) { world.free(); return null }
-    const spec = buildCpgSpec(body.segLength)
+    // Build the CPG from the AXIAL chain only (body.segLength has the 4 legs appended in land mode,
+    // which would corrupt the oscillator count). In land, pass groups so the four limb oscillators +
+    // couplings are included; swim stays axial-only.
+    const axial = axialChain(groups)
+    const spec = mode === 'land'
+      ? buildCpgSpec(axial.lengths, groups, axial.groupIds)
+      : buildCpgSpec(axial.lengths)
     const baseCom = comOf(body)
     return {
       groups, world, body, cpgSpec: spec, cpgState: initCpgState(spec),
@@ -218,7 +239,7 @@ export function useLocomotion(
         const beta = store.muscleBeta
         const jointDamping = store.muscleDamping
         const stepEnabled = store.stepEnabled
-        const stepFreqHz = store.stepFreqHz
+        const liftAmp = store.liftAmp
         let acc = c.acc + Math.min(dt, MAX_FRAME)
         while (acc >= TIMESTEP) {
           stepCpg(c.cpgState, c.cpgSpec, drive, exc, TIMESTEP)
@@ -235,17 +256,18 @@ export function useLocomotion(
             const phiEq = kStiff > 1e-9 ? (alpha * (d.mL - d.mR)) / kStiff : 0
             ;(jt.joint as RAPIER.RevoluteImpulseJoint).configureMotorPosition(phiEq, kStiff, jointDamping)
           }
-          // D2: drive each motorized hip through the limb transfer function from a TEST oscillator
-          // at the diagonal-trot phase offsets (LF+RH together, antiphase to RF+LH). When stepping is
-          // off, hold the rest angle (0) so the body just stands. Position-driven (energy-stable).
+          // D3: drive each 2-DOF hip from its LIMB CPG oscillator. Sweep = the transfer function on
+          // the limb phase (the diagonal trot emerges from the Table 2 couplings); lift = a
+          // phase-gated raise (up in swing, down in stance) so the foot clears. Both share the same
+          // CPG phase → in sync. Walking off → hold rest (0) so it stands. Position-driven.
           if (c.body.hipJoints.length > 0) {
-            c.simTime += TIMESTEP
-            const omega = 2 * Math.PI * stepFreqHz
             for (const hip of c.body.hipJoints) {
-              const trotOffset = hip.limbIdx === LIMB_LF || hip.limbIdx === LIMB_RH ? 0 : Math.PI
-              const phi = omega * c.simTime + trotOffset
-              const target = stepEnabled ? phaseToTarget(phi, hip.capStance, hip.capSwing) : 0
-              hip.joint.configureMotorPosition(target, HIP_K_STIFF, HIP_DELTA)
+              const phi = limbPhase(c.cpgState, c.cpgSpec, hip.limbIdx)
+              const sweep = stepEnabled ? phaseToTarget(phi, hip.capStance, hip.capSwing) : 0
+              hip.sweepJoint.configureMotorPosition(sweep, HIP_K_STIFF, HIP_DELTA)
+              const liftSign = hip.limbIdx % 2 === 0 ? 1 : -1 // mirror left/right so both raise up
+              const lift = stepEnabled ? liftSign * liftAmp * liftRaise(phi) : 0
+              hip.liftJoint.configureMotorPosition(lift, HIP_LIFT_K_STIFF, HIP_LIFT_DELTA)
             }
           }
           for (const b of c.body.bodies) b.wakeUp() // motor doesn't auto-wake; keep the chain awake

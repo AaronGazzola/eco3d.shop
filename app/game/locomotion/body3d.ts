@@ -56,10 +56,13 @@ export function axialLengths(groups: BodyGroup[]): number[] {
   return axialChain(groups).lengths
 }
 
-// A motorized hip (land mode): a revolute joint about vertical, position-driven by useLocomotion
-// through the limb transfer function. `limbIdx` is LF/RF/LH/RH (for the diagonal-trot phase).
+// A 2-DOF motorized hip (land mode), driven by useLocomotion from the limb CPG: `sweepJoint`
+// (revolute about vertical) does the fore-aft protraction/retraction via the transfer function;
+// `liftJoint` (revolute about a transverse axis) raises the leg during swing so the foot clears.
+// `limbIdx` is LF/RF/LH/RH.
 export interface Body3DHip {
-  joint: RAPIER.RevoluteImpulseJoint
+  sweepJoint: RAPIER.RevoluteImpulseJoint
+  liftJoint: RAPIER.RevoluteImpulseJoint
   limbIdx: number
   capStance: number
   capSwing: number
@@ -231,21 +234,37 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[], mode: Coup
       world.createCollider(lcd, legBody)
 
       const pc = centers[s.parentIndex]
-      const a1 = { x: s.hip.x - pc.x, y: s.hip.y - pc.y, z: s.hip.z - pc.z }
-      const a2 = { x: s.hip.x - s.center.x, y: s.hip.y - s.center.y, z: s.hip.z - s.center.z }
-      const jd = RAPIER.JointData.revolute(a1, a2, { x: 0, y: 1, z: 0 })
-      const joint = world.createImpulseJoint(jd, bodies[s.parentIndex], legBody, true) as RAPIER.RevoluteImpulseJoint
+      // 2-DOF hip = two revolutes in series through a tiny carrier body at the hip socket:
+      //   girdle --[lift: transverse axis]--> carrier --[sweep: vertical axis]--> thigh
+      // The carrier has a small collider that collides with nothing (collision group filter 0).
+      const carrierDesc = RAPIER.RigidBodyDesc.dynamic().setTranslation(s.hip.x, s.hip.y, s.hip.z)
+      const carrier = world.createRigidBody(carrierDesc)
+      const carrierCol = RAPIER.ColliderDesc.ball(legRadius * 0.5).setMass(legMass * 0.1).setCollisionGroups(0x00010000)
+      world.createCollider(carrierCol, carrier)
+
+      const aGirdle = { x: s.hip.x - pc.x, y: s.hip.y - pc.y, z: s.hip.z - pc.z }
+      const liftJd = RAPIER.JointData.revolute(aGirdle, { x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 })
+      const liftJoint = world.createImpulseJoint(liftJd, bodies[s.parentIndex], carrier, true) as RAPIER.RevoluteImpulseJoint
+      if (typeof liftJoint.configureMotorModel === 'function') liftJoint.configureMotorModel(RAPIER.MotorModel.ForceBased)
+
+      const aThigh = { x: s.hip.x - s.center.x, y: s.hip.y - s.center.y, z: s.hip.z - s.center.z }
+      const sweepJd = RAPIER.JointData.revolute({ x: 0, y: 0, z: 0 }, aThigh, { x: 0, y: 1, z: 0 })
+      const sweepJoint = world.createImpulseJoint(sweepJd, carrier, legBody, true) as RAPIER.RevoluteImpulseJoint
       const caps = effectiveAngleCaps(s.leg)
       const capStance = caps.yaw
       const capSwing = caps.yawBack ?? caps.yaw
-      if (typeof joint.setLimits === 'function') joint.setLimits(-capSwing, capStance)
-      if (typeof joint.configureMotorModel === 'function') joint.configureMotorModel(RAPIER.MotorModel.ForceBased)
+      if (typeof sweepJoint.setLimits === 'function') sweepJoint.setLimits(-capSwing, capStance)
+      if (typeof sweepJoint.configureMotorModel === 'function') sweepJoint.configureMotorModel(RAPIER.MotorModel.ForceBased)
 
       const isHind = s.parentIndex !== foreIdx
       const isLeft = s.leg.type === 'leg-left'
       const limbIdx = (isHind ? 2 : 0) + (isLeft ? 0 : 1) // LF=0, RF=1, LH=2, RH=3
-      hipJoints.push({ joint, limbIdx, capStance, capSwing })
+      hipJoints.push({ sweepJoint, liftJoint, limbIdx, capStance, capSwing })
 
+      bodies.push(carrier)
+      segLength.push(0)
+      groupIds.push(`${s.leg.id}__carrier`)
+      restCenters.push({ x: s.hip.x, y: s.hip.y, z: s.hip.z })
       bodies.push(legBody)
       segLength.push(s.len)
       groupIds.push(s.leg.id)

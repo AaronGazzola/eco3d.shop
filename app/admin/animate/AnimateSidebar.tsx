@@ -73,8 +73,8 @@ function SimulateTab() {
   const setCoupledMode = useAnimateStore((s) => s.setCoupledMode)
   const stepEnabled = useAnimateStore((s) => s.stepEnabled)
   const setStepEnabled = useAnimateStore((s) => s.setStepEnabled)
-  const stepFreqHz = useAnimateStore((s) => s.stepFreqHz)
-  const setStepFreqHz = useAnimateStore((s) => s.setStepFreqHz)
+  const liftAmp = useAnimateStore((s) => s.liftAmp)
+  const setLiftAmp = useAnimateStore((s) => s.setLiftAmp)
   const muscleAlpha = useAnimateStore((s) => s.muscleAlpha)
   const muscleBeta = useAnimateStore((s) => s.muscleBeta)
   const muscleDamping = useAnimateStore((s) => s.muscleDamping)
@@ -116,19 +116,19 @@ function SimulateTab() {
                 stepEnabled ? 'bg-emerald-600/40 text-emerald-200' : 'bg-white/10 text-white/70 hover:text-white'
               )}
             >
-              {stepEnabled ? 'Step ON' : 'Step OFF'}
+              {stepEnabled ? 'Walk ON' : 'Walk OFF'}
             </button>
             <label className="flex items-center justify-between gap-2 text-[10px] text-white/55">
-              <span>step freq {stepFreqHz.toFixed(2)} Hz</span>
+              <span>foot lift {liftAmp.toFixed(2)} rad</span>
               <input
-                type="range" min={0.1} max={2} step={0.05} value={stepFreqHz}
-                onChange={(e) => setStepFreqHz(Number(e.target.value))}
+                type="range" min={0} max={1} step={0.05} value={liftAmp}
+                onChange={(e) => setLiftAmp(Number(e.target.value))}
                 className="flex-1"
               />
             </label>
             <p className="text-white/45 text-[10px] leading-relaxed">
-              D2: legs swept by the 77%-duty transfer function (test oscillator, diagonal trot). Feet
-              scrub (no lift yet) — that&apos;s D3. Step OFF = stand still.
+              D3: legs driven by the limb CPG (sweep = 77%-duty transfer function; the trot emerges
+              from the couplings). Foot lift raises the leg during swing so it clears. Walk OFF = stand.
             </p>
           </>
         )}
