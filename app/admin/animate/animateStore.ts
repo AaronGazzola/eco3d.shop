@@ -46,6 +46,7 @@ interface AnimateStore {
   coupledMode: 'swim' | 'land'
   stepEnabled: boolean
   stepFreqHz: number
+  stepPhase: number
 
   setAnimateTab: (tab: AnimateTab) => void
   setCalibratingGroup: (id: string | null) => void
@@ -74,6 +75,7 @@ interface AnimateStore {
   setCoupledMode: (v: 'swim' | 'land') => void
   setStepEnabled: (v: boolean) => void
   setStepFreqHz: (v: number) => void
+  setStepPhase: (v: number) => void
 }
 
 export const useAnimateStore = create<AnimateStore>()((set) => ({
@@ -100,6 +102,7 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   coupledMode: 'swim',
   stepEnabled: false,
   stepFreqHz: 0.6,
+  stepPhase: Math.PI, // half-cycle offset: steps the foot contralateral to the body wave (walks ~2x farther)
 
   setAnimateTab: (tab) => {
     if (tab === 'simulate') {
@@ -179,4 +182,5 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   setCoupledMode: (v) => set({ coupledMode: v }),
   setStepEnabled: (v) => set({ stepEnabled: v }),
   setStepFreqHz: (v) => set({ stepFreqHz: v }),
+  setStepPhase: (v) => set({ stepPhase: v }),
 }))

@@ -73,6 +73,8 @@ function SimulateTab() {
   const setCoupledMode = useAnimateStore((s) => s.setCoupledMode)
   const stepEnabled = useAnimateStore((s) => s.stepEnabled)
   const setStepEnabled = useAnimateStore((s) => s.setStepEnabled)
+  const stepPhase = useAnimateStore((s) => s.stepPhase)
+  const setStepPhase = useAnimateStore((s) => s.setStepPhase)
   const muscleAlpha = useAnimateStore((s) => s.muscleAlpha)
   const muscleBeta = useAnimateStore((s) => s.muscleBeta)
   const muscleDamping = useAnimateStore((s) => s.muscleDamping)
@@ -116,10 +118,19 @@ function SimulateTab() {
             >
               {stepEnabled ? 'Walk ON' : 'Walk OFF'}
             </button>
+            <label className="flex items-center justify-between gap-2 text-[10px] text-white/55">
+              <span>step phase {(stepPhase / Math.PI).toFixed(2)}π</span>
+              <input
+                type="range" min={0} max={6.28} step={0.05} value={stepPhase}
+                onChange={(e) => setStepPhase(Number(e.target.value))}
+                className="flex-1"
+              />
+            </label>
             <p className="text-white/45 text-[10px] leading-relaxed">
-              D3: legs driven by the limb CPG (sweep = 77%-duty transfer function; the trot emerges
-              from the couplings). The tilted hip hinge turns the sweep into a step (foot lifts in
-              swing, plants in stance). Walk OFF = stand.
+              D3: legs driven by the limb CPG (sweep = 77%-duty transfer function; trot emerges from
+              the couplings). The tilted hinge turns the sweep into a step. Step phase slides WHEN the
+              foot lifts vs the body wave — tune so a foot swings as the body bends away from it. Walk
+              OFF = stand.
             </p>
           </>
         )}

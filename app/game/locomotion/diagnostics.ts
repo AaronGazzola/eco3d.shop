@@ -654,6 +654,41 @@ export function serializeCoupledCapture(
   const header = `# Coupled CPG→muscle→body capture (Phase B3)\ngenerated: ${new Date().toISOString()}\ndrive: ${drive.toFixed(3)}   excitability: ${excitability.toFixed(3)}\n\n---\n`
   const body = serializeCapture(bodySpec, bodySamples)
   const cpg = serializeCpgCapture(cpgSpec, cpgSamples, drive, excitability)
-  return header + body + '\n\n---\n\n' + cpg
+  return header + body + '\n\n---\n\n' + cpg + '\n\n---\n\n' + serializeLimbTiming(bodySamples, cpgSamples)
+}
+
+// Limb phase vs body heading over time — to read the footfall-vs-yaw timing (D3). For each CPG
+// sample we show the four limb phases in degrees and mark SWING (phase in the last 23% of the cycle,
+// foot lifted) with 'S', alongside the nearest body heading. Lets us check claims like "the right
+// foot swings as the head yaws right".
+function serializeLimbTiming(bodySamples: CaptureSample[], cpgSamples: CpgCaptureSample[]): string {
+  const lines: string[] = []
+  lines.push('## limb phase vs heading (timing ; phase in deg, S = swing/foot-lifted, last 23% of cycle)')
+  if (cpgSamples.length === 0 || (cpgSamples[0].limbPhases?.length ?? 0) === 0) {
+    lines.push('  (no limb samples)')
+    return lines.join('\n')
+  }
+  const TWO_PI = Math.PI * 2
+  const swingStart = 0.77 * 360
+  const headingAt = (t: number): number => {
+    let best = bodySamples[0], bd = Infinity
+    for (const b of bodySamples) { const d = Math.abs(b.t - t); if (d < bd) { bd = d; best = b } }
+    return best ? best.headingDeg : 0
+  }
+  const cell = (phi: number): string => {
+    const deg = (((phi % TWO_PI) + TWO_PI) % TWO_PI) * (180 / Math.PI)
+    return `${pad(f(deg, 0), 4)}${deg >= swingStart ? 'S' : ' '}`
+  }
+  lines.push(`${pad('t', 7)}${pad('head°', 8)}  LF    RF    LH    RH`)
+  const step = Math.max(1, Math.floor(cpgSamples.length / 80))
+  for (let i = 0; i < cpgSamples.length; i += step) {
+    const s = cpgSamples[i]
+    const p = s.limbPhases
+    lines.push(
+      pad(f(s.t, 2), 7) + pad(f(headingAt(s.t), 1), 8) + '  ' +
+      cell(p[0] ?? 0) + ' ' + cell(p[1] ?? 0) + ' ' + cell(p[2] ?? 0) + ' ' + cell(p[3] ?? 0)
+    )
+  }
+  return lines.join('\n')
 }
 

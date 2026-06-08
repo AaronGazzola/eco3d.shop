@@ -38,7 +38,7 @@ const AUTH = 'scripts/.observe-auth.json'
 // The swimmer body lies along X, so the 'front' preset ([0,4,22], looking down −Z) is the lengthwise
 // SIDE PROFILE (height vs length) — best for spotting lift-off; 'top' shows the planar wave; 'reset'
 // is the 3/4 overview. ('side' [22,4,0] looks down the spine — axial, not useful here.)
-const ANGLES = ['front', 'top', 'reset']
+const ANGLES = ['top', 'side', 'front']
 const [, , CMD = 'controls', ...REST] = process.argv
 
 mkdirSync(OUT, { recursive: true })
@@ -100,14 +100,16 @@ if (CMD === 'login') {
   const mode = process.env.MODE ?? null // 'swim' | 'land'
   const step = process.env.STEP === 'on' // land-mode hip stepping
   const stepFreq = process.env.STEPFREQ != null ? Number(process.env.STEPFREQ) : null
+  const phase = process.env.PHASE != null ? Number(process.env.PHASE) : null // step-phase offset (rad)
   await loadRig()
-  await page.evaluate(({ drag, drive, exc, mode, step, stepFreq }) => {
+  await page.evaluate(({ drag, drive, exc, mode, step, stepFreq, phase }) => {
     if (mode && window.__studio.mode) window.__studio.mode(mode)
     if (step && window.__studio.step) window.__studio.step(true, stepFreq ?? undefined)
+    if (phase != null && window.__studio.phase) window.__studio.phase(phase)
     if (drive != null && exc != null) window.__studio.tune(drive, exc)
     window.__studio.drag(drag)
     window.__studio.drive(true)
-  }, { drag, drive, exc, mode, step, stepFreq })
+  }, { drag, drive, exc, mode, step, stepFreq, phase })
   console.log(`running: mode=${mode ?? 'default'} step=${step ? 'ON' : 'off'} drag=${drag ? 'ON' : 'OFF'} drive=${drive ?? 'default'} exc=${exc ?? 'default'} angles=${ANGLES.join(',')}`)
 
   const rows = []
@@ -228,13 +230,17 @@ if (CMD === 'login') {
   const drag = (REST[1] ?? 'on') === 'on'
   const drive = REST[2] != null ? Number(REST[2]) : null
   const exc = REST[3] != null ? Number(REST[3]) : null
+  const recMode = process.env.MODE ?? null
+  const recStep = process.env.STEP === 'on'
   await loadRig()
-  await page.evaluate(({ drag, drive, exc }) => {
+  await page.evaluate(({ drag, drive, exc, recMode, recStep }) => {
+    if (recMode && window.__studio.mode) window.__studio.mode(recMode)
+    if (recStep && window.__studio.step) window.__studio.step(true)
     if (drive != null && exc != null) window.__studio.tune(drive, exc)
     window.__studio.drag(drag)
     window.__studio.drive(true)
     window.__studio.record(true)
-  }, { drag, drive, exc })
+  }, { drag, drive, exc, recMode, recStep })
   await page.waitForTimeout(seconds * 1000)
   await page.evaluate(() => window.__studio.record(false))
   await page.waitForTimeout(2000)

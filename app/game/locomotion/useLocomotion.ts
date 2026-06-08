@@ -224,6 +224,7 @@ export function useLocomotion(
         const beta = store.muscleBeta
         const jointDamping = store.muscleDamping
         const stepEnabled = store.stepEnabled
+        const stepPhase = store.stepPhase
         let acc = c.acc + Math.min(dt, MAX_FRAME)
         while (acc >= TIMESTEP) {
           stepCpg(c.cpgState, c.cpgSpec, drive, exc, TIMESTEP)
@@ -245,7 +246,9 @@ export function useLocomotion(
           // into a step (foot lifts in swing, plants in stance). Walking off → hold rest so it stands.
           if (c.body.hipJoints.length > 0) {
             for (const hip of c.body.hipJoints) {
-              const phi = limbPhase(c.cpgState, c.cpgSpec, hip.limbIdx)
+              // stepPhase shifts WHEN in the body cycle the leg steps (live tuning knob): it re-anchors
+              // the transfer function relative to the limb oscillator → slides the footfall vs the wave.
+              const phi = limbPhase(c.cpgState, c.cpgSpec, hip.limbIdx) + stepPhase
               const sweep = stepEnabled ? phaseToTarget(phi, hip.capStance, hip.capSwing) : 0
               hip.joint.configureMotorPosition(sweep, HIP_K_STIFF, HIP_DELTA)
             }
