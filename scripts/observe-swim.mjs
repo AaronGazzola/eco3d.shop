@@ -98,14 +98,17 @@ if (CMD === 'login') {
   const exc = REST[3] != null ? Number(REST[3]) : null
 
   const mode = process.env.MODE ?? null // 'swim' | 'land'
+  const step = process.env.STEP === 'on' // land-mode hip stepping
+  const stepFreq = process.env.STEPFREQ != null ? Number(process.env.STEPFREQ) : null
   await loadRig()
-  await page.evaluate(({ drag, drive, exc, mode }) => {
+  await page.evaluate(({ drag, drive, exc, mode, step, stepFreq }) => {
     if (mode && window.__studio.mode) window.__studio.mode(mode)
+    if (step && window.__studio.step) window.__studio.step(true, stepFreq ?? undefined)
     if (drive != null && exc != null) window.__studio.tune(drive, exc)
     window.__studio.drag(drag)
     window.__studio.drive(true)
-  }, { drag, drive, exc, mode })
-  console.log(`running: mode=${mode ?? 'default'} drag=${drag ? 'ON' : 'OFF'} drive=${drive ?? 'default'} exc=${exc ?? 'default'} angles=${ANGLES.join(',')}`)
+  }, { drag, drive, exc, mode, step, stepFreq })
+  console.log(`running: mode=${mode ?? 'default'} step=${step ? 'ON' : 'off'} drag=${drag ? 'ON' : 'OFF'} drive=${drive ?? 'default'} exc=${exc ?? 'default'} angles=${ANGLES.join(',')}`)
 
   const rows = []
   const camWait = 250

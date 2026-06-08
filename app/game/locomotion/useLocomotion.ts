@@ -9,6 +9,7 @@ import { useAnimateStore } from '@/app/admin/animate/animateStore'
 import { buildSkeletonTree, effectiveAngleCaps, flattenSkeleton } from './chain'
 import { axialChain, buildBody3D, Body3D, CoupledMode } from './body3d'
 import { applyEnvironment3D } from './environment'
+import { phaseToTarget } from './limbActuation'
 import {
   buildCaptureSpec3D,
   buildSample3D,
@@ -21,7 +22,7 @@ import {
   subsampleSamples,
   serializeCoupledCapture,
 } from './diagnostics'
-import { buildCpgSpec, CpgSpec, CpgState, initCpgState, oscillatorOutput, stepCpg } from './cpg'
+import { buildCpgSpec, CpgSpec, CpgState, initCpgState, LIMB_LF, LIMB_RH, oscillatorOutput, stepCpg } from './cpg'
 import { createDelayBuffer, GAMMA, MuscleDelayBuffer, pushAndReadDelayed } from './muscles'
 
 const SLERP_RATE = 12
@@ -34,6 +35,9 @@ const DIAGNOSTICS_INTERVAL = 0.1
 const RECORD_INTERVAL = 0.05
 const MAX_OUTPUT_SAMPLES = 160
 const CPG_MAX_OUTPUT_SAMPLES = 200
+// D2 motorized-hip drive (matches the D2 single-hip bench tuning)
+const HIP_K_STIFF = 300
+const HIP_DELTA = 12
 
 interface JointCapEntry {
   groupId: string
@@ -49,6 +53,7 @@ interface CoupledHandle {
   cpgState: CpgState
   delayBuffers: MuscleDelayBuffer[]
   acc: number
+  simTime: number
   mode: CoupledMode
   baseCom: { x: number; y: number; z: number }
   diagAccum: number
@@ -179,7 +184,7 @@ export function useLocomotion(
     return {
       groups, world, body, cpgSpec: spec, cpgState: initCpgState(spec),
       delayBuffers: body.joints.map(() => createDelayBuffer(TIMESTEP)),
-      acc: 0, mode, baseCom, diagAccum: 0,
+      acc: 0, simTime: 0, mode, baseCom, diagAccum: 0,
       recordTime: 0, recordAccum: RECORD_INTERVAL, recordBaseCom: baseCom,
       recordBodySamples: [], recordCpgSamples: [],
       recordDrive: 0, recordExcitability: 0,
@@ -212,6 +217,8 @@ export function useLocomotion(
         const alpha = store.muscleAlpha
         const beta = store.muscleBeta
         const jointDamping = store.muscleDamping
+        const stepEnabled = store.stepEnabled
+        const stepFreqHz = store.stepFreqHz
         let acc = c.acc + Math.min(dt, MAX_FRAME)
         while (acc >= TIMESTEP) {
           stepCpg(c.cpgState, c.cpgSpec, drive, exc, TIMESTEP)
@@ -227,6 +234,19 @@ export function useLocomotion(
             const kStiff = beta * (d.mL + d.mR + GAMMA)
             const phiEq = kStiff > 1e-9 ? (alpha * (d.mL - d.mR)) / kStiff : 0
             ;(jt.joint as RAPIER.RevoluteImpulseJoint).configureMotorPosition(phiEq, kStiff, jointDamping)
+          }
+          // D2: drive each motorized hip through the limb transfer function from a TEST oscillator
+          // at the diagonal-trot phase offsets (LF+RH together, antiphase to RF+LH). When stepping is
+          // off, hold the rest angle (0) so the body just stands. Position-driven (energy-stable).
+          if (c.body.hipJoints.length > 0) {
+            c.simTime += TIMESTEP
+            const omega = 2 * Math.PI * stepFreqHz
+            for (const hip of c.body.hipJoints) {
+              const trotOffset = hip.limbIdx === LIMB_LF || hip.limbIdx === LIMB_RH ? 0 : Math.PI
+              const phi = omega * c.simTime + trotOffset
+              const target = stepEnabled ? phaseToTarget(phi, hip.capStance, hip.capSwing) : 0
+              hip.joint.configureMotorPosition(target, HIP_K_STIFF, HIP_DELTA)
+            }
           }
           for (const b of c.body.bodies) b.wakeUp() // motor doesn't auto-wake; keep the chain awake
           c.world.step()

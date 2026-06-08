@@ -56,6 +56,15 @@ export function axialLengths(groups: BodyGroup[]): number[] {
   return axialChain(groups).lengths
 }
 
+// A motorized hip (land mode): a revolute joint about vertical, position-driven by useLocomotion
+// through the limb transfer function. `limbIdx` is LF/RF/LH/RH (for the diagonal-trot phase).
+export interface Body3DHip {
+  joint: RAPIER.RevoluteImpulseJoint
+  limbIdx: number
+  capStance: number
+  capSwing: number
+}
+
 export interface Body3D {
   bodies: RAPIER.RigidBody[]
   joints: Body3DJoint[]
@@ -65,6 +74,7 @@ export interface Body3D {
   // rest center of each body in model/node space — used to render meshes (which live in model
   // space) at the body's current transform: world = T·R·translate(−restCenter).
   restCenters: { x: number; y: number; z: number }[]
+  hipJoints: Body3DHip[]
 }
 
 function nodeVec(n: { x: number; y?: number; z: number } | undefined): Vector3 | null {
@@ -179,13 +189,16 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[], mode: Coup
 
   const restCenters = centers.map((c) => ({ x: c.x, y: c.y, z: c.z }))
 
-  // LAND regime (Phase F0): build the legs as real capsules from each hip socket (on the parent
-  // girdle) down to the leg's nodeFoot, with foot contact + friction, so the body stands on them.
-  // Hips are RIGID (fixed) here — standing foundation only; the paper's limb CPG + transfer function
-  // will drive motorized hips in the walking step. Floor sits just below the feet (y≈0).
+  // LAND regime: build the legs as real capsules from each hip socket (on the parent girdle) down to
+  // the leg's nodeFoot, with foot contact + friction. Each hip is a revolute joint about VERTICAL
+  // with a ForceBased motor (D2): position-driven by useLocomotion through the limb transfer
+  // function (it holds the rest angle when not stepping, so the body still stands). Floor sits just
+  // below the feet (y≈0).
+  const hipJoints: Body3DHip[] = []
   if (mode === 'land') {
     const legRadius = STD_SEGMENT_WIDTH / 2
-    let lowestFootY = Infinity
+    // Pass 1: resolve each leg's geometry + which girdle it hangs from (forward girdle = lower index).
+    const specs: { leg: BodyGroup; parentIndex: number; hip: Vector3; foot: Vector3; dir: Vector3; len: number; center: Vector3 }[] = []
     for (const leg of groups) {
       if (leg.type !== 'leg-left' && leg.type !== 'leg-right') continue
       const parent = groups.find((g) => g.id === leg.attachedToSpineId)
@@ -201,29 +214,43 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[], mode: Coup
       if (len < 1e-3) continue
       dir.normalize()
       const center = new Vector3().addVectors(hip, dir.clone().multiplyScalar(len / 2))
-
-      const lbd = RAPIER.RigidBodyDesc.dynamic().setTranslation(center.x, center.y, center.z)
+      specs.push({ leg, parentIndex, hip, foot, dir, len, center })
+    }
+    const foreIdx = specs.length ? Math.min(...specs.map((s) => s.parentIndex)) : -1
+    let lowestFootY = Infinity
+    for (const s of specs) {
+      const lbd = RAPIER.RigidBodyDesc.dynamic().setTranslation(s.center.x, s.center.y, s.center.z)
       const legBody = world.createRigidBody(lbd)
-      const legHalf = Math.max(len / 2 - legRadius, 1e-3)
-      const legMass = leg.nodeWeight ?? defaultWeightFor(leg.type)
-      const legQ = capsuleRotation(dir)
+      const legHalf = Math.max(s.len / 2 - legRadius, 1e-3)
+      const legMass = s.leg.nodeWeight ?? defaultWeightFor(s.leg.type)
+      const legQ = capsuleRotation(s.dir)
       const lcd = RAPIER.ColliderDesc.capsule(legHalf, legRadius)
         .setRotation({ x: legQ.x, y: legQ.y, z: legQ.z, w: legQ.w })
         .setMass(legMass)
         .setFriction(0.9)
       world.createCollider(lcd, legBody)
 
-      const pc = centers[parentIndex]
-      const a1 = { x: hip.x - pc.x, y: hip.y - pc.y, z: hip.z - pc.z }
-      const a2 = { x: hip.x - center.x, y: hip.y - center.y, z: hip.z - center.z }
-      const jd = RAPIER.JointData.fixed(a1, { x: 0, y: 0, z: 0, w: 1 }, a2, { x: 0, y: 0, z: 0, w: 1 })
-      world.createImpulseJoint(jd, bodies[parentIndex], legBody, true)
+      const pc = centers[s.parentIndex]
+      const a1 = { x: s.hip.x - pc.x, y: s.hip.y - pc.y, z: s.hip.z - pc.z }
+      const a2 = { x: s.hip.x - s.center.x, y: s.hip.y - s.center.y, z: s.hip.z - s.center.z }
+      const jd = RAPIER.JointData.revolute(a1, a2, { x: 0, y: 1, z: 0 })
+      const joint = world.createImpulseJoint(jd, bodies[s.parentIndex], legBody, true) as RAPIER.RevoluteImpulseJoint
+      const caps = effectiveAngleCaps(s.leg)
+      const capStance = caps.yaw
+      const capSwing = caps.yawBack ?? caps.yaw
+      if (typeof joint.setLimits === 'function') joint.setLimits(-capSwing, capStance)
+      if (typeof joint.configureMotorModel === 'function') joint.configureMotorModel(RAPIER.MotorModel.ForceBased)
+
+      const isHind = s.parentIndex !== foreIdx
+      const isLeft = s.leg.type === 'leg-left'
+      const limbIdx = (isHind ? 2 : 0) + (isLeft ? 0 : 1) // LF=0, RF=1, LH=2, RH=3
+      hipJoints.push({ joint, limbIdx, capStance, capSwing })
 
       bodies.push(legBody)
-      segLength.push(len)
-      groupIds.push(leg.id)
-      restCenters.push({ x: center.x, y: center.y, z: center.z })
-      lowestFootY = Math.min(lowestFootY, foot.y)
+      segLength.push(s.len)
+      groupIds.push(s.leg.id)
+      restCenters.push({ x: s.center.x, y: s.center.y, z: s.center.z })
+      lowestFootY = Math.min(lowestFootY, s.foot.y)
     }
 
     if (!Number.isFinite(lowestFootY)) lowestFootY = 0
@@ -233,7 +260,7 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[], mode: Coup
     world.createCollider(RAPIER.ColliderDesc.cuboid(100, 0.05, 100).setFriction(0.9), groundBody)
   }
 
-  return { bodies, joints, segLength, groupIds, jointToCpgSegment, restCenters }
+  return { bodies, joints, segLength, groupIds, jointToCpgSegment, restCenters, hipJoints }
 }
 
 // Signed joint angle about its bend axis, from the two bodies' current rotations. The revolute

@@ -1042,3 +1042,16 @@ reference.
   antiphase, hind leads); 4.2 axial lag collapses toward a standing wave when limbs are active
   (−0.06 vs swim 2.64); 4.3 limbs fold first across `d_th=1.27` (limb max 1.07→0, axial holds 2.04).
   No body/legs/actuation (that's D2/D3). tsc + eslint clean.
+- **2026-06-09 (Phase D2 — limb actuation, transfer function drives motorized hips)** — Ported the
+  faithful piecewise-linear transfer function `phaseToTarget(φ, capStance, capSwing, 0.77)` into
+  `limbActuation.ts` (slow stance 77% / fast swing 23%, continuous at the wrap, clamped to caps).
+  Land-mode hips changed **rigid → revolute about vertical + ForceBased motor** (`Body3D.hipJoints`
+  with `limbIdx`); `useLocomotion` drives each hip to `phaseToTarget(testPhase)` at the diagonal-trot
+  offsets (LF+RH together, antiphase to RF+LH) from a **test oscillator** (`stepEnabled` + `stepFreqHz`
+  in the store; Step toggle + freq slider in the sidebar; `__studio.step`); step-off holds the rest
+  angle so it still stands. **Isolated from the D1 CPG + axial coupling — that's D3.** Gates: the
+  headless single-hip bench passes (tracking RMS 5.73°, cap respected, realised stance fraction in
+  [0.72,0.82]); on the rig, land+Step-on shows all four legs sweeping (KE pulses, comY≈−0.13 stable,
+  tilt ~2°), step-off stands (KE→0). **Foot scrub (no lift) is expected and deferred to D3** (the
+  1-DOF vertical hip can't lift; the paper doesn't specify a lift mechanism — ours to choose). tsc +
+  eslint clean. Manual visual gate is a user hand-off.

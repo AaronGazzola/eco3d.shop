@@ -44,6 +44,8 @@ interface AnimateStore {
   muscleBeta: number
   muscleDamping: number
   coupledMode: 'swim' | 'land'
+  stepEnabled: boolean
+  stepFreqHz: number
 
   setAnimateTab: (tab: AnimateTab) => void
   setCalibratingGroup: (id: string | null) => void
@@ -70,6 +72,8 @@ interface AnimateStore {
   setMuscleBeta: (v: number) => void
   setMuscleDamping: (v: number) => void
   setCoupledMode: (v: 'swim' | 'land') => void
+  setStepEnabled: (v: boolean) => void
+  setStepFreqHz: (v: number) => void
 }
 
 export const useAnimateStore = create<AnimateStore>()((set) => ({
@@ -94,6 +98,8 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   muscleBeta: 1.2,
   muscleDamping: 0.1,
   coupledMode: 'swim',
+  stepEnabled: false,
+  stepFreqHz: 0.6,
 
   setAnimateTab: (tab) => {
     if (tab === 'simulate') {
@@ -171,4 +177,6 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   setMuscleBeta: (v) => set({ muscleBeta: v }),
   setMuscleDamping: (v) => set({ muscleDamping: v }),
   setCoupledMode: (v) => set({ coupledMode: v }),
+  setStepEnabled: (v) => set({ stepEnabled: v }),
+  setStepFreqHz: (v) => set({ stepFreqHz: v }),
 }))
