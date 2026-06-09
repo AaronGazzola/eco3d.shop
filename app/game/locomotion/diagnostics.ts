@@ -654,39 +654,39 @@ export function serializeCoupledCapture(
   const header = `# Coupled CPG→muscle→body capture (Phase B3)\ngenerated: ${new Date().toISOString()}\ndrive: ${drive.toFixed(3)}   excitability: ${excitability.toFixed(3)}\n\n---\n`
   const body = serializeCapture(bodySpec, bodySamples)
   const cpg = serializeCpgCapture(cpgSpec, cpgSamples, drive, excitability)
-  return header + body + '\n\n---\n\n' + cpg + '\n\n---\n\n' + serializeLimbTiming(bodySamples, cpgSamples)
+  return header + body + '\n\n---\n\n' + cpg + '\n\n---\n\n' + serializeLimbTiming(cpgSpec, cpgSamples)
 }
 
-// Limb phase vs body heading over time — to read the footfall-vs-yaw timing (D3). For each CPG
-// sample we show the four limb phases in degrees and mark SWING (phase in the last 23% of the cycle,
-// foot lifted) with 'S', alongside the nearest body heading. Lets us check claims like "the right
-// foot swings as the head yaws right".
-function serializeLimbTiming(bodySamples: CaptureSample[], cpgSamples: CpgCaptureSample[]): string {
+// Limb reach vs LOCAL girdle flex over time (D3 footfall phasing). For each CPG sample we show the
+// girdle's signed bend (left_out − right_out at the girdle segment: + = flexing LEFT, − = RIGHT) next
+// to each leg's phase, marking SWING ('S' = the leg reaching forward, last 23% of the cycle). This
+// reads the real claim: "the RIGHT leg reaches forward while the hip flexes LEFT, and vice versa."
+function serializeLimbTiming(spec: CpgCaptureSpec, cpgSamples: CpgCaptureSample[]): string {
   const lines: string[] = []
-  lines.push('## limb phase vs heading (timing ; phase in deg, S = swing/foot-lifted, last 23% of cycle)')
-  if (cpgSamples.length === 0 || (cpgSamples[0].limbPhases?.length ?? 0) === 0) {
-    lines.push('  (no limb samples)')
+  lines.push('## limb reach vs girdle flex (timing)')
+  if (cpgSamples.length === 0 || (cpgSamples[0].limbPhases?.length ?? 0) === 0 || spec.kFore < 0) {
+    lines.push('  (no limb samples / no girdles)')
     return lines.join('\n')
   }
+  lines.push('  flex = (left−right) activation at the girdle: L = flexing left (+), R = flexing right (−)')
+  lines.push('  leg: phase°, S = swing = reaching forward. Want: flex L → RF/RH reach (S); flex R → LF/LH reach.')
   const TWO_PI = Math.PI * 2
   const swingStart = 0.77 * 360
-  const headingAt = (t: number): number => {
-    let best = bodySamples[0], bd = Infinity
-    for (const b of bodySamples) { const d = Math.abs(b.t - t); if (d < bd) { bd = d; best = b } }
-    return best ? best.headingDeg : 0
-  }
   const cell = (phi: number): string => {
     const deg = (((phi % TWO_PI) + TWO_PI) % TWO_PI) * (180 / Math.PI)
     return `${pad(f(deg, 0), 4)}${deg >= swingStart ? 'S' : ' '}`
   }
-  lines.push(`${pad('t', 7)}${pad('head°', 8)}  LF    RF    LH    RH`)
+  const flex = (v: number): string => `${v >= 0 ? 'L' : 'R'}${pad(f(Math.abs(v), 2), 5)}`
+  lines.push(`${pad('t', 6)}  foreFlex  LF    RF   |  hindFlex  LH    RH`)
   const step = Math.max(1, Math.floor(cpgSamples.length / 80))
   for (let i = 0; i < cpgSamples.length; i += step) {
     const s = cpgSamples[i]
     const p = s.limbPhases
+    const fore = s.signedActivations[spec.kFore] ?? 0
+    const hind = s.signedActivations[spec.kHind] ?? 0
     lines.push(
-      pad(f(s.t, 2), 7) + pad(f(headingAt(s.t), 1), 8) + '  ' +
-      cell(p[0] ?? 0) + ' ' + cell(p[1] ?? 0) + ' ' + cell(p[2] ?? 0) + ' ' + cell(p[3] ?? 0)
+      pad(f(s.t, 2), 6) + '  ' + pad(flex(fore), 8) + '  ' + cell(p[0] ?? 0) + ' ' + cell(p[1] ?? 0) +
+      '  |  ' + pad(flex(hind), 8) + '  ' + cell(p[2] ?? 0) + ' ' + cell(p[3] ?? 0)
     )
   }
   return lines.join('\n')

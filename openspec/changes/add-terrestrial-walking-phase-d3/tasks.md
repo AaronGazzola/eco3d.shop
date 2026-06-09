@@ -1,5 +1,21 @@
 # Tasks — Phase D3 terrestrial coupled walking
 
+> **⚠ STATUS (2026-06-09 handoff — IN PROGRESS, gate NOT met).** Implemented but **diverged from this
+> spec**, which must be rewritten before archiving:
+> - **Coupling DONE** (CPG drives the hips; fixed the axial-only oscillator-count bug). Sweep =
+>   `phaseToTarget(limbPhase)`; trot emerges.
+> - **Lift = a *tilted single hinge* (option B), NOT the 2-DOF lift this spec describes.** The 2-DOF
+>   series hip was abandoned (too compliant — body sank/tilted). Tilted hinge (`HIP_AXIS_TILT` in
+>   `body3d.ts`) stands solidly and clears the foot from the sweep arc. **Rewrite §2 + the specs to B.**
+> - **Timing fixed:** legs were stepping ipsilateral to the body yaw; a live `stepPhase` offset (default
+>   **π**) flips it contralateral → ~2× forward drift, straighter. New `serializeLimbTiming` diagnostic
+>   (limb-reach vs girdle-flex) confirms it.
+> - **OPEN PROBLEM (the real next step):** it still doesn't *look* like a walk. In walk mode the body
+>   undulation is suppressed (feet pinned by friction anchor the girdles; active limbs → standing wave),
+>   so the swim-mode stride (traveling wave swings the legs naturally) is lost. **Next: let the body wave
+>   carry the legs** — lower foot friction, weaker/rethought hip sweep, re-check limb→axial strength.
+> - Code on branch `fix/local-plane-muscle-axis`; latest `43e2b22` + girdle-flex diagnostic.
+
 ## 1. Couple the limb CPG into the body
 
 - [ ] 1.1 In `useLocomotion.ts` `buildCoupled`, build the coupled `cpgSpec` **with limbs** in land mode

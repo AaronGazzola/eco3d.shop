@@ -1055,3 +1055,31 @@ reference.
   tilt ~2°), step-off stands (KE→0). **Foot scrub (no lift) is expected and deferred to D3** (the
   1-DOF vertical hip can't lift; the paper doesn't specify a lift mechanism — ours to choose). tsc +
   eslint clean. Manual visual gate is a user hand-off.
+- **2026-06-09 (Phase D3 — coupled walking; IN PROGRESS, not passing, handed off)** — `add-terrestrial-
+  walking-phase-d3` is **active/unfinished**. Built: the coupled CPG now drives the land hips (fixed a
+  bug — build the CPG from the **axial chain only**; `body.segLength` had the legs appended, corrupting
+  the oscillator count). Sweep = `phaseToTarget(limbPhase)`; the trot emerges from the couplings.
+  **Foot-lift decision: a *tilted single hip hinge* (option B), NOT the 2-DOF lift in the D3 spec.**
+  The 2-DOF series hip (carrier body + lift joint) was tried first and **abandoned** — too compliant to
+  hold the body weight (it sank to comY −0.39 / tilt 15°). The tilted single hinge (`HIP_AXIS_TILT=0.5`,
+  mirrored L/R) is sturdy (stands at comY −0.147 / tilt 2°) and gives clearance from the sweep arc. **⚠
+  The D3 spec/design/tasks still describe the 2-DOF lift and MUST be rewritten to the tilted-hinge +
+  step-phase approach before archiving.**
+  **Timing fix (the key finding, user-driven):** the legs were stepping *ipsilateral* to the body yaw
+  (reinforcing the wander). Added a live **`stepPhase`** offset (store + sidebar slider + `__studio.phase`)
+  that re-anchors the transfer function vs the limb oscillator. Swept it: **`stepPhase = π`** (half-cycle
+  → *contralateral* footfall) ~doubles forward drift (2.8 vs 1.5 / 12s) and straightens it; set as the
+  default. New diagnostic (`serializeLimbTiming`, in the coupled capture): **limb-reach vs girdle-flex**
+  table — confirms the right legs now reach forward as their girdle flexes left (contralateral), the rule
+  we wanted. Harness: down-spine `side` angle (roll), `MODE/STEP/PHASE` envs on `run`, walk-mode `record`.
+  **STILL LOOKS BAD / open problem (the real next step):** in walk mode the **body undulation is
+  suppressed** — feet pinned to the floor (friction 0.9) anchor the girdles, and active limbs pull the
+  axis toward a standing wave, so the nice swim-mode stride (where the *traveling body wave* swings the
+  passive legs forward-on-the-outside / back-on-the-inside) is lost. **Direction for the next agent:**
+  stop driving the legs as the primary stride generator; let the **body wave carry the legs** (swim-mode
+  look is the target), with the limb CPG doing mainly **foot-lift/clearance + stance**, not a fore-aft
+  sweep that fights the wave. Try: much **lower foot friction**, a **weaker/rethought hip sweep**, and
+  re-check the **limb→axial coupling strength** (w=30 may over-damp the wave). All committed on branch
+  `fix/local-plane-muscle-axis` (latest: step-phase fix `43e2b22` + the girdle-flex diagnostic). D3 gate
+  (net-forward + upright + bounded, *looking* like a walk) **not met**. Tilted hinge + step-phase are
+  flagged deviations to record in reference §5 when D3 is finalized.
