@@ -24,6 +24,19 @@ function useStudioObservationHook() {
       step: (on: boolean, freqHz?: number) => { store().setStepEnabled(on); if (freqHz != null) store().setStepFreqHz(freqHz) },
       phase: (rad: number) => store().setStepPhase(rad),
       muscle: (alpha: number, beta: number, damping: number) => { store().setMuscleAlpha(alpha); store().setMuscleBeta(beta); store().setMuscleDamping(damping) },
+      friction: (body: number, leg: number) => { store().setBodyFriction(body); store().setLegFriction(leg) },
+      gravity: (on: boolean) => store().setGravityEnabled(on),
+      legs: (on: boolean) => store().setLandLegsEnabled(on),
+      ground: (on: boolean) => store().setLandGroundEnabled(on),
+      limbcpg: (on: boolean) => store().setLimbCpgEnabled(on),
+      lock: (on: boolean) => store().setLegsLocked(on),
+      grip: (on: boolean, shift?: number, duty?: number) => {
+        store().setGripEnabled(on)
+        if (shift != null) store().setGripShift(shift)
+        if (duty != null) store().setGripDuty(duty)
+      },
+      glow: (on: boolean) => store().setGripGlowEnabled(on),
+      gripLegs: (which: 'front' | 'back' | 'both') => store().setGripLegs(which),
       record: (on: boolean) => store().setSimRecording(on),
       diag: () => store().simDiagnostics,
     }

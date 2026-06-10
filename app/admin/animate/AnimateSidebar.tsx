@@ -75,6 +75,32 @@ function SimulateTab() {
   const setStepEnabled = useAnimateStore((s) => s.setStepEnabled)
   const stepPhase = useAnimateStore((s) => s.stepPhase)
   const setStepPhase = useAnimateStore((s) => s.setStepPhase)
+  const bodyFriction = useAnimateStore((s) => s.bodyFriction)
+  const setBodyFriction = useAnimateStore((s) => s.setBodyFriction)
+  const legFriction = useAnimateStore((s) => s.legFriction)
+  const setLegFriction = useAnimateStore((s) => s.setLegFriction)
+  const gravityEnabled = useAnimateStore((s) => s.gravityEnabled)
+  const setGravityEnabled = useAnimateStore((s) => s.setGravityEnabled)
+  const landLegsEnabled = useAnimateStore((s) => s.landLegsEnabled)
+  const setLandLegsEnabled = useAnimateStore((s) => s.setLandLegsEnabled)
+  const landGroundEnabled = useAnimateStore((s) => s.landGroundEnabled)
+  const setLandGroundEnabled = useAnimateStore((s) => s.setLandGroundEnabled)
+  const limbCpgEnabled = useAnimateStore((s) => s.limbCpgEnabled)
+  const setLimbCpgEnabled = useAnimateStore((s) => s.setLimbCpgEnabled)
+  const legsLocked = useAnimateStore((s) => s.legsLocked)
+  const setLegsLocked = useAnimateStore((s) => s.setLegsLocked)
+  const gripEnabled = useAnimateStore((s) => s.gripEnabled)
+  const setGripEnabled = useAnimateStore((s) => s.setGripEnabled)
+  const gripShift = useAnimateStore((s) => s.gripShift)
+  const setGripShift = useAnimateStore((s) => s.setGripShift)
+  const gripDuty = useAnimateStore((s) => s.gripDuty)
+  const setGripDuty = useAnimateStore((s) => s.setGripDuty)
+  const releaseFriction = useAnimateStore((s) => s.releaseFriction)
+  const setReleaseFriction = useAnimateStore((s) => s.setReleaseFriction)
+  const gripGlowEnabled = useAnimateStore((s) => s.gripGlowEnabled)
+  const setGripGlowEnabled = useAnimateStore((s) => s.setGripGlowEnabled)
+  const gripLegs = useAnimateStore((s) => s.gripLegs)
+  const setGripLegs = useAnimateStore((s) => s.setGripLegs)
   const muscleAlpha = useAnimateStore((s) => s.muscleAlpha)
   const muscleBeta = useAnimateStore((s) => s.muscleBeta)
   const muscleDamping = useAnimateStore((s) => s.muscleDamping)
@@ -109,6 +135,31 @@ function SimulateTab() {
         </p>
         {coupledMode === 'land' && (
           <>
+            <p className="text-white/45 text-[10px] leading-relaxed">
+              Land rig toggles, independent. Gravity / Legs (build + draw) / Ground / Limb CPG
+              (oscillators) rebuild the sim. Lock legs holds the hips stiff (rigid struts); off =
+              free/passive (legs dangle). All off = identical to swim.
+            </p>
+            <div className="grid grid-cols-3 gap-1">
+              {([
+                ['Gravity', gravityEnabled, setGravityEnabled],
+                ['Legs', landLegsEnabled, setLandLegsEnabled],
+                ['Ground', landGroundEnabled, setLandGroundEnabled],
+                ['Limb CPG', limbCpgEnabled, setLimbCpgEnabled],
+                ['Lock legs', legsLocked, setLegsLocked],
+              ] as const).map(([label, on, set]) => (
+                <button
+                  key={label}
+                  onClick={() => set(!on)}
+                  className={cn(
+                    'py-1.5 rounded-md text-[11px] transition-colors',
+                    on ? 'bg-amber-600/40 text-amber-200' : 'bg-white/10 text-white/50 hover:text-white'
+                  )}
+                >
+                  {label} {on ? 'ON' : 'off'}
+                </button>
+              ))}
+            </div>
             <button
               onClick={() => setStepEnabled(!stepEnabled)}
               className={cn(
@@ -118,6 +169,75 @@ function SimulateTab() {
             >
               {stepEnabled ? 'Walk ON' : 'Walk OFF'}
             </button>
+            <button
+              onClick={() => setGripEnabled(!gripEnabled)}
+              className={cn(
+                'py-1.5 rounded-md transition-colors',
+                gripEnabled ? 'bg-emerald-600/40 text-emerald-200' : 'bg-white/10 text-white/70 hover:text-white'
+              )}
+            >
+              {gripEnabled ? 'Grip ON' : 'Grip OFF'}
+            </button>
+            {gripEnabled && (
+              <>
+                <div className="grid grid-cols-3 gap-1">
+                  {(['front', 'back', 'both'] as const).map((w) => (
+                    <button
+                      key={w}
+                      onClick={() => setGripLegs(w)}
+                      className={cn(
+                        'py-1.5 rounded-md text-[11px] capitalize transition-colors',
+                        gripLegs === w ? 'bg-emerald-600/40 text-emerald-200' : 'bg-white/10 text-white/50 hover:text-white'
+                      )}
+                    >
+                      {w}
+                    </button>
+                  ))}
+                </div>
+                <PoseSlider
+                  label="grip start"
+                  value={gripShift}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  onChange={setGripShift}
+                  format={(v) => `${Math.round(v * 100)}%`}
+                />
+                <PoseSlider
+                  label="grip duty"
+                  value={gripDuty}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  onChange={setGripDuty}
+                  format={(v) => `${Math.round(v * 100)}%`}
+                />
+                <PoseSlider
+                  label="release friction"
+                  value={releaseFriction}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  onChange={setReleaseFriction}
+                  format={(v) => v.toFixed(2)}
+                />
+                <button
+                  onClick={() => setGripGlowEnabled(!gripGlowEnabled)}
+                  className={cn(
+                    'py-1.5 rounded-md transition-colors',
+                    gripGlowEnabled ? 'bg-cyan-600/40 text-cyan-200' : 'bg-white/10 text-white/70 hover:text-white'
+                  )}
+                >
+                  {gripGlowEnabled ? 'Foot glow ON' : 'Foot glow OFF'}
+                </button>
+                <p className="text-white/45 text-[10px] leading-relaxed">
+                  Legs held stiff; each foot grips (leg-friction) during its backward power stroke
+                  and slides (release-friction) on the recovery. 0% start = grip at peak reach-forward;
+                  50% duty = release at peak reach-back. Foot glow lights each foot node cyan while it
+                  grips.
+                </p>
+              </>
+            )}
             <label className="flex items-center justify-between gap-2 text-[10px] text-white/55">
               <span>step phase {(stepPhase / Math.PI).toFixed(2)}π</span>
               <input
@@ -131,6 +251,29 @@ function SimulateTab() {
               the couplings). The tilted hinge turns the sweep into a step. Step phase slides WHEN the
               foot lifts vs the body wave — tune so a foot swings as the body bends away from it. Walk
               OFF = stand.
+            </p>
+            <PoseSlider
+              label="body friction"
+              value={bodyFriction}
+              min={0}
+              max={1}
+              step={0.05}
+              onChange={setBodyFriction}
+              format={(v) => v.toFixed(2)}
+            />
+            <PoseSlider
+              label="leg friction"
+              value={legFriction}
+              min={0}
+              max={1}
+              step={0.05}
+              onChange={setLegFriction}
+              format={(v) => v.toFixed(2)}
+            />
+            <p className="text-white/45 text-[10px] leading-relaxed">
+              Contact friction, applied live. Low body = belly slides so the axial wave isn&apos;t
+              pinned to the floor; high legs = feet grip and pull. Ground combines by multiply, so
+              these are the effective surface values.
             </p>
           </>
         )}

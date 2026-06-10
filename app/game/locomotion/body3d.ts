@@ -65,14 +65,44 @@ export interface Body3DHip {
   limbIdx: number
   capStance: number
   capSwing: number
+  // For grip-timing: which girdle body this leg hangs off, the leg's own body/collider index, and
+  // the hip-socket / foot offsets in each body's local frame. Lets useLocomotion measure how far
+  // forward/back the foot is reaching (driven by the body wave) to time the foot's floor grip.
+  parentIndex: number
+  legBodyIndex: number
+  hipLocal: { x: number; y: number; z: number }
+  footLocal: { x: number; y: number; z: number }
 }
 
 // How far the hip hinge leans from vertical toward the leg's side (radians). 0 = pure vertical
 // (sprawled yaw, foot scrubs); larger = more of the sweep becomes vertical foot lift. Tune by eye.
 export const HIP_AXIS_TILT = 0.5
 
+// Land contact friction, set per-collider and combined by MULTIPLY against a friction-1.0 ground, so
+// the effective surface friction equals each collider's own coefficient. Trunk slides (low) so the
+// axial wave isn't pinned to the floor; feet grip (high) to turn the wave + step into traction.
+// Live-tunable from the studio (useLocomotion updates the colliders each frame).
+export const BODY_FRICTION_DEFAULT = 0
+export const LEG_FRICTION_DEFAULT = 0
+
+// Collision groups (Rapier packs membership in the high 16 bits, filter in the low 16). The body and
+// legs are SOLID-mesh only for show — they collide with nothing. ALL ground contact goes through the
+// zero-mass support balls placed at each node's authored height (trunk segments + feet alike), so the
+// model rests on its node-height profile and the leg capsules never bang into the body or each other.
+const GROUP_GROUND = 0x0001
+const GROUP_BODY = 0x0002
+const COLLIDE_NONE = (GROUP_BODY << 16) | 0x0000 // member BODY, collide with nothing (capsules)
+const COLLIDE_GROUND_CONTACT = (GROUP_BODY << 16) | GROUP_GROUND // support balls ↔ ground only
+const COLLIDE_GROUND = (GROUP_GROUND << 16) | GROUP_BODY // the floor ↔ body group only
+
 export interface Body3D {
   bodies: RAPIER.RigidBody[]
+  // one collider per body, parallel to `bodies` (trunk segments then legs). Friction is updated
+  // live from the studio; isLeg is decided by groupIds, so this stays in body→collider order.
+  colliders: RAPIER.Collider[]
+  // zero-mass ground-contact spheres under the trunk (two per segment, spread left/right of the
+  // spine) that hold the body flat at its authored node-height profile. Carry the body friction.
+  groundContacts: RAPIER.Collider[]
   joints: Body3DJoint[]
   segLength: number[]
   groupIds: string[]
@@ -88,7 +118,21 @@ function nodeVec(n: { x: number; y?: number; z: number } | undefined): Vector3 |
   return new Vector3(n.x, n.y ?? 0, n.z)
 }
 
-export function buildBody3D(world: RAPIER.World, groups: BodyGroup[], mode: CoupledMode = 'swim'): Body3D | null {
+export interface BuildBody3DOptions {
+  // Land-rig parts, gated independently so the rig can be stripped back toward swim one piece at a
+  // time. Ignored in swim mode (which never builds legs or a floor).
+  buildLegs?: boolean
+  buildGround?: boolean
+}
+
+export function buildBody3D(
+  world: RAPIER.World,
+  groups: BodyGroup[],
+  mode: CoupledMode = 'swim',
+  opts: BuildBody3DOptions = {}
+): Body3D | null {
+  const buildLegs = opts.buildLegs ?? true
+  const buildGround = opts.buildGround ?? true
   const chain = flattenSkeleton(buildSkeletonTree(groups))
   if (chain.length === 0) return null
 
@@ -110,6 +154,8 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[], mode: Coup
 
   const radius = STD_SEGMENT_WIDTH / 2
   const bodies: RAPIER.RigidBody[] = []
+  const colliders: RAPIER.Collider[] = []
+  const groundContacts: RAPIER.Collider[] = []
   const segLength: number[] = []
   const groupIds: string[] = []
   const dirs: Vector3[] = []
@@ -141,7 +187,10 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[], mode: Coup
     const cd = RAPIER.ColliderDesc.capsule(halfHeight, radius)
       .setRotation({ x: capQ.x, y: capQ.y, z: capQ.z, w: capQ.w })
       .setMass(mass)
-    world.createCollider(cd, body)
+      .setFriction(BODY_FRICTION_DEFAULT)
+      .setFrictionCombineRule(RAPIER.CoefficientCombineRule.Multiply)
+      .setCollisionGroups(COLLIDE_NONE)
+    colliders.push(world.createCollider(cd, body))
 
     bodies.push(body)
     segLength.push(length)
@@ -223,8 +272,13 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[], mode: Coup
       specs.push({ leg, parentIndex, hip, foot, dir, len, center })
     }
     const foreIdx = specs.length ? Math.min(...specs.map((s) => s.parentIndex)) : -1
+    // Floor height from the lowest foot node, computed up front so feet and trunk share it.
     let lowestFootY = Infinity
-    for (const s of specs) {
+    for (const s of specs) lowestFootY = Math.min(lowestFootY, s.foot.y)
+    if (!Number.isFinite(lowestFootY)) lowestFootY = 0
+    const groundTop = lowestFootY - legRadius - 0.02
+    if (buildLegs) for (const s of specs) {
+      const legBodyIndex = bodies.length // leg collider + body both land at this index (arrays stay parallel)
       const lbd = RAPIER.RigidBodyDesc.dynamic().setTranslation(s.center.x, s.center.y, s.center.z)
       const legBody = world.createRigidBody(lbd)
       const legHalf = Math.max(s.len / 2 - legRadius, 1e-3)
@@ -233,8 +287,10 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[], mode: Coup
       const lcd = RAPIER.ColliderDesc.capsule(legHalf, legRadius)
         .setRotation({ x: legQ.x, y: legQ.y, z: legQ.z, w: legQ.w })
         .setMass(legMass)
-        .setFriction(0.9)
-      world.createCollider(lcd, legBody)
+        .setFriction(LEG_FRICTION_DEFAULT)
+        .setFrictionCombineRule(RAPIER.CoefficientCombineRule.Multiply)
+        .setCollisionGroups(COLLIDE_NONE) // visual/mass only — never collides with body, legs, or floor
+      colliders.push(world.createCollider(lcd, legBody))
 
       const pc = centers[s.parentIndex]
       const isHind = s.parentIndex !== foreIdx
@@ -253,23 +309,72 @@ export function buildBody3D(world: RAPIER.World, groups: BodyGroup[], mode: Coup
       const capSwing = caps.yawBack ?? caps.yaw
       if (typeof joint.setLimits === 'function') joint.setLimits(-capSwing, capStance)
       if (typeof joint.configureMotorModel === 'function') joint.configureMotorModel(RAPIER.MotorModel.ForceBased)
-      hipJoints.push({ joint, limbIdx, capStance, capSwing })
+      hipJoints.push({
+        joint, limbIdx, capStance, capSwing,
+        parentIndex: s.parentIndex, legBodyIndex,
+        hipLocal: { x: a1.x, y: a1.y, z: a1.z },
+        footLocal: { x: s.dir.x * (s.len / 2), y: s.dir.y * (s.len / 2), z: s.dir.z * (s.len / 2) },
+      })
 
       bodies.push(legBody)
       segLength.push(s.len)
       groupIds.push(s.leg.id)
       restCenters.push({ x: s.center.x, y: s.center.y, z: s.center.z })
-      lowestFootY = Math.min(lowestFootY, s.foot.y)
+
+      // Foot ground contact: a zero-mass ball centred ON the foot node, radius = (footY − groundTop),
+      // so the foot node rests at its authored height no matter how the leg is rotated (a sphere
+      // centred at the node always holds its centre one radius above the floor). Ground-only — never
+      // the body — so turning legs on rests the feet at node height without disturbing the spine.
+      if (buildGround) {
+        const footBallR = Math.max(0.05, s.foot.y - groundTop)
+        const fbcd = RAPIER.ColliderDesc.ball(footBallR)
+          .setTranslation(s.dir.x * (s.len / 2), s.dir.y * (s.len / 2), s.dir.z * (s.len / 2))
+          .setDensity(0)
+          .setFriction(BODY_FRICTION_DEFAULT)
+          .setFrictionCombineRule(RAPIER.CoefficientCombineRule.Multiply)
+          .setCollisionGroups(COLLIDE_GROUND_CONTACT)
+        groundContacts.push(world.createCollider(fbcd, legBody))
+      }
     }
 
-    if (!Number.isFinite(lowestFootY)) lowestFootY = 0
-    const groundTop = lowestFootY - legRadius - 0.02
-    const gd = RAPIER.RigidBodyDesc.fixed().setTranslation(0, groundTop - 0.05, 0)
-    const groundBody = world.createRigidBody(gd)
-    world.createCollider(RAPIER.ColliderDesc.cuboid(100, 0.05, 100).setFriction(0.9), groundBody)
+    if (buildGround) {
+      const gd = RAPIER.RigidBodyDesc.fixed().setTranslation(0, groundTop - 0.05, 0)
+      const groundBody = world.createRigidBody(gd)
+      world.createCollider(
+        RAPIER.ColliderDesc.cuboid(100, 0.05, 100)
+          .setFriction(1.0)
+          .setFrictionCombineRule(RAPIER.CoefficientCombineRule.Multiply)
+          .setCollisionGroups(COLLIDE_GROUND),
+        groundBody
+      )
+
+      // Distributed body support: two zero-mass contact balls under each trunk segment, spread
+      // left/right of the spine and hung down so they rest on the floor when the segment sits at
+      // its authored height. This holds the whole body flat along its authored node-height profile
+      // and resists roll (two laterally-spread contacts per segment), instead of the body balancing
+      // up high on the feet. Density 0 so they add no mass/inertia; friction = body (slides).
+      const supportR = 0.1
+      for (let i = 0; i < usable.length; i++) {
+        const f = dirs[i]
+        // transverse-horizontal = up × forward = (f.z, 0, −f.x); spreads the contacts sideways
+        const tlen = Math.hypot(f.z, f.x) || 1
+        const ux = (f.z / tlen) * radius
+        const uz = (-f.x / tlen) * radius
+        const oy = groundTop + supportR - centers[i].y // local y → ball bottom rests on the floor
+        for (const sgn of [1, -1]) {
+          const scd = RAPIER.ColliderDesc.ball(supportR)
+            .setTranslation(sgn * ux, oy, sgn * uz)
+            .setDensity(0)
+            .setFriction(BODY_FRICTION_DEFAULT)
+            .setFrictionCombineRule(RAPIER.CoefficientCombineRule.Multiply)
+            .setCollisionGroups(COLLIDE_GROUND_CONTACT)
+          groundContacts.push(world.createCollider(scd, bodies[i]))
+        }
+      }
+    }
   }
 
-  return { bodies, joints, segLength, groupIds, jointToCpgSegment, restCenters, hipJoints }
+  return { bodies, colliders, groundContacts, joints, segLength, groupIds, jointToCpgSegment, restCenters, hipJoints }
 }
 
 // Signed joint angle about its bend axis, from the two bodies' current rotations. The revolute

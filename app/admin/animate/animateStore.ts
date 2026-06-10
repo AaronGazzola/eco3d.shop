@@ -47,6 +47,19 @@ interface AnimateStore {
   stepEnabled: boolean
   stepFreqHz: number
   stepPhase: number
+  bodyFriction: number
+  legFriction: number
+  gravityEnabled: boolean
+  landLegsEnabled: boolean
+  landGroundEnabled: boolean
+  limbCpgEnabled: boolean
+  legsLocked: boolean
+  gripEnabled: boolean
+  gripShift: number
+  gripDuty: number
+  releaseFriction: number
+  gripGlowEnabled: boolean
+  gripLegs: 'front' | 'back' | 'both'
 
   setAnimateTab: (tab: AnimateTab) => void
   setCalibratingGroup: (id: string | null) => void
@@ -76,6 +89,19 @@ interface AnimateStore {
   setStepEnabled: (v: boolean) => void
   setStepFreqHz: (v: number) => void
   setStepPhase: (v: number) => void
+  setBodyFriction: (v: number) => void
+  setLegFriction: (v: number) => void
+  setGravityEnabled: (v: boolean) => void
+  setLandLegsEnabled: (v: boolean) => void
+  setLandGroundEnabled: (v: boolean) => void
+  setLimbCpgEnabled: (v: boolean) => void
+  setLegsLocked: (v: boolean) => void
+  setGripEnabled: (v: boolean) => void
+  setGripShift: (v: number) => void
+  setGripDuty: (v: number) => void
+  setReleaseFriction: (v: number) => void
+  setGripGlowEnabled: (v: boolean) => void
+  setGripLegs: (v: 'front' | 'back' | 'both') => void
 }
 
 export const useAnimateStore = create<AnimateStore>()((set) => ({
@@ -103,6 +129,19 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   stepEnabled: false,
   stepFreqHz: 0.6,
   stepPhase: Math.PI, // half-cycle offset: steps the foot contralateral to the body wave (walks ~2x farther)
+  bodyFriction: 0, // all ground contact is frictionless — base motion matches swim; grip pins instead
+  legFriction: 0, // grip works by pinning the foot (a joint), not friction, so this stays 0 too
+  gravityEnabled: true, // land-mode gravity; off = land rig (legs+floor) with no downward pull
+  landLegsEnabled: true, // build the 4 legs as physics bodies + render them from physics; off = no legs
+  landGroundEnabled: true, // build the ground plane; off = no floor (toward swim)
+  limbCpgEnabled: true, // add the 4 limb oscillators to the CPG (the legs' driver; Walk needs them)
+  legsLocked: true, // hold the hips stiff at rest (rigid struts); off = free/passive (legs dangle)
+  gripEnabled: false, // legs held stiff; each foot grips the floor on its backward (power) stroke
+  gripShift: 0, // slides the grip window vs the foot's reach cycle (0 = start gripping at peak reach-forward)
+  gripDuty: 0.5, // fraction of the reach cycle the foot grips (0.5 = peak-forward → peak-back)
+  releaseFriction: 0, // feet are frictionless; grip provides traction by pinning, not friction
+  gripGlowEnabled: false, // debug: light up each foot node bright while it is gripping the floor
+  gripLegs: 'both', // which legs grip: front pair, back pair, or all four
 
   setAnimateTab: (tab) => {
     if (tab === 'simulate') {
@@ -183,4 +222,17 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   setStepEnabled: (v) => set({ stepEnabled: v }),
   setStepFreqHz: (v) => set({ stepFreqHz: v }),
   setStepPhase: (v) => set({ stepPhase: v }),
+  setBodyFriction: (v) => set({ bodyFriction: v }),
+  setLegFriction: (v) => set({ legFriction: v }),
+  setGravityEnabled: (v) => set({ gravityEnabled: v }),
+  setLandLegsEnabled: (v) => set({ landLegsEnabled: v }),
+  setLandGroundEnabled: (v) => set({ landGroundEnabled: v }),
+  setLimbCpgEnabled: (v) => set({ limbCpgEnabled: v }),
+  setLegsLocked: (v) => set({ legsLocked: v }),
+  setGripEnabled: (v) => set({ gripEnabled: v }),
+  setGripShift: (v) => set({ gripShift: v }),
+  setGripDuty: (v) => set({ gripDuty: v }),
+  setReleaseFriction: (v) => set({ releaseFriction: v }),
+  setGripGlowEnabled: (v) => set({ gripGlowEnabled: v }),
+  setGripLegs: (v) => set({ gripLegs: v }),
 }))

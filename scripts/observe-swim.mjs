@@ -101,15 +101,36 @@ if (CMD === 'login') {
   const step = process.env.STEP === 'on' // land-mode hip stepping
   const stepFreq = process.env.STEPFREQ != null ? Number(process.env.STEPFREQ) : null
   const phase = process.env.PHASE != null ? Number(process.env.PHASE) : null // step-phase offset (rad)
+  const fBody = process.env.FBODY != null ? Number(process.env.FBODY) : null // land body friction
+  const fLeg = process.env.FLEG != null ? Number(process.env.FLEG) : null // land leg friction
+  const grav = process.env.GRAV != null ? process.env.GRAV !== 'off' : null // land gravity on/off
+  const legs = process.env.LEGS != null ? process.env.LEGS !== 'off' : null // build land legs on/off
+  const ground = process.env.GROUND != null ? process.env.GROUND !== 'off' : null // build floor on/off
+  const grip = process.env.GRIP != null ? process.env.GRIP !== 'off' : null // timed foot grip on/off
+  const gripShift = process.env.GRIPSHIFT != null ? Number(process.env.GRIPSHIFT) : null
+  const gripDuty = process.env.GRIPDUTY != null ? Number(process.env.GRIPDUTY) : null
+  const glow = process.env.GLOW != null ? process.env.GLOW !== 'off' : null // foot-grip debug glow
+  const gripLegs = process.env.GRIPLEGS ?? null // 'front' | 'back' | 'both'
+  const limbcpg = process.env.LIMBCPG != null ? process.env.LIMBCPG !== 'off' : null
+  const lock = process.env.LOCK != null ? process.env.LOCK !== 'off' : null
   await loadRig()
-  await page.evaluate(({ drag, drive, exc, mode, step, stepFreq, phase }) => {
+  await page.evaluate(({ drag, drive, exc, mode, step, stepFreq, phase, fBody, fLeg, grav, legs, ground, grip, gripShift, gripDuty, glow, gripLegs, limbcpg, lock }) => {
     if (mode && window.__studio.mode) window.__studio.mode(mode)
+    if (legs != null && window.__studio.legs) window.__studio.legs(legs)
+    if (ground != null && window.__studio.ground) window.__studio.ground(ground)
+    if (limbcpg != null && window.__studio.limbcpg) window.__studio.limbcpg(limbcpg)
+    if (lock != null && window.__studio.lock) window.__studio.lock(lock)
     if (step && window.__studio.step) window.__studio.step(true, stepFreq ?? undefined)
     if (phase != null && window.__studio.phase) window.__studio.phase(phase)
+    if (grip != null && window.__studio.grip) window.__studio.grip(grip, gripShift ?? undefined, gripDuty ?? undefined)
+    if (gripLegs != null && window.__studio.gripLegs) window.__studio.gripLegs(gripLegs)
+    if (glow != null && window.__studio.glow) window.__studio.glow(glow)
+    if (fBody != null && fLeg != null && window.__studio.friction) window.__studio.friction(fBody, fLeg)
+    if (grav != null && window.__studio.gravity) window.__studio.gravity(grav)
     if (drive != null && exc != null) window.__studio.tune(drive, exc)
     window.__studio.drag(drag)
     window.__studio.drive(true)
-  }, { drag, drive, exc, mode, step, stepFreq, phase })
+  }, { drag, drive, exc, mode, step, stepFreq, phase, fBody, fLeg, grav, legs, ground, grip, gripShift, gripDuty, glow, gripLegs, limbcpg, lock })
   console.log(`running: mode=${mode ?? 'default'} step=${step ? 'ON' : 'off'} drag=${drag ? 'ON' : 'OFF'} drive=${drive ?? 'default'} exc=${exc ?? 'default'} angles=${ANGLES.join(',')}`)
 
   const rows = []

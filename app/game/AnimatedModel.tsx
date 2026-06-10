@@ -335,9 +335,18 @@ export function AnimatedModel({
   const segmentMap = useMemo(() => new Map(segments.map((s) => [s.id, s])), [segments])
   const pivotsRef = useRef<Map<string, THREE.Group>>(new Map())
   const bodyRefs = useRef<Map<string, THREE.Group>>(new Map())
+  const footGlowRef = useRef<Map<string, THREE.Mesh>>(new Map())
+  const allLegs = useMemo(
+    () => modelConfig.groups.filter((g) => g.type === 'leg-left' || g.type === 'leg-right'),
+    [modelConfig.groups]
+  )
   const coupledRunning = useAnimateStore((s) => s.coupledRunning)
   const coupledMode = useAnimateStore((s) => s.coupledMode)
-  const landMode = coupledMode === 'land'
+  const landLegsEnabled = useAnimateStore((s) => s.landLegsEnabled)
+  // Render legs as their own physics-driven bodies ONLY when those bodies are actually built.
+  // When legs are stripped, fall back to the swim renderer (legs glued to their spine segment) so
+  // they swing with the body wave instead of rendering frozen/detached at the origin.
+  const landMode = coupledMode === 'land' && landLegsEnabled
 
   const skeletonTree = useMemo(() => buildSkeletonTree(modelConfig.groups), [modelConfig.groups])
   const skeletonGroups = useMemo(() => flattenSkeleton(skeletonTree), [skeletonTree])
@@ -363,7 +372,7 @@ export function AnimatedModel({
     return { legsBySpineId: byParent, orphanLegs: orphans }
   }, [modelConfig.groups, chainIds])
 
-  useLocomotion(pivotsRef, bodyRefs, modelConfig.groups, segments, rootRef)
+  useLocomotion(pivotsRef, bodyRefs, modelConfig.groups, segments, rootRef, footGlowRef)
 
   return (
     <group ref={rootRef}>
@@ -427,6 +436,20 @@ export function AnimatedModel({
               parentNodeBack={null}
             />
           )}
+      {allLegs.map((leg) => (
+        <mesh
+          key={`footglow-${leg.id}`}
+          ref={(m) => {
+            const map = footGlowRef.current
+            if (m) map.set(leg.id, m)
+            else map.delete(leg.id)
+          }}
+          visible={false}
+        >
+          <sphereGeometry args={[0.45, 16, 16]} />
+          <meshBasicMaterial color="#00e5ff" toneMapped={false} transparent opacity={0.85} />
+        </mesh>
+      ))}
     </group>
   )
 }
