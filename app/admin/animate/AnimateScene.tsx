@@ -30,15 +30,37 @@ function useStudioObservationHook() {
       ground: (on: boolean) => store().setLandGroundEnabled(on),
       limbcpg: (on: boolean) => store().setLimbCpgEnabled(on),
       lock: (on: boolean) => store().setLegsLocked(on),
-      grip: (on: boolean, shift?: number, duty?: number) => {
+      grip: (on: boolean, shift?: number, duration?: number, strength?: number) => {
         store().setGripEnabled(on)
         if (shift != null) store().setGripShift(shift)
-        if (duty != null) store().setGripDuty(duty)
+        if (duration != null) store().setGripDuration(duration)
+        if (strength != null) store().setGripStrength(strength)
       },
       glow: (on: boolean) => store().setGripGlowEnabled(on),
       gripLegs: (which: 'front' | 'back' | 'both') => store().setGripLegs(which),
       record: (on: boolean) => store().setSimRecording(on),
       diag: () => store().simDiagnostics,
+      gripCaptureStart: (maxSamples?: number) => {
+        ;(window as Window).__gripCapture = {
+          active: true,
+          buffer: [],
+          startWallTime: performance.now(),
+          maxSamples: maxSamples ?? 4000,
+        }
+      },
+      gripCaptureStop: () => {
+        const c = (window as Window).__gripCapture
+        const out = c?.buffer ?? []
+        ;(window as Window).__gripCapture = undefined
+        return {
+          samples: out,
+          gripShift: store().gripShift,
+          gripDuration: store().gripDuration,
+          gripStrength: store().gripStrength,
+          gripEnabled: store().gripEnabled,
+          gripLegs: store().gripLegs,
+        }
+      },
     }
     return () => { delete (w as { __studio?: unknown }).__studio }
   }, [])

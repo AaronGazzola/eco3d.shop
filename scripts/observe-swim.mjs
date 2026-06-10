@@ -14,7 +14,7 @@
 // Outputs to documentation/diagnostics/frames/: f<NN>_<angle>.png per second + contact-sheet.png.
 
 import { chromium } from 'playwright-core'
-import { mkdirSync, existsSync, readdirSync, readFileSync } from 'node:fs'
+import { mkdirSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 function findChromium() {
@@ -108,13 +108,15 @@ if (CMD === 'login') {
   const ground = process.env.GROUND != null ? process.env.GROUND !== 'off' : null // build floor on/off
   const grip = process.env.GRIP != null ? process.env.GRIP !== 'off' : null // timed foot grip on/off
   const gripShift = process.env.GRIPSHIFT != null ? Number(process.env.GRIPSHIFT) : null
-  const gripDuty = process.env.GRIPDUTY != null ? Number(process.env.GRIPDUTY) : null
+  const gripDuration = process.env.GRIPDURATION != null ? Number(process.env.GRIPDURATION) : null
+  const gripStrength = process.env.GRIPSTRENGTH != null ? Number(process.env.GRIPSTRENGTH) : null
   const glow = process.env.GLOW != null ? process.env.GLOW !== 'off' : null // foot-grip debug glow
   const gripLegs = process.env.GRIPLEGS ?? null // 'front' | 'back' | 'both'
   const limbcpg = process.env.LIMBCPG != null ? process.env.LIMBCPG !== 'off' : null
   const lock = process.env.LOCK != null ? process.env.LOCK !== 'off' : null
+  const gripCapture = process.env.GRIP_CAPTURE === 'on'
   await loadRig()
-  await page.evaluate(({ drag, drive, exc, mode, step, stepFreq, phase, fBody, fLeg, grav, legs, ground, grip, gripShift, gripDuty, glow, gripLegs, limbcpg, lock }) => {
+  await page.evaluate(({ drag, drive, exc, mode, step, stepFreq, phase, fBody, fLeg, grav, legs, ground, grip, gripShift, gripDuration, gripStrength, glow, gripLegs, limbcpg, lock }) => {
     if (mode && window.__studio.mode) window.__studio.mode(mode)
     if (legs != null && window.__studio.legs) window.__studio.legs(legs)
     if (ground != null && window.__studio.ground) window.__studio.ground(ground)
@@ -122,7 +124,7 @@ if (CMD === 'login') {
     if (lock != null && window.__studio.lock) window.__studio.lock(lock)
     if (step && window.__studio.step) window.__studio.step(true, stepFreq ?? undefined)
     if (phase != null && window.__studio.phase) window.__studio.phase(phase)
-    if (grip != null && window.__studio.grip) window.__studio.grip(grip, gripShift ?? undefined, gripDuty ?? undefined)
+    if (grip != null && window.__studio.grip) window.__studio.grip(grip, gripShift ?? undefined, gripDuration ?? undefined, gripStrength ?? undefined)
     if (gripLegs != null && window.__studio.gripLegs) window.__studio.gripLegs(gripLegs)
     if (glow != null && window.__studio.glow) window.__studio.glow(glow)
     if (fBody != null && fLeg != null && window.__studio.friction) window.__studio.friction(fBody, fLeg)
@@ -130,7 +132,10 @@ if (CMD === 'login') {
     if (drive != null && exc != null) window.__studio.tune(drive, exc)
     window.__studio.drag(drag)
     window.__studio.drive(true)
-  }, { drag, drive, exc, mode, step, stepFreq, phase, fBody, fLeg, grav, legs, ground, grip, gripShift, gripDuty, glow, gripLegs, limbcpg, lock })
+  }, { drag, drive, exc, mode, step, stepFreq, phase, fBody, fLeg, grav, legs, ground, grip, gripShift, gripDuration, gripStrength, glow, gripLegs, limbcpg, lock })
+  if (gripCapture) {
+    await page.evaluate(() => window.__studio.gripCaptureStart && window.__studio.gripCaptureStart(4000))
+  }
   console.log(`running: mode=${mode ?? 'default'} step=${step ? 'ON' : 'off'} drag=${drag ? 'ON' : 'OFF'} drive=${drive ?? 'default'} exc=${exc ?? 'default'} angles=${ANGLES.join(',')}`)
 
   const rows = []
@@ -149,6 +154,10 @@ if (CMD === 'login') {
     const d = await page.evaluate(() => window.__studio.diag())
     rows.push({ t, files, d })
     console.log(`t=${t}s  KE=${d.kineticEnergy.toExponential(2)}  drift=${d.comDriftFromStart.toFixed(3)}  maxJ=${Math.round(d.maxJointFracOfCap * 100)}%  comY=${(d.comYDrift ?? 0).toFixed(3)}  tilt=${(d.maxTiltDeg ?? 0).toFixed(1)}°`)
+  }
+  if (gripCapture) {
+    const dump = await page.evaluate(() => window.__studio.gripCaptureStop && window.__studio.gripCaptureStop())
+    writeGripCapture(dump, { drag, drive, exc, mode, step, gripShift, gripDuration, gripStrength, gripLegs, grav, legs, ground, limbcpg })
   }
   await page.evaluate(() => window.__studio.drive(false))
   await buildContactSheet(rows)
@@ -346,6 +355,70 @@ async function buildContactSheet(rows) {
   await p2.waitForTimeout(300)
   await p2.screenshot({ path: `${OUT}/contact-sheet.png`, fullPage: true })
   await p2.close()
+}
+
+function writeGripCapture(dump, cfg) {
+  if (!dump || !Array.isArray(dump.samples) || dump.samples.length === 0) {
+    console.log('grip-capture: no samples')
+    return
+  }
+  const { samples, gripShift, gripDuration, gripStrength, gripLegs, gripEnabled } = dump
+  const LIMB_NAMES = ['LF', 'RF', 'LH', 'RH']
+  const order = samples[0].limbOrder
+  const cols = order.map((idx) => LIMB_NAMES[idx] ?? `L${idx}`)
+  const wrap = (x) => ((x % 1) + 1) % 1
+  const isOn = (p) => wrap(p - gripShift) < gripDuration
+  const transitions = []
+  for (let i = 1; i < samples.length; i++) {
+    for (let k = 0; k < cols.length; k++) {
+      const prevOn = isOn(samples[i - 1].phases[k])
+      const nowOn = isOn(samples[i].phases[k])
+      if (prevOn !== nowOn) {
+        transitions.push({
+          t: samples[i].t,
+          leg: cols[k],
+          edge: nowOn ? 'ON' : 'OFF',
+          phase: samples[i].phases[k],
+          fore: samples[i].fores[k],
+          axialFront: samples[i].axialFront,
+        })
+      }
+    }
+  }
+  const minFore = cols.map((_, k) => Math.min(...samples.map((s) => s.fores[k])))
+  const maxFore = cols.map((_, k) => Math.max(...samples.map((s) => s.fores[k])))
+  const stride = Math.max(1, Math.floor(samples.length / 200)) // cap table at ~200 rows
+  const f = (x, d = 3) => Number(x).toFixed(d)
+  const head = `# Grip capture
+gripEnabled=${gripEnabled} gripLegs=${gripLegs} gripShift=${f(gripShift, 2)} gripDuration=${f(gripDuration, 2)} gripStrength=${f(gripStrength, 2)}
+config: ${JSON.stringify(cfg)}
+samples: ${samples.length}  duration: ${f(samples[samples.length - 1].t, 2)}s  legs(order): ${cols.join(',')}
+
+## Per-leg fore/aft range over capture (world units, + = forward of hip)
+${cols.map((c, k) => `${c}: min=${f(minFore[k])} max=${f(maxFore[k])} range=${f(maxFore[k] - minFore[k])}`).join('\n')}
+
+## Grip ON/OFF transitions (window = [gripShift, gripShift+gripDuration))
+t       leg edge phase   fore     axialFront
+${transitions.map((tr) => `${f(tr.t, 2).padStart(6)}  ${tr.leg}  ${tr.edge.padEnd(3)} ${f(tr.phase).padStart(6)}  ${f(tr.fore).padStart(7)}  ${f(tr.axialFront).padStart(6)}`).join('\n')}
+
+## Timeline (every ${stride} samples)
+t       axial  ${cols.map((c) => `${c}_ph  ${c}_fore ${c}_g`).join(' ')}
+`
+  const rows = []
+  for (let i = 0; i < samples.length; i += stride) {
+    const s = samples[i]
+    const cells = cols.map((_, k) => {
+      const ph = s.phases[k]
+      const fore = s.fores[k]
+      const g = isOn(ph) ? '#' : '.'
+      return `${f(ph).padStart(5)}  ${f(fore).padStart(6)}  ${g}`
+    }).join('  ')
+    rows.push(`${f(s.t, 2).padStart(6)}  ${f(s.axialFront).padStart(5)}  ${cells}`)
+  }
+  const tsTag = String(Math.floor(samples[0].t * 1000))
+  const path = `${OUT}/grip-capture-${tsTag}.md`
+  writeFileSync(path, head + rows.join('\n') + '\n')
+  console.log(`grip-capture: ${samples.length} samples, ${transitions.length} transitions → ${path}`)
 }
 
 await browser.close()

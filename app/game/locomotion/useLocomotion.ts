@@ -22,8 +22,27 @@ import {
   subsampleSamples,
   serializeCoupledCapture,
 } from './diagnostics'
-import { buildCpgSpec, CpgSpec, CpgState, E_AXIAL, initCpgState, limbPhase, oscillatorOutput, stepCpg } from './cpg'
+import { buildCpgSpec, CpgSpec, CpgState, initCpgState, limbPhase, oscillatorOutput, stepCpg } from './cpg'
 import { createDelayBuffer, GAMMA, MuscleDelayBuffer, pushAndReadDelayed } from './muscles'
+
+interface GripCaptureSample {
+  t: number
+  phases: number[]
+  fores: number[]
+  axialFront: number
+  limbOrder: number[]
+}
+interface GripCaptureState {
+  active: boolean
+  buffer: GripCaptureSample[]
+  startWallTime: number
+  maxSamples: number
+}
+declare global {
+  interface Window {
+    __gripCapture?: GripCaptureState
+  }
+}
 
 const SLERP_RATE = 12
 const Y_AXIS = new THREE.Vector3(0, 1, 0)
@@ -58,10 +77,6 @@ interface CoupledHandle {
   buildLegs: boolean
   buildGround: boolean
   buildLimbs: boolean
-  // per-hip grip-timing state (parallel to body.hipJoints): last frame's fore/aft foot reach and a
-  // slow running mean of it, used to find where in the reach cycle each foot is.
-  gripPrevReach: number[]
-  gripMeanReach: number[]
   // per-hip foot plant: while a foot grips, it is pinned to the ground spot it grabbed by a temporary
   // spherical joint to a fixed anchor body (so the body is levered over the planted foot — real
   // traction that does not depend on contact normal force). null = that foot is currently free.
@@ -131,7 +146,6 @@ export function useLocomotion(
     qLeg: new THREE.Quaternion(),
     v1: new THREE.Vector3(),
     v2: new THREE.Vector3(),
-    fwd: new THREE.Vector3(),
     q: new THREE.Quaternion(),
     mat: new THREE.Matrix4(),
     matT: new THREE.Matrix4(),
@@ -212,8 +226,6 @@ export function useLocomotion(
       groups, world, body, cpgSpec: spec, cpgState: initCpgState(spec),
       delayBuffers: body.joints.map(() => createDelayBuffer(TIMESTEP)),
       acc: 0, simTime: 0, mode, buildLegs: legsOn, buildGround: groundOn, buildLimbs: limbsOn,
-      gripPrevReach: body.hipJoints.map(() => NaN),
-      gripMeanReach: body.hipJoints.map(() => NaN),
       gripPlantJoint: body.hipJoints.map(() => null),
       gripPlantBody: body.hipJoints.map(() => null),
       baseCom, diagAccum: 0,
@@ -283,50 +295,35 @@ export function useLocomotion(
           // pull, isolating how much the legs/feet anchor the body independent of gravity.
           c.world.gravity.y = store.gravityEnabled ? -9.81 : 0
 
-          // GRIP primitive: legs stay stiff (held below); each foot grips the floor during the part
-          // of the body-wave cycle when it is sweeping BACKWARD (the power stroke) and releases on
-          // the forward (recovery) stroke. We measure how far forward/back the foot reaches along
-          // the body's heading; phase 0 = peak reach-forward, 0.5 = peak reach-back. Default window
-          // [shift, shift+duty) = [0, 0.5) grips exactly from peak-forward to peak-back.
+          // GRIP primitive: phase comes straight from the limb CPG oscillator, so the grip window
+          // is driven by the locomotor rhythm itself — not by the foot's measured reach (which gets
+          // frozen the moment we plant the foot, creating a feedback loop that destroys the wave).
+          // gripStrength=0 keeps timing/glow live but skips the plant + friction switch — lets the
+          // user see when grip *would* fire without engaging the physics.
           const glowOn = store.gripGlowEnabled
           const glows = footGlowRef?.current
           if (gripEnabled && c.body.hipJoints.length > 0) {
             const hips = c.body.hipJoints
-            const trunkCount = c.body.bodies.length - hips.length
-            const head = c.body.bodies[0].translation()
-            const tail = c.body.bodies[Math.max(0, trunkCount - 1)].translation()
-            s.fwd.set(head.x - tail.x, 0, head.z - tail.z)
-            if (s.fwd.lengthSq() < 1e-9) s.fwd.set(1, 0, 0)
-            s.fwd.normalize()
-            const omega = Math.max(0.3, 2 * Math.PI * drive * exc * E_AXIAL)
             const gripShift = store.gripShift
-            const gripDuty = store.gripDuty
+            const gripDuration = store.gripDuration
+            const gripStrength = store.gripStrength
             const releaseFriction = store.releaseFriction
             const gripFriction = store.legFriction
             const gripLegs = store.gripLegs
+            const physicalGrip = gripStrength > 0
             for (let h = 0; h < hips.length; h++) {
               const hip = hips[h]
               const isHind = hip.limbIdx >= 2
               const selected = gripLegs === 'both' || (gripLegs === 'front' ? !isHind : isHind)
-              const g = c.body.bodies[hip.parentIndex]
               const leg = c.body.bodies[hip.legBodyIndex]
-              const gp = g.translation(); const gq = g.rotation()
               const lp = leg.translation(); const lq = leg.rotation()
-              s.v1.set(hip.hipLocal.x, hip.hipLocal.y, hip.hipLocal.z)
-                .applyQuaternion(s.q.set(gq.x, gq.y, gq.z, gq.w))
-              const hipX = gp.x + s.v1.x, hipY = gp.y + s.v1.y, hipZ = gp.z + s.v1.z
               s.v2.set(hip.footLocal.x, hip.footLocal.y, hip.footLocal.z)
                 .applyQuaternion(s.q.set(lq.x, lq.y, lq.z, lq.w))
               const footX = lp.x + s.v2.x, footY = lp.y + s.v2.y, footZ = lp.z + s.v2.z
-              const reach = (footX - hipX) * s.fwd.x + (footY - hipY) * s.fwd.y + (footZ - hipZ) * s.fwd.z
-              const mean = c.gripMeanReach[h]
-              c.gripMeanReach[h] = Number.isNaN(mean) ? reach : mean + 0.02 * (reach - mean)
-              const prev = c.gripPrevReach[h]
-              const reachVel = Number.isNaN(prev) || dt <= 0 ? 0 : (reach - prev) / dt
-              c.gripPrevReach[h] = reach
-              const phase = ((Math.atan2(-reachVel / omega, reach - c.gripMeanReach[h]) / (2 * Math.PI)) + 1) % 1
+              const phase = limbPhase(c.cpgState, c.cpgSpec, hip.limbIdx) / (2 * Math.PI)
               const rel = ((phase - gripShift) % 1 + 1) % 1
-              const gripping = selected && rel < gripDuty
+              const inWindow = selected && rel < gripDuration
+              const gripping = inWindow && physicalGrip
               c.body.colliders[hip.legBodyIndex].setFriction(gripping ? gripFriction : releaseFriction)
 
               // Plant/unplant: on the rising edge of gripping, pin this foot to the ground spot it
@@ -349,16 +346,10 @@ export function useLocomotion(
                 c.gripPlantBody[h] = null
               }
 
-              // debug glow: marker sits at the foot node for every selected leg whenever glow is on
-              // (so it's visible even at duty 0); bright cyan while gripping, dim otherwise.
               const glow = glows?.get(c.body.groupIds[hip.legBodyIndex])
               if (glow) {
                 glow.position.set(footX, footY, footZ)
-                // Binary signal: ON (bright cyan) exactly when the foot is in its grip window, OFF
-                // otherwise. The window uses at least a small floor so it still flashes at the start
-                // even when grip duty is 0 (lets you see WHERE grip begins before widening it).
-                const glowing = selected && rel < Math.max(gripDuty, 0.04)
-                glow.visible = glowOn && glowing
+                glow.visible = glowOn && inWindow
                 const mat = glow.material as THREE.MeshBasicMaterial
                 mat.color.set('#00e5ff')
                 mat.opacity = 1
@@ -468,6 +459,39 @@ export function useLocomotion(
             comYDrift: samp.comY - c.baseCom.y,
             maxTiltDeg: samp.maxTiltDeg,
           })
+        }
+
+        const cap = typeof window !== 'undefined' ? window.__gripCapture : undefined
+        if (cap?.active && c.body.hipJoints.length > 0 && cap.buffer.length < cap.maxSamples) {
+          const hips = c.body.hipJoints
+          const trunkCount = c.body.bodies.length - hips.length
+          const head = c.body.bodies[0].translation()
+          const tail = c.body.bodies[Math.max(0, trunkCount - 1)].translation()
+          s.v1.set(head.x - tail.x, 0, head.z - tail.z)
+          if (s.v1.lengthSq() < 1e-9) s.v1.set(1, 0, 0)
+          s.v1.normalize()
+          const fwdX = s.v1.x, fwdY = s.v1.y, fwdZ = s.v1.z
+          const phases: number[] = []
+          const fores: number[] = []
+          for (const hip of hips) {
+            const g = c.body.bodies[hip.parentIndex]
+            const leg = c.body.bodies[hip.legBodyIndex]
+            const gp = g.translation(); const gq = g.rotation()
+            const lp = leg.translation(); const lq = leg.rotation()
+            s.v2.set(hip.hipLocal.x, hip.hipLocal.y, hip.hipLocal.z)
+              .applyQuaternion(s.q.set(gq.x, gq.y, gq.z, gq.w))
+            const hipX = gp.x + s.v2.x, hipY = gp.y + s.v2.y, hipZ = gp.z + s.v2.z
+            s.v2.set(hip.footLocal.x, hip.footLocal.y, hip.footLocal.z)
+              .applyQuaternion(s.q.set(lq.x, lq.y, lq.z, lq.w))
+            const footX = lp.x + s.v2.x, footY = lp.y + s.v2.y, footZ = lp.z + s.v2.z
+            const fore = (footX - hipX) * fwdX + (footY - hipY) * fwdY + (footZ - hipZ) * fwdZ
+            phases.push(limbPhase(c.cpgState, c.cpgSpec, hip.limbIdx) / (2 * Math.PI))
+            fores.push(fore)
+          }
+          const kFore = c.cpgSpec.limbWiring?.kFore ?? 0
+          const axialFront = (c.cpgState.phases[kFore] ?? 0) / (2 * Math.PI)
+          const t = (performance.now() - cap.startWallTime) / 1000
+          cap.buffer.push({ t, phases, fores, axialFront, limbOrder: hips.map((h) => h.limbIdx) })
         }
 
         if (store.simRecording && !wasCoupledRecordingRef.current) {

@@ -56,7 +56,8 @@ interface AnimateStore {
   legsLocked: boolean
   gripEnabled: boolean
   gripShift: number
-  gripDuty: number
+  gripDuration: number
+  gripStrength: number
   releaseFriction: number
   gripGlowEnabled: boolean
   gripLegs: 'front' | 'back' | 'both'
@@ -98,7 +99,8 @@ interface AnimateStore {
   setLegsLocked: (v: boolean) => void
   setGripEnabled: (v: boolean) => void
   setGripShift: (v: number) => void
-  setGripDuty: (v: number) => void
+  setGripDuration: (v: number) => void
+  setGripStrength: (v: number) => void
   setReleaseFriction: (v: number) => void
   setGripGlowEnabled: (v: boolean) => void
   setGripLegs: (v: 'front' | 'back' | 'both') => void
@@ -137,8 +139,9 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   limbCpgEnabled: true, // add the 4 limb oscillators to the CPG (the legs' driver; Walk needs them)
   legsLocked: true, // hold the hips stiff at rest (rigid struts); off = free/passive (legs dangle)
   gripEnabled: false, // legs held stiff; each foot grips the floor on its backward (power) stroke
-  gripShift: 0, // slides the grip window vs the foot's reach cycle (0 = start gripping at peak reach-forward)
-  gripDuty: 0.5, // fraction of the reach cycle the foot grips (0.5 = peak-forward → peak-back)
+  gripShift: 0, // slides the grip window vs the CPG cycle (0 = start gripping at CPG phase 0)
+  gripDuration: 0.5, // fraction of the CPG cycle the foot grips (window width)
+  gripStrength: 1, // 0 = grip is physically off (timing/glow still tick); >0 = plant + traction engage
   releaseFriction: 0, // feet are frictionless; grip provides traction by pinning, not friction
   gripGlowEnabled: false, // debug: light up each foot node bright while it is gripping the floor
   gripLegs: 'both', // which legs grip: front pair, back pair, or all four
@@ -231,7 +234,8 @@ export const useAnimateStore = create<AnimateStore>()((set) => ({
   setLegsLocked: (v) => set({ legsLocked: v }),
   setGripEnabled: (v) => set({ gripEnabled: v }),
   setGripShift: (v) => set({ gripShift: v }),
-  setGripDuty: (v) => set({ gripDuty: v }),
+  setGripDuration: (v) => set({ gripDuration: v }),
+  setGripStrength: (v) => set({ gripStrength: v }),
   setReleaseFriction: (v) => set({ releaseFriction: v }),
   setGripGlowEnabled: (v) => set({ gripGlowEnabled: v }),
   setGripLegs: (v) => set({ gripLegs: v }),

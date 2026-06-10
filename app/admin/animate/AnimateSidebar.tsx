@@ -93,8 +93,10 @@ function SimulateTab() {
   const setGripEnabled = useAnimateStore((s) => s.setGripEnabled)
   const gripShift = useAnimateStore((s) => s.gripShift)
   const setGripShift = useAnimateStore((s) => s.setGripShift)
-  const gripDuty = useAnimateStore((s) => s.gripDuty)
-  const setGripDuty = useAnimateStore((s) => s.setGripDuty)
+  const gripDuration = useAnimateStore((s) => s.gripDuration)
+  const setGripDuration = useAnimateStore((s) => s.setGripDuration)
+  const gripStrength = useAnimateStore((s) => s.gripStrength)
+  const setGripStrength = useAnimateStore((s) => s.setGripStrength)
   const releaseFriction = useAnimateStore((s) => s.releaseFriction)
   const setReleaseFriction = useAnimateStore((s) => s.setReleaseFriction)
   const gripGlowEnabled = useAnimateStore((s) => s.gripGlowEnabled)
@@ -204,12 +206,21 @@ function SimulateTab() {
                   format={(v) => `${Math.round(v * 100)}%`}
                 />
                 <PoseSlider
-                  label="grip duty"
-                  value={gripDuty}
+                  label="grip duration"
+                  value={gripDuration}
                   min={0}
                   max={1}
                   step={0.01}
-                  onChange={setGripDuty}
+                  onChange={setGripDuration}
+                  format={(v) => `${Math.round(v * 100)}%`}
+                />
+                <PoseSlider
+                  label="grip strength"
+                  value={gripStrength}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  onChange={setGripStrength}
                   format={(v) => `${Math.round(v * 100)}%`}
                 />
                 <PoseSlider
@@ -231,10 +242,9 @@ function SimulateTab() {
                   {gripGlowEnabled ? 'Foot glow ON' : 'Foot glow OFF'}
                 </button>
                 <p className="text-white/45 text-[10px] leading-relaxed">
-                  Legs held stiff; each foot grips (leg-friction) during its backward power stroke
-                  and slides (release-friction) on the recovery. 0% start = grip at peak reach-forward;
-                  50% duty = release at peak reach-back. Foot glow lights each foot node cyan while it
-                  grips.
+                  Window driven by the limb CPG phase. Start shifts where in the cycle grip turns on;
+                  duration sets the window width. Strength = 0 keeps timing/glow live but skips the
+                  plant + friction switch (visual-only). Glow mirrors the actual grip window.
                 </p>
               </>
             )}

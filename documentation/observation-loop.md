@@ -33,6 +33,23 @@ npm run observe -- run 14 on
 
 `run [seconds] [on|off] [drive] [exc]` — e.g. `npm run observe -- run 20 off 1.2 0.08`.
 
+### High-rate grip-timing capture (per-frame numerical telemetry)
+
+Screenshots at 1 fps can't resolve sub-second timing (CPG cycle ~3–4 s). To see exactly **when each foot's grip glow turns on/off** relative to the CPG phase, the body-wave phase, and the foot's actual fore/aft position, pass `GRIP_CAPTURE=on`:
+
+```
+$env:GRIP_CAPTURE = "on"
+npm run observe -- run 10 on 2 0.15   # plus the other land/grip env vars
+```
+
+This writes `documentation/diagnostics/frames/grip-capture-<ts>.md`, containing:
+
+- Per-leg fore/aft range (signed world units, + = forward of hip) — sanity-check the swing amplitude
+- **Glow ON/OFF transition list** with time, leg, CPG phase, foot fore/aft, axial-front phase at the transition
+- Timeline of CPG phase, foot fore/aft and glow state per leg, subsampled to ~200 rows
+
+The capture runs at render rate (~60 Hz, cap 4000 samples) and is gated by a `window.__gripCapture` toggle the studio exposes (`gripCaptureStart` / `gripCaptureStop`).
+
 ---
 
 ## Environment gotchas (these cost hours to rediscover — read them)
