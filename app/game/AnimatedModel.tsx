@@ -341,12 +341,11 @@ export function AnimatedModel({
     [modelConfig.groups]
   )
   const coupledRunning = useAnimateStore((s) => s.coupledRunning)
-  const coupledMode = useAnimateStore((s) => s.coupledMode)
   const landLegsEnabled = useAnimateStore((s) => s.landLegsEnabled)
   // Render legs as their own physics-driven bodies ONLY when those bodies are actually built.
-  // When legs are stripped, fall back to the swim renderer (legs glued to their spine segment) so
+  // When legs are stripped, fall back to the axial renderer (legs glued to their spine segment) so
   // they swing with the body wave instead of rendering frozen/detached at the origin.
-  const landMode = coupledMode === 'land' && landLegsEnabled
+  const landMode = landLegsEnabled
 
   const skeletonTree = useMemo(() => buildSkeletonTree(modelConfig.groups), [modelConfig.groups])
   const skeletonGroups = useMemo(() => flattenSkeleton(skeletonTree), [skeletonTree])

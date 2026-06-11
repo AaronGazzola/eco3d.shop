@@ -1,12 +1,61 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { useAnimateStore } from './animateStore'
+import { Switch } from '@/components/ui/switch'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { pickSimConfig, useAnimateStore } from './animateStore'
 import { CalibrateTab } from './CalibrateTab'
 
-function PoseSlider({
+function Info({ text }: { text: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label="info"
+          className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-white/25 text-[8px] leading-none text-white/50 hover:border-white/50 hover:text-white/80"
+        >
+          i
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="left" className="max-w-50 text-[11px] leading-snug">
+        {text}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+function Toggle({
   label,
-  hint,
+  tip,
+  on,
+  onChange,
+  disabled,
+}: {
+  label: string
+  tip: string
+  on: boolean
+  onChange: (v: boolean) => void
+  disabled?: boolean
+}) {
+  return (
+    <div className="flex items-center gap-2.5 py-1">
+      <Switch
+        checked={on}
+        onCheckedChange={onChange}
+        disabled={disabled}
+        aria-label={label}
+      />
+      <span className="truncate text-sm text-white/75">{label}</span>
+      <Info text={tip} />
+    </div>
+  )
+}
+
+function Slider({
+  label,
+  tip,
   value,
   min,
   max,
@@ -15,7 +64,7 @@ function PoseSlider({
   format,
 }: {
   label: string
-  hint?: string
+  tip: string
   value: number
   min: number
   max: number
@@ -24,10 +73,13 @@ function PoseSlider({
   format: (v: number) => string
 }) {
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-baseline justify-between">
-        <span className="text-white/60 text-[10px]">{label}</span>
-        <span className="font-mono text-white/70 text-[10px]">{format(value)}</span>
+    <div className="flex flex-col gap-1 py-0.5">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span className="truncate text-[11px] text-white/70">{label}</span>
+          <Info text={tip} />
+        </div>
+        <span className="font-mono text-[10px] text-white/60">{format(value)}</span>
       </div>
       <input
         type="range"
@@ -38,47 +90,69 @@ function PoseSlider({
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-full accent-violet-500"
       />
-      {hint ? <span className="text-white/45 text-[9px] font-mono">{hint}</span> : null}
+    </div>
+  )
+}
+
+function Segmented<T extends string>({
+  label,
+  tip,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  tip: string
+  value: T
+  options: readonly T[]
+  onChange: (v: T) => void
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2 py-0.5">
+      <div className="flex min-w-0 items-center gap-1.5">
+        <span className="truncate text-[11px] text-white/70">{label}</span>
+        <Info text={tip} />
+      </div>
+      <div className="flex gap-0.5 rounded-md bg-white/5 p-0.5">
+        {options.map((o) => (
+          <button
+            key={o}
+            type="button"
+            onClick={() => onChange(o)}
+            className={cn(
+              'rounded px-2 py-0.5 text-[10px] capitalize transition-colors',
+              value === o ? 'bg-emerald-600/50 text-emerald-100' : 'text-white/50 hover:text-white'
+            )}
+          >
+            {o}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
 
 function DiagnosticRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between text-[10px]">
       <span className="text-white/55">{label}</span>
       <span className="font-mono text-white/70">{value}</span>
     </div>
   )
 }
 
+function Divider() {
+  return <div className="my-1.5 border-t border-white/10" />
+}
+
 function SimulateTab() {
-  const simRecording = useAnimateStore((s) => s.simRecording)
-  const setSimRecording = useAnimateStore((s) => s.setSimRecording)
-  const simDiagnostics = useAnimateStore((s) => s.simDiagnostics)
-  const lastCapturePath = useAnimateStore((s) => s.lastCapturePath)
-  const cpgDrive = useAnimateStore((s) => s.cpgDrive)
-  const cpgExcitability = useAnimateStore((s) => s.cpgExcitability)
-  const cpgRunning = useAnimateStore((s) => s.cpgRunning)
-  const cpgRecording = useAnimateStore((s) => s.cpgRecording)
-  const setCpgDrive = useAnimateStore((s) => s.setCpgDrive)
-  const setCpgExcitability = useAnimateStore((s) => s.setCpgExcitability)
-  const setCpgRunning = useAnimateStore((s) => s.setCpgRunning)
-  const setCpgRecording = useAnimateStore((s) => s.setCpgRecording)
   const coupledRunning = useAnimateStore((s) => s.coupledRunning)
   const setCoupledRunning = useAnimateStore((s) => s.setCoupledRunning)
-  const environmentEnabled = useAnimateStore((s) => s.environmentEnabled)
-  const setEnvironmentEnabled = useAnimateStore((s) => s.setEnvironmentEnabled)
-  const coupledMode = useAnimateStore((s) => s.coupledMode)
-  const setCoupledMode = useAnimateStore((s) => s.setCoupledMode)
-  const stepEnabled = useAnimateStore((s) => s.stepEnabled)
-  const setStepEnabled = useAnimateStore((s) => s.setStepEnabled)
-  const stepPhase = useAnimateStore((s) => s.stepPhase)
-  const setStepPhase = useAnimateStore((s) => s.setStepPhase)
-  const bodyFriction = useAnimateStore((s) => s.bodyFriction)
-  const setBodyFriction = useAnimateStore((s) => s.setBodyFriction)
-  const legFriction = useAnimateStore((s) => s.legFriction)
-  const setLegFriction = useAnimateStore((s) => s.setLegFriction)
+  const simRecording = useAnimateStore((s) => s.simRecording)
+  const setSimRecording = useAnimateStore((s) => s.setSimRecording)
+  const lastCapturePath = useAnimateStore((s) => s.lastCapturePath)
+  const simDiagnostics = useAnimateStore((s) => s.simDiagnostics)
+
   const gravityEnabled = useAnimateStore((s) => s.gravityEnabled)
   const setGravityEnabled = useAnimateStore((s) => s.setGravityEnabled)
   const landLegsEnabled = useAnimateStore((s) => s.landLegsEnabled)
@@ -89,8 +163,28 @@ function SimulateTab() {
   const setLimbCpgEnabled = useAnimateStore((s) => s.setLimbCpgEnabled)
   const legsLocked = useAnimateStore((s) => s.legsLocked)
   const setLegsLocked = useAnimateStore((s) => s.setLegsLocked)
+  const environmentEnabled = useAnimateStore((s) => s.environmentEnabled)
+  const setEnvironmentEnabled = useAnimateStore((s) => s.setEnvironmentEnabled)
+
+  const cpgDrive = useAnimateStore((s) => s.cpgDrive)
+  const setCpgDrive = useAnimateStore((s) => s.setCpgDrive)
+  const cpgExcitability = useAnimateStore((s) => s.cpgExcitability)
+  const setCpgExcitability = useAnimateStore((s) => s.setCpgExcitability)
+
+  const muscleAlpha = useAnimateStore((s) => s.muscleAlpha)
+  const setMuscleAlpha = useAnimateStore((s) => s.setMuscleAlpha)
+  const muscleBeta = useAnimateStore((s) => s.muscleBeta)
+  const setMuscleBeta = useAnimateStore((s) => s.setMuscleBeta)
+  const muscleDamping = useAnimateStore((s) => s.muscleDamping)
+  const setMuscleDamping = useAnimateStore((s) => s.setMuscleDamping)
+
+  const bodyFriction = useAnimateStore((s) => s.bodyFriction)
+  const setBodyFriction = useAnimateStore((s) => s.setBodyFriction)
+
   const gripEnabled = useAnimateStore((s) => s.gripEnabled)
   const setGripEnabled = useAnimateStore((s) => s.setGripEnabled)
+  const gripLegs = useAnimateStore((s) => s.gripLegs)
+  const setGripLegs = useAnimateStore((s) => s.setGripLegs)
   const gripShift = useAnimateStore((s) => s.gripShift)
   const setGripShift = useAnimateStore((s) => s.setGripShift)
   const gripDuration = useAnimateStore((s) => s.gripDuration)
@@ -101,214 +195,103 @@ function SimulateTab() {
   const setReleaseFriction = useAnimateStore((s) => s.setReleaseFriction)
   const gripGlowEnabled = useAnimateStore((s) => s.gripGlowEnabled)
   const setGripGlowEnabled = useAnimateStore((s) => s.setGripGlowEnabled)
-  const gripLegs = useAnimateStore((s) => s.gripLegs)
-  const setGripLegs = useAnimateStore((s) => s.setGripLegs)
-  const muscleAlpha = useAnimateStore((s) => s.muscleAlpha)
-  const muscleBeta = useAnimateStore((s) => s.muscleBeta)
-  const muscleDamping = useAnimateStore((s) => s.muscleDamping)
-  const setMuscleAlpha = useAnimateStore((s) => s.setMuscleAlpha)
-  const setMuscleBeta = useAnimateStore((s) => s.setMuscleBeta)
-  const setMuscleDamping = useAnimateStore((s) => s.setMuscleDamping)
+  const resetSimConfig = useAnimateStore((s) => s.resetSimConfig)
+
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    useAnimateStore.persist.rehydrate()
+  }, [])
+
+  const handleCopy = () => {
+    const config = pickSimConfig(useAnimateStore.getState())
+    navigator.clipboard
+      .writeText(JSON.stringify(config, null, 2))
+      .then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      })
+      .catch((err) => console.error(err))
+  }
 
   return (
-    <div className="flex flex-col gap-4 p-4 text-xs text-white/60">
-      <div className="flex flex-col gap-2 pb-3 border-b border-white/10">
-        <p className="text-white/55 text-[10px] uppercase tracking-widest">Mode</p>
-        <div className="grid grid-cols-2 gap-1">
-          {(['swim', 'land'] as const).map((m) => (
+    <TooltipProvider>
+      <div className="flex flex-col">
+        <div className="sticky top-0 z-10 flex flex-col gap-1 border-b border-white/10 bg-[#333333] px-4 pt-4 pb-2">
+          <div className="flex gap-2">
             <button
-              key={m}
-              onClick={() => setCoupledMode(m)}
-              disabled={coupledRunning}
+              type="button"
+              onClick={() => setCoupledRunning(!coupledRunning)}
               className={cn(
-                'py-1.5 rounded-md transition-colors capitalize disabled:opacity-40',
-                coupledMode === m
-                  ? 'bg-emerald-600/40 text-emerald-200'
-                  : 'bg-white/10 text-white/70 hover:text-white'
+                'flex-1 rounded-md py-1.5 text-xs transition-colors',
+                coupledRunning ? 'bg-cyan-600/40 text-cyan-200' : 'bg-white/10 text-white/70 hover:text-white'
               )}
             >
-              {m}
+              {coupledRunning ? 'Pause' : 'Run'}
             </button>
-          ))}
+            <button
+              type="button"
+              onClick={() => setSimRecording(!simRecording)}
+              disabled={!coupledRunning}
+              className={cn(
+                'flex-1 rounded-md py-1.5 text-xs transition-colors',
+                simRecording
+                  ? 'animate-pulse bg-rose-600/40 text-rose-200'
+                  : 'bg-white/10 text-white/70 hover:text-white disabled:opacity-40 disabled:hover:text-white/70'
+              )}
+            >
+              {simRecording ? 'Stop' : 'Record'}
+            </button>
+          </div>
+          {lastCapturePath ? (
+            <p className="break-all font-mono text-[10px] text-emerald-300/70">{lastCapturePath}</p>
+          ) : null}
         </div>
-        <p className="text-white/45 text-[10px] leading-relaxed">
-          Swim = neutral buoyancy (gravity off). Land = gravity + ground; legs become physics and the
-          body stands on them. Switching pauses — set mode before Run.
-        </p>
-        {coupledMode === 'land' && (
-          <>
-            <p className="text-white/45 text-[10px] leading-relaxed">
-              Land rig toggles, independent. Gravity / Legs (build + draw) / Ground / Limb CPG
-              (oscillators) rebuild the sim. Lock legs holds the hips stiff (rigid struts); off =
-              free/passive (legs dangle). All off = identical to swim.
-            </p>
-            <div className="grid grid-cols-3 gap-1">
-              {([
-                ['Gravity', gravityEnabled, setGravityEnabled],
-                ['Legs', landLegsEnabled, setLandLegsEnabled],
-                ['Ground', landGroundEnabled, setLandGroundEnabled],
-                ['Limb CPG', limbCpgEnabled, setLimbCpgEnabled],
-                ['Lock legs', legsLocked, setLegsLocked],
-              ] as const).map(([label, on, set]) => (
-                <button
-                  key={label}
-                  onClick={() => set(!on)}
-                  className={cn(
-                    'py-1.5 rounded-md text-[11px] transition-colors',
-                    on ? 'bg-amber-600/40 text-amber-200' : 'bg-white/10 text-white/50 hover:text-white'
-                  )}
-                >
-                  {label} {on ? 'ON' : 'off'}
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => setStepEnabled(!stepEnabled)}
-              className={cn(
-                'py-1.5 rounded-md transition-colors',
-                stepEnabled ? 'bg-emerald-600/40 text-emerald-200' : 'bg-white/10 text-white/70 hover:text-white'
-              )}
-            >
-              {stepEnabled ? 'Walk ON' : 'Walk OFF'}
-            </button>
-            <button
-              onClick={() => setGripEnabled(!gripEnabled)}
-              className={cn(
-                'py-1.5 rounded-md transition-colors',
-                gripEnabled ? 'bg-emerald-600/40 text-emerald-200' : 'bg-white/10 text-white/70 hover:text-white'
-              )}
-            >
-              {gripEnabled ? 'Grip ON' : 'Grip OFF'}
-            </button>
-            {gripEnabled && (
-              <>
-                <div className="grid grid-cols-3 gap-1">
-                  {(['front', 'back', 'both'] as const).map((w) => (
-                    <button
-                      key={w}
-                      onClick={() => setGripLegs(w)}
-                      className={cn(
-                        'py-1.5 rounded-md text-[11px] capitalize transition-colors',
-                        gripLegs === w ? 'bg-emerald-600/40 text-emerald-200' : 'bg-white/10 text-white/50 hover:text-white'
-                      )}
-                    >
-                      {w}
-                    </button>
-                  ))}
-                </div>
-                <PoseSlider
-                  label="grip start"
-                  value={gripShift}
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  onChange={setGripShift}
-                  format={(v) => `${Math.round(v * 100)}%`}
-                />
-                <PoseSlider
-                  label="grip duration"
-                  value={gripDuration}
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  onChange={setGripDuration}
-                  format={(v) => `${Math.round(v * 100)}%`}
-                />
-                <PoseSlider
-                  label="grip strength"
-                  value={gripStrength}
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  onChange={setGripStrength}
-                  format={(v) => `${Math.round(v * 100)}%`}
-                />
-                <PoseSlider
-                  label="release friction"
-                  value={releaseFriction}
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  onChange={setReleaseFriction}
-                  format={(v) => v.toFixed(2)}
-                />
-                <button
-                  onClick={() => setGripGlowEnabled(!gripGlowEnabled)}
-                  className={cn(
-                    'py-1.5 rounded-md transition-colors',
-                    gripGlowEnabled ? 'bg-cyan-600/40 text-cyan-200' : 'bg-white/10 text-white/70 hover:text-white'
-                  )}
-                >
-                  {gripGlowEnabled ? 'Foot glow ON' : 'Foot glow OFF'}
-                </button>
-                <p className="text-white/45 text-[10px] leading-relaxed">
-                  Window driven by the limb CPG phase. Start shifts where in the cycle grip turns on;
-                  duration sets the window width. Strength = 0 keeps timing/glow live but skips the
-                  plant + friction switch (visual-only). Glow mirrors the actual grip window.
-                </p>
-              </>
-            )}
-            <label className="flex items-center justify-between gap-2 text-[10px] text-white/55">
-              <span>step phase {(stepPhase / Math.PI).toFixed(2)}π</span>
-              <input
-                type="range" min={0} max={6.28} step={0.05} value={stepPhase}
-                onChange={(e) => setStepPhase(Number(e.target.value))}
-                className="flex-1"
-              />
-            </label>
-            <p className="text-white/45 text-[10px] leading-relaxed">
-              D3: legs driven by the limb CPG (sweep = 77%-duty transfer function; trot emerges from
-              the couplings). The tilted hinge turns the sweep into a step. Step phase slides WHEN the
-              foot lifts vs the body wave — tune so a foot swings as the body bends away from it. Walk
-              OFF = stand.
-            </p>
-            <PoseSlider
-              label="body friction"
-              value={bodyFriction}
-              min={0}
-              max={1}
-              step={0.05}
-              onChange={setBodyFriction}
-              format={(v) => v.toFixed(2)}
-            />
-            <PoseSlider
-              label="leg friction"
-              value={legFriction}
-              min={0}
-              max={1}
-              step={0.05}
-              onChange={setLegFriction}
-              format={(v) => v.toFixed(2)}
-            />
-            <p className="text-white/45 text-[10px] leading-relaxed">
-              Contact friction, applied live. Low body = belly slides so the axial wave isn&apos;t
-              pinned to the floor; high legs = feet grip and pull. Ground combines by multiply, so
-              these are the effective surface values.
-            </p>
-          </>
-        )}
-        <p className="text-white/55 text-[10px] uppercase tracking-widest mt-1">Environment</p>
-        <button
-          onClick={() => setEnvironmentEnabled(!environmentEnabled)}
-          className={cn(
-            'py-1.5 rounded-md transition-colors',
-            environmentEnabled
-              ? 'bg-sky-600/40 text-sky-200'
-              : 'bg-white/10 text-white/70 hover:text-white'
-          )}
-        >
-          {environmentEnabled ? 'Drag ON' : 'Drag OFF'}
-        </button>
-        <p className="text-white/45 text-[10px] leading-relaxed">
-          3D anisotropic swimming drag (neutral-buoyancy water, gravity off). Enables forward
-          thrust.
-        </p>
-      </div>
 
-      <div className="flex flex-col gap-2">
-        <p className="text-white/55 text-[10px] uppercase tracking-widest">Locomotion — CPG drive (3D)</p>
-        <PoseSlider
-          label="drive"
+        <div className="flex flex-col gap-1 px-4 pt-2 pb-4">
+
+        <Toggle
+          label="Gravity"
+          tip="Pulls the whole body down (−9.81). Off = neutral buoyancy, like swimming in water."
+          on={gravityEnabled}
+          onChange={setGravityEnabled}
+        />
+        <Toggle
+          label="Legs"
+          tip="Build the four legs as real physics bodies that the trunk can stand on. Off = no legs; the body undulates alone."
+          on={landLegsEnabled}
+          onChange={setLandLegsEnabled}
+        />
+        <Toggle
+          label="Ground"
+          tip="Add the floor plane plus the foot and belly contact points. Off = no floor, nothing to rest on or push against."
+          on={landGroundEnabled}
+          onChange={setLandGroundEnabled}
+        />
+        <Toggle
+          label="Limb CPG"
+          tip="Add the four leg oscillators to the central pattern generator — the rhythm source that will drive the legs."
+          on={limbCpgEnabled}
+          onChange={setLimbCpgEnabled}
+        />
+        <Toggle
+          label="Lock legs"
+          tip="Hold each hip stiff at its rest angle (rigid struts). Off = hips go free so the legs hang and are dragged passively by the body."
+          on={legsLocked}
+          onChange={setLegsLocked}
+        />
+        <Toggle
+          label="Drag"
+          tip="Anisotropic swimming drag — resists sideways motion more than forward, turning the body wave into forward thrust."
+          on={environmentEnabled}
+          onChange={setEnvironmentEnabled}
+        />
+
+        <Divider />
+
+        <Slider
+          label="Drive"
+          tip="CPG drive — overall activation level. Higher = a faster, stronger body wave."
           value={cpgDrive}
           min={0}
           max={3}
@@ -316,8 +299,9 @@ function SimulateTab() {
           onChange={setCpgDrive}
           format={(v) => v.toFixed(2)}
         />
-        <PoseSlider
-          label="excitability"
+        <Slider
+          label="Excitability"
+          tip="CPG excitability — scales how strongly drive raises the undulation frequency."
           value={cpgExcitability}
           min={0}
           max={2}
@@ -325,45 +309,12 @@ function SimulateTab() {
           onChange={setCpgExcitability}
           format={(v) => v.toFixed(2)}
         />
-        <div className="flex gap-2">
-          <button
-            onClick={() => setCoupledRunning(!coupledRunning)}
-            className={cn(
-              'flex-1 py-1.5 rounded-md transition-colors',
-              coupledRunning
-                ? 'bg-cyan-600/40 text-cyan-200'
-                : 'bg-white/10 text-white/70 hover:text-white'
-            )}
-          >
-            {coupledRunning ? 'Pause CPG drive' : 'Run CPG drive'}
-          </button>
-          <button
-            onClick={() => setSimRecording(!simRecording)}
-            disabled={!coupledRunning}
-            className={cn(
-              'flex-1 py-1.5 rounded-md transition-colors',
-              simRecording
-                ? 'bg-rose-600/40 text-rose-200 animate-pulse'
-                : 'bg-white/10 text-white/70 hover:text-white disabled:opacity-40 disabled:hover:text-white/70'
-            )}
-          >
-            {simRecording ? 'Stop' : 'Record'}
-          </button>
-        </div>
-        <p className="text-white/45 text-[10px] leading-relaxed">
-          CPG → Ekeberg muscles (via Rapier joint motor) → 3D body. Drag off → undulates in place;
-          Drag on → swims forward, head-first. Calibrated defaults: drive 2.0 / exc 0.15 / α 1.0.
-        </p>
-        {lastCapturePath ? (
-          <p className="text-emerald-300/70 text-[10px] break-all font-mono">{lastCapturePath}</p>
-        ) : null}
-      </div>
 
-      <div className="flex flex-col gap-2 pt-2 border-t border-white/10">
-        <p className="text-white/55 text-[10px] uppercase tracking-widest">Muscle (Ekeberg)</p>
-        <PoseSlider
-          label="α active gain"
-          hint="paper 0.4, calibrated 1.0 for our body scale — drives the bend"
+        <Divider />
+
+        <Slider
+          label="Muscle α"
+          tip="Ekeberg active gain — how hard the muscles bend each joint toward the target angle."
           value={muscleAlpha}
           min={0}
           max={5}
@@ -371,9 +322,9 @@ function SimulateTab() {
           onChange={setMuscleAlpha}
           format={(v) => v.toFixed(2)}
         />
-        <PoseSlider
-          label="β stiffness"
-          hint="paper 1.2 — holds the joint back toward 0"
+        <Slider
+          label="Muscle β"
+          tip="Ekeberg passive stiffness — pulls each joint back toward straight (resting shape)."
           value={muscleBeta}
           min={0}
           max={20}
@@ -381,9 +332,9 @@ function SimulateTab() {
           onChange={setMuscleBeta}
           format={(v) => v.toFixed(2)}
         />
-        <PoseSlider
-          label="δ damping"
-          hint="paper 0.1 — motor damping (was a 2.0 band-aid before the motor fix)"
+        <Slider
+          label="Muscle δ"
+          tip="Joint motor damping — resists fast joint motion to keep the simulation stable."
           value={muscleDamping}
           min={0}
           max={20}
@@ -391,55 +342,115 @@ function SimulateTab() {
           onChange={setMuscleDamping}
           format={(v) => v.toFixed(2)}
         />
-      </div>
 
-      <div className="flex flex-col gap-1.5">
-        <p className="text-white/55 text-[10px] uppercase tracking-widest">Diagnostics</p>
+        <Divider />
+
+        <Slider
+          label="Body friction"
+          tip="Trunk and belly contact friction. Low = the belly slides so the body wave isn't pinned to the floor."
+          value={bodyFriction}
+          min={0}
+          max={1}
+          step={0.05}
+          onChange={setBodyFriction}
+          format={(v) => v.toFixed(2)}
+        />
+
+        <Divider />
+
+        <Toggle
+          label="Grip"
+          tip="Phase-gated foot traction: each foot takes high friction during its stance window and slides the rest of the cycle, so the backward stroke pushes the body forward."
+          on={gripEnabled}
+          onChange={setGripEnabled}
+        />
+        {gripEnabled && (
+          <>
+            <Segmented
+              label="Grip legs"
+              tip="Which legs grip the floor: the front pair, the back pair, or all four."
+              value={gripLegs}
+              options={['front', 'back', 'both'] as const}
+              onChange={setGripLegs}
+            />
+            <Slider
+              label="Grip start"
+              tip="Where in each leg's CPG cycle the foot begins gripping."
+              value={gripShift}
+              min={0}
+              max={1}
+              step={0.01}
+              onChange={setGripShift}
+              format={(v) => `${Math.round(v * 100)}%`}
+            />
+            <Slider
+              label="Grip duration"
+              tip="What fraction of the cycle each foot stays gripped (the window width)."
+              value={gripDuration}
+              min={0}
+              max={1}
+              step={0.01}
+              onChange={setGripDuration}
+              format={(v) => `${Math.round(v * 100)}%`}
+            />
+            <Slider
+              label="Grip strength"
+              tip="The foot's friction during its stance window — the stance traction. 0 = no grip (timing/glow only); higher = more forward pull."
+              value={gripStrength}
+              min={0}
+              max={1}
+              step={0.05}
+              onChange={setGripStrength}
+              format={(v) => v.toFixed(2)}
+            />
+            <Slider
+              label="Release friction"
+              tip="Foot friction while NOT gripping. Lower = the foot slides freely between grips."
+              value={releaseFriction}
+              min={0}
+              max={1}
+              step={0.05}
+              onChange={setReleaseFriction}
+              format={(v) => v.toFixed(2)}
+            />
+            <Toggle
+              label="Foot glow"
+              tip="Light up each foot while it is inside its grip window — a visual debug of grip timing."
+              on={gripGlowEnabled}
+              onChange={setGripGlowEnabled}
+            />
+          </>
+        )}
+
+        <Divider />
+
         <DiagnosticRow label="Kinetic energy" value={simDiagnostics.kineticEnergy.toExponential(2)} />
         <DiagnosticRow label="COM drift (forward)" value={simDiagnostics.comDriftFromStart.toExponential(2)} />
         <DiagnosticRow label="Max joint / cap" value={`${(simDiagnostics.maxJointFracOfCap * 100).toFixed(0)}%`} />
         <DiagnosticRow label="comY (float)" value={simDiagnostics.comYDrift.toFixed(3)} />
         <DiagnosticRow label="Max tilt (off-plane)" value={`${simDiagnostics.maxTiltDeg.toFixed(1)}°`} />
-      </div>
 
-      <div className="flex flex-col gap-2 pt-2 border-t border-white/10">
-        <p className="text-white/55 text-[10px] uppercase tracking-widest">CPG preview (signal only)</p>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setCpgRunning(!cpgRunning)}
-            className={cn(
-              'flex-1 py-1.5 rounded-md transition-colors',
-              cpgRunning
-                ? 'bg-violet-600/40 text-violet-200'
-                : 'bg-white/10 text-white/70 hover:text-white'
-            )}
-          >
-            {cpgRunning ? 'Pause CPG' : 'Run CPG'}
-          </button>
-          <button
-            onClick={() => setCpgRecording(!cpgRecording)}
-            disabled={!cpgRunning}
-            className={cn(
-              'flex-1 py-1.5 rounded-md transition-colors',
-              cpgRecording
-                ? 'bg-rose-600/40 text-rose-200 animate-pulse'
-                : 'bg-white/10 text-white/70 hover:text-white disabled:opacity-40 disabled:hover:text-white/70'
-            )}
-          >
-            {cpgRecording ? 'Stop' : 'Record'}
-          </button>
+          <Divider />
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => resetSimConfig()}
+              className="flex-1 rounded-md bg-white/10 py-1.5 text-xs text-white/70 transition-colors hover:text-white"
+            >
+              Reset
+            </button>
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="flex-1 rounded-md bg-white/10 py-1.5 text-xs text-white/70 transition-colors hover:text-white"
+            >
+              {copied ? 'Copied!' : 'Copy config'}
+            </button>
+          </div>
         </div>
-        <p className="text-white/45 text-[10px] leading-relaxed">
-          Axial double chain (Knüsel 2020), no body. Capture shows the head→tail wave as
-          diagonal stripes. Expected ν ≈ drive·exc·1.1 Hz.
-        </p>
       </div>
-
-      <p className="leading-relaxed text-white/55 text-[10px]">
-        Body runs in Rapier (3D). See{' '}
-        <span className="font-mono text-white/60">documentation/animation-roadmap.md</span>.
-      </p>
-    </div>
+    </TooltipProvider>
   )
 }
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import { CameraPreset } from '../_lib/types'
 
 export type AnimateTab = 'simulate' | 'calibrate'
@@ -22,7 +23,77 @@ export interface SimDiagnostics {
   maxTiltDeg: number
 }
 
-interface AnimateStore {
+export interface SimConfig {
+  gravityEnabled: boolean
+  landLegsEnabled: boolean
+  landGroundEnabled: boolean
+  limbCpgEnabled: boolean
+  legsLocked: boolean
+  environmentEnabled: boolean
+  cpgDrive: number
+  cpgExcitability: number
+  muscleAlpha: number
+  muscleBeta: number
+  muscleDamping: number
+  bodyFriction: number
+  gripEnabled: boolean
+  gripShift: number
+  gripDuration: number
+  gripStrength: number
+  releaseFriction: number
+  gripGlowEnabled: boolean
+  gripLegs: 'front' | 'back' | 'both'
+}
+
+export const DEFAULT_SIM_CONFIG: SimConfig = {
+  gravityEnabled: true,
+  landLegsEnabled: true,
+  landGroundEnabled: true,
+  limbCpgEnabled: true,
+  legsLocked: true,
+  environmentEnabled: false,
+  cpgDrive: 1.87,
+  cpgExcitability: 0.24,
+  muscleAlpha: 3.95,
+  muscleBeta: 13.3,
+  muscleDamping: 11.3,
+  bodyFriction: 0.05,
+  gripEnabled: true,
+  gripShift: 0.27,
+  gripDuration: 0.41,
+  gripStrength: 0,
+  releaseFriction: 0,
+  gripGlowEnabled: true,
+  gripLegs: 'both',
+}
+
+const SIM_CONFIG_STORAGE_KEY = 'eco3d-animate-sim-config'
+
+export function pickSimConfig(s: SimConfig): SimConfig {
+  return {
+    gravityEnabled: s.gravityEnabled,
+    landLegsEnabled: s.landLegsEnabled,
+    landGroundEnabled: s.landGroundEnabled,
+    limbCpgEnabled: s.limbCpgEnabled,
+    legsLocked: s.legsLocked,
+    environmentEnabled: s.environmentEnabled,
+    cpgDrive: s.cpgDrive,
+    cpgExcitability: s.cpgExcitability,
+    muscleAlpha: s.muscleAlpha,
+    muscleBeta: s.muscleBeta,
+    muscleDamping: s.muscleDamping,
+    bodyFriction: s.bodyFriction,
+    gripEnabled: s.gripEnabled,
+    gripShift: s.gripShift,
+    gripDuration: s.gripDuration,
+    gripStrength: s.gripStrength,
+    releaseFriction: s.releaseFriction,
+    gripGlowEnabled: s.gripGlowEnabled,
+    gripLegs: s.gripLegs,
+  }
+}
+
+interface AnimateStore extends SimConfig {
   animateTab: AnimateTab
   calibratingGroupId: string | null
   calibratingYaw: number
@@ -34,33 +105,7 @@ interface AnimateStore {
   simDiagnostics: SimDiagnostics
   simRecording: boolean
   lastCapturePath: string | null
-  cpgDrive: number
-  cpgExcitability: number
-  cpgRunning: boolean
-  cpgRecording: boolean
   coupledRunning: boolean
-  environmentEnabled: boolean
-  muscleAlpha: number
-  muscleBeta: number
-  muscleDamping: number
-  coupledMode: 'swim' | 'land'
-  stepEnabled: boolean
-  stepFreqHz: number
-  stepPhase: number
-  bodyFriction: number
-  legFriction: number
-  gravityEnabled: boolean
-  landLegsEnabled: boolean
-  landGroundEnabled: boolean
-  limbCpgEnabled: boolean
-  legsLocked: boolean
-  gripEnabled: boolean
-  gripShift: number
-  gripDuration: number
-  gripStrength: number
-  releaseFriction: number
-  gripGlowEnabled: boolean
-  gripLegs: 'front' | 'back' | 'both'
 
   setAnimateTab: (tab: AnimateTab) => void
   setCalibratingGroup: (id: string | null) => void
@@ -79,19 +124,12 @@ interface AnimateStore {
   setLastCapturePath: (path: string | null) => void
   setCpgDrive: (v: number) => void
   setCpgExcitability: (v: number) => void
-  setCpgRunning: (v: boolean) => void
-  setCpgRecording: (v: boolean) => void
   setCoupledRunning: (v: boolean) => void
   setEnvironmentEnabled: (v: boolean) => void
   setMuscleAlpha: (v: number) => void
   setMuscleBeta: (v: number) => void
   setMuscleDamping: (v: number) => void
-  setCoupledMode: (v: 'swim' | 'land') => void
-  setStepEnabled: (v: boolean) => void
-  setStepFreqHz: (v: number) => void
-  setStepPhase: (v: number) => void
   setBodyFriction: (v: number) => void
-  setLegFriction: (v: number) => void
   setGravityEnabled: (v: boolean) => void
   setLandLegsEnabled: (v: boolean) => void
   setLandGroundEnabled: (v: boolean) => void
@@ -104,139 +142,108 @@ interface AnimateStore {
   setReleaseFriction: (v: number) => void
   setGripGlowEnabled: (v: boolean) => void
   setGripLegs: (v: 'front' | 'back' | 'both') => void
+  resetSimConfig: () => void
 }
 
-export const useAnimateStore = create<AnimateStore>()((set) => ({
-  animateTab: 'simulate',
-  calibratingGroupId: null,
-  calibratingYaw: 0,
-  calibratingPitch: 0,
-  legPairMirroredOverrides: {},
-  cameraPreset: null,
-  modelOpacity: 1,
-  manualPose: { rootX: 0, rootZ: 0, rootYawRad: 0, jointAnglesRad: {} },
-  simDiagnostics: { kineticEnergy: 0, comX: 0, comZ: 0, comDriftFromStart: 0, maxJointFracOfCap: 0, comYDrift: 0, maxTiltDeg: 0 },
-  simRecording: false,
-  lastCapturePath: null,
-  cpgDrive: 2.0,
-  cpgExcitability: 0.15,
-  cpgRunning: false,
-  cpgRecording: false,
-  coupledRunning: false,
-  environmentEnabled: false,
-  muscleAlpha: 1.0,
-  muscleBeta: 1.2,
-  muscleDamping: 0.1,
-  coupledMode: 'swim',
-  stepEnabled: false,
-  stepFreqHz: 0.6,
-  stepPhase: Math.PI, // half-cycle offset: steps the foot contralateral to the body wave (walks ~2x farther)
-  bodyFriction: 0, // all ground contact is frictionless — base motion matches swim; grip pins instead
-  legFriction: 0, // grip works by pinning the foot (a joint), not friction, so this stays 0 too
-  gravityEnabled: true, // land-mode gravity; off = land rig (legs+floor) with no downward pull
-  landLegsEnabled: true, // build the 4 legs as physics bodies + render them from physics; off = no legs
-  landGroundEnabled: true, // build the ground plane; off = no floor (toward swim)
-  limbCpgEnabled: true, // add the 4 limb oscillators to the CPG (the legs' driver; Walk needs them)
-  legsLocked: true, // hold the hips stiff at rest (rigid struts); off = free/passive (legs dangle)
-  gripEnabled: false, // legs held stiff; each foot grips the floor on its backward (power) stroke
-  gripShift: 0, // slides the grip window vs the CPG cycle (0 = start gripping at CPG phase 0)
-  gripDuration: 0.5, // fraction of the CPG cycle the foot grips (window width)
-  gripStrength: 1, // 0 = grip is physically off (timing/glow still tick); >0 = plant + traction engage
-  releaseFriction: 0, // feet are frictionless; grip provides traction by pinning, not friction
-  gripGlowEnabled: false, // debug: light up each foot node bright while it is gripping the floor
-  gripLegs: 'both', // which legs grip: front pair, back pair, or all four
+export const useAnimateStore = create<AnimateStore>()(
+  persist(
+    (set) => ({
+      animateTab: 'simulate',
+      calibratingGroupId: null,
+      calibratingYaw: 0,
+      calibratingPitch: 0,
+      legPairMirroredOverrides: {},
+      cameraPreset: null,
+      modelOpacity: 1,
+      manualPose: { rootX: 0, rootZ: 0, rootYawRad: 0, jointAnglesRad: {} },
+      simDiagnostics: { kineticEnergy: 0, comX: 0, comZ: 0, comDriftFromStart: 0, maxJointFracOfCap: 0, comYDrift: 0, maxTiltDeg: 0 },
+      simRecording: false,
+      lastCapturePath: null,
+      coupledRunning: false,
+      ...DEFAULT_SIM_CONFIG,
 
-  setAnimateTab: (tab) => {
-    if (tab === 'simulate') {
-      set({ animateTab: tab, calibratingGroupId: null, calibratingYaw: 0, calibratingPitch: 0 })
-    } else {
-      set({
-        animateTab: tab,
-        simRecording: false,
-        cpgRunning: false,
-        cpgRecording: false,
-        coupledRunning: false,
-      })
-    }
-  },
-
-  setCalibratingGroup: (id) =>
-    set({ calibratingGroupId: id, calibratingYaw: 0, calibratingPitch: 0 }),
-
-  setCalibratingYaw: (yaw) => set({ calibratingYaw: yaw }),
-
-  setCalibratingPitch: (pitch) => set({ calibratingPitch: pitch }),
-
-  setLegPairMirrored: (pairKey, mirrored) =>
-    set((state) => ({
-      legPairMirroredOverrides: { ...state.legPairMirroredOverrides, [pairKey]: mirrored },
-    })),
-
-  setCameraPreset: (preset) => set({ cameraPreset: preset }),
-
-  setModelOpacity: (opacity) => set({ modelOpacity: Math.max(0, Math.min(1, opacity)) }),
-
-  setManualPoseRootX: (x) =>
-    set((state) => ({ manualPose: { ...state.manualPose, rootX: x } })),
-
-  setManualPoseRootZ: (z) =>
-    set((state) => ({ manualPose: { ...state.manualPose, rootZ: z } })),
-
-  setManualPoseRootYaw: (rad) =>
-    set((state) => ({ manualPose: { ...state.manualPose, rootYawRad: rad } })),
-
-  setManualPoseJointAngle: (groupId, rad) =>
-    set((state) => ({
-      manualPose: {
-        ...state.manualPose,
-        jointAnglesRad: { ...state.manualPose.jointAnglesRad, [groupId]: rad },
+      setAnimateTab: (tab) => {
+        if (tab === 'simulate') {
+          set({ animateTab: tab, calibratingGroupId: null, calibratingYaw: 0, calibratingPitch: 0 })
+        } else {
+          set({ animateTab: tab, simRecording: false, coupledRunning: false })
+        }
       },
-    })),
 
-  resetManualPose: () =>
-    set({ manualPose: { rootX: 0, rootZ: 0, rootYawRad: 0, jointAnglesRad: {} } }),
+      setCalibratingGroup: (id) =>
+        set({ calibratingGroupId: id, calibratingYaw: 0, calibratingPitch: 0 }),
 
-  setSimDiagnostics: (d) => set({ simDiagnostics: d }),
+      setCalibratingYaw: (yaw) => set({ calibratingYaw: yaw }),
 
-  setSimRecording: (recording) =>
-    set(recording ? { simRecording: true, lastCapturePath: null } : { simRecording: false }),
+      setCalibratingPitch: (pitch) => set({ calibratingPitch: pitch }),
 
-  setLastCapturePath: (path) => set({ lastCapturePath: path }),
+      setLegPairMirrored: (pairKey, mirrored) =>
+        set((state) => ({
+          legPairMirroredOverrides: { ...state.legPairMirroredOverrides, [pairKey]: mirrored },
+        })),
 
-  setCpgDrive: (v) => set({ cpgDrive: v }),
+      setCameraPreset: (preset) => set({ cameraPreset: preset }),
 
-  setCpgExcitability: (v) => set({ cpgExcitability: v }),
+      setModelOpacity: (opacity) => set({ modelOpacity: Math.max(0, Math.min(1, opacity)) }),
 
-  setCpgRunning: (v) =>
-    set(v ? { cpgRunning: true, coupledRunning: false } : { cpgRunning: false }),
+      setManualPoseRootX: (x) =>
+        set((state) => ({ manualPose: { ...state.manualPose, rootX: x } })),
 
-  setCpgRecording: (v) =>
-    set(v ? { cpgRecording: true, lastCapturePath: null } : { cpgRecording: false }),
+      setManualPoseRootZ: (z) =>
+        set((state) => ({ manualPose: { ...state.manualPose, rootZ: z } })),
 
-  setCoupledRunning: (v) =>
-    set(v ? { coupledRunning: true, cpgRunning: false } : { coupledRunning: false }),
+      setManualPoseRootYaw: (rad) =>
+        set((state) => ({ manualPose: { ...state.manualPose, rootYawRad: rad } })),
 
-  setEnvironmentEnabled: (v) => set({ environmentEnabled: v }),
+      setManualPoseJointAngle: (groupId, rad) =>
+        set((state) => ({
+          manualPose: {
+            ...state.manualPose,
+            jointAnglesRad: { ...state.manualPose.jointAnglesRad, [groupId]: rad },
+          },
+        })),
 
-  setMuscleAlpha: (v) => set({ muscleAlpha: v }),
-  setMuscleBeta: (v) => set({ muscleBeta: v }),
-  setMuscleDamping: (v) => set({ muscleDamping: v }),
-  setCoupledMode: (v) => set({ coupledMode: v }),
-  setStepEnabled: (v) => set({ stepEnabled: v }),
-  setStepFreqHz: (v) => set({ stepFreqHz: v }),
-  setStepPhase: (v) => set({ stepPhase: v }),
-  setBodyFriction: (v) => set({ bodyFriction: v }),
-  setLegFriction: (v) => set({ legFriction: v }),
-  setGravityEnabled: (v) => set({ gravityEnabled: v }),
-  setLandLegsEnabled: (v) => set({ landLegsEnabled: v }),
-  setLandGroundEnabled: (v) => set({ landGroundEnabled: v }),
-  setLimbCpgEnabled: (v) => set({ limbCpgEnabled: v }),
-  setLegsLocked: (v) => set({ legsLocked: v }),
-  setGripEnabled: (v) => set({ gripEnabled: v }),
-  setGripShift: (v) => set({ gripShift: v }),
-  setGripDuration: (v) => set({ gripDuration: v }),
-  setGripStrength: (v) => set({ gripStrength: v }),
-  setReleaseFriction: (v) => set({ releaseFriction: v }),
-  setGripGlowEnabled: (v) => set({ gripGlowEnabled: v }),
-  setGripLegs: (v) => set({ gripLegs: v }),
-}))
+      resetManualPose: () =>
+        set({ manualPose: { rootX: 0, rootZ: 0, rootYawRad: 0, jointAnglesRad: {} } }),
+
+      setSimDiagnostics: (d) => set({ simDiagnostics: d }),
+
+      setSimRecording: (recording) =>
+        set(recording ? { simRecording: true, lastCapturePath: null } : { simRecording: false }),
+
+      setLastCapturePath: (path) => set({ lastCapturePath: path }),
+
+      setCpgDrive: (v) => set({ cpgDrive: v }),
+
+      setCpgExcitability: (v) => set({ cpgExcitability: v }),
+
+      setCoupledRunning: (v) => set({ coupledRunning: v }),
+
+      setEnvironmentEnabled: (v) => set({ environmentEnabled: v }),
+
+      setMuscleAlpha: (v) => set({ muscleAlpha: v }),
+      setMuscleBeta: (v) => set({ muscleBeta: v }),
+      setMuscleDamping: (v) => set({ muscleDamping: v }),
+      setBodyFriction: (v) => set({ bodyFriction: v }),
+      setGravityEnabled: (v) => set({ gravityEnabled: v }),
+      setLandLegsEnabled: (v) => set({ landLegsEnabled: v }),
+      setLandGroundEnabled: (v) => set({ landGroundEnabled: v }),
+      setLimbCpgEnabled: (v) => set({ limbCpgEnabled: v }),
+      setLegsLocked: (v) => set({ legsLocked: v }),
+      setGripEnabled: (v) => set({ gripEnabled: v }),
+      setGripShift: (v) => set({ gripShift: v }),
+      setGripDuration: (v) => set({ gripDuration: v }),
+      setGripStrength: (v) => set({ gripStrength: v }),
+      setReleaseFriction: (v) => set({ releaseFriction: v }),
+      setGripGlowEnabled: (v) => set({ gripGlowEnabled: v }),
+      setGripLegs: (v) => set({ gripLegs: v }),
+      resetSimConfig: () => set({ ...DEFAULT_SIM_CONFIG }),
+    }),
+    {
+      name: SIM_CONFIG_STORAGE_KEY,
+      version: 1,
+      skipHydration: true,
+      partialize: (s) => pickSimConfig(s),
+    }
+  )
+)

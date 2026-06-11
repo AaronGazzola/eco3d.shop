@@ -6,11 +6,6 @@ import { STD_SEGMENT_WIDTH, defaultWeightFor } from './weights'
 
 const CAPSULE_Y = new Vector3(0, 1, 0)
 
-// Swim = neutral-buoyancy water (gravity off, legs are passengers). Land = gravity + a ground plane,
-// legs built as physics and the body stands on them.
-export type CoupledMode = 'swim' | 'land'
-
-
 // Rotation taking the capsule's default +Y long axis onto the segment's forward direction.
 function capsuleRotation(forward: Vector3): Quaternion {
   return new Quaternion().setFromUnitVectors(CAPSULE_Y, forward.clone().normalize())
@@ -63,8 +58,6 @@ export function axialLengths(groups: BodyGroup[]): number[] {
 export interface Body3DHip {
   joint: RAPIER.RevoluteImpulseJoint
   limbIdx: number
-  capStance: number
-  capSwing: number
   // For grip-timing: which girdle body this leg hangs off, the leg's own body/collider index, and
   // the hip-socket / foot offsets in each body's local frame. Lets useLocomotion measure how far
   // forward/back the foot is reaching (driven by the body wave) to time the foot's floor grip.
@@ -72,6 +65,9 @@ export interface Body3DHip {
   legBodyIndex: number
   hipLocal: { x: number; y: number; z: number }
   footLocal: { x: number; y: number; z: number }
+  // The zero-mass ground-contact ball at this foot's node. Friction is set live from the studio
+  // (grip strength while in the stance window, release friction otherwise). null if no ground built.
+  footContact: RAPIER.Collider | null
 }
 
 // How far the hip hinge leans from vertical toward the leg's side (radians). 0 = pure vertical
@@ -119,8 +115,8 @@ function nodeVec(n: { x: number; y?: number; z: number } | undefined): Vector3 |
 }
 
 export interface BuildBody3DOptions {
-  // Land-rig parts, gated independently so the rig can be stripped back toward swim one piece at a
-  // time. Ignored in swim mode (which never builds legs or a floor).
+  // Land-rig parts, gated independently so the rig can be stripped back to a bare axial swimmer (no
+  // legs, no floor) and then rebuilt one piece at a time. With both off the result is exactly swim.
   buildLegs?: boolean
   buildGround?: boolean
 }
@@ -128,7 +124,6 @@ export interface BuildBody3DOptions {
 export function buildBody3D(
   world: RAPIER.World,
   groups: BodyGroup[],
-  mode: CoupledMode = 'swim',
   opts: BuildBody3DOptions = {}
 ): Body3D | null {
   const buildLegs = opts.buildLegs ?? true
@@ -244,13 +239,14 @@ export function buildBody3D(
 
   const restCenters = centers.map((c) => ({ x: c.x, y: c.y, z: c.z }))
 
-  // LAND regime: build the legs as real capsules from each hip socket (on the parent girdle) down to
-  // the leg's nodeFoot, with foot contact + friction. Each hip is a revolute joint about VERTICAL
-  // with a ForceBased motor (D2): position-driven by useLocomotion through the limb transfer
-  // function (it holds the rest angle when not stepping, so the body still stands). Floor sits just
+  // Land rig: build the legs as real capsules from each hip socket (on the parent girdle) down to
+  // the leg's nodeFoot, with foot contact + friction. Each hip is a revolute joint about a tilted
+  // axis with a ForceBased motor: position-driven by useLocomotion (held at rest so the body stands,
+  // or freed per-foot while gripping). Legs and ground are gated by buildLegs/buildGround, so with
+  // both off this whole block produces nothing and the body is a bare axial swimmer. Floor sits just
   // below the feet (y≈0).
   const hipJoints: Body3DHip[] = []
-  if (mode === 'land') {
+  {
     const legRadius = STD_SEGMENT_WIDTH / 2
     // Pass 1: resolve each leg's geometry + which girdle it hangs from (forward girdle = lower index).
     const specs: { leg: BodyGroup; parentIndex: number; hip: Vector3; foot: Vector3; dir: Vector3; len: number; center: Vector3 }[] = []
@@ -309,22 +305,12 @@ export function buildBody3D(
       const capSwing = caps.yawBack ?? caps.yaw
       if (typeof joint.setLimits === 'function') joint.setLimits(-capSwing, capStance)
       if (typeof joint.configureMotorModel === 'function') joint.configureMotorModel(RAPIER.MotorModel.ForceBased)
-      hipJoints.push({
-        joint, limbIdx, capStance, capSwing,
-        parentIndex: s.parentIndex, legBodyIndex,
-        hipLocal: { x: a1.x, y: a1.y, z: a1.z },
-        footLocal: { x: s.dir.x * (s.len / 2), y: s.dir.y * (s.len / 2), z: s.dir.z * (s.len / 2) },
-      })
-
-      bodies.push(legBody)
-      segLength.push(s.len)
-      groupIds.push(s.leg.id)
-      restCenters.push({ x: s.center.x, y: s.center.y, z: s.center.z })
-
       // Foot ground contact: a zero-mass ball centred ON the foot node, radius = (footY − groundTop),
       // so the foot node rests at its authored height no matter how the leg is rotated (a sphere
       // centred at the node always holds its centre one radius above the floor). Ground-only — never
-      // the body — so turning legs on rests the feet at node height without disturbing the spine.
+      // the body. Kept OUT of groundContacts (the belly supports) and referenced from the hip so the
+      // foot's friction is driven independently (grip strength) from the trunk's (body friction).
+      let footContact: RAPIER.Collider | null = null
       if (buildGround) {
         const footBallR = Math.max(0.05, s.foot.y - groundTop)
         const fbcd = RAPIER.ColliderDesc.ball(footBallR)
@@ -333,8 +319,21 @@ export function buildBody3D(
           .setFriction(BODY_FRICTION_DEFAULT)
           .setFrictionCombineRule(RAPIER.CoefficientCombineRule.Multiply)
           .setCollisionGroups(COLLIDE_GROUND_CONTACT)
-        groundContacts.push(world.createCollider(fbcd, legBody))
+        footContact = world.createCollider(fbcd, legBody)
       }
+
+      hipJoints.push({
+        joint, limbIdx,
+        parentIndex: s.parentIndex, legBodyIndex,
+        hipLocal: { x: a1.x, y: a1.y, z: a1.z },
+        footLocal: { x: s.dir.x * (s.len / 2), y: s.dir.y * (s.len / 2), z: s.dir.z * (s.len / 2) },
+        footContact,
+      })
+
+      bodies.push(legBody)
+      segLength.push(s.len)
+      groupIds.push(s.leg.id)
+      restCenters.push({ x: s.center.x, y: s.center.y, z: s.center.z })
     }
 
     if (buildGround) {
