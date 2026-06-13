@@ -21,7 +21,7 @@ function useStudioObservationHook() {
       drag: (on: boolean) => store().setEnvironmentEnabled(on),
       tune: (drive: number, exc: number) => { store().setCpgDrive(drive); store().setCpgExcitability(exc) },
       muscle: (alpha: number, beta: number, damping: number) => { store().setMuscleAlpha(alpha); store().setMuscleBeta(beta); store().setMuscleDamping(damping) },
-      friction: (body: number) => store().setBodyFriction(body),
+      friction: (body: number, leg: number) => { store().setBodyFriction(body); store().setLegFriction(leg) },
       gravity: (on: boolean) => store().setGravityEnabled(on),
       legs: (on: boolean) => store().setLandLegsEnabled(on),
       ground: (on: boolean) => store().setLandGroundEnabled(on),
@@ -34,7 +34,7 @@ function useStudioObservationHook() {
         if (strength != null) store().setGripStrength(strength)
       },
       glow: (on: boolean) => store().setGripGlowEnabled(on),
-      gripLegs: (which: 'front' | 'back' | 'both') => store().setGripLegs(which),
+      gripFoot: (foot: 'FL' | 'FR' | 'BL' | 'BR', on: boolean) => store().setGripFoot(foot, on),
       record: (on: boolean) => store().setSimRecording(on),
       diag: () => store().simDiagnostics,
       gripCaptureStart: (maxSamples?: number) => {
@@ -55,7 +55,7 @@ function useStudioObservationHook() {
           gripDuration: store().gripDuration,
           gripStrength: store().gripStrength,
           gripEnabled: store().gripEnabled,
-          gripLegs: store().gripLegs,
+          gripFeet: store().gripFeet,
         }
       },
     }

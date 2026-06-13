@@ -94,53 +94,6 @@ function Slider({
   )
 }
 
-function Segmented<T extends string>({
-  label,
-  tip,
-  value,
-  options,
-  onChange,
-}: {
-  label: string
-  tip: string
-  value: T
-  options: readonly T[]
-  onChange: (v: T) => void
-}) {
-  return (
-    <div className="flex items-center justify-between gap-2 py-0.5">
-      <div className="flex min-w-0 items-center gap-1.5">
-        <span className="truncate text-[11px] text-white/70">{label}</span>
-        <Info text={tip} />
-      </div>
-      <div className="flex gap-0.5 rounded-md bg-white/5 p-0.5">
-        {options.map((o) => (
-          <button
-            key={o}
-            type="button"
-            onClick={() => onChange(o)}
-            className={cn(
-              'rounded px-2 py-0.5 text-[10px] capitalize transition-colors',
-              value === o ? 'bg-emerald-600/50 text-emerald-100' : 'text-white/50 hover:text-white'
-            )}
-          >
-            {o}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function DiagnosticRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between text-[10px]">
-      <span className="text-white/55">{label}</span>
-      <span className="font-mono text-white/70">{value}</span>
-    </div>
-  )
-}
-
 function Divider() {
   return <div className="my-1.5 border-t border-white/10" />
 }
@@ -151,7 +104,6 @@ function SimulateTab() {
   const simRecording = useAnimateStore((s) => s.simRecording)
   const setSimRecording = useAnimateStore((s) => s.setSimRecording)
   const lastCapturePath = useAnimateStore((s) => s.lastCapturePath)
-  const simDiagnostics = useAnimateStore((s) => s.simDiagnostics)
 
   const gravityEnabled = useAnimateStore((s) => s.gravityEnabled)
   const setGravityEnabled = useAnimateStore((s) => s.setGravityEnabled)
@@ -180,11 +132,13 @@ function SimulateTab() {
 
   const bodyFriction = useAnimateStore((s) => s.bodyFriction)
   const setBodyFriction = useAnimateStore((s) => s.setBodyFriction)
+  const legFriction = useAnimateStore((s) => s.legFriction)
+  const setLegFriction = useAnimateStore((s) => s.setLegFriction)
 
   const gripEnabled = useAnimateStore((s) => s.gripEnabled)
   const setGripEnabled = useAnimateStore((s) => s.setGripEnabled)
-  const gripLegs = useAnimateStore((s) => s.gripLegs)
-  const setGripLegs = useAnimateStore((s) => s.setGripLegs)
+  const gripFeet = useAnimateStore((s) => s.gripFeet)
+  const setGripFoot = useAnimateStore((s) => s.setGripFoot)
   const gripShift = useAnimateStore((s) => s.gripShift)
   const setGripShift = useAnimateStore((s) => s.setGripShift)
   const gripDuration = useAnimateStore((s) => s.gripDuration)
@@ -195,6 +149,20 @@ function SimulateTab() {
   const setReleaseFriction = useAnimateStore((s) => s.setReleaseFriction)
   const gripGlowEnabled = useAnimateStore((s) => s.gripGlowEnabled)
   const setGripGlowEnabled = useAnimateStore((s) => s.setGripGlowEnabled)
+
+  const stepEnabled = useAnimateStore((s) => s.stepEnabled)
+  const setStepEnabled = useAnimateStore((s) => s.setStepEnabled)
+  const sweepAmount = useAnimateStore((s) => s.sweepAmount)
+  const setSweepAmount = useAnimateStore((s) => s.setSweepAmount)
+  const sweepSpeed = useAnimateStore((s) => s.sweepSpeed)
+  const setSweepSpeed = useAnimateStore((s) => s.setSweepSpeed)
+  const liftAmount = useAnimateStore((s) => s.liftAmount)
+  const setLiftAmount = useAnimateStore((s) => s.setLiftAmount)
+  const legStiffness = useAnimateStore((s) => s.legStiffness)
+  const setLegStiffness = useAnimateStore((s) => s.setLegStiffness)
+  const legDamping = useAnimateStore((s) => s.legDamping)
+  const setLegDamping = useAnimateStore((s) => s.setLegDamping)
+
   const resetSimConfig = useAnimateStore((s) => s.resetSimConfig)
 
   const [copied, setCopied] = useState(false)
@@ -355,24 +323,111 @@ function SimulateTab() {
           onChange={setBodyFriction}
           format={(v) => v.toFixed(2)}
         />
+        <Slider
+          label="Leg friction"
+          tip="Foot contact friction while a foot is gripping — the traction the grip pulls the body forward with."
+          value={legFriction}
+          min={0}
+          max={1}
+          step={0.05}
+          onChange={setLegFriction}
+          format={(v) => v.toFixed(2)}
+        />
+
+        <Divider />
+
+        <Toggle
+          label="Step"
+          tip="Actively drive the legs: each hip sweeps the leg back during stance (the grip window) and forward + up during swing, synced to the same phase as grip. Off = legs hold at rest."
+          on={stepEnabled}
+          onChange={setStepEnabled}
+        />
+        {stepEnabled && (
+          <>
+            <Slider
+              label="Sweep amount"
+              tip="How far each leg swings fore/aft, as a fraction of the leg's calibrated angle caps (1 = full forward/back range). Stays within the caps."
+              value={sweepAmount}
+              min={0}
+              max={1}
+              step={0.05}
+              onChange={setSweepAmount}
+              format={(v) => `${Math.round(v * 100)}%`}
+            />
+            <Slider
+              label="Sweep speed"
+              tip="Gain of the fore/aft motor — how firmly the leg holds/reaches its commanded sweep angle (mass-independent, servo-like). Higher = stiffer, snappier."
+              value={sweepSpeed}
+              min={0}
+              max={10000}
+              step={100}
+              onChange={setSweepSpeed}
+              format={(v) => v.toFixed(0)}
+            />
+            <Slider
+              label="Lift amount"
+              tip="How high the foot raises off the ground during swing (clearance)."
+              value={liftAmount}
+              min={0}
+              max={1.5}
+              step={0.05}
+              onChange={setLiftAmount}
+              format={(v) => v.toFixed(2)}
+            />
+            <Slider
+              label="Leg stiffness"
+              tip="Gain of the up/down (lift) motor — how firmly the leg holds its angle against the body's weight (mass-independent, servo-like). The anti-sag knob."
+              value={legStiffness}
+              min={0}
+              max={10000}
+              step={100}
+              onChange={setLegStiffness}
+              format={(v) => v.toFixed(0)}
+            />
+            <Slider
+              label="Leg damping"
+              tip="Damping on both hip motors — settles oscillation. For a firm, non-springy hold use roughly 2×√(stiffness)."
+              value={legDamping}
+              min={0}
+              max={500}
+              step={10}
+              onChange={setLegDamping}
+              format={(v) => v.toFixed(0)}
+            />
+          </>
+        )}
 
         <Divider />
 
         <Toggle
           label="Grip"
-          tip="Phase-gated foot traction: each foot takes high friction during its stance window and slides the rest of the cycle, so the backward stroke pushes the body forward."
+          tip="Each foot pins to the floor during its window of the gait cycle, levering the body forward over the planted foot."
           on={gripEnabled}
           onChange={setGripEnabled}
         />
         {gripEnabled && (
           <>
-            <Segmented
-              label="Grip legs"
-              tip="Which legs grip the floor: the front pair, the back pair, or all four."
-              value={gripLegs}
-              options={['front', 'back', 'both'] as const}
-              onChange={setGripLegs}
-            />
+            <div className="flex items-start justify-between gap-2 py-0.5">
+              <div className="flex min-w-0 items-center gap-1.5 pt-0.5">
+                <span className="truncate text-[11px] text-white/70">Grip feet</span>
+                <Info text="Toggle grip per foot (front/back × left/right). A foot turned off still shows its glow timing but doesn't grip." />
+              </div>
+              <div className="grid grid-cols-2 gap-0.5">
+                {(['FL', 'FR', 'BL', 'BR'] as const).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setGripFoot(f, !gripFeet[f])}
+                    className={cn(
+                      'rounded px-2 py-0.5 text-[10px] transition-colors',
+                      gripFeet[f] ? 'bg-emerald-600/50 text-emerald-100' : 'bg-white/5 text-white/40 hover:text-white'
+                    )}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </div>
             <Slider
               label="Grip start"
               tip="Where in each leg's CPG cycle the foot begins gripping."
@@ -395,13 +450,13 @@ function SimulateTab() {
             />
             <Slider
               label="Grip strength"
-              tip="The foot's friction during its stance window — the stance traction. 0 = no grip (timing/glow only); higher = more forward pull."
+              tip="0 = timing and glow run but the foot never physically plants. Above 0 = the foot plants and pulls."
               value={gripStrength}
               min={0}
               max={1}
-              step={0.05}
+              step={0.01}
               onChange={setGripStrength}
-              format={(v) => v.toFixed(2)}
+              format={(v) => `${Math.round(v * 100)}%`}
             />
             <Slider
               label="Release friction"
@@ -423,14 +478,6 @@ function SimulateTab() {
         )}
 
         <Divider />
-
-        <DiagnosticRow label="Kinetic energy" value={simDiagnostics.kineticEnergy.toExponential(2)} />
-        <DiagnosticRow label="COM drift (forward)" value={simDiagnostics.comDriftFromStart.toExponential(2)} />
-        <DiagnosticRow label="Max joint / cap" value={`${(simDiagnostics.maxJointFracOfCap * 100).toFixed(0)}%`} />
-        <DiagnosticRow label="comY (float)" value={simDiagnostics.comYDrift.toFixed(3)} />
-        <DiagnosticRow label="Max tilt (off-plane)" value={`${simDiagnostics.maxTiltDeg.toFixed(1)}°`} />
-
-          <Divider />
 
           <div className="flex gap-2">
             <button

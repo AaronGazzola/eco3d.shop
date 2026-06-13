@@ -1083,3 +1083,31 @@ reference.
   `fix/local-plane-muscle-axis` (latest: step-phase fix `43e2b22` + the girdle-flex diagnostic). D3 gate
   (net-forward + upright + bounded, *looking* like a walk) **not met**. Tilted hinge + step-phase are
   flagged deviations to record in reference §5 when D3 is finalized.
+- **2026-06-12 (D3 reset — legs rebuilt around a servo-style hip; horizontal-hold baseline reached)** —
+  Stripped the studio back to first principles after the active-sweep approach turned chaotic. Key
+  realizations from this session, in order:
+  - **The active fore-aft sweep fights the body wave.** The trunk undulation already swings the legs
+    (pseudo-stepping); an independently-timed sweep motor layered on top collides with it → jerky
+    chaos. The paper avoids this because legs *and* spine are one coupled CPG network (phase-locked),
+    not two independent motions. (Restating the prior D3 "next direction" note, now understood.)
+  - **Standing wave ≠ a calmer body.** Walking and swimming bend the trunk by the *same* amount; the
+    paper's "standing wave" is only a *phase* difference (the bend stops travelling head→tail), not a
+    quieter body. So walking = the swim undulation **plus** coordinated legs, exactly as the user argued.
+  - **The legs must hold their angle like the robot's servos.** Our hip used a force-based spring motor
+    (sags under load → flop) routed through a 2-DOF *carrier* body (the motor gripped a flimsy middle
+    link, not the leg). No gain fixed it.
+  - **Fix that gave the baseline:** rebuilt each hip as **one direct revolute** (girdle→thigh, mirrored
+    vertical axis, capped to the leg's calibrated `[-capSwing,+capStance]`), driven by an
+    **acceleration-based** motor (mass-normalized PD = servo-like firm hold). Carrier + lift joint
+    removed for now (`Body3DHip.liftJoint` nullable). `Sweep speed` = that motor's gain.
+  - **Gate REACHED (horizontal hold):** with Step on, Sweep amount 0, Sweep speed ~3000, the legs stay
+    rigidly perpendicular to their girdle while the body undulates — they ride the body wave like the
+    paper's servo legs, no flop/lag. Verified visually in the running studio.
+  - **Studio cleanup this stretch:** Simulate tab rebuilt as isolated switches/sliders + tooltips,
+    sticky Run/Record, persisted config + Reset/Copy; per-foot grip toggles (FL/FR/BL/BR); grip reverted
+    to the spherical-joint **pin** (the functional stand-in for friction, since our feet bear no
+    belly-borne load); stepping/CPG-preview/swim-land-mode removed earlier.
+  - **Still to do (the walk):** (1) **swing** — drive the sweep from the limb CPG phase with proper
+    timing so it doesn't fight the wave; (2) **lift** — foot clearance during swing (re-add the second
+    DOF, or an offset on the one joint); (3) **standing-wave coupling** — lean on the limb→axial
+    couplings so legs + body move as one network. Branch `fix/local-plane-muscle-axis`.

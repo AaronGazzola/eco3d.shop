@@ -6,6 +6,8 @@ import { CameraPreset } from '../_lib/types'
 
 export type AnimateTab = 'simulate' | 'calibrate'
 
+export type GripFoot = 'FL' | 'FR' | 'BL' | 'BR'
+
 export interface ManualPose {
   rootX: number
   rootZ: number
@@ -36,13 +38,20 @@ export interface SimConfig {
   muscleBeta: number
   muscleDamping: number
   bodyFriction: number
+  legFriction: number
   gripEnabled: boolean
   gripShift: number
   gripDuration: number
   gripStrength: number
   releaseFriction: number
   gripGlowEnabled: boolean
-  gripLegs: 'front' | 'back' | 'both'
+  gripFeet: Record<GripFoot, boolean>
+  stepEnabled: boolean
+  sweepAmount: number
+  sweepSpeed: number
+  liftAmount: number
+  legStiffness: number
+  legDamping: number
 }
 
 export const DEFAULT_SIM_CONFIG: SimConfig = {
@@ -58,13 +67,20 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
   muscleBeta: 13.3,
   muscleDamping: 11.3,
   bodyFriction: 0.05,
+  legFriction: 0.05,
   gripEnabled: true,
   gripShift: 0.27,
   gripDuration: 0.41,
   gripStrength: 0,
   releaseFriction: 0,
   gripGlowEnabled: true,
-  gripLegs: 'both',
+  gripFeet: { FL: true, FR: true, BL: true, BR: true },
+  stepEnabled: true,
+  sweepAmount: 0,
+  sweepSpeed: 3000,
+  liftAmount: 0.3,
+  legStiffness: 3000,
+  legDamping: 120,
 }
 
 const SIM_CONFIG_STORAGE_KEY = 'eco3d-animate-sim-config'
@@ -83,13 +99,20 @@ export function pickSimConfig(s: SimConfig): SimConfig {
     muscleBeta: s.muscleBeta,
     muscleDamping: s.muscleDamping,
     bodyFriction: s.bodyFriction,
+    legFriction: s.legFriction,
     gripEnabled: s.gripEnabled,
     gripShift: s.gripShift,
     gripDuration: s.gripDuration,
     gripStrength: s.gripStrength,
     releaseFriction: s.releaseFriction,
     gripGlowEnabled: s.gripGlowEnabled,
-    gripLegs: s.gripLegs,
+    gripFeet: { ...s.gripFeet },
+    stepEnabled: s.stepEnabled,
+    sweepAmount: s.sweepAmount,
+    sweepSpeed: s.sweepSpeed,
+    liftAmount: s.liftAmount,
+    legStiffness: s.legStiffness,
+    legDamping: s.legDamping,
   }
 }
 
@@ -130,6 +153,7 @@ interface AnimateStore extends SimConfig {
   setMuscleBeta: (v: number) => void
   setMuscleDamping: (v: number) => void
   setBodyFriction: (v: number) => void
+  setLegFriction: (v: number) => void
   setGravityEnabled: (v: boolean) => void
   setLandLegsEnabled: (v: boolean) => void
   setLandGroundEnabled: (v: boolean) => void
@@ -141,7 +165,13 @@ interface AnimateStore extends SimConfig {
   setGripStrength: (v: number) => void
   setReleaseFriction: (v: number) => void
   setGripGlowEnabled: (v: boolean) => void
-  setGripLegs: (v: 'front' | 'back' | 'both') => void
+  setGripFoot: (foot: GripFoot, on: boolean) => void
+  setStepEnabled: (v: boolean) => void
+  setSweepAmount: (v: number) => void
+  setSweepSpeed: (v: number) => void
+  setLiftAmount: (v: number) => void
+  setLegStiffness: (v: number) => void
+  setLegDamping: (v: number) => void
   resetSimConfig: () => void
 }
 
@@ -225,6 +255,7 @@ export const useAnimateStore = create<AnimateStore>()(
       setMuscleBeta: (v) => set({ muscleBeta: v }),
       setMuscleDamping: (v) => set({ muscleDamping: v }),
       setBodyFriction: (v) => set({ bodyFriction: v }),
+      setLegFriction: (v) => set({ legFriction: v }),
       setGravityEnabled: (v) => set({ gravityEnabled: v }),
       setLandLegsEnabled: (v) => set({ landLegsEnabled: v }),
       setLandGroundEnabled: (v) => set({ landGroundEnabled: v }),
@@ -236,8 +267,15 @@ export const useAnimateStore = create<AnimateStore>()(
       setGripStrength: (v) => set({ gripStrength: v }),
       setReleaseFriction: (v) => set({ releaseFriction: v }),
       setGripGlowEnabled: (v) => set({ gripGlowEnabled: v }),
-      setGripLegs: (v) => set({ gripLegs: v }),
-      resetSimConfig: () => set({ ...DEFAULT_SIM_CONFIG }),
+      setGripFoot: (foot, on) =>
+        set((state) => ({ gripFeet: { ...state.gripFeet, [foot]: on } })),
+      setStepEnabled: (v) => set({ stepEnabled: v }),
+      setSweepAmount: (v) => set({ sweepAmount: v }),
+      setSweepSpeed: (v) => set({ sweepSpeed: v }),
+      setLiftAmount: (v) => set({ liftAmount: v }),
+      setLegStiffness: (v) => set({ legStiffness: v }),
+      setLegDamping: (v) => set({ legDamping: v }),
+      resetSimConfig: () => set({ ...DEFAULT_SIM_CONFIG, gripFeet: { ...DEFAULT_SIM_CONFIG.gripFeet } }),
     }),
     {
       name: SIM_CONFIG_STORAGE_KEY,

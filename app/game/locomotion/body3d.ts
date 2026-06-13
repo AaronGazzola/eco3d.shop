@@ -56,8 +56,16 @@ export function axialLengths(groups: BodyGroup[]): number[] {
 // the same fore-aft sweep then also raises the foot in swing / lowers it in stance, so the foot
 // clears without a second joint. `limbIdx` is LF/RF/LH/RH.
 export interface Body3DHip {
-  joint: RAPIER.RevoluteImpulseJoint
+  // Two stacked revolutes give the hip 2 DOF about the socket: SWEEP (fore/aft, vertical axis) and
+  // LIFT (up/down). `sweepSign`/`liftSign` map a +target to "reach forward" / "raise foot" per side.
+  sweepJoint: RAPIER.RevoluteImpulseJoint
+  liftJoint: RAPIER.RevoluteImpulseJoint | null
   limbIdx: number
+  liftSign: number
+  // fore/aft sweep caps (rad) from the leg's calibrated angle limits — the sweep target is mapped
+  // into [−capSwing, +capStance] so it can't exceed them; the joint also has these as hard limits.
+  capStance: number
+  capSwing: number
   // For grip-timing: which girdle body this leg hangs off, the leg's own body/collider index, and
   // the hip-socket / foot offsets in each body's local frame. Lets useLocomotion measure how far
   // forward/back the foot is reaching (driven by the body wave) to time the foot's floor grip.
@@ -65,14 +73,8 @@ export interface Body3DHip {
   legBodyIndex: number
   hipLocal: { x: number; y: number; z: number }
   footLocal: { x: number; y: number; z: number }
-  // The zero-mass ground-contact ball at this foot's node. Friction is set live from the studio
-  // (grip strength while in the stance window, release friction otherwise). null if no ground built.
-  footContact: RAPIER.Collider | null
 }
 
-// How far the hip hinge leans from vertical toward the leg's side (radians). 0 = pure vertical
-// (sprawled yaw, foot scrubs); larger = more of the sweep becomes vertical foot lift. Tune by eye.
-export const HIP_AXIS_TILT = 0.5
 
 // Land contact friction, set per-collider and combined by MULTIPLY against a friction-1.0 ground, so
 // the effective surface friction equals each collider's own coefficient. Trunk slides (low) so the
@@ -107,6 +109,9 @@ export interface Body3D {
   // space) at the body's current transform: world = T·R·translate(−restCenter).
   restCenters: { x: number; y: number; z: number }[]
   hipJoints: Body3DHip[]
+  // tiny pivot bodies between each girdle and thigh (the 2-DOF hip's middle link). Kept out of the
+  // render/diagnostic arrays but woken each substep so the hip motors stay responsive.
+  carriers: RAPIER.RigidBody[]
 }
 
 function nodeVec(n: { x: number; y?: number; z: number } | undefined): Vector3 | null {
@@ -151,6 +156,7 @@ export function buildBody3D(
   const bodies: RAPIER.RigidBody[] = []
   const colliders: RAPIER.Collider[] = []
   const groundContacts: RAPIER.Collider[] = []
+  const carriers: RAPIER.RigidBody[] = []
   const segLength: number[] = []
   const groupIds: string[] = []
   const dirs: Vector3[] = []
@@ -292,25 +298,46 @@ export function buildBody3D(
       const isHind = s.parentIndex !== foreIdx
       const isLeft = s.leg.type === 'leg-left'
       const limbIdx = (isHind ? 2 : 0) + (isLeft ? 0 : 1) // LF=0, RF=1, LH=2, RH=3
-      // Single TILTED hinge: vertical leaned toward the leg's side (mirrored L/R) so the fore-aft
-      // sweep also lifts the foot. One sturdy joint — holds the body weight like the vertical hinge.
-      const tiltSign = isLeft ? 1 : -1
-      const ax = new Vector3(0, Math.cos(HIP_AXIS_TILT), tiltSign * Math.sin(HIP_AXIS_TILT)).normalize()
-      const a1 = { x: s.hip.x - pc.x, y: s.hip.y - pc.y, z: s.hip.z - pc.z }
-      const a2 = { x: s.hip.x - s.center.x, y: s.hip.y - s.center.y, z: s.hip.z - s.center.z }
-      const jd = RAPIER.JointData.revolute(a1, a2, { x: ax.x, y: ax.y, z: ax.z })
-      const joint = world.createImpulseJoint(jd, bodies[s.parentIndex], legBody, true) as RAPIER.RevoluteImpulseJoint
+
+      // 2-DOF hip via two stacked revolutes, both anchored at the hip socket: girdle —SWEEP(vertical)→
+      // carrier —LIFT(transverse)→ thigh. A tiny carrier body chains them. Both ForceBased motors,
+      // driven live from the limb phase in useLocomotion; stiff motors hold the body (anti-sag).
       const caps = effectiveAngleCaps(s.leg)
       const capStance = caps.yaw
       const capSwing = caps.yawBack ?? caps.yaw
-      if (typeof joint.setLimits === 'function') joint.setLimits(-capSwing, capStance)
-      if (typeof joint.configureMotorModel === 'function') joint.configureMotorModel(RAPIER.MotorModel.ForceBased)
+
+      // ONE direct hip joint: girdle → thigh, a single revolute about (mirrored) vertical, so the
+      // sweep motor grips the LEG itself — no intermediate carrier body to dilute it. Acceleration-
+      // based motor = mass-normalized PD (servo-like firm hold). Lift is dropped for now (re-added
+      // later); the leg pitches only with whatever the foot/ground do.
+      const aHipParent = { x: s.hip.x - pc.x, y: s.hip.y - pc.y, z: s.hip.z - pc.z }
+      const aHipLeg = { x: s.hip.x - s.center.x, y: s.hip.y - s.center.y, z: s.hip.z - s.center.z }
+      const sweepDir = isLeft ? 1 : -1
+      const sweepJoint = world.createImpulseJoint(
+        RAPIER.JointData.revolute(aHipParent, aHipLeg, { x: 0, y: sweepDir, z: 0 }),
+        bodies[s.parentIndex], legBody, true
+      ) as RAPIER.RevoluteImpulseJoint
+      if (typeof sweepJoint.setLimits === 'function') sweepJoint.setLimits(-capSwing, capStance)
+      if (typeof sweepJoint.configureMotorModel === 'function') sweepJoint.configureMotorModel(RAPIER.MotorModel.AccelerationBased)
+
+      hipJoints.push({
+        sweepJoint, liftJoint: null, limbIdx,
+        liftSign: isLeft ? 1 : -1,
+        capStance, capSwing,
+        parentIndex: s.parentIndex, legBodyIndex,
+        hipLocal: { x: aHipParent.x, y: aHipParent.y, z: aHipParent.z },
+        footLocal: { x: s.dir.x * (s.len / 2), y: s.dir.y * (s.len / 2), z: s.dir.z * (s.len / 2) },
+      })
+
+      bodies.push(legBody)
+      segLength.push(s.len)
+      groupIds.push(s.leg.id)
+      restCenters.push({ x: s.center.x, y: s.center.y, z: s.center.z })
+
       // Foot ground contact: a zero-mass ball centred ON the foot node, radius = (footY − groundTop),
       // so the foot node rests at its authored height no matter how the leg is rotated (a sphere
       // centred at the node always holds its centre one radius above the floor). Ground-only — never
-      // the body. Kept OUT of groundContacts (the belly supports) and referenced from the hip so the
-      // foot's friction is driven independently (grip strength) from the trunk's (body friction).
-      let footContact: RAPIER.Collider | null = null
+      // the body — so turning legs on rests the feet at node height without disturbing the spine.
       if (buildGround) {
         const footBallR = Math.max(0.05, s.foot.y - groundTop)
         const fbcd = RAPIER.ColliderDesc.ball(footBallR)
@@ -319,21 +346,8 @@ export function buildBody3D(
           .setFriction(BODY_FRICTION_DEFAULT)
           .setFrictionCombineRule(RAPIER.CoefficientCombineRule.Multiply)
           .setCollisionGroups(COLLIDE_GROUND_CONTACT)
-        footContact = world.createCollider(fbcd, legBody)
+        groundContacts.push(world.createCollider(fbcd, legBody))
       }
-
-      hipJoints.push({
-        joint, limbIdx,
-        parentIndex: s.parentIndex, legBodyIndex,
-        hipLocal: { x: a1.x, y: a1.y, z: a1.z },
-        footLocal: { x: s.dir.x * (s.len / 2), y: s.dir.y * (s.len / 2), z: s.dir.z * (s.len / 2) },
-        footContact,
-      })
-
-      bodies.push(legBody)
-      segLength.push(s.len)
-      groupIds.push(s.leg.id)
-      restCenters.push({ x: s.center.x, y: s.center.y, z: s.center.z })
     }
 
     if (buildGround) {
@@ -373,7 +387,7 @@ export function buildBody3D(
     }
   }
 
-  return { bodies, colliders, groundContacts, joints, segLength, groupIds, jointToCpgSegment, restCenters, hipJoints }
+  return { bodies, colliders, groundContacts, joints, segLength, groupIds, jointToCpgSegment, restCenters, hipJoints, carriers }
 }
 
 // Signed joint angle about its bend axis, from the two bodies' current rotations. The revolute

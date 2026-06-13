@@ -69,6 +69,12 @@ async function dumpControls(tag) {
 }
 
 async function loadRig() {
+  // If a rig is already loaded (persisted session lands straight in the studio), the hook is already
+  // up and there's no wizard — skip it.
+  try {
+    await page.waitForFunction(() => !!window.__studio, null, { timeout: 4000 })
+    return
+  } catch {}
   for (const txt of ['1.Pick Model', 'Load', RIG, '3.Animate']) {
     await page.getByText(rx(txt)).first().click({ timeout: 8000 })
     await page.waitForTimeout(1500)
