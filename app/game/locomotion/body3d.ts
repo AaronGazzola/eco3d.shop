@@ -306,23 +306,49 @@ export function buildBody3D(
       const capStance = caps.yaw
       const capSwing = caps.yawBack ?? caps.yaw
 
-      // ONE direct hip joint: girdle → thigh, a single revolute about (mirrored) vertical, so the
-      // sweep motor grips the LEG itself — no intermediate carrier body to dilute it. Acceleration-
-      // based motor = mass-normalized PD (servo-like firm hold). Lift is dropped for now (re-added
-      // later); the leg pitches only with whatever the foot/ground do.
+      // 2-DOF hip via a CARRIER body at the hip socket:
+      //   girdle —[LIFT: transverse axis, mirrored L/R]→ carrier —[SWEEP: vertical, mirrored L/R]→ leg
+      // Carrier mass matches the leg's so the sweep motor's reaction torque doesn't fling the
+      // carrier instead of moving the leg (the lighter-carrier version got tumbled by exactly that).
+      // Both motors AccelerationBased = mass-normalized PD (servo firm hold).
       const aHipParent = { x: s.hip.x - pc.x, y: s.hip.y - pc.y, z: s.hip.z - pc.z }
       const aHipLeg = { x: s.hip.x - s.center.x, y: s.hip.y - s.center.y, z: s.hip.z - s.center.z }
-      const sweepDir = isLeft ? 1 : -1
+      const sweepDir = isLeft ? -1 : 1
+
+      const liftAxisDir = isLeft ? -1 : 1
+      const ax = liftAxisDir, az = 0
+
+      const carrierDesc = RAPIER.RigidBodyDesc.dynamic().setTranslation(s.hip.x, s.hip.y, s.hip.z)
+      const carrier = world.createRigidBody(carrierDesc)
+      const carrierCol = RAPIER.ColliderDesc.ball(legRadius * 0.5)
+        .setMass(legMass)
+        .setCollisionGroups(COLLIDE_NONE)
+      world.createCollider(carrierCol, carrier)
+      carriers.push(carrier)
+
+      // LIFT joint: girdle ↔ carrier, per-leg axis. +rotation tilts the leg in its own vertical
+      // plane, foot raises along the leg's direction. Controller sends +lift directly (liftSign=1).
+      const liftJoint = world.createImpulseJoint(
+        RAPIER.JointData.revolute(aHipParent, { x: 0, y: 0, z: 0 }, { x: ax, y: 0, z: az }),
+        bodies[s.parentIndex], carrier, true
+      ) as RAPIER.RevoluteImpulseJoint
+      if (typeof liftJoint.configureMotorModel === 'function') liftJoint.configureMotorModel(RAPIER.MotorModel.AccelerationBased)
+
+      // SWEEP joint: carrier ↔ leg, vertical axis (mirrored L/R). Same axis convention as before,
+      // so the foot-pushed-back sign fix from the prior step is preserved.
       const sweepJoint = world.createImpulseJoint(
-        RAPIER.JointData.revolute(aHipParent, aHipLeg, { x: 0, y: sweepDir, z: 0 }),
-        bodies[s.parentIndex], legBody, true
+        RAPIER.JointData.revolute({ x: 0, y: 0, z: 0 }, aHipLeg, { x: 0, y: sweepDir, z: 0 }),
+        carrier, legBody, true
       ) as RAPIER.RevoluteImpulseJoint
       if (typeof sweepJoint.setLimits === 'function') sweepJoint.setLimits(-capSwing, capStance)
       if (typeof sweepJoint.configureMotorModel === 'function') sweepJoint.configureMotorModel(RAPIER.MotorModel.AccelerationBased)
 
       hipJoints.push({
-        sweepJoint, liftJoint: null, limbIdx,
-        liftSign: isLeft ? 1 : -1,
+        sweepJoint, liftJoint, limbIdx,
+        // Both legs receive +lift = up because the lift axis is already mirrored L/R (liftAxisDir).
+        // Controller sends `liftSign * lift`; with liftSign=1 the controller's positive lift
+        // directly produces foot-up on both sides.
+        liftSign: 1,
         capStance, capSwing,
         parentIndex: s.parentIndex, legBodyIndex,
         hipLocal: { x: aHipParent.x, y: aHipParent.y, z: aHipParent.z },

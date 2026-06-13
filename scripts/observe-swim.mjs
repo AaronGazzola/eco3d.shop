@@ -69,17 +69,20 @@ async function dumpControls(tag) {
 }
 
 async function loadRig() {
-  // If a rig is already loaded (persisted session lands straight in the studio), the hook is already
-  // up and there's no wizard — skip it.
+  // The __studio hook mounts as soon as AnimateScene renders — even when no rig has been picked yet
+  // (the wizard view also mounts it). So presence of __studio is NOT proof of a loaded rig; we have
+  // to verify by checking whether SceneContent rendered something (groups in the shared store via
+  // segments). If no rig, walk the wizard.
   try {
     await page.waitForFunction(() => !!window.__studio, null, { timeout: 4000 })
-    return
   } catch {}
+  // does the canvas have any non-grid content? cheap proxy: see if Pick Model is still visible.
+  const wizardVisible = await page.getByText(rx('1.Pick Model')).first().isVisible().catch(() => false)
+  if (!wizardVisible) return
   for (const txt of ['1.Pick Model', 'Load', RIG, '3.Animate']) {
     await page.getByText(rx(txt)).first().click({ timeout: 8000 })
     await page.waitForTimeout(1500)
   }
-  // wait for the dev observation hook to mount
   await page.waitForFunction(() => !!(window.__studio), null, { timeout: 8000 })
 }
 
@@ -106,6 +109,8 @@ if (CMD === 'login') {
   const mode = process.env.MODE ?? null // 'swim' | 'land'
   const step = process.env.STEP === 'on' // land-mode hip stepping
   const stepFreq = process.env.STEPFREQ != null ? Number(process.env.STEPFREQ) : null
+  const sweepAmount = process.env.SWEEP != null ? Number(process.env.SWEEP) : null // 0..1 sweep range
+  const liftAmount = process.env.LIFT != null ? Number(process.env.LIFT) : null
   const phase = process.env.PHASE != null ? Number(process.env.PHASE) : null // step-phase offset (rad)
   const fBody = process.env.FBODY != null ? Number(process.env.FBODY) : null // land body friction
   const fLeg = process.env.FLEG != null ? Number(process.env.FLEG) : null // land leg friction
@@ -122,13 +127,13 @@ if (CMD === 'login') {
   const lock = process.env.LOCK != null ? process.env.LOCK !== 'off' : null
   const gripCapture = process.env.GRIP_CAPTURE === 'on'
   await loadRig()
-  await page.evaluate(({ drag, drive, exc, mode, step, stepFreq, phase, fBody, fLeg, grav, legs, ground, grip, gripShift, gripDuration, gripStrength, glow, gripLegs, limbcpg, lock }) => {
+  await page.evaluate(({ drag, drive, exc, mode, step, stepFreq, sweepAmount, liftAmount, phase, fBody, fLeg, grav, legs, ground, grip, gripShift, gripDuration, gripStrength, glow, gripLegs, limbcpg, lock }) => {
     if (mode && window.__studio.mode) window.__studio.mode(mode)
     if (legs != null && window.__studio.legs) window.__studio.legs(legs)
     if (ground != null && window.__studio.ground) window.__studio.ground(ground)
     if (limbcpg != null && window.__studio.limbcpg) window.__studio.limbcpg(limbcpg)
     if (lock != null && window.__studio.lock) window.__studio.lock(lock)
-    if (step && window.__studio.step) window.__studio.step(true, stepFreq ?? undefined)
+    if (step && window.__studio.step) window.__studio.step(true, sweepAmount ?? undefined, liftAmount ?? undefined)
     if (phase != null && window.__studio.phase) window.__studio.phase(phase)
     if (grip != null && window.__studio.grip) window.__studio.grip(grip, gripShift ?? undefined, gripDuration ?? undefined, gripStrength ?? undefined)
     if (gripLegs != null && window.__studio.gripLegs) window.__studio.gripLegs(gripLegs)
@@ -138,7 +143,7 @@ if (CMD === 'login') {
     if (drive != null && exc != null) window.__studio.tune(drive, exc)
     window.__studio.drag(drag)
     window.__studio.drive(true)
-  }, { drag, drive, exc, mode, step, stepFreq, phase, fBody, fLeg, grav, legs, ground, grip, gripShift, gripDuration, gripStrength, glow, gripLegs, limbcpg, lock })
+  }, { drag, drive, exc, mode, step, stepFreq, sweepAmount, liftAmount, phase, fBody, fLeg, grav, legs, ground, grip, gripShift, gripDuration, gripStrength, glow, gripLegs, limbcpg, lock })
   if (gripCapture) {
     await page.evaluate(() => window.__studio.gripCaptureStart && window.__studio.gripCaptureStart(4000))
   }
@@ -382,12 +387,82 @@ function writeGripCapture(dump, cfg) {
       if (prevOn !== nowOn) {
         transitions.push({
           t: samples[i].t,
+          idx: i,
           leg: cols[k],
           edge: nowOn ? 'ON' : 'OFF',
           phase: samples[i].phases[k],
           fore: samples[i].fores[k],
+          sweep: samples[i].sweeps?.[k] ?? 0,
+          stance: samples[i].stance?.[k] ?? false,
+          footY: samples[i].footYs?.[k] ?? 0,
           axialFront: samples[i].axialFront,
         })
+      }
+    }
+  }
+  // Swing-window lift analysis: for each grip OFF→next ON pair on the same leg, scan the samples in
+  // between and record peak/trough foot Y above the OFF height. Detects whether the foot CLEARS
+  // (lifts visibly during swing) or SCRAPES (stays at floor level).
+  const LIFT_THRESHOLD = 0.05 // world units; below this we call it a scrape
+  const swings = []
+  for (let k = 0; k < cols.length; k++) {
+    let offIdx = -1
+    for (let i = 0; i < transitions.length; i++) {
+      const tr = transitions[i]
+      if (tr.leg !== cols[k]) continue
+      if (tr.edge === 'OFF') offIdx = i
+      else if (tr.edge === 'ON' && offIdx >= 0) {
+        const off = transitions[offIdx]
+        let peak = off.footY
+        let trough = off.footY
+        for (let j = off.idx; j <= tr.idx; j++) {
+          const y = samples[j].footYs?.[k] ?? 0
+          if (y > peak) peak = y
+          if (y < trough) trough = y
+        }
+        const liftPeak = peak - off.footY
+        const dropTrough = trough - off.footY
+        const verdict = liftPeak >= LIFT_THRESHOLD ? `LIFTS (peak +${liftPeak.toFixed(3)})` : `SCRAPES (peak +${liftPeak.toFixed(3)})`
+        swings.push({
+          leg: cols[k], tOff: off.t, tOn: tr.t,
+          footYOff: off.footY, footYOn: tr.footY,
+          liftPeak, dropTrough, verdict,
+        })
+        offIdx = -1
+      }
+    }
+  }
+  // Per-window summary: for each grip ON→OFF pair on the same leg, what did the FOOT and the
+  // CONTROLLER'S COMMANDED SWEEP TARGET each do over that window? Splits two failure modes:
+  //   Δfore < 0 (foot moved backward) → correct stance push-back; user's "reaches forward" claim is wrong
+  //   Δfore > 0 and Δsweep < 0 → controller asked the leg to go back, but the foot went forward
+  //                              → JOINT AXIS / sign convention is inverted somewhere
+  //   Δfore > 0 and Δsweep > 0 → controller is asking the foot forward during grip
+  //                              → STANCE WINDOW is on the wrong half of the cycle (sweep formula)
+  // Also flags whether the grip window aligned with the controller's "stance" classification.
+  const windows = []
+  for (let k = 0; k < cols.length; k++) {
+    let onIdx = -1
+    for (let i = 0; i < transitions.length; i++) {
+      const tr = transitions[i]
+      if (tr.leg !== cols[k]) continue
+      if (tr.edge === 'ON') onIdx = i
+      else if (tr.edge === 'OFF' && onIdx >= 0) {
+        const on = transitions[onIdx]
+        const dFore = tr.fore - on.fore
+        const dSweep = tr.sweep - on.sweep
+        const stanceMatch = on.stance && tr.stance
+        let verdict
+        if (dFore < 0) verdict = 'OK (foot pushed back)'
+        else if (dSweep < 0) verdict = 'AXIS INVERTED (cmd back, foot fwd)'
+        else verdict = 'WINDOW INVERTED (cmd fwd during grip)'
+        windows.push({
+          leg: cols[k], tOn: on.t, tOff: tr.t,
+          foreOn: on.fore, foreOff: tr.fore, dFore,
+          sweepOn: on.sweep, sweepOff: tr.sweep, dSweep,
+          stanceMatch, verdict,
+        })
+        onIdx = -1
       }
     }
   }
@@ -404,11 +479,19 @@ samples: ${samples.length}  duration: ${f(samples[samples.length - 1].t, 2)}s  l
 ${cols.map((c, k) => `${c}: min=${f(minFore[k])} max=${f(maxFore[k])} range=${f(maxFore[k] - minFore[k])}`).join('\n')}
 
 ## Grip ON/OFF transitions (window = [gripShift, gripShift+gripDuration))
-t       leg edge phase   fore     axialFront
-${transitions.map((tr) => `${f(tr.t, 2).padStart(6)}  ${tr.leg}  ${tr.edge.padEnd(3)} ${f(tr.phase).padStart(6)}  ${f(tr.fore).padStart(7)}  ${f(tr.axialFront).padStart(6)}`).join('\n')}
+t       leg edge phase   fore     sweep   stance axialFront
+${transitions.map((tr) => `${f(tr.t, 2).padStart(6)}  ${tr.leg}  ${tr.edge.padEnd(3)} ${f(tr.phase).padStart(6)}  ${f(tr.fore).padStart(7)}  ${f(tr.sweep).padStart(6)}  ${tr.stance ? ' Y' : ' N'}     ${f(tr.axialFront).padStart(6)}`).join('\n')}
+
+## Per-window reach analysis (Δ over each ON→OFF interval; verdict diagnoses controller vs axis)
+leg  tOn    tOff   foreOn  foreOff dFore   sweepOn sweepOff dSweep  stMatch verdict
+${windows.map((w) => `${w.leg}   ${f(w.tOn, 2).padStart(5)}  ${f(w.tOff, 2).padStart(5)}  ${f(w.foreOn).padStart(6)}  ${f(w.foreOff).padStart(6)}  ${f(w.dFore).padStart(6)}  ${f(w.sweepOn).padStart(6)}  ${f(w.sweepOff).padStart(6)}   ${f(w.dSweep).padStart(6)}  ${w.stanceMatch ? ' Y' : ' N'}     ${w.verdict}`).join('\n')}
+
+## Swing-window lift analysis (Δ foot Y over each OFF→next-ON interval; threshold = ${LIFT_THRESHOLD})
+leg  tOff   tOn    yOff    yOn     liftPeak  dropTrough verdict
+${swings.map((w) => `${w.leg}   ${f(w.tOff, 2).padStart(5)}  ${f(w.tOn, 2).padStart(5)}  ${f(w.footYOff).padStart(6)}  ${f(w.footYOn).padStart(6)}   ${f(w.liftPeak).padStart(7)}   ${f(w.dropTrough).padStart(7)}    ${w.verdict}`).join('\n')}
 
 ## Timeline (every ${stride} samples)
-t       axial  ${cols.map((c) => `${c}_ph  ${c}_fore ${c}_g`).join(' ')}
+t       axial  ${cols.map((c) => `${c}_ph  ${c}_fore ${c}_sw  ${c}_g`).join(' ')}
 `
   const rows = []
   for (let i = 0; i < samples.length; i += stride) {
@@ -416,8 +499,9 @@ t       axial  ${cols.map((c) => `${c}_ph  ${c}_fore ${c}_g`).join(' ')}
     const cells = cols.map((_, k) => {
       const ph = s.phases[k]
       const fore = s.fores[k]
+      const sw = s.sweeps?.[k] ?? 0
       const g = isOn(ph) ? '#' : '.'
-      return `${f(ph).padStart(5)}  ${f(fore).padStart(6)}  ${g}`
+      return `${f(ph).padStart(5)}  ${f(fore).padStart(6)}  ${f(sw).padStart(6)}  ${g}`
     }).join('  ')
     rows.push(`${f(s.t, 2).padStart(6)}  ${f(s.axialFront).padStart(5)}  ${cells}`)
   }

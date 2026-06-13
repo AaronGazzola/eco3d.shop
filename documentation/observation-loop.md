@@ -45,8 +45,12 @@ npm run observe -- run 10 on 2 0.15   # plus the other land/grip env vars
 This writes `documentation/diagnostics/frames/grip-capture-<ts>.md`, containing:
 
 - Per-leg fore/aft range (signed world units, + = forward of hip) — sanity-check the swing amplitude
-- **Glow ON/OFF transition list** with time, leg, CPG phase, foot fore/aft, axial-front phase at the transition
-- Timeline of CPG phase, foot fore/aft and glow state per leg, subsampled to ~200 rows
+- **Glow ON/OFF transition list** with time, leg, CPG phase, foot fore/aft, **commanded sweep target**, "code says stance?" flag, and axial-front phase at each transition
+- **Per-window reach analysis** — for each grip ON→OFF window: Δfore (foot reach) and Δsweep (commanded angle change), with a verdict per window:
+  - `OK (foot pushed back)` — Δfore < 0; stance is doing its job (body levered over foot)
+  - `AXIS INVERTED (cmd back, foot fwd)` — controller asked −sweep but the foot went +fore. The joint axis sign convention is flipped vs the controller's intent (`body3d.ts:315` `sweepDir`).
+  - `WINDOW INVERTED (cmd fwd during grip)` — controller is commanding the leg forward DURING the grip window. The stance/swing halves of the sweep formula are aligned to the wrong half of the cycle (`useLocomotion.ts:388-405`), so grip is firing during the swing half.
+- Timeline of CPG phase, foot fore/aft, sweep target and glow state per leg, subsampled to ~200 rows
 
 The capture runs at render rate (~60 Hz, cap 4000 samples) and is gated by a `window.__gripCapture` toggle the studio exposes (`gripCaptureStart` / `gripCaptureStop`).
 

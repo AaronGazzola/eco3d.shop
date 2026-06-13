@@ -33,6 +33,14 @@ function useStudioObservationHook() {
         if (duration != null) store().setGripDuration(duration)
         if (strength != null) store().setGripStrength(strength)
       },
+      // Drive the step controller — needed by the observation harness because the default
+      // sweepAmount=0 silences the controller (horizontal-hold baseline). Set sweep>0 + grip>0 to
+      // see the actual walking sweep and physical foot-plant.
+      step: (on: boolean, sweep?: number, lift?: number) => {
+        store().setStepEnabled(on)
+        if (sweep != null) store().setSweepAmount(sweep)
+        if (lift != null) store().setLiftAmount(lift)
+      },
       glow: (on: boolean) => store().setGripGlowEnabled(on),
       gripFoot: (foot: 'FL' | 'FR' | 'BL' | 'BR', on: boolean) => store().setGripFoot(foot, on),
       record: (on: boolean) => store().setSimRecording(on),

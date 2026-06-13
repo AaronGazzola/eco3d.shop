@@ -27,6 +27,16 @@ interface GripCaptureSample {
   t: number
   phases: number[]
   fores: number[]
+  // commanded sweep target per leg (rad). Same formula as the controller; lets the writer compare
+  // Δsweep_target vs Δfore over each grip ON-window — splits "controller asks wrong way" from
+  // "controller asks correctly but the foot moves the other way" (axis-sign bug).
+  sweeps: number[]
+  // whether the controller classified each leg as "stance" (rel < stepDuty) this frame; lets the
+  // writer cross-check whether the grip ON window aligns with the stance half-cycle.
+  stance: boolean[]
+  // foot world Y per leg — lets the writer detect lift during the swing window (foot rises above
+  // its grip-OFF height = clearance, stays flat = scrape).
+  footYs: number[]
   axialFront: number
   limbOrder: number[]
 }
@@ -467,6 +477,14 @@ export function useLocomotion(
           const fwdX = s.v1.x, fwdY = s.v1.y, fwdZ = s.v1.z
           const phases: number[] = []
           const fores: number[] = []
+          const sweeps: number[] = []
+          const stance: boolean[] = []
+          const footYs: number[] = []
+          // Recompute the step shift + duty + sweep amount here so the capture matches the controller
+          // exactly (no risk of drift if either is read elsewhere). Mirrors useLocomotion lines ~258-265.
+          const capStepShift = store.gripShift
+          const capStepDuty = Math.min(0.95, Math.max(0.05, store.gripDuration))
+          const capSweepAmt = Math.min(1, Math.max(0, store.sweepAmount))
           for (const hip of hips) {
             const g = c.body.bodies[hip.parentIndex]
             const leg = c.body.bodies[hip.legBodyIndex]
@@ -479,13 +497,31 @@ export function useLocomotion(
               .applyQuaternion(s.q.set(lq.x, lq.y, lq.z, lq.w))
             const footX = lp.x + s.v2.x, footY = lp.y + s.v2.y, footZ = lp.z + s.v2.z
             const fore = (footX - hipX) * fwdX + (footY - hipY) * fwdY + (footZ - hipZ) * fwdZ
-            phases.push(limbPhase(c.cpgState, c.cpgSpec, hip.limbIdx) / (2 * Math.PI))
+            const ph = limbPhase(c.cpgState, c.cpgSpec, hip.limbIdx) / (2 * Math.PI)
+            const rel = ((ph - capStepShift) % 1 + 1) % 1
+            const isStance = rel < capStepDuty
+            // Mirror the controller's sweep formula (useLocomotion ~388-405) so the capture sees the
+            // exact target the motor is asked for. Scaled by sweepAmount to match the post-motor value.
+            const fwd = hip.capStance
+            const back = hip.capSwing
+            let sweepTarget: number
+            if (isStance) {
+              const tt = rel / capStepDuty
+              sweepTarget = fwd - tt * (fwd + back)
+            } else {
+              const tt = (rel - capStepDuty) / (1 - capStepDuty)
+              sweepTarget = -back + tt * (fwd + back)
+            }
+            phases.push(ph)
             fores.push(fore)
+            sweeps.push(sweepTarget * capSweepAmt)
+            stance.push(isStance)
+            footYs.push(footY)
           }
           const kFore = c.cpgSpec.limbWiring?.kFore ?? 0
           const axialFront = (c.cpgState.phases[kFore] ?? 0) / (2 * Math.PI)
           const t = (performance.now() - cap.startWallTime) / 1000
-          cap.buffer.push({ t, phases, fores, axialFront, limbOrder: hips.map((h) => h.limbIdx) })
+          cap.buffer.push({ t, phases, fores, sweeps, stance, footYs, axialFront, limbOrder: hips.map((h) => h.limbIdx) })
         }
 
         if (store.simRecording && !wasCoupledRecordingRef.current) {
