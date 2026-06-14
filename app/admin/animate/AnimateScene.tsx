@@ -27,11 +27,10 @@ function useStudioObservationHook() {
       ground: (on: boolean) => store().setLandGroundEnabled(on),
       limbcpg: (on: boolean) => store().setLimbCpgEnabled(on),
       lock: (on: boolean) => store().setLegsLocked(on),
-      grip: (on: boolean, shift?: number, duration?: number, strength?: number) => {
+      grip: (on: boolean, shift?: number, duration?: number) => {
         store().setGripEnabled(on)
         if (shift != null) store().setGripShift(shift)
         if (duration != null) store().setGripDuration(duration)
-        if (strength != null) store().setGripStrength(strength)
       },
       // Drive the step controller — needed by the observation harness because the default
       // sweepAmount=0 silences the controller (horizontal-hold baseline). Set sweep>0 + grip>0 to
@@ -61,7 +60,6 @@ function useStudioObservationHook() {
           samples: out,
           gripShift: store().gripShift,
           gripDuration: store().gripDuration,
-          gripStrength: store().gripStrength,
           gripEnabled: store().gripEnabled,
           gripFeet: store().gripFeet,
         }

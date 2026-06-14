@@ -292,19 +292,17 @@ export function useLocomotion(
           // GRIP primitive: phase comes straight from the limb CPG oscillator, so the grip window
           // is driven by the locomotor rhythm itself — not by the foot's measured reach (which gets
           // frozen the moment we plant the foot, creating a feedback loop that destroys the wave).
-          // gripStrength=0 keeps timing/glow live but skips the plant + friction switch — lets the
-          // user see when grip *would* fire without engaging the physics.
+          // The timing window + glow run regardless of the grip switch, so the window can be tuned and
+          // watched with grip off; only the physical plant + friction switch is gated by gripEnabled.
           const glowOn = store.gripGlowEnabled
           const glows = footGlowRef?.current
-          if (gripEnabled && c.body.hipJoints.length > 0) {
+          if (c.body.hipJoints.length > 0) {
             const hips = c.body.hipJoints
             const gripShift = store.gripShift
             const gripDuration = store.gripDuration
-            const gripStrength = store.gripStrength
             const releaseFriction = store.releaseFriction
             const gripFriction = store.legFriction
             const gripFeet = store.gripFeet
-            const physicalGrip = gripStrength > 0
             for (let h = 0; h < hips.length; h++) {
               const hip = hips[h]
               const selected = gripFeet[GRIP_FOOT_BY_LIMB[hip.limbIdx]]
@@ -316,9 +314,9 @@ export function useLocomotion(
               const phase = limbPhase(c.cpgState, c.cpgSpec, hip.limbIdx) / (2 * Math.PI)
               const rel = ((phase - gripShift) % 1 + 1) % 1
               // Timing window drives the glow for ALL feet (so a foot toggled off still shows when it
-              // *would* grip); actual gripping additionally requires that foot to be selected.
+              // *would* grip); actual gripping additionally requires the grip switch + that foot selected.
               const inWindow = rel < gripDuration
-              const gripping = selected && inWindow && physicalGrip
+              const gripping = gripEnabled && selected && inWindow
               c.body.colliders[hip.legBodyIndex].setFriction(gripping ? gripFriction : releaseFriction)
 
               // Plant/unplant: on the rising edge of gripping, pin this foot to the ground spot it
@@ -350,18 +348,8 @@ export function useLocomotion(
                 mat.opacity = 1
               }
             }
-          } else {
-            // grip disabled: release any planted feet and hide all glows
-            for (let h = 0; h < c.body.hipJoints.length; h++) {
-              const planted = c.gripPlantJoint[h]
-              if (planted) {
-                c.world.removeImpulseJoint(planted, true)
-                if (c.gripPlantBody[h]) c.world.removeRigidBody(c.gripPlantBody[h]!)
-                c.gripPlantJoint[h] = null
-                c.gripPlantBody[h] = null
-              }
-            }
-            if (glows) for (const m of glows.values()) m.visible = false
+          } else if (glows) {
+            for (const m of glows.values()) m.visible = false
           }
         }
         let acc = c.acc + Math.min(dt, MAX_FRAME)

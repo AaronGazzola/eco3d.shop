@@ -120,14 +120,13 @@ if (CMD === 'login') {
   const grip = process.env.GRIP != null ? process.env.GRIP !== 'off' : null // timed foot grip on/off
   const gripShift = process.env.GRIPSHIFT != null ? Number(process.env.GRIPSHIFT) : null
   const gripDuration = process.env.GRIPDURATION != null ? Number(process.env.GRIPDURATION) : null
-  const gripStrength = process.env.GRIPSTRENGTH != null ? Number(process.env.GRIPSTRENGTH) : null
   const glow = process.env.GLOW != null ? process.env.GLOW !== 'off' : null // foot-grip debug glow
   const gripLegs = process.env.GRIPLEGS ?? null // 'front' | 'back' | 'both'
   const limbcpg = process.env.LIMBCPG != null ? process.env.LIMBCPG !== 'off' : null
   const lock = process.env.LOCK != null ? process.env.LOCK !== 'off' : null
   const gripCapture = process.env.GRIP_CAPTURE === 'on'
   await loadRig()
-  await page.evaluate(({ drag, drive, exc, mode, step, stepFreq, sweepAmount, liftAmount, phase, fBody, fLeg, grav, legs, ground, grip, gripShift, gripDuration, gripStrength, glow, gripLegs, limbcpg, lock }) => {
+  await page.evaluate(({ drag, drive, exc, mode, step, stepFreq, sweepAmount, liftAmount, phase, fBody, fLeg, grav, legs, ground, grip, gripShift, gripDuration, glow, gripLegs, limbcpg, lock }) => {
     if (mode && window.__studio.mode) window.__studio.mode(mode)
     if (legs != null && window.__studio.legs) window.__studio.legs(legs)
     if (ground != null && window.__studio.ground) window.__studio.ground(ground)
@@ -135,7 +134,7 @@ if (CMD === 'login') {
     if (lock != null && window.__studio.lock) window.__studio.lock(lock)
     if (step && window.__studio.step) window.__studio.step(true, sweepAmount ?? undefined, liftAmount ?? undefined)
     if (phase != null && window.__studio.phase) window.__studio.phase(phase)
-    if (grip != null && window.__studio.grip) window.__studio.grip(grip, gripShift ?? undefined, gripDuration ?? undefined, gripStrength ?? undefined)
+    if (grip != null && window.__studio.grip) window.__studio.grip(grip, gripShift ?? undefined, gripDuration ?? undefined)
     if (gripLegs != null && window.__studio.gripLegs) window.__studio.gripLegs(gripLegs)
     if (glow != null && window.__studio.glow) window.__studio.glow(glow)
     if (fBody != null && fLeg != null && window.__studio.friction) window.__studio.friction(fBody, fLeg)
@@ -143,7 +142,7 @@ if (CMD === 'login') {
     if (drive != null && exc != null) window.__studio.tune(drive, exc)
     window.__studio.drag(drag)
     window.__studio.drive(true)
-  }, { drag, drive, exc, mode, step, stepFreq, sweepAmount, liftAmount, phase, fBody, fLeg, grav, legs, ground, grip, gripShift, gripDuration, gripStrength, glow, gripLegs, limbcpg, lock })
+  }, { drag, drive, exc, mode, step, stepFreq, sweepAmount, liftAmount, phase, fBody, fLeg, grav, legs, ground, grip, gripShift, gripDuration, glow, gripLegs, limbcpg, lock })
   if (gripCapture) {
     await page.evaluate(() => window.__studio.gripCaptureStart && window.__studio.gripCaptureStart(4000))
   }
@@ -168,7 +167,7 @@ if (CMD === 'login') {
   }
   if (gripCapture) {
     const dump = await page.evaluate(() => window.__studio.gripCaptureStop && window.__studio.gripCaptureStop())
-    writeGripCapture(dump, { drag, drive, exc, mode, step, gripShift, gripDuration, gripStrength, gripLegs, grav, legs, ground, limbcpg })
+    writeGripCapture(dump, { drag, drive, exc, mode, step, gripShift, gripDuration, gripLegs, grav, legs, ground, limbcpg })
   }
   await page.evaluate(() => window.__studio.drive(false))
   await buildContactSheet(rows)
@@ -373,7 +372,7 @@ function writeGripCapture(dump, cfg) {
     console.log('grip-capture: no samples')
     return
   }
-  const { samples, gripShift, gripDuration, gripStrength, gripLegs, gripEnabled } = dump
+  const { samples, gripShift, gripDuration, gripLegs, gripEnabled } = dump
   const LIMB_NAMES = ['LF', 'RF', 'LH', 'RH']
   const order = samples[0].limbOrder
   const cols = order.map((idx) => LIMB_NAMES[idx] ?? `L${idx}`)
@@ -471,7 +470,7 @@ function writeGripCapture(dump, cfg) {
   const stride = Math.max(1, Math.floor(samples.length / 200)) // cap table at ~200 rows
   const f = (x, d = 3) => Number(x).toFixed(d)
   const head = `# Grip capture
-gripEnabled=${gripEnabled} gripLegs=${gripLegs} gripShift=${f(gripShift, 2)} gripDuration=${f(gripDuration, 2)} gripStrength=${f(gripStrength, 2)}
+gripEnabled=${gripEnabled} gripLegs=${gripLegs} gripShift=${f(gripShift, 2)} gripDuration=${f(gripDuration, 2)}
 config: ${JSON.stringify(cfg)}
 samples: ${samples.length}  duration: ${f(samples[samples.length - 1].t, 2)}s  legs(order): ${cols.join(',')}
 

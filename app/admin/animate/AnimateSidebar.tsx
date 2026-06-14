@@ -143,8 +143,6 @@ function SimulateTab() {
   const setGripShift = useAnimateStore((s) => s.setGripShift)
   const gripDuration = useAnimateStore((s) => s.gripDuration)
   const setGripDuration = useAnimateStore((s) => s.setGripDuration)
-  const gripStrength = useAnimateStore((s) => s.gripStrength)
-  const setGripStrength = useAnimateStore((s) => s.setGripStrength)
   const releaseFriction = useAnimateStore((s) => s.releaseFriction)
   const setReleaseFriction = useAnimateStore((s) => s.setReleaseFriction)
   const gripGlowEnabled = useAnimateStore((s) => s.gripGlowEnabled)
@@ -359,8 +357,8 @@ function SimulateTab() {
               tip="Gain of the fore/aft motor — how firmly the leg holds/reaches its commanded sweep angle (mass-independent, servo-like). Higher = stiffer, snappier."
               value={sweepSpeed}
               min={0}
-              max={10000}
-              step={100}
+              max={200000}
+              step={1000}
               onChange={setSweepSpeed}
               format={(v) => v.toFixed(0)}
             />
@@ -379,8 +377,8 @@ function SimulateTab() {
               tip="Gain of the up/down (lift) motor — how firmly the leg holds its angle against the body's weight (mass-independent, servo-like). The anti-sag knob."
               value={legStiffness}
               min={0}
-              max={10000}
-              step={100}
+              max={200000}
+              step={1000}
               onChange={setLegStiffness}
               format={(v) => v.toFixed(0)}
             />
@@ -389,7 +387,7 @@ function SimulateTab() {
               tip="Damping on both hip motors — settles oscillation. For a firm, non-springy hold use roughly 2×√(stiffness)."
               value={legDamping}
               min={0}
-              max={500}
+              max={2000}
               step={10}
               onChange={setLegDamping}
               format={(v) => v.toFixed(0)}
@@ -401,81 +399,67 @@ function SimulateTab() {
 
         <Toggle
           label="Grip"
-          tip="Each foot pins to the floor during its window of the gait cycle, levering the body forward over the planted foot."
+          tip="When on, each foot pins to the floor during its window of the gait cycle, levering the body forward over the planted foot. Off = the timing and glow still run (so the window can be tuned and watched) but no foot plants."
           on={gripEnabled}
           onChange={setGripEnabled}
         />
-        {gripEnabled && (
-          <>
-            <div className="flex items-start justify-between gap-2 py-0.5">
-              <div className="flex min-w-0 items-center gap-1.5 pt-0.5">
-                <span className="truncate text-[11px] text-white/70">Grip feet</span>
-                <Info text="Toggle grip per foot (front/back × left/right). A foot turned off still shows its glow timing but doesn't grip." />
-              </div>
-              <div className="grid grid-cols-2 gap-0.5">
-                {(['FL', 'FR', 'BL', 'BR'] as const).map((f) => (
-                  <button
-                    key={f}
-                    type="button"
-                    onClick={() => setGripFoot(f, !gripFeet[f])}
-                    className={cn(
-                      'rounded px-2 py-0.5 text-[10px] transition-colors',
-                      gripFeet[f] ? 'bg-emerald-600/50 text-emerald-100' : 'bg-white/5 text-white/40 hover:text-white'
-                    )}
-                  >
-                    {f}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <Slider
-              label="Grip start"
-              tip="Where in each leg's CPG cycle the foot begins gripping."
-              value={gripShift}
-              min={0}
-              max={1}
-              step={0.01}
-              onChange={setGripShift}
-              format={(v) => `${Math.round(v * 100)}%`}
-            />
-            <Slider
-              label="Grip duration"
-              tip="What fraction of the cycle each foot stays gripped (the window width)."
-              value={gripDuration}
-              min={0}
-              max={1}
-              step={0.01}
-              onChange={setGripDuration}
-              format={(v) => `${Math.round(v * 100)}%`}
-            />
-            <Slider
-              label="Grip strength"
-              tip="0 = timing and glow run but the foot never physically plants. Above 0 = the foot plants and pulls."
-              value={gripStrength}
-              min={0}
-              max={1}
-              step={0.01}
-              onChange={setGripStrength}
-              format={(v) => `${Math.round(v * 100)}%`}
-            />
-            <Slider
-              label="Release friction"
-              tip="Foot friction while NOT gripping. Lower = the foot slides freely between grips."
-              value={releaseFriction}
-              min={0}
-              max={1}
-              step={0.05}
-              onChange={setReleaseFriction}
-              format={(v) => v.toFixed(2)}
-            />
-            <Toggle
-              label="Foot glow"
-              tip="Light up each foot while it is inside its grip window — a visual debug of grip timing."
-              on={gripGlowEnabled}
-              onChange={setGripGlowEnabled}
-            />
-          </>
-        )}
+        <div className="flex items-start justify-between gap-2 py-0.5">
+          <div className="flex min-w-0 items-center gap-1.5 pt-0.5">
+            <span className="truncate text-[11px] text-white/70">Grip feet</span>
+            <Info text="Toggle grip per foot (front/back × left/right). A foot turned off still shows its glow timing but doesn't grip." />
+          </div>
+          <div className="grid grid-cols-2 gap-0.5">
+            {(['FL', 'FR', 'BL', 'BR'] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setGripFoot(f, !gripFeet[f])}
+                className={cn(
+                  'rounded px-2 py-0.5 text-[10px] transition-colors',
+                  gripFeet[f] ? 'bg-emerald-600/50 text-emerald-100' : 'bg-white/5 text-white/40 hover:text-white'
+                )}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        </div>
+        <Slider
+          label="Grip start"
+          tip="Where in each leg's CPG cycle the foot begins gripping."
+          value={gripShift}
+          min={0}
+          max={1}
+          step={0.01}
+          onChange={setGripShift}
+          format={(v) => `${Math.round(v * 100)}%`}
+        />
+        <Slider
+          label="Grip duration"
+          tip="What fraction of the cycle each foot stays gripped (the window width)."
+          value={gripDuration}
+          min={0}
+          max={1}
+          step={0.01}
+          onChange={setGripDuration}
+          format={(v) => `${Math.round(v * 100)}%`}
+        />
+        <Slider
+          label="Release friction"
+          tip="Foot friction while NOT gripping. Lower = the foot slides freely between grips."
+          value={releaseFriction}
+          min={0}
+          max={1}
+          step={0.05}
+          onChange={setReleaseFriction}
+          format={(v) => v.toFixed(2)}
+        />
+        <Toggle
+          label="Foot glow"
+          tip="Light up each foot while it is inside its grip window — a visual debug of grip timing."
+          on={gripGlowEnabled}
+          onChange={setGripGlowEnabled}
+        />
 
         <Divider />
 

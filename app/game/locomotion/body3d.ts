@@ -315,8 +315,13 @@ export function buildBody3D(
       const aHipLeg = { x: s.hip.x - s.center.x, y: s.hip.y - s.center.y, z: s.hip.z - s.center.z }
       const sweepDir = isLeft ? -1 : 1
 
-      const liftAxisDir = isLeft ? -1 : 1
-      const ax = liftAxisDir, az = 0
+      // LIFT axis = horizontal, perpendicular to the leg's own horizontal direction, so a +rotation
+      // raises the foot as vertically as the splay allows (a pure-X axis was ~46° off the leg and lost
+      // ~30% of the lift while shoving the foot sideways). Built from s.dir, so it self-mirrors L/R
+      // (dir.z flips sign per side) and +lift = foot-up on both — liftSign stays 1.
+      const hLen = Math.hypot(s.dir.x, s.dir.z) || 1
+      const ax = -s.dir.z / hLen
+      const az = s.dir.x / hLen
 
       const carrierDesc = RAPIER.RigidBodyDesc.dynamic().setTranslation(s.hip.x, s.hip.y, s.hip.z)
       const carrier = world.createRigidBody(carrierDesc)
@@ -326,8 +331,8 @@ export function buildBody3D(
       world.createCollider(carrierCol, carrier)
       carriers.push(carrier)
 
-      // LIFT joint: girdle ↔ carrier, per-leg axis. +rotation tilts the leg in its own vertical
-      // plane, foot raises along the leg's direction. Controller sends +lift directly (liftSign=1).
+      // LIFT joint: girdle ↔ carrier, axis aimed per-leg (see ax/az above). +rotation raises the
+      // foot in the leg's own vertical plane. Controller sends +lift directly (liftSign=1).
       const liftJoint = world.createImpulseJoint(
         RAPIER.JointData.revolute(aHipParent, { x: 0, y: 0, z: 0 }, { x: ax, y: 0, z: az }),
         bodies[s.parentIndex], carrier, true
@@ -345,7 +350,7 @@ export function buildBody3D(
 
       hipJoints.push({
         sweepJoint, liftJoint, limbIdx,
-        // Both legs receive +lift = up because the lift axis is already mirrored L/R (liftAxisDir).
+        // Both legs receive +lift = up because the lift axis self-mirrors L/R (built from s.dir).
         // Controller sends `liftSign * lift`; with liftSign=1 the controller's positive lift
         // directly produces foot-up on both sides.
         liftSign: 1,
