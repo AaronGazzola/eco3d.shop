@@ -122,6 +122,10 @@ function SimulateTab() {
   const setCpgDrive = useAnimateStore((s) => s.setCpgDrive)
   const cpgExcitability = useAnimateStore((s) => s.cpgExcitability)
   const setCpgExcitability = useAnimateStore((s) => s.setCpgExcitability)
+  const frontDrive = useAnimateStore((s) => s.frontDrive)
+  const setFrontDrive = useAnimateStore((s) => s.setFrontDrive)
+  const frontSegments = useAnimateStore((s) => s.frontSegments)
+  const setFrontSegments = useAnimateStore((s) => s.setFrontSegments)
 
   const muscleAlpha = useAnimateStore((s) => s.muscleAlpha)
   const setMuscleAlpha = useAnimateStore((s) => s.setMuscleAlpha)
@@ -273,6 +277,26 @@ function SimulateTab() {
           max={2}
           step={0.01}
           onChange={setCpgExcitability}
+          format={(v) => v.toFixed(2)}
+        />
+        <Slider
+          label="Front segments"
+          tip="Differential drive (paper's forward-stepping): how many rostral-most spine segments get the lower Front drive instead of the global Drive. 0 = off (whole body on one drive)."
+          value={frontSegments}
+          min={0}
+          max={10}
+          step={1}
+          onChange={setFrontSegments}
+          format={(v) => v.toFixed(0)}
+        />
+        <Slider
+          label="Front drive"
+          tip="Drive sent to the front segments when Front segments > 0. Lower than Drive tunes the body wave (paper uses ~0.6 front vs ~1.0 body)."
+          value={frontDrive}
+          min={0}
+          max={3}
+          step={0.01}
+          onChange={setFrontDrive}
           format={(v) => v.toFixed(2)}
         />
 

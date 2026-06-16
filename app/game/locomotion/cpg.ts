@@ -175,7 +175,9 @@ export function stepCpg(
   spec: CpgSpec,
   drive: number,
   excitability: number,
-  dt: number
+  dt: number,
+  frontDrive?: number,
+  frontSegments?: number
 ): void {
   if (spec.n === 0) return
   const clampedDt = Math.max(0, Math.min(dt, CPG_MAX_DT))
@@ -185,6 +187,19 @@ export function stepCpg(
   const h = clampedDt / subSteps
   const size = 2 * spec.n + spec.limbs
 
+  // Differential drive (paper's forward-stepping regime): the rostral-most axial segments get a
+  // lower drive than the rest of the body + limbs, which shapes the body wave. frontSegments=0
+  // disables it (every oscillator gets the global drive); otherwise the first frontSegments
+  // segments of both chains use frontDrive while limbs and caudal segments keep the global drive.
+  const fc = Math.max(0, Math.min(spec.n, Math.floor(frontSegments ?? 0)))
+  const fd = frontDrive ?? drive
+  const driveArr: number[] = new Array(size)
+  for (let i = 0; i < size; i++) {
+    if (fc > 0 && i < spec.n) driveArr[i] = i < fc ? fd : drive
+    else if (fc > 0 && i < 2 * spec.n) driveArr[i] = i - spec.n < fc ? fd : drive
+    else driveArr[i] = drive
+  }
+
   const phases = state.phases
   const amplitudes = state.amplitudes
 
@@ -193,7 +208,7 @@ export function stepCpg(
     const ampDot: number[] = new Array(size).fill(0)
 
     for (let i = 0; i < size; i++) {
-      const nu = drive * excitability * spec.e[i]
+      const nu = driveArr[i] * excitability * spec.e[i]
       phaseDot[i] = TWO_PI * nu
     }
 
@@ -203,8 +218,8 @@ export function stepCpg(
     }
 
     for (let i = 0; i < size; i++) {
-      const sat = sigmoidSat(drive, spec.dTh[i])
-      const target = drive * sat
+      const sat = sigmoidSat(driveArr[i], spec.dTh[i])
+      const target = driveArr[i] * sat
       ampDot[i] = A_GAIN * (target - amplitudes[i])
     }
 

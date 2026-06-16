@@ -34,6 +34,8 @@ export interface SimConfig {
   environmentEnabled: boolean
   cpgDrive: number
   cpgExcitability: number
+  frontDrive: number
+  frontSegments: number
   muscleAlpha: number
   muscleBeta: number
   muscleDamping: number
@@ -62,6 +64,8 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
   environmentEnabled: false,
   cpgDrive: 1.87,
   cpgExcitability: 0.24,
+  frontDrive: 0.6,
+  frontSegments: 0,
   muscleAlpha: 3.95,
   muscleBeta: 13.3,
   muscleDamping: 11.3,
@@ -93,6 +97,8 @@ export function pickSimConfig(s: SimConfig): SimConfig {
     environmentEnabled: s.environmentEnabled,
     cpgDrive: s.cpgDrive,
     cpgExcitability: s.cpgExcitability,
+    frontDrive: s.frontDrive,
+    frontSegments: s.frontSegments,
     muscleAlpha: s.muscleAlpha,
     muscleBeta: s.muscleBeta,
     muscleDamping: s.muscleDamping,
@@ -144,6 +150,8 @@ interface AnimateStore extends SimConfig {
   setLastCapturePath: (path: string | null) => void
   setCpgDrive: (v: number) => void
   setCpgExcitability: (v: number) => void
+  setFrontDrive: (v: number) => void
+  setFrontSegments: (v: number) => void
   setCoupledRunning: (v: boolean) => void
   setEnvironmentEnabled: (v: boolean) => void
   setMuscleAlpha: (v: number) => void
@@ -242,6 +250,10 @@ export const useAnimateStore = create<AnimateStore>()(
       setCpgDrive: (v) => set({ cpgDrive: v }),
 
       setCpgExcitability: (v) => set({ cpgExcitability: v }),
+
+      setFrontDrive: (v) => set({ frontDrive: v }),
+
+      setFrontSegments: (v) => set({ frontSegments: Math.max(0, Math.round(v)) }),
 
       setCoupledRunning: (v) => set({ coupledRunning: v }),
 

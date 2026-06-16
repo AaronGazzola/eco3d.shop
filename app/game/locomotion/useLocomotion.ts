@@ -260,6 +260,8 @@ export function useLocomotion(
       if (c) {
         const drive = store.cpgDrive
         const exc = store.cpgExcitability
+        const frontDrive = store.frontDrive
+        const frontSegments = store.frontSegments
         const alpha = store.muscleAlpha
         const beta = store.muscleBeta
         const jointDamping = store.muscleDamping
@@ -354,7 +356,7 @@ export function useLocomotion(
         }
         let acc = c.acc + Math.min(dt, MAX_FRAME)
         while (acc >= TIMESTEP) {
-          stepCpg(c.cpgState, c.cpgSpec, drive, exc, TIMESTEP)
+          stepCpg(c.cpgState, c.cpgSpec, drive, exc, TIMESTEP, frontDrive, frontSegments)
           for (let i = 0; i < c.body.joints.length; i++) {
             const jt = c.body.joints[i]
             const k = jt.cpgSegment
