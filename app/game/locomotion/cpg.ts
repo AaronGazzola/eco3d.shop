@@ -177,7 +177,9 @@ export function stepCpg(
   excitability: number,
   dt: number,
   frontDrive?: number,
-  frontSegments?: number
+  frontSegments?: number,
+  // Positive weakens the LEFT side (axial 0..n-1 + limbs LF/LH) → body curves left.
+  turnBias?: number
 ): void {
   if (spec.n === 0) return
   const clampedDt = Math.max(0, Math.min(dt, CPG_MAX_DT))
@@ -193,11 +195,30 @@ export function stepCpg(
   // segments of both chains use frontDrive while limbs and caudal segments keep the global drive.
   const fc = Math.max(0, Math.min(spec.n, Math.floor(frontSegments ?? 0)))
   const fd = frontDrive ?? drive
+  // Left/right differential drive (paper's turning): a single signed bias weakens one whole side
+  // of the CPG (axial chain + limbs). Positive turnBias weakens the right oscillator chain so the
+  // body curves toward its own left; negative weakens the left chain so the body curves right. The
+  // signs are calibrated to the body's empirical drift direction under the Ekeberg + drag pipeline
+  // (verified by scripts/locomotion-turn-direction.ts). tb=0 leaves both factors at 1 — bit-exact
+  // with the pre-turn driveArr build.
+  const tb = Math.max(-1, Math.min(1, turnBias ?? 0))
+  const leftFactor = 1 - Math.max(0, -tb)
+  const rightFactor = 1 - Math.max(0, tb)
+  const base = 2 * spec.n
   const driveArr: number[] = new Array(size)
   for (let i = 0; i < size; i++) {
-    if (fc > 0 && i < spec.n) driveArr[i] = i < fc ? fd : drive
-    else if (fc > 0 && i < 2 * spec.n) driveArr[i] = i - spec.n < fc ? fd : drive
-    else driveArr[i] = drive
+    let d: number
+    if (fc > 0 && i < spec.n) d = i < fc ? fd : drive
+    else if (fc > 0 && i < base) d = i - spec.n < fc ? fd : drive
+    else d = drive
+    let side: number
+    if (i < spec.n) side = leftFactor
+    else if (i < base) side = rightFactor
+    else {
+      const li = i - base
+      side = li === LIMB_LF || li === LIMB_LH ? leftFactor : rightFactor
+    }
+    driveArr[i] = d * side
   }
 
   const phases = state.phases

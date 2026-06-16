@@ -21,6 +21,7 @@ function useStudioObservationHook() {
       drag: (on: boolean) => store().setEnvironmentEnabled(on),
       tune: (drive: number, exc: number) => { store().setCpgDrive(drive); store().setCpgExcitability(exc) },
       front: (segments: number, drive: number) => { store().setFrontSegments(segments); store().setFrontDrive(drive) },
+      turn: (bias: number) => store().setTurnBias(bias),
       muscle: (alpha: number, beta: number, damping: number) => { store().setMuscleAlpha(alpha); store().setMuscleBeta(beta); store().setMuscleDamping(damping) },
       friction: (body: number, leg: number) => { store().setBodyFriction(body); store().setLegFriction(leg) },
       gravity: (on: boolean) => store().setGravityEnabled(on),

@@ -126,6 +126,8 @@ function SimulateTab() {
   const setFrontDrive = useAnimateStore((s) => s.setFrontDrive)
   const frontSegments = useAnimateStore((s) => s.frontSegments)
   const setFrontSegments = useAnimateStore((s) => s.setFrontSegments)
+  const turnBias = useAnimateStore((s) => s.turnBias)
+  const setTurnBias = useAnimateStore((s) => s.setTurnBias)
 
   const muscleAlpha = useAnimateStore((s) => s.muscleAlpha)
   const setMuscleAlpha = useAnimateStore((s) => s.setMuscleAlpha)
@@ -166,8 +168,12 @@ function SimulateTab() {
   const setLegDamping = useAnimateStore((s) => s.setLegDamping)
 
   const resetSimConfig = useAnimateStore((s) => s.resetSimConfig)
+  const applySimConfig = useAnimateStore((s) => s.applySimConfig)
 
   const [copied, setCopied] = useState(false)
+  const [pasteOpen, setPasteOpen] = useState(false)
+  const [pasteText, setPasteText] = useState('')
+  const [pasteFeedback, setPasteFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null)
 
   useEffect(() => {
     useAnimateStore.persist.rehydrate()
@@ -182,6 +188,30 @@ function SimulateTab() {
         setTimeout(() => setCopied(false), 1500)
       })
       .catch((err) => console.error(err))
+  }
+
+  const handleApplyPaste = () => {
+    const text = pasteText.trim()
+    if (!text) {
+      setPasteFeedback({ kind: 'err', msg: 'Paste a JSON config first.' })
+      return
+    }
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(text)
+    } catch (err) {
+      console.error(err)
+      setPasteFeedback({ kind: 'err', msg: `Invalid JSON: ${(err as Error).message}` })
+      return
+    }
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      setPasteFeedback({ kind: 'err', msg: 'Config must be a JSON object.' })
+      return
+    }
+    applySimConfig(parsed as Record<string, unknown>)
+    const appliedCount = Object.keys(parsed as Record<string, unknown>).length
+    setPasteFeedback({ kind: 'ok', msg: `Applied ${appliedCount} field${appliedCount === 1 ? '' : 's'}.` })
+    setTimeout(() => setPasteFeedback(null), 2500)
   }
 
   return (
@@ -299,36 +329,46 @@ function SimulateTab() {
           onChange={setFrontDrive}
           format={(v) => v.toFixed(2)}
         />
+        <Slider
+          label="Turn bias"
+          tip="Paper's left/right differential CPG drive (turning). Positive weakens the left side (axial + limbs) and the body curves to its own left; negative curves it right; 0 = off (straight)."
+          value={turnBias}
+          min={-1}
+          max={1}
+          step={0.01}
+          onChange={setTurnBias}
+          format={(v) => v.toFixed(2)}
+        />
 
         <Divider />
 
         <Slider
           label="Muscle α"
-          tip="Ekeberg active gain — how hard the muscles bend each joint toward the target angle."
+          tip="Ekeberg active gain — how hard the muscles bend each joint toward the target angle. Higher than the original ~5 is often needed for vigorous swim (tuning sweep peaked around 18–42)."
           value={muscleAlpha}
           min={0}
-          max={5}
-          step={0.05}
+          max={50}
+          step={0.1}
           onChange={setMuscleAlpha}
           format={(v) => v.toFixed(2)}
         />
         <Slider
           label="Muscle β"
-          tip="Ekeberg passive stiffness — pulls each joint back toward straight (resting shape)."
+          tip="Ekeberg passive stiffness — pulls each joint back toward straight (resting shape). Sweep showed 18–35 is the productive range for swim."
           value={muscleBeta}
           min={0}
-          max={20}
+          max={50}
           step={0.1}
           onChange={setMuscleBeta}
           format={(v) => v.toFixed(2)}
         />
         <Slider
           label="Muscle δ"
-          tip="Joint motor damping — resists fast joint motion to keep the simulation stable."
+          tip="Joint motor damping — resists fast joint motion. Higher δ trades a little speed for cleaner heading (less drift)."
           value={muscleDamping}
           min={0}
-          max={20}
-          step={0.05}
+          max={40}
+          step={0.1}
           onChange={setMuscleDamping}
           format={(v) => v.toFixed(2)}
         />
@@ -502,7 +542,53 @@ function SimulateTab() {
             >
               {copied ? 'Copied!' : 'Copy config'}
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPasteOpen((v) => !v)
+                setPasteFeedback(null)
+              }}
+              className={cn(
+                'flex-1 rounded-md py-1.5 text-xs transition-colors',
+                pasteOpen ? 'bg-violet-600/40 text-violet-200' : 'bg-white/10 text-white/70 hover:text-white'
+              )}
+            >
+              Paste config
+            </button>
           </div>
+          {pasteOpen && (
+            <div className="mt-2 flex flex-col gap-1.5">
+              <textarea
+                value={pasteText}
+                onChange={(e) => setPasteText(e.target.value)}
+                placeholder='Paste a sim-preset JSON (e.g. documentation/sim-presets/stage1-steady.json)'
+                spellCheck={false}
+                rows={10}
+                className="w-full rounded-md border border-white/10 bg-black/30 p-2 font-mono text-[10px] leading-snug text-white/80 placeholder:text-white/30 focus:border-violet-500/60 focus:outline-none"
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleApplyPaste}
+                  className="flex-1 rounded-md bg-violet-600/50 py-1.5 text-xs text-violet-100 transition-colors hover:bg-violet-600/70"
+                >
+                  Apply
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setPasteText(''); setPasteFeedback(null) }}
+                  className="rounded-md bg-white/10 px-3 py-1.5 text-xs text-white/70 transition-colors hover:text-white"
+                >
+                  Clear
+                </button>
+              </div>
+              {pasteFeedback && (
+                <p className={cn('text-[10px]', pasteFeedback.kind === 'ok' ? 'text-emerald-300/80' : 'text-rose-300/90')}>
+                  {pasteFeedback.msg}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </TooltipProvider>

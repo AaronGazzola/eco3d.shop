@@ -36,6 +36,7 @@ export interface SimConfig {
   cpgExcitability: number
   frontDrive: number
   frontSegments: number
+  turnBias: number
   muscleAlpha: number
   muscleBeta: number
   muscleDamping: number
@@ -66,6 +67,7 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
   cpgExcitability: 0.24,
   frontDrive: 0.6,
   frontSegments: 0,
+  turnBias: 0,
   muscleAlpha: 3.95,
   muscleBeta: 13.3,
   muscleDamping: 11.3,
@@ -99,6 +101,7 @@ export function pickSimConfig(s: SimConfig): SimConfig {
     cpgExcitability: s.cpgExcitability,
     frontDrive: s.frontDrive,
     frontSegments: s.frontSegments,
+    turnBias: s.turnBias,
     muscleAlpha: s.muscleAlpha,
     muscleBeta: s.muscleBeta,
     muscleDamping: s.muscleDamping,
@@ -152,6 +155,7 @@ interface AnimateStore extends SimConfig {
   setCpgExcitability: (v: number) => void
   setFrontDrive: (v: number) => void
   setFrontSegments: (v: number) => void
+  setTurnBias: (v: number) => void
   setCoupledRunning: (v: boolean) => void
   setEnvironmentEnabled: (v: boolean) => void
   setMuscleAlpha: (v: number) => void
@@ -177,6 +181,7 @@ interface AnimateStore extends SimConfig {
   setLegStiffness: (v: number) => void
   setLegDamping: (v: number) => void
   resetSimConfig: () => void
+  applySimConfig: (partial: Partial<SimConfig>) => void
 }
 
 export const useAnimateStore = create<AnimateStore>()(
@@ -255,6 +260,8 @@ export const useAnimateStore = create<AnimateStore>()(
 
       setFrontSegments: (v) => set({ frontSegments: Math.max(0, Math.round(v)) }),
 
+      setTurnBias: (v) => set({ turnBias: Math.max(-1, Math.min(1, v)) }),
+
       setCoupledRunning: (v) => set({ coupledRunning: v }),
 
       setEnvironmentEnabled: (v) => set({ environmentEnabled: v }),
@@ -283,6 +290,15 @@ export const useAnimateStore = create<AnimateStore>()(
       setLegStiffness: (v) => set({ legStiffness: v }),
       setLegDamping: (v) => set({ legDamping: v }),
       resetSimConfig: () => set({ ...DEFAULT_SIM_CONFIG, gripFeet: { ...DEFAULT_SIM_CONFIG.gripFeet } }),
+      applySimConfig: (partial) => {
+        const keys = Object.keys(DEFAULT_SIM_CONFIG) as Array<keyof SimConfig>
+        const next: Partial<SimConfig> = {}
+        for (const k of keys) {
+          if (k in partial) (next as Record<string, unknown>)[k] = (partial as Record<string, unknown>)[k]
+        }
+        if (next.gripFeet) next.gripFeet = { ...next.gripFeet }
+        set(next as Partial<AnimateStore>)
+      },
     }),
     {
       name: SIM_CONFIG_STORAGE_KEY,
