@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { useSharedStore } from '../_lib/sharedStore'
 import { useAnimateStore, pickSimConfig, SimConfig } from './animateStore'
+import { findSimPreset } from './simPresets'
 import { CameraController, StudioCanvas } from '../_lib/StudioCanvas'
 import { CameraPreset, ModelConfigRow } from '../_lib/types'
 import { AnimatedModel } from '@/app/game/AnimatedModel'
@@ -23,6 +24,16 @@ function useStudioObservationHook() {
       front: (segments: number, drive: number) => { store().setFrontSegments(segments); store().setFrontDrive(drive) },
       turn: (bias: number) => store().setTurnBias(bias),
       muscle: (alpha: number, beta: number, damping: number) => { store().setMuscleAlpha(alpha); store().setMuscleBeta(beta); store().setMuscleDamping(damping) },
+      // Apply a full/partial SimConfig in one call (used by the observation harness to load a named
+      // preset without setting every knob individually). Only known SimConfig keys are written.
+      applyConfig: (config: Record<string, unknown>) => store().applySimConfig(config),
+      // Apply a named preset from app/admin/animate/simPresets.ts. Returns true if the name matched.
+      preset: (name: string) => {
+        const p = findSimPreset(name)
+        if (!p) return false
+        store().applySimConfig(p.config)
+        return true
+      },
       friction: (body: number, leg: number) => { store().setBodyFriction(body); store().setLegFriction(leg) },
       gravity: (on: boolean) => store().setGravityEnabled(on),
       legs: (on: boolean) => store().setLandLegsEnabled(on),

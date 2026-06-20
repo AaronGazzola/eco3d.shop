@@ -125,8 +125,16 @@ if (CMD === 'login') {
   const limbcpg = process.env.LIMBCPG != null ? process.env.LIMBCPG !== 'off' : null
   const lock = process.env.LOCK != null ? process.env.LOCK !== 'off' : null
   const gripCapture = process.env.GRIP_CAPTURE === 'on'
+  const preset = process.env.PRESET ?? null // apply a named simPresets.ts config before per-knob overrides
+  const muscleArg = process.env.MUSCLE ?? null // "alpha:beta:damping" Ekeberg override
   await loadRig()
-  await page.evaluate(({ drag, drive, exc, mode, step, stepFreq, sweepAmount, liftAmount, phase, fBody, fLeg, grav, legs, ground, grip, gripShift, gripDuration, glow, gripLegs, limbcpg, lock }) => {
+  const muscle = muscleArg ? muscleArg.split(':').map(Number) : null
+  await page.evaluate(({ preset, muscle, drag, drive, exc, mode, step, stepFreq, sweepAmount, liftAmount, phase, fBody, fLeg, grav, legs, ground, grip, gripShift, gripDuration, glow, gripLegs, limbcpg, lock }) => {
+    if (preset && window.__studio.preset) {
+      const ok = window.__studio.preset(preset)
+      if (!ok) console.log('PRESET NOT FOUND:', preset)
+    }
+    if (muscle && muscle.length === 3 && window.__studio.muscle) window.__studio.muscle(muscle[0], muscle[1], muscle[2])
     if (mode && window.__studio.mode) window.__studio.mode(mode)
     if (legs != null && window.__studio.legs) window.__studio.legs(legs)
     if (ground != null && window.__studio.ground) window.__studio.ground(ground)
@@ -142,7 +150,7 @@ if (CMD === 'login') {
     if (drive != null && exc != null) window.__studio.tune(drive, exc)
     window.__studio.drag(drag)
     window.__studio.drive(true)
-  }, { drag, drive, exc, mode, step, stepFreq, sweepAmount, liftAmount, phase, fBody, fLeg, grav, legs, ground, grip, gripShift, gripDuration, glow, gripLegs, limbcpg, lock })
+  }, { preset, muscle, drag, drive, exc, mode, step, stepFreq, sweepAmount, liftAmount, phase, fBody, fLeg, grav, legs, ground, grip, gripShift, gripDuration, glow, gripLegs, limbcpg, lock })
   if (gripCapture) {
     await page.evaluate(() => window.__studio.gripCaptureStart && window.__studio.gripCaptureStart(4000))
   }

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { pickSimConfig, useAnimateStore } from './animateStore'
+import { SIM_PRESETS, findSimPreset } from './simPresets'
 import { CalibrateTab } from './CalibrateTab'
 
 function Info({ text }: { text: string }) {
@@ -171,9 +172,7 @@ function SimulateTab() {
   const applySimConfig = useAnimateStore((s) => s.applySimConfig)
 
   const [copied, setCopied] = useState(false)
-  const [pasteOpen, setPasteOpen] = useState(false)
-  const [pasteText, setPasteText] = useState('')
-  const [pasteFeedback, setPasteFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null)
+  const [selectedPreset, setSelectedPreset] = useState('')
 
   useEffect(() => {
     useAnimateStore.persist.rehydrate()
@@ -190,28 +189,10 @@ function SimulateTab() {
       .catch((err) => console.error(err))
   }
 
-  const handleApplyPaste = () => {
-    const text = pasteText.trim()
-    if (!text) {
-      setPasteFeedback({ kind: 'err', msg: 'Paste a JSON config first.' })
-      return
-    }
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(text)
-    } catch (err) {
-      console.error(err)
-      setPasteFeedback({ kind: 'err', msg: `Invalid JSON: ${(err as Error).message}` })
-      return
-    }
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-      setPasteFeedback({ kind: 'err', msg: 'Config must be a JSON object.' })
-      return
-    }
-    applySimConfig(parsed as Record<string, unknown>)
-    const appliedCount = Object.keys(parsed as Record<string, unknown>).length
-    setPasteFeedback({ kind: 'ok', msg: `Applied ${appliedCount} field${appliedCount === 1 ? '' : 's'}.` })
-    setTimeout(() => setPasteFeedback(null), 2500)
+  const handleSelectPreset = (name: string) => {
+    setSelectedPreset(name)
+    const preset = findSimPreset(name)
+    if (preset) applySimConfig(preset.config)
   }
 
   return (
@@ -243,6 +224,24 @@ function SimulateTab() {
               {simRecording ? 'Stop' : 'Record'}
             </button>
           </div>
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 text-[11px] text-white/55">Preset</span>
+            <select
+              value={selectedPreset}
+              onChange={(e) => handleSelectPreset(e.target.value)}
+              className="min-w-0 flex-1 rounded-md border border-white/10 bg-black/30 px-2 py-1 text-xs text-white/80 focus:border-violet-500/60 focus:outline-none"
+            >
+              <option value="">Select a config…</option>
+              {SIM_PRESETS.map((p) => (
+                <option key={p.name} value={p.name}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {selectedPreset ? (
+            <p className="text-[10px] leading-snug text-white/45">{findSimPreset(selectedPreset)?.description}</p>
+          ) : null}
           {lastCapturePath ? (
             <p className="break-all font-mono text-[10px] text-emerald-300/70">{lastCapturePath}</p>
           ) : null}
@@ -530,7 +529,7 @@ function SimulateTab() {
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => resetSimConfig()}
+              onClick={() => { resetSimConfig(); setSelectedPreset('') }}
               className="flex-1 rounded-md bg-white/10 py-1.5 text-xs text-white/70 transition-colors hover:text-white"
             >
               Reset
@@ -542,53 +541,7 @@ function SimulateTab() {
             >
               {copied ? 'Copied!' : 'Copy config'}
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setPasteOpen((v) => !v)
-                setPasteFeedback(null)
-              }}
-              className={cn(
-                'flex-1 rounded-md py-1.5 text-xs transition-colors',
-                pasteOpen ? 'bg-violet-600/40 text-violet-200' : 'bg-white/10 text-white/70 hover:text-white'
-              )}
-            >
-              Paste config
-            </button>
           </div>
-          {pasteOpen && (
-            <div className="mt-2 flex flex-col gap-1.5">
-              <textarea
-                value={pasteText}
-                onChange={(e) => setPasteText(e.target.value)}
-                placeholder='Paste a sim-preset JSON (e.g. documentation/sim-presets/stage1-steady.json)'
-                spellCheck={false}
-                rows={10}
-                className="w-full rounded-md border border-white/10 bg-black/30 p-2 font-mono text-[10px] leading-snug text-white/80 placeholder:text-white/30 focus:border-violet-500/60 focus:outline-none"
-              />
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleApplyPaste}
-                  className="flex-1 rounded-md bg-violet-600/50 py-1.5 text-xs text-violet-100 transition-colors hover:bg-violet-600/70"
-                >
-                  Apply
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setPasteText(''); setPasteFeedback(null) }}
-                  className="rounded-md bg-white/10 px-3 py-1.5 text-xs text-white/70 transition-colors hover:text-white"
-                >
-                  Clear
-                </button>
-              </div>
-              {pasteFeedback && (
-                <p className={cn('text-[10px]', pasteFeedback.kind === 'ok' ? 'text-emerald-300/80' : 'text-rose-300/90')}>
-                  {pasteFeedback.msg}
-                </p>
-              )}
-            </div>
-          )}
         </div>
       </div>
     </TooltipProvider>

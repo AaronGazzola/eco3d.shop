@@ -1111,3 +1111,28 @@ reference.
     timing so it doesn't fight the wave; (2) **lift** — foot clearance during swing (re-add the second
     DOF, or an offset on the one joint); (3) **standing-wave coupling** — lean on the limb→axial
     couplings so legs + body move as one network. Branch `fix/local-plane-muscle-axis`.
+- **2026-06-17 (swim "energy" knob — amplitude/frequency decoupling; managed preset system)** — Two
+  pieces of tooling + a tuning result, all on the swim regime (gravity on + ground on + bodyFriction 0
+  keeps the body planar; legs off, drag on). **(A) Managed configs in app code (replaces copy/paste):**
+  new `app/admin/animate/simPresets.ts` holds a typed named list (`SIM_PRESETS`); a Preset `<select>` in
+  the Simulate sidebar applies one via `applySimConfig`; `__studio.preset(name)`/`applyConfig(obj)` hooks
+  + harness `PRESET=` / `MUSCLE="a:b:d"` envs let the observation loop apply a full named config or sweep
+  the Ekeberg muscle in one call. The old "Paste config" textarea was retired (superseded); "Copy config"
+  stays (how a tuned state is read out into the file). The three `documentation/sim-presets/*.json` are
+  now seeded into the TS list and are redundant. **(B) The energy result (the user's goal):** the user
+  wanted one knob where high energy = high amplitude + high frequency and low energy = low frequency but
+  *still high amplitude*. The blocker was that at fixed drive, raising **excitability** (frequency)
+  *collapsed* amplitude (maxJ 90%→52%→31% as exc 0.3→0.9) — the muscle couldn't follow at speed
+  (mechanical bandwidth). **Fix: make the muscle strong + elastic so joint amplitude saturates at the
+  angle cap across the whole drive range** — then **Drive itself becomes the energy knob** (it still sets
+  ν=d·e, so frequency + KE scale with it) while amplitude stays maxed. Tuned **α=22, β=35, δ=6** (raise α
+  for high-freq reach, drop δ from ~30 so fast motion isn't damped out, keep β=35 elastic to stop cap
+  overshoot). Verified drive 0.5→2.5 at exc 0.5: **maxJ pinned ~100%** at every drive, planar (comY~0,
+  tilt 1–4°), KE scales ~20× (15→300). Saved as presets **Swim energy — low/mid/high** (drive 0.7/1.5/2.6).
+  *Faithfulness:* no internal CPG/muscle logic changed — α/β/δ are the paper's exposed Ekeberg gains
+  (α "optimal for its robot"; ours is a documented scale adaptation, same as the α=1.0-vs-0.4 note above).
+  *Caveat:* gravity-OFF pure swim (no floor) tumbles at high amplitude+frequency (comY→1–4, tilt 30–137°)
+  because nothing constrains the plane — the floor is the planar constraint, so the swim regime keeps
+  gravity+ground on with zero body friction. *Open:* the render still clumps at bends (AZ-33 chunky-mesh
+  overlap) so the wave is hard to read visually though the physics is clean; and the single "energy"
+  slider itself is not yet wired into the UI (Drive is the de-facto knob with this muscle).
