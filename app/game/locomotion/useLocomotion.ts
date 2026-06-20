@@ -46,9 +46,46 @@ interface GripCaptureState {
   startWallTime: number
   maxSamples: number
 }
+interface NodeCaptureSample {
+  t: number
+  nodes: { x: number; y: number; z: number }[]
+}
+// A primitive-window boundary crossing, detected at render rate from the CPG phase alone (so it is
+// observed WITHOUT the grip/step switches being on — the behaviour never interferes). Optionally
+// carries the full node snapshot at the boundary instant.
+interface NodeCaptureEvent {
+  t: number
+  leg: string
+  primitive: 'grip' | 'sweep' | 'lift'
+  edge: 'start' | 'end'
+  rel: number
+  phase: number
+  nodes?: { x: number; y: number; z: number }[]
+}
+interface NodeCaptureState {
+  active: boolean
+  hz: number
+  buffer: NodeCaptureSample[]
+  startWallTime: number
+  lastSampleTime: number
+  maxSamples: number
+  // Window-timing tracking (passive): record grip/sweep/lift start/end edges from the CPG phase.
+  events: boolean
+  // Also attach a node-position snapshot to each recorded edge.
+  eventSnapshots: boolean
+  eventBuffer: NodeCaptureEvent[]
+  prevWindows?: { grip: boolean; sweep: boolean; lift: boolean }[]
+}
+interface NodeCaptureSpec {
+  count: number
+  groupIds: string[]
+  segLength: number[]
+}
 declare global {
   interface Window {
     __gripCapture?: GripCaptureState
+    __nodeCapture?: NodeCaptureState
+    __nodeCaptureSpec?: NodeCaptureSpec
   }
 }
 
@@ -454,6 +491,60 @@ export function useLocomotion(
             comYDrift: samp.comY - c.baseCom.y,
             maxTiltDeg: samp.maxTiltDeg,
           })
+        }
+
+        // Node-position capture: sample every body's world (x,y,z) at the requested rate. Default
+        // observation mode — lets the harness reconstruct the top-down node skeleton over time
+        // without any screenshots. Wall-time gated so frame rate (~60Hz) is decoupled from sample Hz.
+        const ncap = typeof window !== 'undefined' ? window.__nodeCapture : undefined
+        if (ncap?.active) {
+          const tNow = (performance.now() - ncap.startWallTime) / 1000
+          if (!window.__nodeCaptureSpec) {
+            window.__nodeCaptureSpec = {
+              count: c.body.bodies.length,
+              groupIds: c.body.groupIds.slice(),
+              segLength: c.body.segLength.slice(),
+            }
+          }
+          const snapshot = () => c.body.bodies.map((b) => {
+            const p = b.translation()
+            return { x: p.x, y: p.y, z: p.z }
+          })
+          // periodic node sample (hz-gated)
+          const interval = ncap.hz > 0 ? 1 / ncap.hz : 0
+          if (ncap.buffer.length < ncap.maxSamples && tNow - ncap.lastSampleTime >= interval - 1e-4) {
+            ncap.lastSampleTime = tNow
+            ncap.buffer.push({ t: tNow, nodes: snapshot() })
+          }
+          // primitive-window edge detection (every frame). Windows come from the limb-CPG phase and
+          // the timing params ONLY — not from gripEnabled/stepEnabled — so timing is observed without
+          // the behaviour being active. grip = rel<gripDuration; sweep(power-stroke)=rel<stepDuty;
+          // lift = swing half (rel>=stepDuty). Edges are tagged start/end per leg.
+          if (ncap.events && c.body.hipJoints.length > 0) {
+            const hips = c.body.hipJoints
+            const gripShift = store.gripShift
+            const gripDuration = store.gripDuration
+            const stepDuty = Math.min(0.95, Math.max(0.05, store.gripDuration))
+            if (!ncap.prevWindows) ncap.prevWindows = hips.map(() => ({ grip: false, sweep: false, lift: false }))
+            for (let h = 0; h < hips.length; h++) {
+              const hip = hips[h]
+              const phase = limbPhase(c.cpgState, c.cpgSpec, hip.limbIdx) / (2 * Math.PI)
+              const rel = ((phase - gripShift) % 1 + 1) % 1
+              const win = { grip: rel < gripDuration, sweep: rel < stepDuty, lift: rel >= stepDuty }
+              const prev = ncap.prevWindows[h]
+              const leg = GRIP_FOOT_BY_LIMB[hip.limbIdx] ?? `L${hip.limbIdx}`
+              for (const prim of ['grip', 'sweep', 'lift'] as const) {
+                if (win[prim] !== prev[prim]) {
+                  const ev: NodeCaptureEvent = {
+                    t: tNow, leg, primitive: prim, edge: win[prim] ? 'start' : 'end', rel, phase,
+                  }
+                  if (ncap.eventSnapshots) ev.nodes = snapshot()
+                  ncap.eventBuffer.push(ev)
+                }
+              }
+              ncap.prevWindows[h] = win
+            }
+          }
         }
 
         const cap = typeof window !== 'undefined' ? window.__gripCapture : undefined

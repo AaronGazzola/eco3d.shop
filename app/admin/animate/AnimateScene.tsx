@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { useSharedStore } from '../_lib/sharedStore'
-import { useAnimateStore } from './animateStore'
+import { useAnimateStore, pickSimConfig, SimConfig } from './animateStore'
 import { CameraController, StudioCanvas } from '../_lib/StudioCanvas'
 import { CameraPreset, ModelConfigRow } from '../_lib/types'
 import { AnimatedModel } from '@/app/game/AnimatedModel'
@@ -46,6 +46,37 @@ function useStudioObservationHook() {
       gripFoot: (foot: 'FL' | 'FR' | 'BL' | 'BR', on: boolean) => store().setGripFoot(foot, on),
       record: (on: boolean) => store().setSimRecording(on),
       diag: () => store().simDiagnostics,
+      // Total config control for the observation harness: read the full sim config, or apply any
+      // subset of it. applySimConfig only writes keys that exist in SimConfig, so the underlying
+      // simulation logic is preserved — only its tunable parameters change.
+      getConfig: () => pickSimConfig(store() as unknown as SimConfig),
+      apply: (partial: Partial<SimConfig>) => store().applySimConfig(partial),
+      // Node-position capture: buffer every body's world (x,y,z) at a target rate while the sim runs.
+      // Mirrors the gripCapture mechanism. The frame loop (useLocomotion) fills the buffer and stamps
+      // __nodeCaptureSpec (groupIds, segment lengths) on first sample.
+      nodeCaptureStart: (opts?: { hz?: number; maxSamples?: number; events?: boolean; eventSnapshots?: boolean }) => {
+        ;(window as Window).__nodeCaptureSpec = undefined
+        ;(window as Window).__nodeCapture = {
+          active: true,
+          hz: opts?.hz ?? 4,
+          buffer: [],
+          startWallTime: performance.now(),
+          lastSampleTime: -Infinity,
+          maxSamples: opts?.maxSamples ?? 8000,
+          events: opts?.events ?? false,
+          eventSnapshots: opts?.eventSnapshots ?? false,
+          eventBuffer: [],
+        }
+      },
+      nodeCaptureStop: () => {
+        const c = (window as Window).__nodeCapture
+        ;(window as Window).__nodeCapture = undefined
+        return {
+          samples: c?.buffer ?? [],
+          events: c?.eventBuffer ?? [],
+          spec: (window as Window).__nodeCaptureSpec ?? null,
+        }
+      },
       gripCaptureStart: (maxSamples?: number) => {
         ;(window as Window).__gripCapture = {
           active: true,

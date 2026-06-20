@@ -1,156 +1,193 @@
-# Observation loop — getting visual eyes on the locomotion animation
+# Observation loop — monitoring the locomotion animation
 
-This is the repeatable process for **seeing** what the locomotion actually does in the real app —
-multi-angle screenshots of the running 3D studio, driven headlessly. Point a fresh chat at this
-file when you need eyes on the animation.
+The repeatable process for **observing** what the locomotion does in the real app, headlessly. The
+default mode reads the **world position of every body node over time** (no screenshots) and renders a
+**top-down node skeleton** from those positions. Screenshots are opt-in. You also get total control
+over every simulation parameter, and optional timing capture for the grip/sweep/lift primitives.
 
-**Why it exists:** the top-down diagnostic numbers (KE, COM drift, comY) are blind to vertical
-lift-off and tumble, and an earlier render bug drew a *kinematic puppet* instead of the simulated
-body — so screenshots could lie. The studio now renders each segment at its **actual Rapier body
-transform** (truthful render), and this harness captures it from several angles so the picture
-matches the physics.
+Harness: `scripts/observe.mjs` (`npm run observe`). Cross-platform (macOS + Windows + Linux).
+The old screenshot-first harness is kept as `npm run observe:legacy` (`scripts/observe-swim.mjs`).
 
 ---
 
 ## TL;DR (the loop)
 
-```
-# 1. Server up with the CURRENT build (rebuild after any code change):
-#    (run these from the PowerShell tool — see "Environment gotchas")
-doppler run -- npx --no-install next build         # rebuild after code changes
-doppler run -- npx --no-install next start -p 3002 # start (detach it; see below)
+```bash
+# 1. Server up with the CURRENT build (rebuild after any app code change):
+doppler run -- npx --no-install next build
+doppler run -- npx --no-install next start -p 3002   # detach it (see "Server")
 
 # 2. One-time per session: cache the login
 npm run observe -- login
 
-# 3. Capture a run (drag on, 14s, default drive/exc):
-npm run observe -- run 14 on
+# 3. Capture a run (8s, node positions @ 4/s, no screenshots):
+npm run observe -- run 8
 
-# 4. Look at the output:
-#    documentation/diagnostics/frames/contact-sheet.png   <- whole run, 3 angles, one image
-#    documentation/diagnostics/frames/f<NN>_<angle>.png   <- individual frames
+# 4. Read the output in documentation/diagnostics/observe/:
+#    nodes-<ts>-topdown.png   <- top-down node skeleton: overlay + snapshots over time
+#    nodes-<ts>.md            <- per-node per-axis ranges + COM travel + config used
+#    nodes-<ts>.json          <- raw samples
 ```
-
-`run [seconds] [on|off] [drive] [exc]` — e.g. `npm run observe -- run 20 off 1.2 0.08`.
-
-### High-rate grip-timing capture (per-frame numerical telemetry)
-
-Screenshots at 1 fps can't resolve sub-second timing (CPG cycle ~3–4 s). To see exactly **when each foot's grip glow turns on/off** relative to the CPG phase, the body-wave phase, and the foot's actual fore/aft position, pass `GRIP_CAPTURE=on`:
-
-```
-$env:GRIP_CAPTURE = "on"
-npm run observe -- run 10 on 2 0.15   # plus the other land/grip env vars
-```
-
-This writes `documentation/diagnostics/frames/grip-capture-<ts>.md`, containing:
-
-- Per-leg fore/aft range (signed world units, + = forward of hip) — sanity-check the swing amplitude
-- **Glow ON/OFF transition list** with time, leg, CPG phase, foot fore/aft, **commanded sweep target**, "code says stance?" flag, and axial-front phase at each transition
-- **Per-window reach analysis** — for each grip ON→OFF window: Δfore (foot reach) and Δsweep (commanded angle change), with a verdict per window:
-  - `OK (foot pushed back)` — Δfore < 0; stance is doing its job (body levered over foot)
-  - `AXIS INVERTED (cmd back, foot fwd)` — controller asked −sweep but the foot went +fore. The joint axis sign convention is flipped vs the controller's intent (`body3d.ts:315` `sweepDir`).
-  - `WINDOW INVERTED (cmd fwd during grip)` — controller is commanding the leg forward DURING the grip window. The stance/swing halves of the sweep formula are aligned to the wrong half of the cycle (`useLocomotion.ts:388-405`), so grip is firing during the swing half.
-- Timeline of CPG phase, foot fore/aft, sweep target and glow state per leg, subsampled to ~200 rows
-
-The capture runs at render rate (~60 Hz, cap 4000 samples) and is gated by a `window.__gripCapture` toggle the studio exposes (`gripCaptureStart` / `gripCaptureStop`).
 
 ---
 
-## Environment gotchas (these cost hours to rediscover — read them)
+## Commands
 
-- **Run everything from the PowerShell tool, NOT the Bash sandbox.** The Bash sandbox reaches
-  `localhost` but **resets the external Supabase auth fetch**, so login fails with
-  `ERR_CONNECTION_RESET`. PowerShell runs on the real host and reaches both the app and Supabase.
-- **Use `127.0.0.1`, not `localhost`.** Node/chromium resolve `localhost` to IPv6 `::1` first; the
-  Next server binds IPv4 only → `ECONNREFUSED`. The harness already uses `127.0.0.1`.
-- **`next` is not on PATH for bare `doppler run`.** npm adds `node_modules/.bin`; doppler doesn't.
-  Use `doppler run -- npx --no-install next ...`.
-- **Detach the server so it survives the shell.** Each PowerShell tool call is a fresh session, so
-  `Start-Job` dies with it. Launch detached:
-  ```powershell
-  $proj = "C:\Users\azgaz\Documents\Projects\eco3d.shop"
-  Start-Process -FilePath "powershell" -ArgumentList "-NoProfile","-Command",
-    "Set-Location '$proj'; doppler run -- npx --no-install next start -p 3002 *> '$proj\.next-server.log'" `
-    -WindowStyle Hidden
-  ```
-  Restart after a rebuild: kill the listener on 3002 first
-  (`Get-NetTCPConnection -LocalPort 3002 -State Listen` → `Stop-Process`), then relaunch.
-- **Rebuild after any app code change.** The studio is a prod build; `next start` serves the last
-  `next build`. The observe loop will silently show stale behaviour otherwise.
+`npm run observe -- <cmd>`:
 
----
+| command   | does                                                                       |
+|-----------|----------------------------------------------------------------------------|
+| `login`   | sign in once, cache session to `scripts/.observe-auth.json`                |
+| `config`  | print the full live sim config (every tunable parameter) as JSON           |
+| `run [seconds] [flags]` | load rig, run sim, capture node positions, render outputs     |
 
-## One-time setup (already done, listed for a clean machine)
+### `run` flags
 
-- `npm install -D playwright-core` (no browser download needed).
-- A chromium under `%LOCALAPPDATA%\ms-playwright\chromium-*` (the harness auto-finds the newest;
-  if missing: `npx playwright install chromium`). The MCP Playwright tool is unused — it demands a
-  `chrome` channel that needs admin; this harness drives the bundled chromium directly.
-- Credentials: defaults are baked for the dev admin, over/set via env if needed:
-  `OBSERVE_EMAIL`, `OBSERVE_PASS`, `OBSERVE_RIG` (default rig `baby cyber dragon`),
-  `OBSERVE_URL` (default `http://127.0.0.1:3002`).
-- Auth is cached to `scripts/.observe-auth.json` (gitignored — holds session tokens).
+| flag                | default | does                                                              |
+|---------------------|---------|-------------------------------------------------------------------|
+| `--hz N`            | `4`     | node-position sample rate (samples/sec), decoupled from render Hz  |
+| `--shots`           | off     | ALSO take multi-angle screenshots + a contact sheet               |
+| `--events`          | off     | track grip/sweep/lift window start/end timing (see below)         |
+| `--event-shots`     | off     | `--events` + a node snapshot at each window boundary, rendered     |
+| `--set key=value`   | —       | override any one sim parameter (repeatable)                        |
+| `--config file.json`| —       | override many parameters from a JSON file (`--set` wins over file) |
+
+Examples:
+
+```bash
+npm run observe -- run 12 --hz 10 --set cpgDrive=2.4 --set turnBias=0.3
+npm run observe -- run 8 --shots --config documentation/sim-presets/stage1-fast.json
+npm run observe -- run 8 --event-shots --set gripEnabled=false --set stepEnabled=false
+```
 
 ---
 
 ## What you get + how to read it
 
-`documentation/diagnostics/frames/` (gitignored, transient):
+`documentation/diagnostics/observe/` (gitignored, transient):
 
-- **`contact-sheet.png`** — the whole run as a grid: rows = time, columns = camera angles, each cell
-  stamped with `KE`, `drift`, `maxJ%`. Read this first.
-- **`f<NN>_<angle>.png`** — full-res individual frames for detail.
+- **`nodes-<ts>-topdown.png`** — the top-down node skeleton. **X = forward (body length) → horizontal,
+  Z = lateral ↓ vertical** (Y is vertical height, not shown here). Two parts: an **overlay** of all
+  frames (faint→bright over time) with the COM path, and a **grid of snapshots** over time. The head
+  node is red. Bounds are shared across frames so motion is visible. Read this first.
+- **`nodes-<ts>.md`** — per-node min/max on each axis (X/Y/Z), COM start/end/travel, and the exact
+  config used for the run.
+- **`nodes-<ts>.json`** — raw `{ config, spec, samples, events }`.
+- **`shots-<ts>.png`** (only with `--shots`) — multi-angle screenshot contact sheet.
 
-Camera angles (the body lies along **X**):
+### Axes / "top-down" note
 
-| angle    | preset pos      | shows                                            |
-|----------|-----------------|--------------------------------------------------|
-| `front`  | `[0,4,22]`      | lengthwise **side profile** → spot lift-off/tilt |
-| `top`    | `[0,30,0.01]`   | top-down → the planar undulation wave / turning  |
-| `reset`  | `[0,8,16]`      | 3/4 overview                                     |
+The body lies along **X** (forward). Top-down = the **X×Z** horizontal plane; **Y** is vertical
+height. The `.md` reports all three dimensions per node, so vertical motion is never lost even though
+the top-down image only draws X and Z.
 
-(`side` `[22,4,0]` looks *down the spine* — axial, not used.)
+---
 
-Per-frame diagnostics also print to stdout: `KE` (kinetic energy), `drift` (snout-projected COM
-drift = forward progress), `maxJ%` (joint angle as % of its cap — **~100% means joints are railed /
-over-driven**, the current main tuning issue, tracked in Linear AZ-33).
+## Primitive-window timing (grip / sweep / lift) — `--events`
+
+The grip, sweep, and lift windows are derived from each leg's **limb-CPG phase** and the timing
+params (`gripShift`, `gripDuration`) **only** — NOT from the `gripEnabled` / `stepEnabled` switches.
+So you can observe exactly when each foot *would* grip / sweep / lift **without turning the behaviour
+on**, meaning the capture never perturbs the rest of the animation. Run with `gripEnabled=false` and
+`stepEnabled=false` to watch pure timing against the undisturbed body wave.
+
+Per leg, each frame (~60 Hz, for precise edges):
+
+- **grip** window = `rel < gripDuration`
+- **sweep** (power stroke / stance) = `rel < stepDuty`
+- **lift** (active during swing) = `rel >= stepDuty`
+
+where `rel = (limbPhase − gripShift) mod 1`. Their edges interlock: grip/sweep start = stance begin →
+sweep end = lift start → lift end = next stance.
+
+- `--events` writes **`nodes-<ts>-events.md`**: ON-intervals per leg × primitive `[tStart→tEnd (dur)]`
+  plus a raw edge list (`t / leg / primitive / edge / rel / phase`).
+- `--event-shots` additionally captures the **node positions at each boundary instant** and renders
+  **`nodes-<ts>-events.png`** — a top-down skeleton at every grip-start/end, sweep-start/end,
+  lift-start/end, colour-coded by primitive (grip=blue, sweep=green, lift=orange), labelled with leg
+  and time.
+
+---
+
+## Total config control
+
+The studio exposes the full config to the harness, so any parameter can be changed without touching
+the simulation logic (only its tunable values move):
+
+- `--set key=value` / `--config file.json` apply overrides before the run via `window.__studio.apply`,
+  which only writes keys that exist in `SimConfig`.
+- `npm run observe -- config` prints the current values and exact key names.
+
+Tunable keys (see `app/admin/animate/animateStore.ts` `SimConfig` for the authoritative list):
+`cpgDrive, cpgExcitability, frontDrive, frontSegments, turnBias, muscleAlpha, muscleBeta,
+muscleDamping, bodyFriction, legFriction, releaseFriction, gravityEnabled, landLegsEnabled,
+landGroundEnabled, limbCpgEnabled, legsLocked, environmentEnabled, gripEnabled, gripShift,
+gripDuration, gripGlowEnabled, gripFeet, stepEnabled, sweepAmount, sweepSpeed, liftAmount,
+legStiffness, legDamping`.
+
+---
+
+## Environment
+
+- **Chromium** is discovered automatically via `playwright-core`'s resolver, with a per-OS
+  `ms-playwright` cache fallback. One-time on a clean machine: `npm i -D playwright-core` then
+  `npx playwright install chromium`.
+- **Use `127.0.0.1`, not `localhost`** (Next binds IPv4 only; chromium resolves `localhost`→IPv6
+  first → `ECONNREFUSED`). The harness already uses `127.0.0.1`; override with `OBSERVE_URL`.
+- **`next` is not on PATH for bare `doppler run`** — use `doppler run -- npx --no-install next ...`.
+- **Rebuild after any app code change.** The studio is served from the last `next build`; otherwise
+  the harness silently shows stale behaviour.
+- **Network for login.** `login` reaches Supabase. On macOS run it on the real host (a restricted
+  sandbox can reset the Supabase auth fetch). Auth is cached to `scripts/.observe-auth.json`
+  (gitignored).
+- Credentials/overrides via env: `OBSERVE_EMAIL`, `OBSERVE_PASS`, `OBSERVE_RIG`
+  (default `baby cyber dragon`), `OBSERVE_URL` (default `http://127.0.0.1:3002`).
+
+### Server (detach so it survives the shell)
+
+macOS / Linux:
+```bash
+doppler run -- npx --no-install next start -p 3002 > .next-server.log 2>&1 &
+```
+
+Windows (PowerShell):
+```powershell
+$proj = "C:\Users\azgaz\Documents\Projects\eco3d.shop"
+Start-Process -FilePath "powershell" -ArgumentList "-NoProfile","-Command",
+  "Set-Location '$proj'; doppler run -- npx --no-install next start -p 3002 *> '$proj\.next-server.log'" `
+  -WindowStyle Hidden
+```
+Restart after a rebuild: kill the listener on 3002 first, then relaunch.
 
 ---
 
 ## The dev hook the harness drives
 
-The studio exposes `window.__studio` (admin page only, set in `app/admin/animate/AnimateScene.tsx`):
+`window.__studio` (admin animate page only, `app/admin/animate/AnimateScene.tsx`):
 
 ```js
-window.__studio.setCam('front'|'top'|'side'|'reset'|'front')  // camera preset
-window.__studio.drive(true|false)                              // start/stop the sim
-window.__studio.drag(true|false)                               // toggle swimming drag
-window.__studio.tune(drive, excitability)                      // set CPG params
-window.__studio.diag()                                         // { kineticEnergy, comDriftFromStart, maxJointFracOfCap, ... }
+window.__studio.setCam('front'|'top'|'side'|'reset')   // camera preset (only used with --shots)
+window.__studio.drive(true|false)                       // start/stop the sim
+window.__studio.getConfig()                             // full SimConfig
+window.__studio.apply({ cpgDrive: 2.4, turnBias: 0.3 }) // override any subset of SimConfig
+window.__studio.diag()                                  // { kineticEnergy, comDriftFromStart, ... }
+window.__studio.nodeCaptureStart({ hz, maxSamples, events, eventSnapshots })
+window.__studio.nodeCaptureStop()                       // { samples, events, spec }
 ```
 
-The harness loads the saved rig via the wizard (Pick Model → Load → `<rig>` → Animate), waits for
-`window.__studio`, then uses it — no DOM scraping for control.
-
----
-
-## Harness commands
-
-`scripts/observe-swim.mjs` (also `npm run observe -- <cmd>`):
-
-| command                                  | does                                                    |
-|------------------------------------------|---------------------------------------------------------|
-| `login`                                  | sign in once, cache session to `scripts/.observe-auth.json` |
-| `controls`                               | dump the visible clickable controls (UI debugging)      |
-| `run [secs] [on\|off] [drive] [exc]`     | load rig, run sim, multi-angle screenshot every ~1s + contact sheet |
+The frame loop (`app/game/locomotion/useLocomotion.ts`) fills `window.__nodeCapture` each frame:
+periodic node samples (hz-gated) and, when `events` is on, grip/sweep/lift edge detection (every
+frame) computed from the CPG phase alone.
 
 ---
 
 ## Troubleshooting
 
-- **Login fails / `ERR_CONNECTION_RESET`** → you're in the Bash sandbox. Run from PowerShell.
-- **`ECONNREFUSED` to the app** → server not up, or you used `localhost`. Check `127.0.0.1:3002`,
-  tail `.next-server.log`.
-- **Frames look unchanged after a code edit** → you didn't rebuild + restart the server.
+- **`WARNING: no node samples captured`** → rig not loaded or sim not running. Check the rig name
+  (`OBSERVE_RIG`) and that the server is the current build.
+- **`ECONNREFUSED`** → server not up, or `localhost` instead of `127.0.0.1`. Tail `.next-server.log`.
+- **Frames/positions unchanged after an edit** → you didn't rebuild + restart the server.
 - **`no chromium found`** → `npx playwright install chromium`.
-- **Stale `window.__studio` / auth** → delete `scripts/.observe-auth.json` and `login` again.
+- **Stale auth** → delete `scripts/.observe-auth.json` and `login` again.
+- **`events: none detected`** → the rig has no hip joints, or the limb CPG didn't advance (drive off).
+```
