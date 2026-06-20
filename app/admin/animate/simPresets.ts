@@ -1,4 +1,4 @@
-import { DEFAULT_SIM_CONFIG, SimConfig } from './animateStore'
+import { SimConfig } from './animateStore'
 
 export interface SimPreset {
   name: string
@@ -46,41 +46,72 @@ const SWIM_ENERGY_BASE: Partial<SimConfig> = {
   muscleDamping: 6,
 }
 
+// Fully-isolated axial spine: legs OFF *and* the four limb oscillators OFF (limbCpgEnabled:false),
+// so the central wave is a single continuous undulation with nothing coupling into it — the truest
+// "core CPG" the rig can produce. Verified in isolation via the observe harness (11 axial nodes,
+// planar tilt ~1°). Two orthogonal knobs were mapped here:
+//   • Drive sets FREQUENCY + energy (ν = drive·exc·1.1) while the strong/elastic muscle holds joint
+//     amplitude at the angle cap. Drive 0.6→2.8 scales the swim smoothly; raising EXCITABILITY past
+//     ~1.0 instead collapses amplitude (muscle-bandwidth limit), and drive ≥3.0 falls off the axial
+//     saturation cliff (d_th=3) — so Drive is the reliable single "swim-strength" control.
+//   • α/β ratio sets the wave AMPLITUDE (tail Z-span 0.9 at α4/β35 → 5.2 at α40/β18), independent of
+//     frequency, with the joint angle cap as the ceiling.
+const AXIAL_ISO_BASE: Partial<SimConfig> = {
+  ...SWIM_ENERGY_BASE,
+  limbCpgEnabled: false,
+}
+
 export const SIM_PRESETS: SimPreset[] = [
+  // ── Isolated spine — WAVE SHAPE (drag OFF: the body oscillates in place so you can watch the
+  // amplitude/frequency of the pure undulation without it swimming out of frame). α/β sets amplitude.
   {
-    name: 'Default',
-    description: 'Store default (walking foundation baseline).',
-    config: { ...DEFAULT_SIM_CONFIG },
+    name: 'Spine wave — small',
+    description: 'Isolated spine, drag off. Shallow undulation (α8/β35 → tail span ~1.5). Watch in place.',
+    config: { ...AXIAL_ISO_BASE, environmentEnabled: false, cpgDrive: 1.5, muscleAlpha: 8, muscleBeta: 35, muscleDamping: 6 },
   },
   {
-    name: 'Swim energy — low',
-    description: 'Low energy: slow undulation, still full amplitude (drive 0.7). KE ~15.',
-    config: { ...SWIM_ENERGY_BASE, cpgDrive: 0.7 },
+    name: 'Spine wave — medium',
+    description: 'Isolated spine, drag off. Mid undulation (α15/β35 → tail span ~2.5).',
+    config: { ...AXIAL_ISO_BASE, environmentEnabled: false, cpgDrive: 1.5, muscleAlpha: 15, muscleBeta: 35, muscleDamping: 6 },
   },
   {
-    name: 'Swim energy — mid',
-    description: 'Mid energy: faster wave, full amplitude (drive 1.5). KE ~120.',
-    config: { ...SWIM_ENERGY_BASE, cpgDrive: 1.5 },
+    name: 'Spine wave — broad',
+    description: 'Isolated spine, drag off. Broad slow wave at the angle cap (drive 1.0, α22/β35 → tail span ~3.5).',
+    config: { ...AXIAL_ISO_BASE, environmentEnabled: false, cpgDrive: 1.0, muscleAlpha: 22, muscleBeta: 35, muscleDamping: 6 },
   },
   {
-    name: 'Swim energy — high',
-    description: 'High energy: fast vigorous wave, full amplitude (drive 2.6). KE ~300.',
-    config: { ...SWIM_ENERGY_BASE, cpgDrive: 2.6 },
+    name: 'Spine wave — huge eel',
+    description: 'Isolated spine, drag off. Maximum-amplitude eel bend (α40/β18 → tail span ~5.2, ~1.5 wavelengths).',
+    config: { ...AXIAL_ISO_BASE, environmentEnabled: false, cpgDrive: 1.2, muscleAlpha: 40, muscleBeta: 18, muscleDamping: 4 },
   },
   {
-    name: 'Stage1 — fast',
-    description: 'High-frequency swim sweep result (drive 2.4, exc 0.88, strong muscle).',
-    config: { ...SWIM_BASE, cpgDrive: 2.4, cpgExcitability: 0.88, muscleAlpha: 42, muscleBeta: 25.2, muscleDamping: 10 },
+    name: 'Spine wave — fast buzz',
+    description: 'Isolated spine, drag off. High frequency, small amplitude via excitability (exc 1.5 → tail span ~0.5).',
+    config: { ...AXIAL_ISO_BASE, environmentEnabled: false, cpgDrive: 1.5, cpgExcitability: 1.5 },
+  },
+
+  // ── Isolated spine — SWIM STRENGTH (drag ON: the single-knob energy ladder. Same muscle, only Drive
+  // changes — speed scales smoothly while the wave stays planar (tilt ~1°). This is the candidate for a
+  // single "swim strength" slider.) Forward travel over 10s noted in each description.
+  {
+    name: 'Spine swim — 1 idle',
+    description: 'Isolated spine, drag on. Gentle cruise (drive 0.6 → ~14 units/10s).',
+    config: { ...AXIAL_ISO_BASE, environmentEnabled: true, cpgDrive: 0.6 },
   },
   {
-    name: 'Stage1 — steady',
-    description: 'Mid-frequency swim sweep result (drive 2.85, exc 1.0).',
-    config: { ...SWIM_BASE, cpgDrive: 2.85, cpgExcitability: 1.0, muscleAlpha: 18, muscleBeta: 35, muscleDamping: 2 },
+    name: 'Spine swim — 2 cruise',
+    description: 'Isolated spine, drag on. Steady swim (drive 1.2 → ~28 units/10s).',
+    config: { ...AXIAL_ISO_BASE, environmentEnabled: true, cpgDrive: 1.2 },
   },
   {
-    name: 'Stage1 — slow-straight',
-    description: 'Low-frequency, straight swim sweep result (drive 2.0, exc 0.5).',
-    config: { ...SWIM_BASE, cpgDrive: 2.0, cpgExcitability: 0.5, muscleAlpha: 18, muscleBeta: 35, muscleDamping: 30 },
+    name: 'Spine swim — 3 brisk',
+    description: 'Isolated spine, drag on. Brisk swim (drive 2.0 → ~45 units/10s).',
+    config: { ...AXIAL_ISO_BASE, environmentEnabled: true, cpgDrive: 2.0 },
+  },
+  {
+    name: 'Spine swim — 4 sprint',
+    description: 'Isolated spine, drag on. Fast sprint, still planar (drive 2.8 → ~58 units/10s; stay below the d_th=3 cliff).',
+    config: { ...AXIAL_ISO_BASE, environmentEnabled: true, cpgDrive: 2.8 },
   },
 ]
 

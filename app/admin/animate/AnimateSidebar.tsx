@@ -256,6 +256,15 @@ function SimulateTab() {
           onChange={setGravityEnabled}
         />
         <Toggle
+          label="Isolate spine"
+          tip="One-click axial isolation: turns Legs AND Limb CPG off together so the spine produces a single continuous undulation with no limb oscillators coupling into it — the pure core CPG wave. Turn off to restore both."
+          on={!landLegsEnabled && !limbCpgEnabled}
+          onChange={(v) => {
+            setLandLegsEnabled(!v)
+            setLimbCpgEnabled(!v)
+          }}
+        />
+        <Toggle
           label="Legs"
           tip="Build the four legs as real physics bodies that the trunk can stand on. Off = no legs; the body undulates alone."
           on={landLegsEnabled}
