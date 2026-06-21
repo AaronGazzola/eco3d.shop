@@ -45,12 +45,18 @@ export default function VariantEditorPage() {
         </div>
       ) : (
         <div className="space-y-12">
-          <div>
+          <div className="flex items-center gap-5">
             <Link
               href={`/admin/dragons/${variantId}/models`}
               className="text-sm text-violet-300 hover:text-violet-200 transition-colors"
             >
               Stage models & role tagging →
+            </Link>
+            <Link
+              href={`/admin/dragons/${variantId}/orderability`}
+              className="text-sm text-violet-300 hover:text-violet-200 transition-colors"
+            >
+              Orderability map →
             </Link>
           </div>
           <VariantHeader key={data.variant.updated_at} variantId={variantId} data={data} />

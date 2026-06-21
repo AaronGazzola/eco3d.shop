@@ -102,10 +102,29 @@ OpenSpec change `add-dragon-role-tagging`. The 3D authoring tool — supersedes 
   `stl_key` is treated as **immutable** on a saved model. Re-sourcing geometry = create a new model,
   never swap the STL under an existing one (would silently mis-map tags).
 
-## What's next
+## Orderability map (landed)
 
-- **Orderability map** (`add-dragon-orderability-map`): enumerate distinct printable phenotypes per
-  variant vs `max_print_colors`, flag impractical combos. Tracked in AZ-102 (last remaining piece).
+OpenSpec change `add-dragon-orderability-map`. Read-only analysis — completes the AZ-102 authoring set.
+
+- **Engine** (`app/game/dragons.genetics.ts`): `enumeratePhenotypes(genes, roles, alleles, filaments,
+  {maxEnum})` builds the cartesian product of one allele per gene (the homozygous representative — a
+  genotype's look equals its dominant allele's, and every allele is expressible homozygously), resolves
+  each tuple to a `role → hex` map, dedupes by signature, and reports each distinct phenotype's
+  distinct-colour count. Returns `{ phenotypes, capped, total }`; capped at `maxEnum` (default 5000) to
+  avoid blow-ups, never silently truncated. `isOverPrintLimit(count, max | null)` classifies a row
+  (null ceiling → never over).
+- **View** `app/admin/dragons/[variantId]/orderability/` (`AdminGate`, read-only, linked from the
+  variant editor): a summary (distinct-phenotype count, over-limit count, the `max_print_colors` value
+  or "no limit set", a capped note) and a table of distinct phenotypes with role swatches, colour
+  counts, and over-limit flags.
+- **No writes, no schema change.** Headless check: `scripts/check-dragon-orderability.ts`.
+
+## Status
+
+AZ-102 (dragon-genetics admin authoring) is complete: A (data) · B (engine+render) · C
+(authoring) · role tagging · orderability map. Deferred threads remain idea-channel only: AZ-96
+breeding, AZ-97 growth, AZ-98 mutations, AZ-99 selection/population, AZ-100 traits & conditional
+colour.
 
 Deferred threads: AZ-96 breeding, AZ-97 growth, AZ-98 mutations, AZ-99 selection/population,
 AZ-100 traits & conditional color expression.

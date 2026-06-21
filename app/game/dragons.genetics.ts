@@ -60,6 +60,98 @@ export function resolveGenotype(
   return out
 }
 
+export type OrderabilityPhenotype = {
+  roleHex: Record<string, string>
+  colorCount: number
+}
+
+export type OrderabilityEnumeration = {
+  phenotypes: OrderabilityPhenotype[]
+  capped: boolean
+  total: number
+}
+
+export function isOverPrintLimit(colorCount: number, maxPrintColors: number | null): boolean {
+  if (maxPrintColors == null) return false
+  return colorCount > maxPrintColors
+}
+
+export function enumeratePhenotypes(
+  genes: DragonGene[],
+  roles: DragonRole[],
+  alleles: DragonAllele[],
+  filaments: FilamentColor[],
+  opts?: { maxEnum?: number },
+): OrderabilityEnumeration {
+  const maxEnum = opts?.maxEnum ?? 5000
+  if (genes.length === 0) return { phenotypes: [], capped: false, total: 0 }
+
+  const roleById = new Map(roles.map((r) => [r.id, r]))
+  const filamentById = new Map(filaments.map((f) => [f.id, f]))
+  const allelesByGene = new Map<string, DragonAllele[]>()
+  for (const a of alleles) {
+    const list = allelesByGene.get(a.gene_id) ?? []
+    list.push(a)
+    allelesByGene.set(a.gene_id, list)
+  }
+
+  const pools: DragonAllele[][] = []
+  let total = 1
+  for (const gene of genes) {
+    const pool = allelesByGene.get(gene.id) ?? []
+    if (pool.length === 0) {
+      console.error(`Gene "${gene.key}" has no alleles to enumerate`)
+      throw new Error(`Gene "${gene.key}" has no alleles to enumerate`)
+    }
+    pools.push(pool)
+    total *= pool.length
+  }
+
+  const limit = Math.min(total, maxEnum)
+  const seen = new Set<string>()
+  const phenotypes: OrderabilityPhenotype[] = []
+  const idx = new Array(genes.length).fill(0)
+
+  for (let produced = 0; produced < limit; produced++) {
+    const roleHex: Record<string, string> = {}
+    for (let gi = 0; gi < genes.length; gi++) {
+      const gene = genes[gi]
+      const allele = pools[gi][idx[gi]]
+      const role = roleById.get(gene.role_id)
+      if (!role) {
+        console.error(`Gene "${gene.key}" references unknown role`)
+        throw new Error(`Gene "${gene.key}" references unknown role`)
+      }
+      const filament = filamentById.get(allele.filament_color_id)
+      if (!filament) {
+        console.error(`Allele "${allele.key}" references unknown filament`)
+        throw new Error(`Allele "${allele.key}" references unknown filament`)
+      }
+      roleHex[role.key] = filament.hex
+    }
+
+    const sig = Object.keys(roleHex)
+      .sort()
+      .map((k) => `${k}:${roleHex[k]}`)
+      .join('|')
+    if (!seen.has(sig)) {
+      seen.add(sig)
+      phenotypes.push({ roleHex, colorCount: new Set(Object.values(roleHex)).size })
+    }
+
+    let gi = genes.length - 1
+    while (gi >= 0) {
+      idx[gi]++
+      if (idx[gi] < pools[gi].length) break
+      idx[gi] = 0
+      gi--
+    }
+    if (gi < 0) break
+  }
+
+  return { phenotypes, capped: total > maxEnum, total }
+}
+
 export function rollGenotype(genes: DragonGene[], alleles: DragonAllele[]): Genotype {
   const allelesByGene = new Map<string, DragonAllele[]>()
   for (const al of alleles) {
