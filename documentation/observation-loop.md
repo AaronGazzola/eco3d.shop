@@ -47,10 +47,17 @@ npm run observe -- run 8
 |---------------------|---------|-------------------------------------------------------------------|
 | `--hz N`            | `4`     | node-position sample rate (samples/sec), decoupled from render Hz  |
 | `--shots`           | off     | ALSO take multi-angle screenshots + a contact sheet               |
-| `--events`          | off     | track grip/sweep/lift window start/end timing (see below)         |
+| `--events`          | off     | grip/sweep/lift window timing **+ a reach-alignment report** (see below) |
 | `--event-shots`     | off     | `--events` + a node snapshot at each window boundary, rendered     |
 | `--set key=value`   | —       | override any one sim parameter (repeatable)                        |
 | `--config file.json`| —       | override many parameters from a JSON file (`--set` wins over file) |
+
+There are also two **post-processing scripts** that read the captured JSON (no server needed):
+
+| script                              | does                                                              |
+|-------------------------------------|-------------------------------------------------------------------|
+| `node scripts/observe-wave.mjs [json]`     | classify the axial wave **standing vs traveling** — NEURAL (CPG activity) and MECHANICAL (body shape) separately. Defaults to the newest capture; `-v` prints the per-segment phase table. |
+| `node scripts/observe-analyze.mjs [epoch]` | tabulate every capture: amplitude (lateral Z-span), ν, forward thrust. Optional epoch-ms arg filters to runs newer than it. |
 
 Examples:
 
@@ -72,7 +79,12 @@ npm run observe -- run 8 --event-shots --set gripEnabled=false --set stepEnabled
   node is red. Bounds are shared across frames so motion is visible. Read this first.
 - **`nodes-<ts>.md`** — per-node min/max on each axis (X/Y/Z), COM start/end/travel, and the exact
   config used for the run.
-- **`nodes-<ts>.json`** — raw `{ config, spec, samples, events }`.
+- **`nodes-<ts>.json`** — raw `{ config, spec, samples, events, reach, reachLegs }`. Each sample also
+  carries `cpg` — the per-axial-segment CPG **activity** (signed muscle activation), the NEURAL signal
+  `observe-wave.mjs` classifies (distinct from the mechanical body shape in `nodes`).
+- **`nodes-<ts>-reach.md`** (only with `--events`) — grip/sweep timing validation: per leg, the measured
+  phase of max-forward foot reach (φ_fwd ≈ 0 = the window opens right at max-forward) and how far the
+  current `gripShift`/`gripDuration` are off.
 - **`shots-<ts>.png`** (only with `--shots`) — multi-angle screenshot contact sheet.
 
 ### Axes / "top-down" note
@@ -85,23 +97,21 @@ the top-down image only draws X and Z.
 
 ## Primitive-window timing (grip / sweep / lift) — `--events`
 
-The grip, sweep, and lift windows are derived from each leg's **limb-CPG phase** and the timing
-params (`gripShift`, `gripDuration`) **only** — NOT from the `gripEnabled` / `stepEnabled` switches.
-So you can observe exactly when each foot *would* grip / sweep / lift **without turning the behaviour
-on**, meaning the capture never perturbs the rest of the animation. Run with `gripEnabled=false` and
-`stepEnabled=false` to watch pure timing against the undisturbed body wave.
+The grip, sweep, and lift windows are derived from each leg's **measured undulation phase** — the live
+controller's clock — and the timing params (`gripShift`, `gripDuration`) **only**, NOT from the
+`gripEnabled` / `stepEnabled` switches. So you can observe exactly when each foot *would* grip / sweep /
+lift **without turning the behaviour on**, and the capture never perturbs the animation. Run with
+`gripEnabled=false` and `stepEnabled=false` to watch pure timing against the undisturbed body wave.
 
-Per leg, each frame (~60 Hz, for precise edges):
+The phase is read from the foot's actual body-wave reach (reconstructed from the girdle so a planted foot
+can't corrupt it) by `updateMechPhase` in `useLocomotion.ts`: **phase 0 = max-forward reach**, 0.5 =
+max-backward. It is frequency-free (RMS-quadrature), so one `gripShift`/`gripDuration` holds across any
+drive/muscle. Per leg, each frame: **grip** = `rel < gripDuration`; **sweep** (stance) = `rel < stepDuty`;
+**lift** (swing) = `rel >= stepDuty`, where `rel = (phase − gripShift) mod 1`.
 
-- **grip** window = `rel < gripDuration`
-- **sweep** (power stroke / stance) = `rel < stepDuty`
-- **lift** (active during swing) = `rel >= stepDuty`
-
-where `rel = (limbPhase − gripShift) mod 1`. Their edges interlock: grip/sweep start = stance begin →
-sweep end = lift start → lift end = next stance.
-
-- `--events` writes **`nodes-<ts>-events.md`**: ON-intervals per leg × primitive `[tStart→tEnd (dur)]`
-  plus a raw edge list (`t / leg / primitive / edge / rel / phase`).
+- `--events` writes **`nodes-<ts>-events.md`** (ON-intervals per leg × primitive + raw edge list) AND
+  **`nodes-<ts>-reach.md`** — the alignment check: projects the actual foot reach onto the measured phase,
+  so φ_fwd ≈ 0 means the window opens exactly at max-forward reach. Use it to set `gripShift` (≈ φ_fwd).
 - `--event-shots` additionally captures the **node positions at each boundary instant** and renders
   **`nodes-<ts>-events.png`** — a top-down skeleton at every grip-start/end, sweep-start/end,
   lift-start/end, colour-coded by primitive (grip=blue, sweep=green, lift=orange), labelled with leg
@@ -119,11 +129,14 @@ the simulation logic (only its tunable values move):
 - `npm run observe -- config` prints the current values and exact key names.
 
 Tunable keys (see `app/admin/animate/animateStore.ts` `SimConfig` for the authoritative list):
-`cpgDrive, cpgExcitability, frontDrive, frontSegments, turnBias, muscleAlpha, muscleBeta,
-muscleDamping, bodyFriction, legFriction, releaseFriction, gravityEnabled, landLegsEnabled,
-landGroundEnabled, limbCpgEnabled, legsLocked, environmentEnabled, gripEnabled, gripShift,
-gripDuration, gripGlowEnabled, gripFeet, stepEnabled, sweepAmount, sweepSpeed, liftAmount,
-legStiffness, legDamping`.
+`cpgDrive, cpgExcitability, frontDrive, frontSegments, turnBias, limbDrive, feedbackIpsi,
+feedbackContra, muscleAlpha, muscleBeta, muscleDamping, bodyFriction, legFriction, releaseFriction,
+gravityEnabled, landLegsEnabled, landGroundEnabled, limbCpgEnabled, legsLocked, environmentEnabled,
+gripEnabled, gripShift, gripDuration, gripGlowEnabled, gripFeet, stepEnabled, sweepAmount, sweepSpeed,
+liftAmount, legStiffness, legDamping`.
+
+- `limbDrive` — independent drive for the four limb oscillators (paper Fig 6B); 0 = follow global drive.
+- `feedbackIpsi` / `feedbackContra` — axial proprioceptive feedback weights (paper Fig 6C); 0 = off.
 
 ---
 
@@ -172,12 +185,13 @@ window.__studio.getConfig()                             // full SimConfig
 window.__studio.apply({ cpgDrive: 2.4, turnBias: 0.3 }) // override any subset of SimConfig
 window.__studio.diag()                                  // { kineticEnergy, comDriftFromStart, ... }
 window.__studio.nodeCaptureStart({ hz, maxSamples, events, eventSnapshots })
-window.__studio.nodeCaptureStop()                       // { samples, events, spec }
+window.__studio.nodeCaptureStop()                       // { samples, events, spec, reach, reachLegs }
 ```
 
 The frame loop (`app/game/locomotion/useLocomotion.ts`) fills `window.__nodeCapture` each frame:
-periodic node samples (hz-gated) and, when `events` is on, grip/sweep/lift edge detection (every
-frame) computed from the CPG phase alone.
+periodic node samples (node positions + per-segment CPG activity, hz-gated) and, when `events` is on,
+grip/sweep/lift edge detection + foot-reach accumulation (every frame) computed from the measured
+undulation phase.
 
 ---
 
@@ -189,5 +203,6 @@ frame) computed from the CPG phase alone.
 - **Frames/positions unchanged after an edit** → you didn't rebuild + restart the server.
 - **`no chromium found`** → `npx playwright install chromium`.
 - **Stale auth** → delete `scripts/.observe-auth.json` and `login` again.
-- **`events: none detected`** → the rig has no hip joints, or the limb CPG didn't advance (drive off).
+- **`events: none detected`** → the rig has no hip joints, or the sim didn't run long enough for the
+  measured-phase estimator to prime (give it a few seconds of undulation).
 ```
