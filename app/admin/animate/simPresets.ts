@@ -61,7 +61,64 @@ const AXIAL_ISO_BASE: Partial<SimConfig> = {
   limbCpgEnabled: false,
 }
 
+// Walking on the measured-undulation timing. The grip/sweep window is clocked off each foot's MEASURED
+// body-wave reach (useLocomotion.updateMechPhase, 0 = max-forward reach), NOT the CPG phase — so a single
+// gripShift/gripDuration keeps the foot planting at max-forward and releasing at max-backward across ANY
+// drive/muscle (validated: max-forward reach lands at phase ~0 for drive 0.8-2.4). Gentle leg-motor
+// params (vs the stiff "locked-leg" hold values) keep the step stable; the body runs a traveling wave
+// (our compliant body can't hold the paper's standing wave) and that wave carries the legs through swing.
+const WALK_BASE: Partial<SimConfig> = {
+  gravityEnabled: true,
+  landLegsEnabled: true,
+  landGroundEnabled: true,
+  limbCpgEnabled: true,
+  legsLocked: false,
+  environmentEnabled: false,
+  cpgExcitability: 0.5,
+  frontDrive: 0,
+  frontSegments: 0,
+  turnBias: 0,
+  limbDrive: 0,
+  feedbackIpsi: 0,
+  feedbackContra: 0,
+  muscleAlpha: 22,
+  muscleBeta: 35,
+  muscleDamping: 6,
+  bodyFriction: 0.05,
+  legFriction: 0.6,
+  releaseFriction: 0,
+  gripEnabled: true,
+  gripShift: 0.05,
+  gripDuration: 0.5,
+  gripGlowEnabled: true,
+  gripFeet: { FL: true, FR: true, BL: true, BR: true },
+  stepEnabled: true,
+  sweepAmount: 0.3,
+  sweepSpeed: 37000,
+  liftAmount: 0.25,
+  legStiffness: 3000,
+  legDamping: 120,
+}
+
 export const SIM_PRESETS: SimPreset[] = [
+  // ── WALK — legs stepping on the measured-undulation timing (grip plants at max-forward reach,
+  // releases at max-backward; one timing config holds across drive). The body wave carries the legs.
+  {
+    name: 'Walk — slow',
+    description: 'Stable walk, slow body wave (drive 0.8). Grip/sweep timed to the measured reach. ~12 units/14s.',
+    config: { ...WALK_BASE, cpgDrive: 0.8 },
+  },
+  {
+    name: 'Walk — mid',
+    description: 'Stable walk (drive 1.5). Same grip timing as slow/fast — invariant to drive. ~9 units/14s.',
+    config: { ...WALK_BASE, cpgDrive: 1.5 },
+  },
+  {
+    name: 'Walk — fast',
+    description: 'Faster walk (drive 2.4). Same grip timing. ~14 units/14s, stays planar (tilt ~3°).',
+    config: { ...WALK_BASE, cpgDrive: 2.4 },
+  },
+
   // ── Isolated spine — WAVE SHAPE (drag OFF: the body oscillates in place so you can watch the
   // amplitude/frequency of the pure undulation without it swimming out of frame). α/β sets amplitude.
   {

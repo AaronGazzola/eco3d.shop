@@ -344,77 +344,58 @@ function writeEventsReport(path, evs, cfg) {
   writeFileSync(path, lines.join('\n') + '\n')
 }
 
-// Foot-reach timing: per leg, recover the limb phase of MAX-FORWARD reach (φ_fwd) from the first
-// harmonic accumulated in the sim (C=Σfore·cosφ, S=Σfore·sinφ → φ_fwd=atan2(S,C)). Max-backward is
-// half a cycle later. Then check whether the configured grip/sweep window (gripShift, gripDuration)
-// actually opens at φ_fwd and closes at φ_back, and print the gripShift/gripDuration that would.
+// Grip/sweep timing validation. The controller now clocks off the MEASURED undulation phase (0 =
+// max-forward foot reach). Here we project the ACTUAL foot reach onto that same phase: if the phase
+// estimator is right, max-forward reach lands at φ_fwd ≈ 0 for every leg, so a grip window at
+// gripShift=0 opens at max-forward and (gripDuration 0.5) releases at max-backward — for any drive/muscle.
 function reportReach(path, reach, legs, cfg) {
   const TWO_PI = Math.PI * 2
   const wrap01 = (x) => ((x % 1) + 1) % 1
-  const cdist = (a, b) => { const d = Math.abs(wrap01(a) - wrap01(b)); return Math.min(d, 1 - d) } // cyclic distance in cycles
+  // signed cyclic distance in cycles, in (−0.5, 0.5]
+  const cdistSigned = (a, b) => { let d = wrap01(a) - wrap01(b); if (d > 0.5) d -= 1; if (d <= -0.5) d += 1; return d }
+  const cdist = (a, b) => Math.abs(cdistSigned(a, b))
   const rows = []
-  let sumSin = 0, sumCos = 0       // limb-phase reference (amplitude-weighted)
-  let sumSinAx = 0, sumCosAx = 0   // axial-girdle-phase reference (amplitude-weighted)
+  let sumSin = 0, sumCos = 0 // amplitude-weighted circular mean of φ_fwd
   for (let h = 0; h < reach.length; h++) {
     const r = reach[h]
     if (!r || r.n === 0) continue
     const phiFwdRad = Math.atan2(r.s, r.c)
     const phiFwd = wrap01(phiFwdRad / TWO_PI)
-    const phiBack = wrap01(phiFwd + 0.5)
     const amp = Math.hypot(r.c, r.s) / r.n // first-harmonic amplitude of fore-aft reach (world units)
-    const phiFwdAxRad = Math.atan2(r.sAx ?? 0, r.cAx ?? 0)
-    const phiFwdAx = wrap01(phiFwdAxRad / TWO_PI)
-    const ampAx = Math.hypot(r.cAx ?? 0, r.sAx ?? 0) / r.n
-    // Amplitude-WEIGHTED circular mean: legs with tiny fore-aft reach (front legs near the head, where
-    // the body wave is small) have a noisy phase estimate AND contribute little thrust, so they must
-    // not drag the mean. Weighting by amp makes the reference follow the legs that actually reach.
     sumSin += amp * Math.sin(phiFwdRad); sumCos += amp * Math.cos(phiFwdRad)
-    sumSinAx += ampAx * Math.sin(phiFwdAxRad); sumCosAx += ampAx * Math.cos(phiFwdAxRad)
-    rows.push({ leg: legs[h] ?? `L${h}`, phiFwd, phiBack, amp, phiFwdAx, ampAx, rawMax: r.phiAtMax, rawMin: r.phiAtMin, n: r.n })
+    rows.push({ leg: legs[h] ?? `L${h}`, phiFwd, amp, rawMax: r.phiAtMax, rawMin: r.phiAtMin, n: r.n })
   }
   const meanFwd = wrap01(Math.atan2(sumSin, sumCos) / TWO_PI)
-  const meanBack = wrap01(meanFwd + 0.5)
-  const meanFwdAx = wrap01(Math.atan2(sumSinAx, sumCosAx) / TWO_PI)
   const ampMax = Math.max(...rows.map((r) => r.amp), 1e-9)
-  // spread = worst deviation among legs that actually reach (amp ≥ 25% of the strongest), since the
-  // low-amplitude front legs are noise and would otherwise inflate it.
+  // spread among legs that actually reach (amp ≥ 25% of the strongest); low-amplitude front legs are noise.
   const spread = Math.max(...rows.filter((r) => r.amp >= 0.25 * ampMax).map((r) => cdist(r.phiFwd, meanFwd)), 0)
-  const spreadAx = Math.max(...rows.filter((r) => r.amp >= 0.25 * ampMax).map((r) => cdist(r.phiFwdAx, meanFwdAx)), 0)
 
   const gripShift = cfg.gripShift, gripDuration = cfg.gripDuration
-  const gripStartPhase = wrap01(gripShift)            // rel=0
-  const gripEndPhase = wrap01(gripShift + gripDuration) // rel=gripDuration
-  const startErr = cdist(gripStartPhase, meanFwd)
-  const endErr = cdist(gripEndPhase, meanBack)
+  const startErr = cdistSigned(gripShift, meanFwd)          // grip opens at gripShift; want meanFwd (≈0)
+  const endErr = cdistSigned(gripShift + gripDuration, wrap01(meanFwd + 0.5))
 
   const f = (x, d = 3) => Number(x).toFixed(d)
   const lines = []
-  lines.push('# Foot-reach timing (grip/sweep phase-lock)')
+  lines.push('# Grip/sweep timing validation (measured-undulation clock)')
   lines.push(`generated: ${new Date().toISOString()}`)
   lines.push('')
-  lines.push('Per leg, φ_fwd = limb phase (cycles 0..1) at MAX-FORWARD foot reach (first harmonic of the')
-  lines.push('body-wave-driven fore-aft reach, leg LOCKED). φ_back = φ_fwd+0.5 = max-backward reach.')
-  lines.push('Measured with grip AND step OFF, so the behaviour never perturbs the wave it is timed to.')
+  lines.push('Controller clocks off the foot\'s MEASURED reach phase (0 = max-forward). Below, the ACTUAL')
+  lines.push('foot reach is projected onto that phase: φ_fwd ≈ 0 means max-forward reach lands at phase 0,')
+  lines.push('so grip/sweep at gripShift≈0 open exactly at max-forward reach. Observed with grip+step OFF.')
   lines.push('')
-  lines.push('leg   φ_fwd(limb) amp    φ_fwd(axial) ampAx   rawMaxφ rawMinφ  samples')
+  lines.push('leg   φ_fwd  amp     rawMaxφ rawMinφ  samples   (φ_fwd≈0 = aligned)')
   for (const r of rows) {
-    lines.push(`${r.leg.padEnd(4)} ${f(r.phiFwd).padStart(9)} ${f(r.amp).padStart(6)} ${f(r.phiFwdAx).padStart(11)} ${f(r.ampAx).padStart(6)}  ${f(r.rawMax).padStart(6)} ${f(r.rawMin).padStart(7)}  ${String(r.n).padStart(6)}`)
+    lines.push(`${r.leg.padEnd(4)} ${f(r.phiFwd).padStart(6)} ${f(r.amp).padStart(6)}  ${f(r.rawMax).padStart(6)} ${f(r.rawMin).padStart(7)}  ${String(r.n).padStart(6)}`)
   }
   lines.push('')
-  lines.push(`LIMB ref : mean φ_fwd = ${f(meanFwd)}   φ_back = ${f(meanBack)}   spread = ${f(spread)} cycles`)
-  lines.push(`AXIAL ref: mean φ_fwd = ${f(meanFwdAx)}   spread = ${f(spreadAx)} cycles  ← drive-invariant clock`)
-  lines.push('')
-  lines.push('## To lock grip-start→max-forward and grip-release→max-backward:')
-  lines.push(`   gripShift = ${f(meanFwd)}   gripDuration = 0.500`)
-  lines.push('   (sweep shares this window, so its forward peak lands on φ_fwd and rear peak on φ_back too.)')
+  lines.push(`amplitude-weighted mean φ_fwd = ${f(meanFwd)}   per-leg spread = ${f(spread)} cycles  (both ≈0 = estimator good)`)
   lines.push('')
   lines.push('## Current config alignment:')
-  lines.push(`   gripShift=${f(gripShift)} → grip opens at phase ${f(gripStartPhase)} (want ${f(meanFwd)}, off by ${f(startErr)} cycles)`)
-  lines.push(`   gripDuration=${f(gripDuration)} → grip closes at phase ${f(gripEndPhase)} (want ${f(meanBack)}, off by ${f(endErr)} cycles)`)
+  lines.push(`   gripShift=${f(gripShift)}  → grip/sweep open at max-forward off by ${f(startErr)} cycles (want 0)`)
+  lines.push(`   gripDuration=${f(gripDuration)} → grip/sweep close at max-backward off by ${f(endErr)} cycles (want 0; gripDuration 0.5 = exact half)`)
   writeFileSync(path, lines.join('\n') + '\n')
 
-  console.log(`reach[LIMB ]: meanφ_fwd=${f(meanFwd)} spread=${f(spread)} | ${rows.map((r) => `${r.leg}:${f(r.phiFwd, 2)}`).join(' ')}`)
-  console.log(`reach[AXIAL]: meanφ_fwd=${f(meanFwdAx)} spread=${f(spreadAx)} | ${rows.map((r) => `${r.leg}:${f(r.phiFwdAx, 2)}`).join(' ')}  ← invariant clock`)
+  console.log(`reach: meanφ_fwd=${f(meanFwd)} spread=${f(spread)} (≈0=aligned) | gripShift off-by start=${f(startErr)} end=${f(endErr)} | ${rows.map((r) => `${r.leg}:${f(r.phiFwd, 2)}`).join(' ')}`)
 }
 
 async function renderEventSnapshots(path, evs, dump) {

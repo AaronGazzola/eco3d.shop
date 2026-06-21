@@ -73,6 +73,11 @@ export interface Body3DHip {
   legBodyIndex: number
   hipLocal: { x: number; y: number; z: number }
   footLocal: { x: number; y: number; z: number }
+  // Rest position of the foot relative to the GIRDLE body's centre (girdle-local frame). Lets the
+  // controller reconstruct where the foot WOULD be if the leg sat at its rest angle — i.e. the foot
+  // reach driven by the body wave ALONE, with the leg's own sweep removed. Used to time grip/sweep to
+  // the measured undulation (the girdle keeps undulating even when a foot is planted).
+  footRestLocal: { x: number; y: number; z: number }
 }
 
 
@@ -358,6 +363,8 @@ export function buildBody3D(
         parentIndex: s.parentIndex, legBodyIndex,
         hipLocal: { x: aHipParent.x, y: aHipParent.y, z: aHipParent.z },
         footLocal: { x: s.dir.x * (s.len / 2), y: s.dir.y * (s.len / 2), z: s.dir.z * (s.len / 2) },
+        // foot rest position relative to the girdle centre (bodies are world-aligned at build).
+        footRestLocal: { x: s.foot.x - pc.x, y: s.foot.y - pc.y, z: s.foot.z - pc.z },
       })
 
       bodies.push(legBody)

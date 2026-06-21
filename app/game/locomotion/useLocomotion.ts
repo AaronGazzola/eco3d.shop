@@ -139,6 +139,10 @@ interface CoupledHandle {
   // traction that does not depend on contact normal force). null = that foot is currently free.
   gripPlantJoint: (RAPIER.ImpulseJoint | null)[]
   gripPlantBody: (RAPIER.RigidBody | null)[]
+  // Per-hip MECHANICAL-PHASE tracker: the foot's body-wave-driven fore-aft reach is turned into a phase
+  // (0 = max-forward reach, 0.5 = max-backward) by RMS-normalised quadrature, so it is frequency-free
+  // and invariant to drive/muscle. Grip + sweep are timed off this measured phase, not the CPG clock.
+  mechPhase: { mean: number; prevR: number; msR: number; msRdot: number; phase: number; primed: boolean }[]
   baseCom: { x: number; y: number; z: number }
   diagAccum: number
   recordTime: number
@@ -159,6 +163,34 @@ function comOf(body: Body3D): { x: number; y: number; z: number } {
   }
   if (m <= 0) m = 1
   return { x: x / m, y: y / m, z: z / m }
+}
+
+// Turn a measured fore-aft reach signal into a cycle phase (0..1, 0 = max-forward reach) WITHOUT
+// knowing the frequency. Track a slow DC mean (removes net translation), then the AC value r and its
+// rate ṙ, each RMS-normalised; for a sinusoid −ṙ/rms(ṙ) and r/rms(r) are sin and cos of the cycle, so
+// atan2 recovers the phase regardless of amplitude or frequency. Drift/muscle-invariant by construction.
+function updateMechPhase(
+  st: { mean: number; prevR: number; msR: number; msRdot: number; phase: number; primed: boolean },
+  reach: number,
+  dt: number
+): number {
+  const tau = 0.6
+  const a = Math.min(1, Math.max(dt, 1e-4) / tau)
+  if (!st.primed) {
+    st.mean = reach; st.prevR = 0; st.msR = 1e-6; st.msRdot = 1e-6; st.primed = true; st.phase = 0
+    return 0
+  }
+  st.mean += a * (reach - st.mean)
+  const r = reach - st.mean
+  const rdot = (r - st.prevR) / Math.max(dt, 1e-4)
+  st.prevR = r
+  st.msR += a * (r * r - st.msR)
+  st.msRdot += a * (rdot * rdot - st.msRdot)
+  const rn = r / Math.sqrt(st.msR + 1e-9)
+  const rdn = rdot / Math.sqrt(st.msRdot + 1e-9)
+  const ph = Math.atan2(-rdn, rn) / (2 * Math.PI)
+  st.phase = ((ph % 1) + 1) % 1
+  return st.phase
 }
 
 function postCapture(markdown: string): void {
@@ -275,6 +307,7 @@ export function useLocomotion(
       acc: 0, simTime: 0, buildLegs: legsOn, buildGround: groundOn, buildLimbs: limbsOn,
       gripPlantJoint: body.hipJoints.map(() => null),
       gripPlantBody: body.hipJoints.map(() => null),
+      mechPhase: body.hipJoints.map(() => ({ mean: 0, prevR: 0, msR: 1e-6, msRdot: 1e-6, phase: 0, primed: false })),
       baseCom, diagAccum: 0,
       recordTime: 0, recordAccum: RECORD_INTERVAL, recordBaseCom: baseCom,
       recordBodySamples: [], recordCpgSamples: [],
@@ -350,9 +383,10 @@ export function useLocomotion(
           // pull, isolating how much the legs/feet anchor the body independent of gravity.
           c.world.gravity.y = store.gravityEnabled ? -9.81 : 0
 
-          // GRIP primitive: phase comes straight from the limb CPG oscillator, so the grip window
-          // is driven by the locomotor rhythm itself — not by the foot's measured reach (which gets
-          // frozen the moment we plant the foot, creating a feedback loop that destroys the wave).
+          // GRIP primitive: the window phase is the MEASURED undulation phase at this foot — the foot's
+          // body-wave-driven reach (reconstructed from the girdle, so planting a foot can't corrupt it)
+          // turned into a 0..1 cycle by updateMechPhase, with 0 = max-forward reach. This makes the grip
+          // start at max-forward and (with gripDuration 0.5) release at max-backward for ANY drive/muscle.
           // The timing window + glow run regardless of the grip switch, so the window can be tuned and
           // watched with grip off; only the physical plant + friction switch is gated by gripEnabled.
           const glowOn = store.gripGlowEnabled
@@ -364,6 +398,7 @@ export function useLocomotion(
             const releaseFriction = store.releaseFriction
             const gripFriction = store.legFriction
             const gripFeet = store.gripFeet
+            const com = comOf(c.body)
             for (let h = 0; h < hips.length; h++) {
               const hip = hips[h]
               const selected = gripFeet[GRIP_FOOT_BY_LIMB[hip.limbIdx]]
@@ -372,7 +407,15 @@ export function useLocomotion(
               s.v2.set(hip.footLocal.x, hip.footLocal.y, hip.footLocal.z)
                 .applyQuaternion(s.q.set(lq.x, lq.y, lq.z, lq.w))
               const footX = lp.x + s.v2.x, footY = lp.y + s.v2.y, footZ = lp.z + s.v2.z
-              const phase = limbPhase(c.cpgState, c.cpgSpec, hip.limbIdx) / (2 * Math.PI)
+              // Body-wave reach proxy: where this foot would sit at rest leg angle, from the GIRDLE only
+              // (excludes the leg's own sweep), projected forward (head = −X) relative to the COM so net
+              // translation drops out. Its measured phase drives the grip/sweep window.
+              const par = c.body.bodies[hip.parentIndex]
+              const pp = par.translation(); const pq = par.rotation()
+              s.v1.set(hip.footRestLocal.x, hip.footRestLocal.y, hip.footRestLocal.z)
+                .applyQuaternion(s.q.set(pq.x, pq.y, pq.z, pq.w))
+              const reach = com.x - (pp.x + s.v1.x)
+              const phase = updateMechPhase(c.mechPhase[h], reach, dt)
               const rel = ((phase - gripShift) % 1 + 1) % 1
               // Timing window drives the glow for ALL feet (so a foot toggled off still shows when it
               // *would* grip); actual gripping additionally requires the grip switch + that foot selected.
@@ -437,15 +480,17 @@ export function useLocomotion(
             const phiEq = kStiff > 1e-9 ? (alpha * (d.mL - d.mR)) / kStiff : 0
             ;(jt.joint as RAPIER.RevoluteImpulseJoint).configureMotorPosition(phiEq, kStiff, jointDamping)
           }
-          // Drive each hip's 2 DOF from its limb phase, synced to the grip window. STANCE (rel<duty):
-          // sweep the leg slowly BACKWARD, foot DOWN (and gripping if grip is on) → the planted foot
-          // levers the body forward. SWING (rest of cycle): sweep quickly FORWARD and LIFT the foot to
-          // clear, then set down. Step off → hold at rest (stiff if Lock legs, else free/passive).
+          // Drive each hip's 2 DOF from the MEASURED undulation phase (same clock as the grip window),
+          // so the sweep tracks the body wave: STANCE (rel<duty) sweeps the leg BACKWARD from its
+          // forward reach as the body wave carries the girdle back; SWING (rest) sweeps quickly FORWARD
+          // and LIFTs to clear. With the phase = the foot's body-wave reach, the sweep's forward extreme
+          // lands on the body's max-forward and its rear extreme on max-backward, for any drive/muscle.
+          // Step off → hold at rest (stiff if Lock legs, else free/passive).
           if (c.body.hipJoints.length > 0) {
             for (let hi = 0; hi < c.body.hipJoints.length; hi++) {
               const hip = c.body.hipJoints[hi]
               if (stepEnabled) {
-                const ph = limbPhase(c.cpgState, c.cpgSpec, hip.limbIdx) / (2 * Math.PI)
+                const ph = c.mechPhase[hi].phase
                 const rel = ((ph - stepShift) % 1 + 1) % 1
                 // Map the sweep into the leg's own caps: +capStance forward, −capSwing back, scaled by
                 // the 0–1 sweep amount, so it can never exceed the calibrated angle limits.
@@ -547,10 +592,10 @@ export function useLocomotion(
             for (let k = 0; k < c.cpgSpec.n; k++) cpg.push(signedActivation(c.cpgState, c.cpgSpec, k))
             ncap.buffer.push({ t: tNow, nodes: snapshot(), cpg })
           }
-          // primitive-window edge detection (every frame). Windows come from the limb-CPG phase and
-          // the timing params ONLY — not from gripEnabled/stepEnabled — so timing is observed without
-          // the behaviour being active. grip = rel<gripDuration; sweep(power-stroke)=rel<stepDuty;
-          // lift = swing half (rel>=stepDuty). Edges are tagged start/end per leg.
+          // primitive-window edge detection (every frame). Windows come from the MEASURED undulation
+          // phase (the same clock the live grip/sweep controller uses) + the timing params ONLY — not
+          // gripEnabled/stepEnabled — so the timing is observed without the behaviour being active.
+          // grip = rel<gripDuration; sweep(power-stroke)=rel<stepDuty; lift = swing half (rel>=stepDuty).
           if (ncap.events && c.body.hipJoints.length > 0) {
             const hips = c.body.hipJoints
             const gripShift = store.gripShift
@@ -561,16 +606,10 @@ export function useLocomotion(
               ncap.reachAccum = hips.map(() => ({ c: 0, s: 0, n: 0, cAx: 0, sAx: 0, minFore: Infinity, maxFore: -Infinity, phiAtMin: 0, phiAtMax: 0 }))
               ncap.reachLegs = hips.map((hip) => GRIP_FOOT_BY_LIMB[hip.limbIdx] ?? `L${hip.limbIdx}`)
             }
-            const wiring = c.cpgSpec.limbWiring
-            // Forward = the body's long axis, which the rig builds along world +X (head at low x). We
-            // project foot reach onto the FIXED world-X axis, NOT the instantaneous head→tail vector:
-            // that vector swings as the body bends, which would inject the wave's own phase into the
-            // measurement. With the body X-aligned and oscillating ~in place, world-X is the stable
-            // forward reference. fore>0 ⇒ foot toward the head (forward reach).
             for (let h = 0; h < hips.length; h++) {
               const hip = hips[h]
-              const phaseRad = limbPhase(c.cpgState, c.cpgSpec, hip.limbIdx)
-              const phase = phaseRad / (2 * Math.PI)
+              const phase = c.mechPhase[h].phase
+              const phaseRad = phase * 2 * Math.PI
               const rel = ((phase - gripShift) % 1 + 1) % 1
               const win = { grip: rel < gripDuration, sweep: rel < stepDuty, lift: rel >= stepDuty }
               const prev = ncap.prevWindows[h]
@@ -586,9 +625,9 @@ export function useLocomotion(
               }
               ncap.prevWindows[h] = win
 
-              // Foot fore-aft reach = (foot − hip) · bodyForward. With the leg locked this oscillates
-              // purely from the body wave swaying the girdle. Project it onto cos/sin(limbPhase) to
-              // recover the phase of maximum forward reach; also track raw min/max as a cross-check.
+              // Validation: project the ACTUAL foot fore-aft reach (foot−hip on world-X, head positive)
+              // onto the MEASURED phase. If the estimator is right, max-forward reach lands at phase ≈ 0,
+              // so φ_fwd≈0 ⇒ a grip window at gripShift=0 opens exactly at max-forward reach.
               const parB = c.body.bodies[hip.parentIndex]
               const pp = parB.translation(); const pq = parB.rotation()
               s.v2.set(hip.hipLocal.x, hip.hipLocal.y, hip.hipLocal.z).applyQuaternion(s.q.set(pq.x, pq.y, pq.z, pq.w))
@@ -597,21 +636,10 @@ export function useLocomotion(
               const lp = legB.translation(); const lq = legB.rotation()
               s.v2.set(hip.footLocal.x, hip.footLocal.y, hip.footLocal.z).applyQuaternion(s.q.set(lq.x, lq.y, lq.z, lq.w))
               const footX = lp.x + s.v2.x
-              const fore = hipX - footX // world-X, head-ward positive
+              const fore = hipX - footX
               const ra = ncap.reachAccum[h]
               ra.c += fore * Math.cos(phaseRad)
               ra.s += fore * Math.sin(phaseRad)
-              // Girdle axial-oscillator phase, each leg referenced to its OWN-side chain (left chain k,
-              // right chain k+n — they run antiphase, which cancels the L/R foot geometry just like the
-              // limb oscillators do). This is the clock whose relationship to the commanded reach is
-              // fixed (φEq ∝ cos(axial phase)), so timing locked to it should be drive-invariant.
-              if (wiring) {
-                const isRight = hip.limbIdx === 1 || hip.limbIdx === 3
-                const kAx = (hip.limbIdx < 2 ? wiring.kFore : wiring.kHind) + (isRight ? c.cpgSpec.n : 0)
-                const axPhase = c.cpgState.phases[kAx] ?? 0
-                ra.cAx += fore * Math.cos(axPhase)
-                ra.sAx += fore * Math.sin(axPhase)
-              }
               ra.n += 1
               if (fore < ra.minFore) { ra.minFore = fore; ra.phiAtMin = phase }
               if (fore > ra.maxFore) { ra.maxFore = fore; ra.phiAtMax = phase }
