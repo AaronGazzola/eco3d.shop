@@ -142,7 +142,7 @@ interface CoupledHandle {
   // Per-hip MECHANICAL-PHASE tracker: the foot's body-wave-driven fore-aft reach is turned into a phase
   // (0 = max-forward reach, 0.5 = max-backward) by RMS-normalised quadrature, so it is frequency-free
   // and invariant to drive/muscle. Grip + sweep are timed off this measured phase, not the CPG clock.
-  mechPhase: { mean: number; prevR: number; msR: number; msRdot: number; phase: number; primed: boolean }[]
+  mechPhase: { mean: number; prevR: number; msR: number; msRdot: number; phase: number; primed: boolean; freq: number }[]
   baseCom: { x: number; y: number; z: number }
   diagAccum: number
   recordTime: number
@@ -168,16 +168,25 @@ function comOf(body: Body3D): { x: number; y: number; z: number } {
 // Turn a measured fore-aft reach signal into a cycle phase (0..1, 0 = max-forward reach) WITHOUT
 // knowing the frequency. Track a slow DC mean (removes net translation), then the AC value r and its
 // rate ṙ, each RMS-normalised; for a sinusoid −ṙ/rms(ṙ) and r/rms(r) are sin and cos of the cycle, so
-// atan2 recovers the phase regardless of amplitude or frequency. Drift/muscle-invariant by construction.
+// atan2 recovers the RAW phase regardless of amplitude or frequency. Drift/muscle-invariant.
+//
+// The raw quadrature phase is INSTANTANEOUS, so per-frame noise (and pure noise when a girdle's fore-aft
+// reach amplitude is tiny, e.g. the front legs) makes it jitter across the grip-window boundary dozens of
+// times per cycle — the foot stutter-plants. A phase-locked loop fixes this: a free-running phase
+// accumulator (st.phase advancing at st.freq) is gently corrected toward the raw measured phase. The loop
+// rejects the high-frequency jitter and yields a clean, monotonic phase that locks to the real undulation
+// — so the grip/step window opens exactly once per cycle while staying drive/muscle-invariant.
+const MECH_PLL_KP = 3
+const MECH_PLL_KI = 2
 function updateMechPhase(
-  st: { mean: number; prevR: number; msR: number; msRdot: number; phase: number; primed: boolean },
+  st: { mean: number; prevR: number; msR: number; msRdot: number; phase: number; primed: boolean; freq: number },
   reach: number,
   dt: number
 ): number {
   const tau = 0.6
   const a = Math.min(1, Math.max(dt, 1e-4) / tau)
   if (!st.primed) {
-    st.mean = reach; st.prevR = 0; st.msR = 1e-6; st.msRdot = 1e-6; st.primed = true; st.phase = 0
+    st.mean = reach; st.prevR = 0; st.msR = 1e-6; st.msRdot = 1e-6; st.primed = true; st.phase = 0; st.freq = 1
     return 0
   }
   st.mean += a * (reach - st.mean)
@@ -188,7 +197,13 @@ function updateMechPhase(
   st.msRdot += a * (rdot * rdot - st.msRdot)
   const rn = r / Math.sqrt(st.msR + 1e-9)
   const rdn = rdot / Math.sqrt(st.msRdot + 1e-9)
-  const ph = Math.atan2(-rdn, rn) / (2 * Math.PI)
+  const phRaw = Math.atan2(-rdn, rn) / (2 * Math.PI)
+  // PLL: error = wrapped(raw − accumulator) in (−0.5, 0.5]; integral term tracks frequency, proportional
+  // term pulls phase. Clamp the frequency to a sane undulation band so noise can't lock onto a harmonic.
+  let err = phRaw - st.phase
+  err -= Math.round(err)
+  st.freq = Math.min(4, Math.max(0.1, st.freq + MECH_PLL_KI * err * dt))
+  const ph = st.phase + (st.freq + MECH_PLL_KP * err) * dt
   st.phase = ((ph % 1) + 1) % 1
   return st.phase
 }
@@ -307,7 +322,7 @@ export function useLocomotion(
       acc: 0, simTime: 0, buildLegs: legsOn, buildGround: groundOn, buildLimbs: limbsOn,
       gripPlantJoint: body.hipJoints.map(() => null),
       gripPlantBody: body.hipJoints.map(() => null),
-      mechPhase: body.hipJoints.map(() => ({ mean: 0, prevR: 0, msR: 1e-6, msRdot: 1e-6, phase: 0, primed: false })),
+      mechPhase: body.hipJoints.map(() => ({ mean: 0, prevR: 0, msR: 1e-6, msRdot: 1e-6, phase: 0, primed: false, freq: 1 })),
       baseCom, diagAccum: 0,
       recordTime: 0, recordAccum: RECORD_INTERVAL, recordBaseCom: baseCom,
       recordBodySamples: [], recordCpgSamples: [],

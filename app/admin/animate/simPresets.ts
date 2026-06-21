@@ -101,6 +101,31 @@ const WALK_BASE: Partial<SimConfig> = {
 }
 
 export const SIM_PRESETS: SimPreset[] = [
+  // ── WALK STAGE 1 — the FOUNDATION body wave: the limb CPG oscillators run and shape the axial chain,
+  // but the physical LEGS ARE OFF (landLegsEnabled:false) so their inertia can't wobble the spine, and
+  // grip/step are OFF. The muscle is detuned to α7 so the body stays BELOW the joint angle caps (peak
+  // ~80%). On land (legs off) the body settles into a clean planar STANDING WAVE — stationary nodes /
+  // antinodes, the trunk bending in place (body-shape phase progression ≈0.18 cycles ≈ standing; the
+  // walking regime, vs the swimming traveling wave). tilt <1°. Judge the wave before turning legs on.
+  {
+    name: 'Walk — 1 foundation wave',
+    description: 'Legs OFF, grip+step OFF — the pure body STANDING wave the walk is built on (nodes/antinodes bending in place). Under the angle caps (~80%). drive 1.5, α7.',
+    config: { ...WALK_BASE, cpgDrive: 1.5, muscleAlpha: 7, landLegsEnabled: false, gripEnabled: false, stepEnabled: false },
+  },
+
+  // ── WALK STAGE 2 — LEGS ON, HELD RIGID: the legs are built (landLegsEnabled) but grip is OFF and the
+  // step controller is on with sweepAmount/liftAmount = 0, so each hip motor just HOLDS the leg at rest
+  // against the spine's momentum. The hold uses the step path (sweepSpeed 37000 on the sweep axis,
+  // legStiffness 3000 on lift) — verified to hold the legs more rigidly than legsLocked (which only holds
+  // at legStiffness and visibly buzzes). α6 keeps the legs-on body wave under the angle caps (~80%).
+  // The legs ride the girdles smoothly (no motor buzz) — this is the rig the grip/sweep timing is read
+  // against in the next stage.
+  {
+    name: 'Walk — 2 legs held + grip timing',
+    description: 'Legs ON, held rigid (grip+sweep OFF), but the foot GLOW shows the measured grip timing — each foot lights up as it reaches max-forward (gripShift 0.08), in the BL→FL→BR→FR walk sequence. drive 1.5, α6.',
+    config: { ...WALK_BASE, cpgDrive: 1.5, muscleAlpha: 6, gripShift: 0.08, gripEnabled: false, stepEnabled: true, sweepAmount: 0, liftAmount: 0, legsLocked: false, gripGlowEnabled: true },
+  },
+
   // ── WALK — legs stepping on the measured-undulation timing (grip plants at max-forward reach,
   // releases at max-backward; one timing config holds across drive). The body wave carries the legs.
   {
