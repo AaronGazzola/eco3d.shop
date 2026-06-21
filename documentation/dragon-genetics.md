@@ -38,15 +38,33 @@ genotypes by value.
 
 Definition tables = public read / admin write (via `is_admin()`); `dragons` = owner-scoped.
 
+## Foundation B — genetics engine & render (landed)
+
+OpenSpec change `add-dragon-genetics-engine-render`. Makes a stored dragon visible:
+
+- **Engine** (`app/game/dragons.genetics.ts`, pure): `resolveGenotype` expresses the higher-
+  `dominance_rank` allele per gene (tie → smaller `key`, no blend) → `{ roleKey: hex }`; `rollGenotype`
+  draws a frequency-weighted diploid pair per gene.
+- **Render by role** (`app/game/AnimatedModel.tsx` → `PosedDragon`): each group's segments are split by
+  their `role_tags` role and painted the resolved colour (untagged → neutral). Self-fits to frame any
+  STL. The locomotion studio's per-`BodyGroup` path is untouched.
+- **Preview**: `/game/dragons/[variantKey]` (e.g. `/game/dragons/demo`) — loads a variant, rolls a
+  genotype, renders it, with stage + "Roll random" controls.
+- **Seed**: `scripts/seed-dragon-genetics.ts` writes a `demo` variant (borrowing a real model's
+  geometry) so the preview has something to render before the admin UIs (C) exist.
+
+Verified: `scripts/check-dragon-genetics.ts` (engine, no DB) + `scripts/verify-dragon-render.ts`
+(DB-backed pipeline) + a headless render of `/game/dragons/demo` showing head/spine/limb/tail in
+distinct per-role colours.
+
 ## What's next
 
-- **B — genetics engine & render:** diploid + dominance (`dominance_rank`) → per-role colors painted
-  on the loaded stage-model; "roll a random dragon" (weighted by `frequency`); read-side queries.
 - **C — admin authoring UIs:** role tagging, genetics/dominance definition, filament management
   (discontinue + rebind), orderability map (enumerate printable phenotypes vs `max_print_colors`).
+  Replaces the seed script with real authoring; lets rolled dragons be saved as owned entities.
 
 Deferred threads: AZ-96 breeding, AZ-97 growth, AZ-98 mutations, AZ-99 selection/population,
 AZ-100 traits & conditional color expression.
 
-Domain types: `app/game/dragons.types.ts`. Round-trip check: `scripts/verify-dragon-genetics.ts`
-(`doppler run -- npx tsx scripts/verify-dragon-genetics.ts`).
+Domain types: `app/game/dragons.types.ts`. A-layer round-trip check:
+`scripts/verify-dragon-genetics.ts` (`doppler run -- npx tsx scripts/verify-dragon-genetics.ts`).
