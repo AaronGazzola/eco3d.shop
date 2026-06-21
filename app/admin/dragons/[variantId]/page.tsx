@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { AdminGate } from '../../_lib/AdminGate'
 import { Button } from '@/components/ui/button'
@@ -44,6 +45,14 @@ export default function VariantEditorPage() {
         </div>
       ) : (
         <div className="space-y-12">
+          <div>
+            <Link
+              href={`/admin/dragons/${variantId}/models`}
+              className="text-sm text-violet-300 hover:text-violet-200 transition-colors"
+            >
+              Stage models & role tagging →
+            </Link>
+          </div>
           <VariantHeader key={data.variant.updated_at} variantId={variantId} data={data} />
           <RolesSection variantId={variantId} data={data} />
           <GenesSection variantId={variantId} data={data} />

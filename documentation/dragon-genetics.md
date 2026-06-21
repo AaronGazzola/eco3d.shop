@@ -79,13 +79,33 @@ seed script is now a convenience, not the only authoring path.
 - **Round-trip:** edits resolve through B's engine on reload — change an allele's dominance/frequency
   or filament binding and `/game/dragons/demo` re-renders accordingly.
 
+## Role tagging + model creation (landed)
+
+OpenSpec change `add-dragon-role-tagging`. The 3D authoring tool — supersedes the seed's hand-built
+`role_tags`.
+
+- **Section** `app/admin/dragons/[variantId]/models/` (`page.*` list+creator) and
+  `[modelId]/` (`page.*` + `TagScene.tsx` tagging canvas). Reached via a link from C's variant editor.
+- **Gate:** `AdminGate` in `sidebar` mode (added this change) — reuses the same retractable shadcn
+  `Sidebar` primitives as the rest of the admin UI (`SidebarProvider` + `SidebarInset` + offcanvas
+  `Sidebar` + `SidebarTrigger`, mobile-aware), minus the studio's `SidebarShell` stepper + stray STL
+  hydration. The canvas reuses `StudioCanvas`.
+- **Model creation:** picks a `(variant, stage)` and a saved `model_config`; copies that config's
+  `stl_key`, `groups`, and `model_rotation` onto a new `dragon_models` row with empty `role_tags`. One
+  model per `(variant, stage)` (unique).
+- **Tagging:** segments are loaded with `useStlSegments` — the **same loader the render path uses** — so
+  the `seg-${i}` ids tagged here match `PosedDragon`'s ids exactly. Click to select segments, assign the
+  selection to the active role (writes `role_tags[segId] = roleKey`), untag, or clear; each role has a
+  stable canvas colour and a tagged-segment count; untagged segments paint neutral. Edits are a local
+  zustand draft saved in one admin-gated `saveRoleTagsAction` write.
+- **Load-bearing:** `role_tags` keys are detection-order `seg-${i}` ids, deterministic per STL — so
+  `stl_key` is treated as **immutable** on a saved model. Re-sourcing geometry = create a new model,
+  never swap the STL under an existing one (would silently mis-map tags).
+
 ## What's next
 
-- **Role tagging + `(variant, stage)` model creation** (`add-dragon-role-tagging`): the 3D canvas tool
-  to select components → assign them to roles → write `dragon_models.role_tags`, replacing the seed's
-  hand-built tags. Tracked in AZ-102.
 - **Orderability map** (`add-dragon-orderability-map`): enumerate distinct printable phenotypes per
-  variant vs `max_print_colors`, flag impractical combos. Tracked in AZ-102.
+  variant vs `max_print_colors`, flag impractical combos. Tracked in AZ-102 (last remaining piece).
 
 Deferred threads: AZ-96 breeding, AZ-97 growth, AZ-98 mutations, AZ-99 selection/population,
 AZ-100 traits & conditional color expression.
