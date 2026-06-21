@@ -57,11 +57,35 @@ Verified: `scripts/check-dragon-genetics.ts` (engine, no DB) + `scripts/verify-d
 (DB-backed pipeline) + a headless render of `/game/dragons/demo` showing head/spine/limb/tail in
 distinct per-role colours.
 
+## Foundation C — genetics + palette authoring (landed)
+
+OpenSpec change `add-dragon-genetics-authoring`. The forms-based admin half of AZ-94 Section 1 — the
+seed script is now a convenience, not the only authoring path.
+
+- **Section** `app/admin/dragons/` (`page.*` + `[variantId]/page.*`), gated by
+  `app/admin/_lib/AdminGate.tsx` — a lightweight gate reusing the same `useAuth` + `useIsStudioAdmin`
+  logic as `AdminFrame` (Skeleton → `LoginForm` → content, no middleware) but in a normal scrollable
+  layout. `AdminFrame` itself is the 3D-studio shell (scene + stepper + STL load) and does not fit a
+  forms page, so it is deliberately **not** used here.
+- **Palette manager** (`/admin/dragons`): list/add/edit `filament_colors` (hex + brand/sku) with
+  swatches — the palette alleles bind to.
+- **Variant genetics editor** (`/admin/dragons/[variantId]`): edit the variant header (key, name,
+  `max_print_colors`); CRUD `dragon_roles`; CRUD `dragon_genes` (each with a role picker); and each
+  gene's `dragon_alleles` (`key`, `name`, `dominance_rank`, `frequency`, filament binding w/ swatch).
+  Genes with no alleles are flagged inline.
+- **Gating + writes:** reads of the public definition tables are open; every mutating server action
+  calls `checkIsAdminAction()` before writing (defence in depth over RLS `is_admin()`). Editor draft
+  state lives in zustand (`page.stores.ts`, no `persist`); loading/error live in the react-query hooks.
+- **Round-trip:** edits resolve through B's engine on reload — change an allele's dominance/frequency
+  or filament binding and `/game/dragons/demo` re-renders accordingly.
+
 ## What's next
 
-- **C — admin authoring UIs:** role tagging, genetics/dominance definition, filament management
-  (discontinue + rebind), orderability map (enumerate printable phenotypes vs `max_print_colors`).
-  Replaces the seed script with real authoring; lets rolled dragons be saved as owned entities.
+- **Role tagging + `(variant, stage)` model creation** (`add-dragon-role-tagging`): the 3D canvas tool
+  to select components → assign them to roles → write `dragon_models.role_tags`, replacing the seed's
+  hand-built tags. Tracked in AZ-102.
+- **Orderability map** (`add-dragon-orderability-map`): enumerate distinct printable phenotypes per
+  variant vs `max_print_colors`, flag impractical combos. Tracked in AZ-102.
 
 Deferred threads: AZ-96 breeding, AZ-97 growth, AZ-98 mutations, AZ-99 selection/population,
 AZ-100 traits & conditional color expression.
