@@ -129,6 +129,12 @@ function SimulateTab() {
   const setFrontSegments = useAnimateStore((s) => s.setFrontSegments)
   const turnBias = useAnimateStore((s) => s.turnBias)
   const setTurnBias = useAnimateStore((s) => s.setTurnBias)
+  const limbDrive = useAnimateStore((s) => s.limbDrive)
+  const setLimbDrive = useAnimateStore((s) => s.setLimbDrive)
+  const feedbackIpsi = useAnimateStore((s) => s.feedbackIpsi)
+  const setFeedbackIpsi = useAnimateStore((s) => s.setFeedbackIpsi)
+  const feedbackContra = useAnimateStore((s) => s.feedbackContra)
+  const setFeedbackContra = useAnimateStore((s) => s.setFeedbackContra)
 
   const muscleAlpha = useAnimateStore((s) => s.muscleAlpha)
   const setMuscleAlpha = useAnimateStore((s) => s.setMuscleAlpha)
@@ -346,6 +352,36 @@ function SimulateTab() {
           step={0.01}
           onChange={setTurnBias}
           format={(v) => v.toFixed(2)}
+        />
+        <Slider
+          label="Limb drive"
+          tip="Paper Fig 6B: an independent, usually LOWER drive for the four limb oscillators (they used 0.63 vs axial 0.98). Keeping limbs slow + active (below their d_th=1.27) lets the limb→axial coupling impose a STANDING wave for walking. 0 = off (limbs follow the global Drive)."
+          value={limbDrive}
+          min={0}
+          max={3}
+          step={0.01}
+          onChange={setLimbDrive}
+          format={(v) => (v > 0 ? v.toFixed(2) : 'off')}
+        />
+        <Slider
+          label="Feedback ipsi"
+          tip="Paper Fig 6C: axial proprioceptive (stretch-receptor) feedback weight, ipsilateral. The actual body curvature is fed back into the CPG to entrain it to the body — the second standing-wave mechanism. Paper's standing setting: ipsi −0.65, contra +0.65. 0 = off."
+          value={feedbackIpsi}
+          min={-2}
+          max={2}
+          step={0.05}
+          onChange={setFeedbackIpsi}
+          format={(v) => (v !== 0 ? v.toFixed(2) : 'off')}
+        />
+        <Slider
+          label="Feedback contra"
+          tip="Paper Fig 6C: axial proprioceptive feedback weight, contralateral. Paper used w_ipsi = −w_contra = −0.65 for standing waves (so contra = +0.65). 0 = off."
+          value={feedbackContra}
+          min={-2}
+          max={2}
+          step={0.05}
+          onChange={setFeedbackContra}
+          format={(v) => (v !== 0 ? v.toFixed(2) : 'off')}
         />
 
         <Divider />

@@ -41,6 +41,10 @@ export interface CpgSpec {
   couplings: CpgCoupling[]
   initialPhases: number[]
   limbWiring: CpgLimbWiring | null
+  // For each physical body segment (index in the axial chain) the FINE-CPG oscillator it samples. The
+  // CPG runs at a fixed fine resolution (CPG_AXIAL_SEGMENTS) decoupled from the body's joint count; the
+  // body's joints read the fine chain at these positions. limbWiring indices are already fine indices.
+  oscOfSegment: number[]
 }
 
 export interface CpgState {
@@ -66,13 +70,46 @@ function identifyLimbWiring(
   return { kFore, kHind }
 }
 
+// The axial CPG runs at this many segments regardless of how many physical body joints sample it
+// (paper Fig 2A: a 25-segment axial CPG, mapped onto an 8-joint robot). Decoupling CPG resolution from
+// the body is what lets the per-coupling phase bias be the paper's ~0.066 cycle/segment (= total
+// BODY_WAVES spread over n−1 fine intervals) while the body keeps its faithful total wavelength — the
+// regime where the limb drive + proprioceptive feedback can pull the wave from traveling to standing.
+export const CPG_AXIAL_SEGMENTS = 25
+
+// Map each physical body segment to a fine-CPG oscillator by its fractional arc-length position (using
+// the segment centre). Head ≈ osc 0, tail ≈ osc n−1; intermediate body joints sample the fine chain.
+function mapBodyToFine(segmentLengths: number[], n: number): number[] {
+  const nBody = segmentLengths.length
+  let total = 0
+  for (const L of segmentLengths) total += L
+  if (total <= 1e-9) total = Math.max(1, nBody - 1)
+  const out: number[] = new Array(nBody).fill(0)
+  let cum = 0
+  for (let k = 0; k < nBody; k++) {
+    const centre = cum + segmentLengths[k] / 2
+    const idx = Math.round((centre / total) * (n - 1))
+    out[k] = Math.max(0, Math.min(n - 1, idx))
+    cum += segmentLengths[k]
+  }
+  return out
+}
+
 export function buildCpgSpec(
   segmentLengths: number[],
   groups?: BodyGroup[],
   chainGroupIds?: string[]
 ): CpgSpec {
-  const n = segmentLengths.length
-  const limbWiring = identifyLimbWiring(groups, chainGroupIds)
+  const nBody = segmentLengths.length
+  // Fine CPG resolution, decoupled from the body's joint count (never coarser than the body).
+  const n = Math.max(nBody, CPG_AXIAL_SEGMENTS)
+  const oscOfSegment = mapBodyToFine(segmentLengths, n)
+
+  // Identify the limbs against the BODY chain, then remap the girdle indices to the fine CPG.
+  const limbWiringBody = identifyLimbWiring(groups, chainGroupIds)
+  const limbWiring: CpgLimbWiring | null = limbWiringBody
+    ? { kFore: oscOfSegment[limbWiringBody.kFore], kHind: oscOfSegment[limbWiringBody.kHind] }
+    : null
   const limbs = limbWiring ? LIMB_COUNT : 0
   const size = 2 * n + limbs
   const e: number[] = new Array(size).fill(E_AXIAL)
@@ -84,22 +121,14 @@ export function buildCpgSpec(
     couplings.push({ from: k, to: k + n, w: 10, phi: Math.PI })
   }
 
-  const perIntervalPhi: number[] = new Array(Math.max(0, n - 1)).fill(0)
-  if (n >= 2) {
-    let totalLen = 0
-    for (let k = 0; k < n - 1; k++) totalLen += segmentLengths[k]
-    if (totalLen <= 1e-9) totalLen = n - 1
-
-    for (let k = 0; k < n - 1; k++) {
-      const phi = ((segmentLengths[k] / totalLen) * TWO_PI * BODY_WAVES)
-      perIntervalPhi[k] = phi
-
-      couplings.push({ from: k, to: k + 1, w: 5, phi })
-      couplings.push({ from: k + n, to: k + 1 + n, w: 5, phi })
-
-      couplings.push({ from: k + 1, to: k, w: 1, phi: -phi })
-      couplings.push({ from: k + 1 + n, to: k + n, w: 1, phi: -phi })
-    }
+  // Uniform per-coupling phase bias over the fine chain: total BODY_WAVES wavelengths spread across
+  // n−1 fine intervals → the paper's ~0.066 cycle/segment at n=25, BODY_WAVES=1.58.
+  const phiSeg = n >= 2 ? (TWO_PI * BODY_WAVES) / (n - 1) : 0
+  for (let k = 0; k < n - 1; k++) {
+    couplings.push({ from: k, to: k + 1, w: 5, phi: phiSeg })
+    couplings.push({ from: k + n, to: k + 1 + n, w: 5, phi: phiSeg })
+    couplings.push({ from: k + 1, to: k, w: 1, phi: -phiSeg })
+    couplings.push({ from: k + 1 + n, to: k + n, w: 1, phi: -phiSeg })
   }
 
   if (limbWiring) {
@@ -142,7 +171,7 @@ export function buildCpgSpec(
     const wrapped = ((cumulative % TWO_PI) + TWO_PI) % TWO_PI
     initialPhases[k] = wrapped
     initialPhases[k + n] = (wrapped + Math.PI) % TWO_PI
-    if (k < n - 1) cumulative -= perIntervalPhi[k]
+    cumulative -= phiSeg
   }
   if (limbWiring) {
     const base = 2 * n
@@ -152,7 +181,7 @@ export function buildCpgSpec(
     initialPhases[base + LIMB_RH] = (3 * Math.PI) / 2
   }
 
-  return { n, limbs, e, dTh, couplings, initialPhases, limbWiring }
+  return { n, limbs, e, dTh, couplings, initialPhases, limbWiring, oscOfSegment }
 }
 
 export function initCpgState(spec: CpgSpec): CpgState {
@@ -179,7 +208,21 @@ export function stepCpg(
   frontDrive?: number,
   frontSegments?: number,
   // Positive weakens the LEFT side (axial 0..n-1 + limbs LF/LH) → body curves left.
-  turnBias?: number
+  turnBias?: number,
+  // Independent drive for the four limb oscillators (paper Fig 6B: a separate, lower limb drive — they
+  // used 0.63 vs an axial drive of 0.98). A lower limb drive keeps the limb oscillators active (below
+  // their saturation threshold d_th=1.27) and slower than the axis, so the strong limb→axial coupling
+  // imposes a STANDING wave on the girdles (forward terrestrial stepping). 0 = follow the global drive.
+  limbDrive?: number,
+  // Axial proprioceptive feedback (paper Fig 6C / Eq. in §"Sensory Feedback"). Per axial segment k the
+  // ACTUAL joint angle θ_k (body curvature, from the physics) drives a stretch-receptor signal that is
+  // fed back into each oscillator: φ̇ += −(s/r)·sin φ, ṙ += s·cos φ, with s = w_ipsi·[±θ]⁺ + w_contra·[∓θ]⁺
+  // (ipsilateral curvature for one hemisegment, contralateral for the other). The paper's standing-wave
+  // setting is w_ipsi = −w_contra = −0.65. This entrains the CPG to the real body, the second mechanism
+  // for the walking standing wave. jointAngles is indexed by axial segment (length spec.n); 0 = off.
+  jointAngles?: number[],
+  feedbackIpsi?: number,
+  feedbackContra?: number
 ): void {
   if (spec.n === 0) return
   const clampedDt = Math.max(0, Math.min(dt, CPG_MAX_DT))
@@ -205,10 +248,14 @@ export function stepCpg(
   const leftFactor = 1 - Math.max(0, -tb)
   const rightFactor = 1 - Math.max(0, tb)
   const base = 2 * spec.n
+  // Limb oscillators (i >= base) take the independent limb drive when set (>0); else they follow the
+  // global drive exactly (bit-exact with the pre-limb-drive build).
+  const ld = limbDrive ?? 0
   const driveArr: number[] = new Array(size)
   for (let i = 0; i < size; i++) {
     let d: number
-    if (fc > 0 && i < spec.n) d = i < fc ? fd : drive
+    if (i >= base) d = ld > 0 ? ld : drive
+    else if (fc > 0 && i < spec.n) d = i < fc ? fd : drive
     else if (fc > 0 && i < base) d = i - spec.n < fc ? fd : drive
     else d = drive
     let side: number
@@ -223,6 +270,12 @@ export function stepCpg(
 
   const phases = state.phases
   const amplitudes = state.amplitudes
+
+  // Axial proprioceptive feedback gains (held constant across the substeps; the joint angles are read
+  // once per physics step). fbOn gates the whole block so the default path is bit-exact with no feedback.
+  const fbIpsi = feedbackIpsi ?? 0
+  const fbContra = feedbackContra ?? 0
+  const fbOn = !!jointAngles && (fbIpsi !== 0 || fbContra !== 0)
 
   for (let step = 0; step < subSteps; step++) {
     const phaseDot: number[] = new Array(size).fill(0)
@@ -242,6 +295,27 @@ export function stepCpg(
       const sat = sigmoidSat(driveArr[i], spec.dTh[i])
       const target = driveArr[i] * sat
       ampDot[i] = A_GAIN * (target - amplitudes[i])
+    }
+
+    // Stretch-receptor feedback: each axial segment's actual curvature θ_k drives both hemisegment
+    // oscillators (left = k, right = k+n). [θ]⁺ is ipsilateral for the left osc / contralateral for the
+    // right, and vice-versa. φ̇ += −(s/r)·sin φ ; ṙ += s·cos φ (the Cartesian-perturbation form, paper Eq).
+    if (fbOn) {
+      const n = spec.n
+      for (let k = 0; k < n; k++) {
+        const theta = jointAngles![k] ?? 0
+        if (theta === 0) continue
+        const pos = theta > 0 ? theta : 0
+        const neg = theta < 0 ? -theta : 0
+        const sL = fbIpsi * pos + fbContra * neg
+        const rL = amplitudes[k] > 1e-3 ? amplitudes[k] : 1e-3
+        phaseDot[k] += -(sL / rL) * Math.sin(phases[k])
+        ampDot[k] += sL * Math.cos(phases[k])
+        const sR = fbIpsi * neg + fbContra * pos
+        const rR = amplitudes[k + n] > 1e-3 ? amplitudes[k + n] : 1e-3
+        phaseDot[k + n] += -(sR / rR) * Math.sin(phases[k + n])
+        ampDot[k + n] += sR * Math.cos(phases[k + n])
+      }
     }
 
     for (let i = 0; i < size; i++) {

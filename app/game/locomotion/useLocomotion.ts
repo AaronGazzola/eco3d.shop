@@ -7,7 +7,7 @@ import RAPIER from '@dimforge/rapier3d-compat'
 import { BodyGroup, SegmentData } from '@/app/admin/_lib/types'
 import { useAnimateStore } from '@/app/admin/animate/animateStore'
 import { buildSkeletonTree, effectiveAngleCaps, flattenSkeleton } from './chain'
-import { axialChain, buildBody3D, Body3D } from './body3d'
+import { axialChain, buildBody3D, Body3D, jointAngle } from './body3d'
 import { applyEnvironment3D } from './environment'
 import {
   buildCaptureSpec3D,
@@ -20,7 +20,7 @@ import {
   subsampleSamples,
   serializeCoupledCapture,
 } from './diagnostics'
-import { buildCpgSpec, CpgSpec, CpgState, initCpgState, limbPhase, oscillatorOutput, stepCpg } from './cpg'
+import { buildCpgSpec, CpgSpec, CpgState, initCpgState, limbPhase, oscillatorOutput, signedActivation, stepCpg } from './cpg'
 import { createDelayBuffer, GAMMA, MuscleDelayBuffer, pushAndReadDelayed } from './muscles'
 
 interface GripCaptureSample {
@@ -49,6 +49,10 @@ interface GripCaptureState {
 interface NodeCaptureSample {
   t: number
   nodes: { x: number; y: number; z: number }[]
+  // Per-axial-segment CPG ACTIVITY (signed muscle activation = left osc out − right osc out). This is
+  // the NEURAL signal the paper's Fig 6 standing/traveling-wave classification is based on — distinct
+  // from the mechanical body curvature (node positions), which lags it by the EMG-to-curvature delay.
+  cpg?: number[]
 }
 // A primitive-window boundary crossing, detected at render rate from the CPG phase alone (so it is
 // observed WITHOUT the grip/step switches being on — the behaviour never interferes). Optionally
@@ -75,6 +79,16 @@ interface NodeCaptureState {
   eventSnapshots: boolean
   eventBuffer: NodeCaptureEvent[]
   prevWindows?: { grip: boolean; sweep: boolean; lift: boolean }[]
+  // Per-leg foot-reach phase accumulator (only when events on). Each frame we project the foot's
+  // fore-aft reach (driven by the body wave through the locked leg) onto cos/sin of that leg's limb
+  // phase. The first-harmonic phase atan2(S,C) is the limb phase at MAX-FORWARD reach (φ_fwd); max
+  // backward is half a cycle later. This is how grip/sweep timing is locked to the undulation cycle —
+  // measured with grip AND step OFF so the behaviour never perturbs the wave it is being timed against.
+  // c/s project foot reach onto the LIMB oscillator phase; cAx/sAx onto the girdle's AXIAL oscillator
+  // phase. The axial reference is the one that should be drive-invariant (commanded girdle yaw peaks at
+  // a fixed axial phase), so it is the correct clock to lock grip/sweep timing to.
+  reachAccum?: { c: number; s: number; n: number; cAx: number; sAx: number; minFore: number; maxFore: number; phiAtMin: number; phiAtMax: number }[]
+  reachLegs?: string[]
 }
 interface NodeCaptureSpec {
   count: number
@@ -250,6 +264,10 @@ export function useLocomotion(
     const spec = limbsOn
       ? buildCpgSpec(axial.lengths, groups, axial.groupIds)
       : buildCpgSpec(axial.lengths)
+    // The CPG now runs at a fine resolution decoupled from the body's joints (paper Fig 2A). Remap each
+    // body joint from its body-segment index to the fine-CPG oscillator it samples, so the muscle reads
+    // the correct point of the fine chain (left = oscOfSegment[i], right = +spec.n).
+    for (const jt of body.joints) jt.cpgSegment = spec.oscOfSegment[jt.cpgSegment] ?? jt.cpgSegment
     const baseCom = comOf(body)
     return {
       groups, world, body, cpgSpec: spec, cpgState: initCpgState(spec),
@@ -300,6 +318,9 @@ export function useLocomotion(
         const frontDrive = store.frontDrive
         const frontSegments = store.frontSegments
         const turnBias = store.turnBias
+        const limbDrive = store.limbDrive
+        const feedbackIpsi = store.feedbackIpsi
+        const feedbackContra = store.feedbackContra
         const alpha = store.muscleAlpha
         const beta = store.muscleBeta
         const jointDamping = store.muscleDamping
@@ -394,7 +415,15 @@ export function useLocomotion(
         }
         let acc = c.acc + Math.min(dt, MAX_FRAME)
         while (acc >= TIMESTEP) {
-          stepCpg(c.cpgState, c.cpgSpec, drive, exc, TIMESTEP, frontDrive, frontSegments, turnBias)
+          // Axial proprioceptive feedback reads each axial joint's ACTUAL angle (body curvature) and
+          // feeds it back into the CPG (paper Fig 6C). Only built when a feedback weight is set, so the
+          // no-feedback path skips the per-joint quaternion math entirely.
+          let jointAngles: number[] | undefined
+          if (feedbackIpsi !== 0 || feedbackContra !== 0) {
+            jointAngles = new Array(c.cpgSpec.n).fill(0)
+            for (const jt of c.body.joints) jointAngles[jt.cpgSegment] = jointAngle(jt, c.body.bodies)
+          }
+          stepCpg(c.cpgState, c.cpgSpec, drive, exc, TIMESTEP, frontDrive, frontSegments, turnBias, limbDrive, jointAngles, feedbackIpsi, feedbackContra)
           for (let i = 0; i < c.body.joints.length; i++) {
             const jt = c.body.joints[i]
             const k = jt.cpgSegment
@@ -514,7 +543,9 @@ export function useLocomotion(
           const interval = ncap.hz > 0 ? 1 / ncap.hz : 0
           if (ncap.buffer.length < ncap.maxSamples && tNow - ncap.lastSampleTime >= interval - 1e-4) {
             ncap.lastSampleTime = tNow
-            ncap.buffer.push({ t: tNow, nodes: snapshot() })
+            const cpg: number[] = []
+            for (let k = 0; k < c.cpgSpec.n; k++) cpg.push(signedActivation(c.cpgState, c.cpgSpec, k))
+            ncap.buffer.push({ t: tNow, nodes: snapshot(), cpg })
           }
           // primitive-window edge detection (every frame). Windows come from the limb-CPG phase and
           // the timing params ONLY — not from gripEnabled/stepEnabled — so timing is observed without
@@ -526,9 +557,20 @@ export function useLocomotion(
             const gripDuration = store.gripDuration
             const stepDuty = Math.min(0.95, Math.max(0.05, store.gripDuration))
             if (!ncap.prevWindows) ncap.prevWindows = hips.map(() => ({ grip: false, sweep: false, lift: false }))
+            if (!ncap.reachAccum) {
+              ncap.reachAccum = hips.map(() => ({ c: 0, s: 0, n: 0, cAx: 0, sAx: 0, minFore: Infinity, maxFore: -Infinity, phiAtMin: 0, phiAtMax: 0 }))
+              ncap.reachLegs = hips.map((hip) => GRIP_FOOT_BY_LIMB[hip.limbIdx] ?? `L${hip.limbIdx}`)
+            }
+            const wiring = c.cpgSpec.limbWiring
+            // Forward = the body's long axis, which the rig builds along world +X (head at low x). We
+            // project foot reach onto the FIXED world-X axis, NOT the instantaneous head→tail vector:
+            // that vector swings as the body bends, which would inject the wave's own phase into the
+            // measurement. With the body X-aligned and oscillating ~in place, world-X is the stable
+            // forward reference. fore>0 ⇒ foot toward the head (forward reach).
             for (let h = 0; h < hips.length; h++) {
               const hip = hips[h]
-              const phase = limbPhase(c.cpgState, c.cpgSpec, hip.limbIdx) / (2 * Math.PI)
+              const phaseRad = limbPhase(c.cpgState, c.cpgSpec, hip.limbIdx)
+              const phase = phaseRad / (2 * Math.PI)
               const rel = ((phase - gripShift) % 1 + 1) % 1
               const win = { grip: rel < gripDuration, sweep: rel < stepDuty, lift: rel >= stepDuty }
               const prev = ncap.prevWindows[h]
@@ -543,6 +585,36 @@ export function useLocomotion(
                 }
               }
               ncap.prevWindows[h] = win
+
+              // Foot fore-aft reach = (foot − hip) · bodyForward. With the leg locked this oscillates
+              // purely from the body wave swaying the girdle. Project it onto cos/sin(limbPhase) to
+              // recover the phase of maximum forward reach; also track raw min/max as a cross-check.
+              const parB = c.body.bodies[hip.parentIndex]
+              const pp = parB.translation(); const pq = parB.rotation()
+              s.v2.set(hip.hipLocal.x, hip.hipLocal.y, hip.hipLocal.z).applyQuaternion(s.q.set(pq.x, pq.y, pq.z, pq.w))
+              const hipX = pp.x + s.v2.x
+              const legB = c.body.bodies[hip.legBodyIndex]
+              const lp = legB.translation(); const lq = legB.rotation()
+              s.v2.set(hip.footLocal.x, hip.footLocal.y, hip.footLocal.z).applyQuaternion(s.q.set(lq.x, lq.y, lq.z, lq.w))
+              const footX = lp.x + s.v2.x
+              const fore = hipX - footX // world-X, head-ward positive
+              const ra = ncap.reachAccum[h]
+              ra.c += fore * Math.cos(phaseRad)
+              ra.s += fore * Math.sin(phaseRad)
+              // Girdle axial-oscillator phase, each leg referenced to its OWN-side chain (left chain k,
+              // right chain k+n — they run antiphase, which cancels the L/R foot geometry just like the
+              // limb oscillators do). This is the clock whose relationship to the commanded reach is
+              // fixed (φEq ∝ cos(axial phase)), so timing locked to it should be drive-invariant.
+              if (wiring) {
+                const isRight = hip.limbIdx === 1 || hip.limbIdx === 3
+                const kAx = (hip.limbIdx < 2 ? wiring.kFore : wiring.kHind) + (isRight ? c.cpgSpec.n : 0)
+                const axPhase = c.cpgState.phases[kAx] ?? 0
+                ra.cAx += fore * Math.cos(axPhase)
+                ra.sAx += fore * Math.sin(axPhase)
+              }
+              ra.n += 1
+              if (fore < ra.minFore) { ra.minFore = fore; ra.phiAtMin = phase }
+              if (fore > ra.maxFore) { ra.maxFore = fore; ra.phiAtMax = phase }
             }
           }
         }

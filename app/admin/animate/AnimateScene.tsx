@@ -86,6 +86,8 @@ function useStudioObservationHook() {
           samples: c?.buffer ?? [],
           events: c?.eventBuffer ?? [],
           spec: (window as Window).__nodeCaptureSpec ?? null,
+          reach: c?.reachAccum ?? null,
+          reachLegs: c?.reachLegs ?? null,
         }
       },
       gripCaptureStart: (maxSamples?: number) => {

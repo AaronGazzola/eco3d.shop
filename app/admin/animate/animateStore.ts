@@ -37,6 +37,9 @@ export interface SimConfig {
   frontDrive: number
   frontSegments: number
   turnBias: number
+  limbDrive: number
+  feedbackIpsi: number
+  feedbackContra: number
   muscleAlpha: number
   muscleBeta: number
   muscleDamping: number
@@ -68,6 +71,9 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
   frontDrive: 0.6,
   frontSegments: 0,
   turnBias: 0,
+  limbDrive: 0,
+  feedbackIpsi: 0,
+  feedbackContra: 0,
   muscleAlpha: 3.95,
   muscleBeta: 13.3,
   muscleDamping: 11.3,
@@ -102,6 +108,9 @@ export function pickSimConfig(s: SimConfig): SimConfig {
     frontDrive: s.frontDrive,
     frontSegments: s.frontSegments,
     turnBias: s.turnBias,
+    limbDrive: s.limbDrive,
+    feedbackIpsi: s.feedbackIpsi,
+    feedbackContra: s.feedbackContra,
     muscleAlpha: s.muscleAlpha,
     muscleBeta: s.muscleBeta,
     muscleDamping: s.muscleDamping,
@@ -156,6 +165,9 @@ interface AnimateStore extends SimConfig {
   setFrontDrive: (v: number) => void
   setFrontSegments: (v: number) => void
   setTurnBias: (v: number) => void
+  setLimbDrive: (v: number) => void
+  setFeedbackIpsi: (v: number) => void
+  setFeedbackContra: (v: number) => void
   setCoupledRunning: (v: boolean) => void
   setEnvironmentEnabled: (v: boolean) => void
   setMuscleAlpha: (v: number) => void
@@ -261,6 +273,11 @@ export const useAnimateStore = create<AnimateStore>()(
       setFrontSegments: (v) => set({ frontSegments: Math.max(0, Math.round(v)) }),
 
       setTurnBias: (v) => set({ turnBias: Math.max(-1, Math.min(1, v)) }),
+
+      setLimbDrive: (v) => set({ limbDrive: Math.max(0, v) }),
+
+      setFeedbackIpsi: (v) => set({ feedbackIpsi: v }),
+      setFeedbackContra: (v) => set({ feedbackContra: v }),
 
       setCoupledRunning: (v) => set({ coupledRunning: v }),
 
