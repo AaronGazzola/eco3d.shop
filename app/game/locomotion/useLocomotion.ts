@@ -95,11 +95,26 @@ interface NodeCaptureSpec {
   groupIds: string[]
   segLength: number[]
 }
+// Read-only observation snapshot published every frame for the overlay layer (Increment B). Holds, per
+// girdle/leg: the measured undulation phase, the stance/swing flag, and the max-forward-reach world
+// position (the girdle-derived foot-rest point the grip timing is locked to). Arrays are preallocated
+// and mutated in place — no per-frame allocation.
+interface LocObs {
+  legs: string[]
+  phase: number[]
+  stance: boolean[]
+  gripped: boolean[]
+  reach: { x: number; y: number; z: number }[]
+  foot: { x: number; y: number; z: number }[]
+  hip: { x: number; y: number; z: number }[]
+  trunk: { x: number; y: number; z: number }[]
+}
 declare global {
   interface Window {
     __gripCapture?: GripCaptureState
     __nodeCapture?: NodeCaptureState
     __nodeCaptureSpec?: NodeCaptureSpec
+    __locObs?: LocObs
   }
 }
 
@@ -134,6 +149,7 @@ interface CoupledHandle {
   buildLegs: boolean
   buildGround: boolean
   buildLimbs: boolean
+  buildBodyWaves: number
   // per-hip foot plant: while a foot grips, it is pinned to the ground spot it grabbed by a temporary
   // spherical joint to a fixed anchor body (so the body is levered over the planted foot — real
   // traction that does not depend on contact normal force). null = that foot is currently free.
@@ -152,6 +168,8 @@ interface CoupledHandle {
   recordCpgSamples: CpgCaptureSample[]
   recordDrive: number
   recordExcitability: number
+  trunkIdx: number[]
+  obs: LocObs
 }
 
 function comOf(body: Body3D): { x: number; y: number; z: number } {
@@ -293,18 +311,21 @@ export function useLocomotion(
     // built, which would corrupt the oscillator count). The four limb oscillators are added
     // independently of the leg bodies (own toggle); otherwise stay axial-only.
     const axial = axialChain(groups)
+    const bodyWaves = st.bodyWaves
     const spec = limbsOn
-      ? buildCpgSpec(axial.lengths, groups, axial.groupIds)
-      : buildCpgSpec(axial.lengths)
+      ? buildCpgSpec(axial.lengths, groups, axial.groupIds, bodyWaves)
+      : buildCpgSpec(axial.lengths, undefined, undefined, bodyWaves)
     // The CPG now runs at a fine resolution decoupled from the body's joints (paper Fig 2A). Remap each
     // body joint from its body-segment index to the fine-CPG oscillator it samples, so the muscle reads
     // the correct point of the fine chain (left = oscOfSegment[i], right = +spec.n).
     for (const jt of body.joints) jt.cpgSegment = spec.oscOfSegment[jt.cpgSegment] ?? jt.cpgSegment
     const baseCom = comOf(body)
+    const trunkIdx: number[] = []
+    for (let i = 0; i < body.groupIds.length; i++) if (!legIdSet.has(body.groupIds[i])) trunkIdx.push(i)
     return {
       groups, world, body, cpgSpec: spec, cpgState: initCpgState(spec),
       delayBuffers: body.joints.map(() => createDelayBuffer(TIMESTEP)),
-      acc: 0, simTime: 0, buildLegs: legsOn, buildGround: groundOn, buildLimbs: limbsOn,
+      acc: 0, simTime: 0, buildLegs: legsOn, buildGround: groundOn, buildLimbs: limbsOn, buildBodyWaves: bodyWaves,
       gripPlantJoint: body.hipJoints.map(() => null),
       gripPlantBody: body.hipJoints.map(() => null),
       mechPhase: body.hipJoints.map(() => ({ mean: 0, prevR: 0, msR: 1e-6, msRdot: 1e-6, phase: 0, primed: false })),
@@ -312,6 +333,17 @@ export function useLocomotion(
       recordTime: 0, recordAccum: RECORD_INTERVAL, recordBaseCom: baseCom,
       recordBodySamples: [], recordCpgSamples: [],
       recordDrive: 0, recordExcitability: 0,
+      trunkIdx,
+      obs: {
+        legs: body.hipJoints.map((hip) => GRIP_FOOT_BY_LIMB[hip.limbIdx] ?? `L${hip.limbIdx}`),
+        phase: body.hipJoints.map(() => 0),
+        stance: body.hipJoints.map(() => false),
+        gripped: body.hipJoints.map(() => false),
+        reach: body.hipJoints.map(() => ({ x: 0, y: 0, z: 0 })),
+        foot: body.hipJoints.map(() => ({ x: 0, y: 0, z: 0 })),
+        hip: body.hipJoints.map(() => ({ x: 0, y: 0, z: 0 })),
+        trunk: trunkIdx.map(() => ({ x: 0, y: 0, z: 0 })),
+      },
     }
   }
 
@@ -339,7 +371,8 @@ export function useLocomotion(
         coupledRef.current.groups !== groups ||
         coupledRef.current.buildLegs !== wantLegs ||
         coupledRef.current.buildGround !== wantGround ||
-        coupledRef.current.buildLimbs !== wantLimbs
+        coupledRef.current.buildLimbs !== wantLimbs ||
+        coupledRef.current.buildBodyWaves !== store.bodyWaves
       ) {
         freeCoupled()
         coupledRef.current = buildCoupled()
@@ -357,6 +390,25 @@ export function useLocomotion(
         const alpha = store.muscleAlpha
         const beta = store.muscleBeta
         const jointDamping = store.muscleDamping
+        const stanceMuscleBoost = store.stanceMuscleBoost
+        // Leg clock source: default times grip/sweep off the MEASURED body-wave phase (mechPhase);
+        // when on, times them off the limb CPG oscillator (paper D2) so the legs have a clock
+        // INDEPENDENT of the body wave — lets sweep be isolated from undulation.
+        const legClock = store.legClock
+        const stepFreqHz = store.stepFreqHz
+        const limbClock = (limbIdx: number) =>
+          ((limbPhase(c.cpgState, c.cpgSpec, limbIdx) / (2 * Math.PI)) % 1 + 1) % 1
+        const sweepReverse = store.sweepReverse
+        // Leg-clock phase: 'time' = independent sim-time oscillator with a diagonal-trot offset
+        // (LF+RH together, RF+LH a half-cycle later) so the legs run a trot with the CPG off;
+        // 'limb' = limb CPG; 'body' = measured body wave.
+        const legPhaseOf = (limbIdx: number, bodyPhase: number) => {
+          if (legClock === 'time') {
+            const diag = (limbIdx === 0 || limbIdx === 3) ? 0 : 0.5
+            return ((c.simTime * stepFreqHz + diag) % 1 + 1) % 1
+          }
+          return legClock === 'limb' ? limbClock(limbIdx) : bodyPhase
+        }
         const gripEnabled = store.gripEnabled
         const legsLockedConst = store.legsLocked
         const stepEnabled = store.stepEnabled
@@ -367,10 +419,22 @@ export function useLocomotion(
         const legDamping = store.legDamping
         const stepShift = store.gripShift
         const stepDuty = Math.min(0.95, Math.max(0.05, store.gripDuration))
+
+        // Playback control (Increment A): `frozen` stops sim advance while the render keeps drawing the
+        // held frame (freeze-frame); `playSpeed` scales how fast wall-time feeds the fixed-step
+        // accumulator (slow-motion); a pending `stepRequest` injects N exact ticks. The per-tick math in
+        // the while-loop below is untouched, so 1x-speed unfrozen is byte-identical to before.
+        const frozen = store.frozen
+        const speed = Math.max(0.1, Math.min(1, store.playSpeed))
+        const stepTicks = Math.max(0, store.consumeStepRequest())
+        const intake = (frozen ? 0 : Math.min(dt, MAX_FRAME) * speed) + stepTicks * TIMESTEP
+        const advancing = intake > 0
+
         // Live per-collider friction: trunk slides (low) so the axial wave isn't pinned to the
         // floor; feet grip (high) for traction. Ground is friction 1.0 with a MULTIPLY combine rule,
-        // so the effective surface friction equals each collider's own coefficient.
-        {
+        // so the effective surface friction equals each collider's own coefficient. Only when advancing,
+        // so a frozen frame doesn't drift the measured phase or re-plant feet.
+        if (advancing) {
           const bodyFriction = store.bodyFriction
           // Feet default to the low release friction so they SLIDE — the body undulates freely and
           // grip-off truly means "don't grip". The grip primitive (below) overrides per-foot when on.
@@ -416,7 +480,8 @@ export function useLocomotion(
                 .applyQuaternion(s.q.set(pq.x, pq.y, pq.z, pq.w))
               const reach = com.x - (pp.x + s.v1.x)
               const phase = updateMechPhase(c.mechPhase[h], reach, dt)
-              const rel = ((phase - gripShift) % 1 + 1) % 1
+              const winPhase = legPhaseOf(hip.limbIdx, phase)
+              const rel = ((winPhase - gripShift) % 1 + 1) % 1
               // Timing window drives the glow for ALL feet (so a foot toggled off still shows when it
               // *would* grip); actual gripping additionally requires the grip switch + that foot selected.
               const inWindow = rel < gripDuration
@@ -456,7 +521,20 @@ export function useLocomotion(
             for (const m of glows.values()) m.visible = false
           }
         }
-        let acc = c.acc + Math.min(dt, MAX_FRAME)
+        // Stance-phase axial boost (Stage 1): how much of the gait is currently planted. Scales the
+        // axial muscle's ACTIVE gain so the spine pushes harder while feet are down. 0 boost = unchanged.
+        let stanceFrac = 0
+        if (c.body.hipJoints.length > 0) {
+          let nStance = 0
+          for (let h = 0; h < c.body.hipJoints.length; h++) {
+            const rel = ((c.mechPhase[h].phase - stepShift) % 1 + 1) % 1
+            if (rel < stepDuty) nStance++
+          }
+          stanceFrac = nStance / c.body.hipJoints.length
+        }
+        const alphaEff = alpha * (1 + stanceMuscleBoost * stanceFrac)
+
+        let acc = c.acc + intake
         while (acc >= TIMESTEP) {
           // Axial proprioceptive feedback reads each axial joint's ACTUAL angle (body curvature) and
           // feeds it back into the CPG (paper Fig 6C). Only built when a feedback weight is set, so the
@@ -477,7 +555,7 @@ export function useLocomotion(
             // T = α(mL−mR) − β(mL+mR+γ)φ − δφ̇ = −kStiff(φ−φEq) − δφ̇. Implicit integration → no
             // numerical energy injection (an explicit external torque pumps energy and runs away).
             const kStiff = beta * (d.mL + d.mR + GAMMA)
-            const phiEq = kStiff > 1e-9 ? (alpha * (d.mL - d.mR)) / kStiff : 0
+            const phiEq = kStiff > 1e-9 ? (alphaEff * (d.mL - d.mR)) / kStiff : 0
             ;(jt.joint as RAPIER.RevoluteImpulseJoint).configureMotorPosition(phiEq, kStiff, jointDamping)
           }
           // Drive each hip's 2 DOF from the MEASURED undulation phase (same clock as the grip window),
@@ -490,7 +568,7 @@ export function useLocomotion(
             for (let hi = 0; hi < c.body.hipJoints.length; hi++) {
               const hip = c.body.hipJoints[hi]
               if (stepEnabled) {
-                const ph = c.mechPhase[hi].phase
+                const ph = legPhaseOf(hip.limbIdx, c.mechPhase[hi].phase)
                 const rel = ((ph - stepShift) % 1 + 1) % 1
                 // Map the sweep into the leg's own caps: +capStance forward, −capSwing back, scaled by
                 // the 0–1 sweep amount, so it can never exceed the calibrated angle limits.
@@ -507,7 +585,7 @@ export function useLocomotion(
                   sweep = -back + t * (fwd + back) // −back → +forward over swing (recovery)
                   lift = liftAmount * Math.sin(Math.PI * t) // raise then set the foot back down
                 }
-                hip.sweepJoint.configureMotorPosition(sweep * amt, sweepSpeed, legDamping)
+                hip.sweepJoint.configureMotorPosition(sweep * amt * (sweepReverse ? -1 : 1), sweepSpeed, legDamping)
                 hip.liftJoint?.configureMotorPosition(hip.liftSign * lift, legStiffness, legDamping)
               } else {
                 const stiff = legsLockedConst ? legStiffness : 0
@@ -521,6 +599,7 @@ export function useLocomotion(
           c.world.step()
           if (store.environmentEnabled) applyEnvironment3D(c.body, TIMESTEP)
           acc -= TIMESTEP
+          c.simTime += TIMESTEP
         }
         c.acc = acc
 
@@ -552,9 +631,47 @@ export function useLocomotion(
           root.quaternion.identity()
         }
 
+        // Publish the read-only observation snapshot for the overlay layer (Increment B reads
+        // window.__locObs). Recomputed every frame (cheap) into preallocated arrays; runs even when
+        // frozen so a held frame still exposes the current phase/stance/reach.
+        if (c.body.hipJoints.length > 0) {
+          for (let h = 0; h < c.body.hipJoints.length; h++) {
+            const hip = c.body.hipJoints[h]
+            const clk = legPhaseOf(c.body.hipJoints[h].limbIdx, c.mechPhase[h].phase)
+            const rel = ((clk - stepShift) % 1 + 1) % 1
+            c.obs.phase[h] = clk
+            c.obs.stance[h] = rel < stepDuty
+            c.obs.gripped[h] = c.gripPlantJoint[h] != null
+            const par = c.body.bodies[hip.parentIndex]
+            const pp = par.translation(); const pq = par.rotation()
+            s.v1.set(hip.footRestLocal.x, hip.footRestLocal.y, hip.footRestLocal.z)
+              .applyQuaternion(s.q.set(pq.x, pq.y, pq.z, pq.w))
+            const r = c.obs.reach[h]
+            r.x = pp.x + s.v1.x; r.y = pp.y + s.v1.y; r.z = pp.z + s.v1.z
+            const legB = c.body.bodies[hip.legBodyIndex]
+            const lp = legB.translation(); const lq = legB.rotation()
+            s.v2.set(hip.footLocal.x, hip.footLocal.y, hip.footLocal.z)
+              .applyQuaternion(s.q.set(lq.x, lq.y, lq.z, lq.w))
+            const fo = c.obs.foot[h]
+            fo.x = lp.x + s.v2.x; fo.y = lp.y + s.v2.y; fo.z = lp.z + s.v2.z
+            s.v2.set(hip.hipLocal.x, hip.hipLocal.y, hip.hipLocal.z)
+              .applyQuaternion(s.q.set(pq.x, pq.y, pq.z, pq.w))
+            const ho = c.obs.hip[h]
+            ho.x = pp.x + s.v2.x; ho.y = pp.y + s.v2.y; ho.z = pp.z + s.v2.z
+          }
+        }
+        // Trunk skeleton publishes regardless of legs (spine monitors work on legless configs too).
+        for (let ti = 0; ti < c.trunkIdx.length; ti++) {
+          const p = c.body.bodies[c.trunkIdx[ti]].translation()
+          const tp = c.obs.trunk[ti]
+          tp.x = p.x; tp.y = p.y; tp.z = p.z
+        }
+        if (typeof window !== 'undefined') window.__locObs = c.obs
+
         c.diagAccum += dt
         if (c.diagAccum >= DIAGNOSTICS_INTERVAL) {
           c.diagAccum -= DIAGNOSTICS_INTERVAL
+          store.setSimTime(c.simTime)
           const samp = buildSample3D(0, c.body, c.baseCom)
           store.setSimDiagnostics({
             kineticEnergy: samp.kineticEnergy,

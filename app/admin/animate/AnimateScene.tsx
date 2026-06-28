@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useSharedStore } from '../_lib/sharedStore'
-import { useAnimateStore, pickSimConfig, SimConfig } from './animateStore'
+import { useAnimateStore, pickSimConfig, SimConfig, encodeSimConfig } from './animateStore'
 import { findSimPreset } from './simPresets'
 import { CameraController, StudioCanvas } from '../_lib/StudioCanvas'
 import { CameraPreset, ModelConfigRow } from '../_lib/types'
@@ -62,6 +63,37 @@ function useStudioObservationHook() {
       // simulation logic is preserved — only its tunable parameters change.
       getConfig: () => pickSimConfig(store() as unknown as SimConfig),
       apply: (partial: Partial<SimConfig>) => store().applySimConfig(partial),
+      // Playback control (Increment A): freeze-frame, slow-motion, and forward single-stepping. `frozen`
+      // halts sim advance while the render keeps drawing the held frame; `speed` scales slow-motion;
+      // `step(n)` injects n exact fixed ticks (forward only in Increment A). All are pure view-state
+      // changes — no physics is mutated here.
+      pause: () => store().setFrozen(true),
+      play: () => store().setFrozen(false),
+      // Forward single-step by N fixed ticks (named frameStep to avoid the existing `step` locomotion
+      // controller above). Freezes first so the stepped frame holds.
+      frameStep: (n = 1) => { store().setFrozen(true); store().requestStep(Math.max(0, Math.round(n))) },
+      speed: (x: number) => store().setPlaySpeed(x),
+      getSimTime: () => store().simTime,
+      // Overlay view-state (drawn by the overlay layer in Increment B): names is a subset of
+      // OVERLAY_NAMES; isolateLimb dims all but the named limb.
+      setOverlays: (names: string[]) => store().setOverlays(Array.isArray(names) ? names : []),
+      isolateLimb: (id: string | null) => store().setIsolateLimb(id),
+      // Build a shareable link that reproduces the current config + tab + overlays.
+      buildLink: () => {
+        const st = store()
+        const params = new URLSearchParams()
+        params.set('tab', st.animateTab)
+        params.set('sim', encodeSimConfig(pickSimConfig(st as unknown as SimConfig)))
+        if (st.overlays.length > 0) params.set('overlay', st.overlays.join(','))
+        const base = typeof window !== 'undefined' ? window.location.origin + window.location.pathname : ''
+        return `${base}?${params.toString()}`
+      },
+      copyLink: () => {
+        const w2 = window as unknown as { __studio?: { buildLink?: () => string } }
+        const link = w2.__studio?.buildLink?.() ?? ''
+        if (link && typeof navigator !== 'undefined' && navigator.clipboard) navigator.clipboard.writeText(link).catch((err) => console.error(err))
+        return link
+      },
       // Node-position capture: buffer every body's world (x,y,z) at a target rate while the sim runs.
       // Mirrors the gripCapture mechanism. The frame loop (useLocomotion) fills the buffer and stamps
       // __nodeCaptureSpec (groupIds, segment lengths) on first sample.
@@ -115,6 +147,61 @@ function useStudioObservationHook() {
   }, [])
 }
 
+// Read-only overlay layer (Increment B). Reads window.__locObs each frame (published by useLocomotion)
+// and positions a small pool of marker meshes — no physics is touched. `stance` paints each foot green
+// (grip/power-stroke) or red (swing); `wave` marks each girdle's max-forward-reach point, hue by phase.
+// `isolateLimb` (handled together with body-ghosting in SceneContent) shows only the selected limb.
+const MAX_OVERLAY_LEGS = 4
+function LocomotionOverlays() {
+  const footRefs = useRef<(THREE.Mesh | null)[]>([])
+  const reachRefs = useRef<(THREE.Mesh | null)[]>([])
+  useFrame(() => {
+    const st = useAnimateStore.getState()
+    const obs = (window as Window).__locObs
+    const showStance = st.overlays.includes('stance')
+    const showWave = st.overlays.includes('wave')
+    const iso = st.isolateLimb
+    for (let i = 0; i < MAX_OVERLAY_LEGS; i++) {
+      const footM = footRefs.current[i]
+      const reachM = reachRefs.current[i]
+      const has = !!obs && i < obs.legs.length
+      const legShown = has && (!iso || obs!.legs[i] === iso)
+      if (footM) {
+        if (legShown && showStance) {
+          const f = obs!.foot[i]
+          footM.position.set(f.x, f.y, f.z)
+          ;(footM.material as THREE.MeshBasicMaterial).color.set(obs!.stance[i] ? '#22c55e' : '#ef4444')
+          footM.visible = true
+        } else footM.visible = false
+      }
+      if (reachM) {
+        if (legShown && showWave) {
+          const r = obs!.reach[i]
+          reachM.position.set(r.x, r.y, r.z)
+          ;(reachM.material as THREE.MeshBasicMaterial).color.setHSL(((obs!.phase[i] % 1) + 1) % 1, 0.9, 0.6)
+          reachM.visible = true
+        } else reachM.visible = false
+      }
+    }
+  })
+  return (
+    <>
+      {Array.from({ length: MAX_OVERLAY_LEGS }).map((_, i) => (
+        <mesh key={`foot-${i}`} ref={(m) => { footRefs.current[i] = m }} visible={false}>
+          <sphereGeometry args={[0.5, 16, 16]} />
+          <meshBasicMaterial color="#22c55e" toneMapped={false} depthTest={false} transparent opacity={0.9} />
+        </mesh>
+      ))}
+      {Array.from({ length: MAX_OVERLAY_LEGS }).map((_, i) => (
+        <mesh key={`reach-${i}`} ref={(m) => { reachRefs.current[i] = m }} visible={false}>
+          <octahedronGeometry args={[0.42, 0]} />
+          <meshBasicMaterial color="#00e5ff" toneMapped={false} depthTest={false} transparent opacity={0.9} />
+        </mesh>
+      ))}
+    </>
+  )
+}
+
 function SceneContent() {
   const segments = useSharedStore((s) => s.segments)
   const groups = useSharedStore((s) => s.groups)
@@ -123,6 +210,7 @@ function SceneContent() {
   const configName = useSharedStore((s) => s.configName)
   const modelRotation = useSharedStore((s) => s.modelRotation)
   const modelOpacity = useAnimateStore((s) => s.modelOpacity)
+  const isolateLimb = useAnimateStore((s) => s.isolateLimb)
   const rootRef = useRef<THREE.Group | null>(null)
 
   const modelConfig = useMemo<ModelConfigRow>(
@@ -145,7 +233,7 @@ function SceneContent() {
         modelConfig={modelConfig}
         segments={segments}
         showNodes
-        opacity={modelOpacity}
+        opacity={isolateLimb ? 0.12 : modelOpacity}
         rootRef={rootRef}
       />
     </group>
@@ -160,6 +248,7 @@ export function AnimateScene() {
   return (
     <StudioCanvas>
       <SceneContent />
+      <LocomotionOverlays />
       <CameraController preset={cameraPreset} onConsumed={() => setCameraPreset(null)} />
     </StudioCanvas>
   )

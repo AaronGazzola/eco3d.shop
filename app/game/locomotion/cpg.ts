@@ -98,7 +98,8 @@ function mapBodyToFine(segmentLengths: number[], n: number): number[] {
 export function buildCpgSpec(
   segmentLengths: number[],
   groups?: BodyGroup[],
-  chainGroupIds?: string[]
+  chainGroupIds?: string[],
+  bodyWaves: number = BODY_WAVES
 ): CpgSpec {
   const nBody = segmentLengths.length
   // Fine CPG resolution, decoupled from the body's joint count (never coarser than the body).
@@ -123,7 +124,7 @@ export function buildCpgSpec(
 
   // Uniform per-coupling phase bias over the fine chain: total BODY_WAVES wavelengths spread across
   // n−1 fine intervals → the paper's ~0.066 cycle/segment at n=25, BODY_WAVES=1.58.
-  const phiSeg = n >= 2 ? (TWO_PI * BODY_WAVES) / (n - 1) : 0
+  const phiSeg = n >= 2 ? (TWO_PI * bodyWaves) / (n - 1) : 0
   for (let k = 0; k < n - 1; k++) {
     couplings.push({ from: k, to: k + 1, w: 5, phi: phiSeg })
     couplings.push({ from: k + n, to: k + 1 + n, w: 5, phi: phiSeg })

@@ -8,6 +8,11 @@ export type AnimateTab = 'simulate' | 'calibrate'
 
 export type GripFoot = 'FL' | 'FR' | 'BL' | 'BR'
 
+// Clock that drives the grip window + leg sweep. 'body' = the measured body-wave phase (default),
+// 'limb' = the limb CPG oscillator (diagonal trot), 'time' = an independent sim-time oscillator at
+// stepFreqHz (lets the leg sweep run with the CPG off — for isolating the leg-pull mechanism).
+export type LegClock = 'body' | 'limb' | 'time'
+
 export interface ManualPose {
   rootX: number
   rootZ: number
@@ -34,6 +39,7 @@ export interface SimConfig {
   environmentEnabled: boolean
   cpgDrive: number
   cpgExcitability: number
+  bodyWaves: number
   frontDrive: number
   frontSegments: number
   turnBias: number
@@ -43,6 +49,7 @@ export interface SimConfig {
   muscleAlpha: number
   muscleBeta: number
   muscleDamping: number
+  stanceMuscleBoost: number
   bodyFriction: number
   legFriction: number
   gripEnabled: boolean
@@ -52,6 +59,9 @@ export interface SimConfig {
   gripGlowEnabled: boolean
   gripFeet: Record<GripFoot, boolean>
   stepEnabled: boolean
+  legClock: LegClock
+  stepFreqHz: number
+  sweepReverse: boolean
   sweepAmount: number
   sweepSpeed: number
   liftAmount: number
@@ -68,6 +78,7 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
   environmentEnabled: false,
   cpgDrive: 1.87,
   cpgExcitability: 0.24,
+  bodyWaves: 1.58,
   frontDrive: 0.6,
   frontSegments: 0,
   turnBias: 0,
@@ -77,6 +88,7 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
   muscleAlpha: 3.95,
   muscleBeta: 13.3,
   muscleDamping: 11.3,
+  stanceMuscleBoost: 0,
   bodyFriction: 0.05,
   legFriction: 0.05,
   gripEnabled: true,
@@ -86,6 +98,9 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
   gripGlowEnabled: true,
   gripFeet: { FL: true, FR: true, BL: true, BR: true },
   stepEnabled: true,
+  legClock: 'body',
+  stepFreqHz: 0.8,
+  sweepReverse: false,
   sweepAmount: 0,
   sweepSpeed: 3000,
   liftAmount: 0.3,
@@ -94,6 +109,26 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
 }
 
 const SIM_CONFIG_STORAGE_KEY = 'eco3d-animate-sim-config'
+
+export const OVERLAY_NAMES = ['wave', 'stance'] as const
+export type OverlayName = (typeof OVERLAY_NAMES)[number]
+
+export function encodeSimConfig(config: SimConfig): string {
+  const json = JSON.stringify(config)
+  if (typeof btoa !== 'undefined') return btoa(json)
+  return Buffer.from(json, 'utf8').toString('base64')
+}
+
+export function decodeSimConfig(str: string): Partial<SimConfig> {
+  try {
+    const json = typeof atob !== 'undefined' ? atob(str) : Buffer.from(str, 'base64').toString('utf8')
+    const obj = JSON.parse(json)
+    return obj && typeof obj === 'object' ? (obj as Partial<SimConfig>) : {}
+  } catch (err) {
+    console.error('decodeSimConfig failed', err)
+    return {}
+  }
+}
 
 export function pickSimConfig(s: SimConfig): SimConfig {
   return {
@@ -105,6 +140,7 @@ export function pickSimConfig(s: SimConfig): SimConfig {
     environmentEnabled: s.environmentEnabled,
     cpgDrive: s.cpgDrive,
     cpgExcitability: s.cpgExcitability,
+    bodyWaves: s.bodyWaves,
     frontDrive: s.frontDrive,
     frontSegments: s.frontSegments,
     turnBias: s.turnBias,
@@ -114,6 +150,7 @@ export function pickSimConfig(s: SimConfig): SimConfig {
     muscleAlpha: s.muscleAlpha,
     muscleBeta: s.muscleBeta,
     muscleDamping: s.muscleDamping,
+    stanceMuscleBoost: s.stanceMuscleBoost,
     bodyFriction: s.bodyFriction,
     legFriction: s.legFriction,
     gripEnabled: s.gripEnabled,
@@ -123,6 +160,9 @@ export function pickSimConfig(s: SimConfig): SimConfig {
     gripGlowEnabled: s.gripGlowEnabled,
     gripFeet: { ...s.gripFeet },
     stepEnabled: s.stepEnabled,
+    legClock: s.legClock,
+    stepFreqHz: s.stepFreqHz,
+    sweepReverse: s.sweepReverse,
     sweepAmount: s.sweepAmount,
     sweepSpeed: s.sweepSpeed,
     liftAmount: s.liftAmount,
@@ -145,6 +185,22 @@ interface AnimateStore extends SimConfig {
   lastCapturePath: string | null
   coupledRunning: boolean
 
+  frozen: boolean
+  simTime: number
+  playSpeed: number
+  overlays: string[]
+  isolateLimb: string | null
+  stepRequest: number
+
+  setFrozen: (v: boolean) => void
+  setSimTime: (t: number) => void
+  setPlaySpeed: (v: number) => void
+  setOverlays: (names: string[]) => void
+  toggleOverlay: (name: string) => void
+  setIsolateLimb: (id: string | null) => void
+  requestStep: (n: number) => void
+  consumeStepRequest: () => number
+
   setAnimateTab: (tab: AnimateTab) => void
   setCalibratingGroup: (id: string | null) => void
   setCalibratingYaw: (yaw: number) => void
@@ -162,6 +218,7 @@ interface AnimateStore extends SimConfig {
   setLastCapturePath: (path: string | null) => void
   setCpgDrive: (v: number) => void
   setCpgExcitability: (v: number) => void
+  setBodyWaves: (v: number) => void
   setFrontDrive: (v: number) => void
   setFrontSegments: (v: number) => void
   setTurnBias: (v: number) => void
@@ -173,6 +230,7 @@ interface AnimateStore extends SimConfig {
   setMuscleAlpha: (v: number) => void
   setMuscleBeta: (v: number) => void
   setMuscleDamping: (v: number) => void
+  setStanceMuscleBoost: (v: number) => void
   setBodyFriction: (v: number) => void
   setLegFriction: (v: number) => void
   setGravityEnabled: (v: boolean) => void
@@ -187,6 +245,9 @@ interface AnimateStore extends SimConfig {
   setGripGlowEnabled: (v: boolean) => void
   setGripFoot: (foot: GripFoot, on: boolean) => void
   setStepEnabled: (v: boolean) => void
+  setLegClock: (v: LegClock) => void
+  setStepFreqHz: (v: number) => void
+  setSweepReverse: (v: boolean) => void
   setSweepAmount: (v: number) => void
   setSweepSpeed: (v: number) => void
   setLiftAmount: (v: number) => void
@@ -198,7 +259,7 @@ interface AnimateStore extends SimConfig {
 
 export const useAnimateStore = create<AnimateStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       animateTab: 'simulate',
       calibratingGroupId: null,
       calibratingYaw: 0,
@@ -211,7 +272,31 @@ export const useAnimateStore = create<AnimateStore>()(
       simRecording: false,
       lastCapturePath: null,
       coupledRunning: false,
+      frozen: false,
+      simTime: 0,
+      playSpeed: 1,
+      overlays: [],
+      isolateLimb: null,
+      stepRequest: 0,
       ...DEFAULT_SIM_CONFIG,
+
+      setFrozen: (v) => set({ frozen: v }),
+      setSimTime: (t) => set({ simTime: t }),
+      setPlaySpeed: (v) => set({ playSpeed: Math.max(0.1, Math.min(1, v)) }),
+      setOverlays: (names) => set({ overlays: [...names] }),
+      toggleOverlay: (name) =>
+        set((state) => ({
+          overlays: state.overlays.includes(name)
+            ? state.overlays.filter((n) => n !== name)
+            : [...state.overlays, name],
+        })),
+      setIsolateLimb: (id) => set({ isolateLimb: id }),
+      requestStep: (n) => set((state) => ({ stepRequest: state.stepRequest + n })),
+      consumeStepRequest: () => {
+        const n = get().stepRequest
+        if (n !== 0) set({ stepRequest: 0 })
+        return n
+      },
 
       setAnimateTab: (tab) => {
         if (tab === 'simulate') {
@@ -267,6 +352,7 @@ export const useAnimateStore = create<AnimateStore>()(
       setCpgDrive: (v) => set({ cpgDrive: v }),
 
       setCpgExcitability: (v) => set({ cpgExcitability: v }),
+      setBodyWaves: (v) => set({ bodyWaves: v }),
 
       setFrontDrive: (v) => set({ frontDrive: v }),
 
@@ -279,13 +365,15 @@ export const useAnimateStore = create<AnimateStore>()(
       setFeedbackIpsi: (v) => set({ feedbackIpsi: v }),
       setFeedbackContra: (v) => set({ feedbackContra: v }),
 
-      setCoupledRunning: (v) => set({ coupledRunning: v }),
+      setCoupledRunning: (v) =>
+        set(v ? { coupledRunning: true, frozen: false, simTime: 0, stepRequest: 0 } : { coupledRunning: false }),
 
       setEnvironmentEnabled: (v) => set({ environmentEnabled: v }),
 
       setMuscleAlpha: (v) => set({ muscleAlpha: v }),
       setMuscleBeta: (v) => set({ muscleBeta: v }),
       setMuscleDamping: (v) => set({ muscleDamping: v }),
+      setStanceMuscleBoost: (v) => set({ stanceMuscleBoost: Math.max(0, v) }),
       setBodyFriction: (v) => set({ bodyFriction: v }),
       setLegFriction: (v) => set({ legFriction: v }),
       setGravityEnabled: (v) => set({ gravityEnabled: v }),
@@ -301,6 +389,9 @@ export const useAnimateStore = create<AnimateStore>()(
       setGripFoot: (foot, on) =>
         set((state) => ({ gripFeet: { ...state.gripFeet, [foot]: on } })),
       setStepEnabled: (v) => set({ stepEnabled: v }),
+      setLegClock: (v) => set({ legClock: v }),
+      setStepFreqHz: (v) => set({ stepFreqHz: Math.max(0.05, v) }),
+      setSweepReverse: (v) => set({ sweepReverse: v }),
       setSweepAmount: (v) => set({ sweepAmount: v }),
       setSweepSpeed: (v) => set({ sweepSpeed: v }),
       setLiftAmount: (v) => set({ liftAmount: v }),
