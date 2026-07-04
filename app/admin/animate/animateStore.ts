@@ -93,7 +93,27 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
   legDamping: 120,
 }
 
-const SIM_CONFIG_STORAGE_KEY = 'eco3d-animate-sim-config'
+export const SIM_CONFIG_STORAGE_KEY = 'eco3d-animate-sim-config'
+
+export const OVERLAY_NAMES = ['wave', 'stance'] as const
+export type OverlayName = (typeof OVERLAY_NAMES)[number]
+
+export function encodeSimConfig(config: SimConfig): string {
+  const json = JSON.stringify(config)
+  if (typeof btoa !== 'undefined') return btoa(json)
+  return Buffer.from(json, 'utf8').toString('base64')
+}
+
+export function decodeSimConfig(str: string): Partial<SimConfig> {
+  try {
+    const json = typeof atob !== 'undefined' ? atob(str) : Buffer.from(str, 'base64').toString('utf8')
+    const obj = JSON.parse(json)
+    return obj && typeof obj === 'object' ? (obj as Partial<SimConfig>) : {}
+  } catch (err) {
+    console.error('decodeSimConfig failed', err)
+    return {}
+  }
+}
 
 export function pickSimConfig(s: SimConfig): SimConfig {
   return {
@@ -144,6 +164,22 @@ interface AnimateStore extends SimConfig {
   simRecording: boolean
   lastCapturePath: string | null
   coupledRunning: boolean
+
+  frozen: boolean
+  simTime: number
+  playSpeed: number
+  overlays: string[]
+  isolateLimb: string | null
+  stepRequest: number
+
+  setFrozen: (v: boolean) => void
+  setSimTime: (t: number) => void
+  setPlaySpeed: (v: number) => void
+  setOverlays: (names: string[]) => void
+  toggleOverlay: (name: string) => void
+  setIsolateLimb: (id: string | null) => void
+  requestStep: (n: number) => void
+  consumeStepRequest: () => number
 
   setAnimateTab: (tab: AnimateTab) => void
   setCalibratingGroup: (id: string | null) => void
@@ -198,7 +234,7 @@ interface AnimateStore extends SimConfig {
 
 export const useAnimateStore = create<AnimateStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       animateTab: 'simulate',
       calibratingGroupId: null,
       calibratingYaw: 0,
@@ -211,7 +247,31 @@ export const useAnimateStore = create<AnimateStore>()(
       simRecording: false,
       lastCapturePath: null,
       coupledRunning: false,
+      frozen: false,
+      simTime: 0,
+      playSpeed: 1,
+      overlays: [],
+      isolateLimb: null,
+      stepRequest: 0,
       ...DEFAULT_SIM_CONFIG,
+
+      setFrozen: (v) => set({ frozen: v }),
+      setSimTime: (t) => set({ simTime: t }),
+      setPlaySpeed: (v) => set({ playSpeed: Math.max(0.1, Math.min(1, v)) }),
+      setOverlays: (names) => set({ overlays: [...names] }),
+      toggleOverlay: (name) =>
+        set((state) => ({
+          overlays: state.overlays.includes(name)
+            ? state.overlays.filter((n) => n !== name)
+            : [...state.overlays, name],
+        })),
+      setIsolateLimb: (id) => set({ isolateLimb: id }),
+      requestStep: (n) => set((state) => ({ stepRequest: state.stepRequest + n })),
+      consumeStepRequest: () => {
+        const n = get().stepRequest
+        if (n !== 0) set({ stepRequest: 0 })
+        return n
+      },
 
       setAnimateTab: (tab) => {
         if (tab === 'simulate') {
@@ -279,7 +339,8 @@ export const useAnimateStore = create<AnimateStore>()(
       setFeedbackIpsi: (v) => set({ feedbackIpsi: v }),
       setFeedbackContra: (v) => set({ feedbackContra: v }),
 
-      setCoupledRunning: (v) => set({ coupledRunning: v }),
+      setCoupledRunning: (v) =>
+        set(v ? { coupledRunning: true, frozen: false, simTime: 0, stepRequest: 0 } : { coupledRunning: false }),
 
       setEnvironmentEnabled: (v) => set({ environmentEnabled: v }),
 

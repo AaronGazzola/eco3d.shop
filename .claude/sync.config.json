@@ -1,0 +1,42 @@
+{
+  "project": "Eco3D.Shop",
+  "mainBranch": "main",
+  "integrations": {
+    "git": {
+      "enabled": true
+    },
+    "openspec": {
+      "enabled": true
+    },
+    "linear": {
+      "enabled": true,
+      "workspace": "Gazzola (personal)",
+      "team": "Az",
+      "project": "Eco3D.Shop"
+    },
+    "supabase": {
+      "enabled": true,
+      "projectRef": "cgumxokzvnwwuldxwfjj",
+      "method": "mcp"
+    },
+    "doppler": {
+      "enabled": true,
+      "project": "eco3d-shop",
+      "config": "prd"
+    },
+    "vercel": {
+      "enabled": true,
+      "project": "<vercel-project>",
+      "method": "cli-or-github-deployments"
+    },
+    "sentry": {
+      "enabled": false,
+      "org": "<sentry-org>",
+      "project": "<sentry-project>"
+    },
+    "trigger": {
+      "enabled": false,
+      "project": "<trigger-project-ref>"
+    }
+  }
+}

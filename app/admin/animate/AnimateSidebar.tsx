@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { pickSimConfig, useAnimateStore } from './animateStore'
+import { pickSimConfig, useAnimateStore, encodeSimConfig, SimConfig } from './animateStore'
 import { SIM_PRESETS, findSimPreset } from './simPresets'
 import { CalibrateTab } from './CalibrateTab'
 
@@ -177,12 +177,23 @@ function SimulateTab() {
   const resetSimConfig = useAnimateStore((s) => s.resetSimConfig)
   const applySimConfig = useAnimateStore((s) => s.applySimConfig)
 
+  const frozen = useAnimateStore((s) => s.frozen)
+  const setFrozen = useAnimateStore((s) => s.setFrozen)
+  const playSpeed = useAnimateStore((s) => s.playSpeed)
+  const setPlaySpeed = useAnimateStore((s) => s.setPlaySpeed)
+  const requestStep = useAnimateStore((s) => s.requestStep)
+  const simTime = useAnimateStore((s) => s.simTime)
+  const overlays = useAnimateStore((s) => s.overlays)
+  const toggleOverlay = useAnimateStore((s) => s.toggleOverlay)
+  const isolateLimb = useAnimateStore((s) => s.isolateLimb)
+  const setIsolateLimb = useAnimateStore((s) => s.setIsolateLimb)
+
   const [copied, setCopied] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
   const [selectedPreset, setSelectedPreset] = useState('')
 
-  useEffect(() => {
-    useAnimateStore.persist.rehydrate()
-  }, [])
+  // Hydration is owned by useConfigLink in page.tsx (rehydrate → then apply the link on top). Doing it
+  // here too would re-run after the link applied and clobber the link's config with the saved one.
 
   const handleCopy = () => {
     const config = pickSimConfig(useAnimateStore.getState())
@@ -199,6 +210,22 @@ function SimulateTab() {
     setSelectedPreset(name)
     const preset = findSimPreset(name)
     if (preset) applySimConfig(preset.config)
+  }
+
+  const handleCopyLink = () => {
+    const st = useAnimateStore.getState()
+    const params = new URLSearchParams()
+    params.set('tab', st.animateTab)
+    params.set('sim', encodeSimConfig(pickSimConfig(st as unknown as SimConfig)))
+    if (st.overlays.length > 0) params.set('overlay', st.overlays.join(','))
+    const base = window.location.origin + window.location.pathname
+    navigator.clipboard
+      .writeText(`${base}#${params.toString()}`)
+      .then(() => {
+        setLinkCopied(true)
+        setTimeout(() => setLinkCopied(false), 1500)
+      })
+      .catch((err) => console.error(err))
   }
 
   return (
@@ -254,6 +281,83 @@ function SimulateTab() {
         </div>
 
         <div className="flex flex-col gap-1 px-4 pt-2 pb-4">
+
+        <div className="flex items-center justify-between gap-2 py-0.5">
+          <span className="text-[11px] text-white/70">Playback</span>
+          <span className="font-mono text-[10px] text-white/60">
+            {frozen ? 'frozen' : `${playSpeed.toFixed(2)}x`} · t={simTime.toFixed(2)}s
+          </span>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setFrozen(!frozen)}
+            disabled={!coupledRunning}
+            className={cn(
+              'flex-1 rounded-md py-1.5 text-xs transition-colors disabled:opacity-40',
+              frozen ? 'bg-amber-600/40 text-amber-200' : 'bg-white/10 text-white/70 hover:text-white'
+            )}
+          >
+            {frozen ? 'Play' : 'Freeze'}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setFrozen(true); requestStep(1) }}
+            disabled={!coupledRunning}
+            className="flex-1 rounded-md bg-white/10 py-1.5 text-xs text-white/70 transition-colors hover:text-white disabled:opacity-40"
+          >
+            Step +1
+          </button>
+        </div>
+        <Slider
+          label="Speed"
+          tip="Slow-motion playback multiplier (0.1x–1x). Scales how fast wall-time feeds the fixed-step sim. 1x = real-time."
+          value={playSpeed}
+          min={0.1}
+          max={1}
+          step={0.05}
+          onChange={setPlaySpeed}
+          format={(v) => `${v.toFixed(2)}x`}
+        />
+        <div className="flex items-center justify-between gap-2 py-0.5">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-[11px] text-white/70">Overlays</span>
+            <Info text="Read-only visual overlays for isolating the gait. wave = body-wave phase + max-forward reach markers; stance = legs green (grip/power-stroke) / red (swing). Rendered in Increment B." />
+          </div>
+          <div className="flex gap-0.5">
+            {(['wave', 'stance'] as const).map((o) => (
+              <button
+                key={o}
+                type="button"
+                onClick={() => toggleOverlay(o)}
+                className={cn(
+                  'rounded px-2 py-0.5 text-[10px] transition-colors',
+                  overlays.includes(o) ? 'bg-violet-600/50 text-violet-100' : 'bg-white/5 text-white/40 hover:text-white'
+                )}
+              >
+                {o}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-2 py-0.5">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-[11px] text-white/70">Isolate limb</span>
+            <Info text="Dim everything except one limb to inspect it alone. Rendered in Increment B." />
+          </div>
+          <select
+            value={isolateLimb ?? ''}
+            onChange={(e) => setIsolateLimb(e.target.value || null)}
+            className="rounded-md border border-white/10 bg-black/30 px-2 py-1 text-[11px] text-white/80 focus:border-violet-500/60 focus:outline-none"
+          >
+            <option value="">none</option>
+            {(['FL', 'FR', 'BL', 'BR'] as const).map((l) => (
+              <option key={l} value={l}>{l}</option>
+            ))}
+          </select>
+        </div>
+
+        <Divider />
 
         <Toggle
           label="Gravity"
@@ -416,7 +520,6 @@ function SimulateTab() {
           onChange={setMuscleDamping}
           format={(v) => v.toFixed(2)}
         />
-
         <Divider />
 
         <Slider
@@ -585,6 +688,13 @@ function SimulateTab() {
               className="flex-1 rounded-md bg-white/10 py-1.5 text-xs text-white/70 transition-colors hover:text-white"
             >
               {copied ? 'Copied!' : 'Copy config'}
+            </button>
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              className="flex-1 rounded-md bg-white/10 py-1.5 text-xs text-white/70 transition-colors hover:text-white"
+            >
+              {linkCopied ? 'Copied!' : 'Copy link'}
             </button>
           </div>
         </div>
