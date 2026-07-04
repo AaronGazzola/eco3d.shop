@@ -163,10 +163,14 @@ function SimulateTab() {
 
   const stepEnabled = useAnimateStore((s) => s.stepEnabled)
   const setStepEnabled = useAnimateStore((s) => s.setStepEnabled)
+  const stepFeet = useAnimateStore((s) => s.stepFeet)
+  const setStepFoot = useAnimateStore((s) => s.setStepFoot)
   const sweepAmount = useAnimateStore((s) => s.sweepAmount)
   const setSweepAmount = useAnimateStore((s) => s.setSweepAmount)
   const sweepSpeed = useAnimateStore((s) => s.sweepSpeed)
   const setSweepSpeed = useAnimateStore((s) => s.setSweepSpeed)
+  const stanceSweepSpeed = useAnimateStore((s) => s.stanceSweepSpeed)
+  const setStanceSweepSpeed = useAnimateStore((s) => s.setStanceSweepSpeed)
   const liftAmount = useAnimateStore((s) => s.liftAmount)
   const setLiftAmount = useAnimateStore((s) => s.setLiftAmount)
   const legStiffness = useAnimateStore((s) => s.legStiffness)
@@ -553,6 +557,27 @@ function SimulateTab() {
         />
         {stepEnabled && (
           <>
+            <div className="flex items-start justify-between gap-2 py-0.5">
+              <div className="flex min-w-0 items-center gap-1.5 pt-0.5">
+                <span className="truncate text-[11px] text-white/70">Step feet</span>
+                <Info text="Toggle active stepping (sweep + lift) per foot. A foot turned off holds rigid and still at rest (keeps its stiffness) instead of sweeping." />
+              </div>
+              <div className="grid grid-cols-2 gap-0.5">
+                {(['FL', 'FR', 'BL', 'BR'] as const).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setStepFoot(f, !stepFeet[f])}
+                    className={cn(
+                      'rounded px-2 py-0.5 text-[10px] transition-colors',
+                      stepFeet[f] ? 'bg-emerald-600/50 text-emerald-100' : 'bg-white/5 text-white/40 hover:text-white'
+                    )}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </div>
             <Slider
               label="Sweep amount"
               tip="How far each leg swings fore/aft, as a fraction of the leg's calibrated angle caps (1 = full forward/back range). Stays within the caps."
@@ -565,12 +590,22 @@ function SimulateTab() {
             />
             <Slider
               label="Sweep speed"
-              tip="Gain of the fore/aft motor — how firmly the leg holds/reaches its commanded sweep angle (mass-independent, servo-like). Higher = stiffer, snappier."
+              tip="Gain of the fore/aft motor during SWING (recovery) — how firmly the free leg repositions forward. Keep low so the swing stays soft."
               value={sweepSpeed}
               min={0}
               max={200000}
               step={1000}
               onChange={setSweepSpeed}
+              format={(v) => v.toFixed(0)}
+            />
+            <Slider
+              label="Stance sweep speed"
+              tip="Gain of the fore/aft motor during STANCE (the grip window) — the power stroke that levers the body over the planted foot. Raise this to actually drive the body forward."
+              value={stanceSweepSpeed}
+              min={0}
+              max={200000}
+              step={1000}
+              onChange={setStanceSweepSpeed}
               format={(v) => v.toFixed(0)}
             />
             <Slider

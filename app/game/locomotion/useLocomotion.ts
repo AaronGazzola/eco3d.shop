@@ -405,8 +405,10 @@ export function useLocomotion(
         const gripEnabled = store.gripEnabled
         const legsLockedConst = store.legsLocked
         const stepEnabled = store.stepEnabled
+        const stepFeet = store.stepFeet
         const sweepAmount = store.sweepAmount
         const sweepSpeed = store.sweepSpeed
+        const stanceSweepSpeed = store.stanceSweepSpeed
         const liftAmount = store.liftAmount
         const legStiffness = store.legStiffness
         const legDamping = store.legDamping
@@ -546,7 +548,7 @@ export function useLocomotion(
           if (c.body.hipJoints.length > 0) {
             for (let hi = 0; hi < c.body.hipJoints.length; hi++) {
               const hip = c.body.hipJoints[hi]
-              if (stepEnabled) {
+              if (stepEnabled && stepFeet[GRIP_FOOT_BY_LIMB[hip.limbIdx]]) {
                 const ph = c.mechPhase[hi].phase
                 const rel = ((ph - stepShift) % 1 + 1) % 1
                 // Map the sweep into the leg's own caps: +capStance forward, −capSwing back, scaled by
@@ -554,18 +556,23 @@ export function useLocomotion(
                 const amt = Math.min(1, Math.max(0, sweepAmount))
                 const fwd = hip.capStance
                 const back = hip.capSwing
-                let sweep: number
-                let lift = 0
                 if (rel < stepDuty) {
-                  const t = rel / stepDuty
-                  sweep = fwd - t * (fwd + back) // +forward → −back over stance (power stroke)
+                  // STANCE (power stroke): VELOCITY-drive the sweep back so a planted foot is dragged.
+                  // A position target just force-equilibrates against the pinned foot and never moves the
+                  // body; a velocity motor keeps applying torque while the body resists. Same CPG clock —
+                  // freq/duty set the backward stroke rate — and stanceSweepSpeed is the drive strength.
+                  const freq = c.mechPhase[hi].freq
+                  const stanceVel = -((fwd + back) * amt * freq) / stepDuty // sweep +fwd → −back over stance
+                  hip.sweepJoint.configureMotorVelocity(stanceVel, stanceSweepSpeed)
+                  hip.liftJoint?.configureMotorPosition(0, legStiffness, legDamping) // foot stays down during grip
                 } else {
+                  // SWING (recovery): reposition the free leg forward with a soft position motor + lift.
                   const t = (rel - stepDuty) / (1 - stepDuty)
-                  sweep = -back + t * (fwd + back) // −back → +forward over swing (recovery)
-                  lift = liftAmount * Math.sin(Math.PI * t) // raise then set the foot back down
+                  const sweep = -back + t * (fwd + back)
+                  const lift = liftAmount * Math.sin(Math.PI * t)
+                  hip.sweepJoint.configureMotorPosition(sweep * amt, sweepSpeed, legDamping)
+                  hip.liftJoint?.configureMotorPosition(hip.liftSign * lift, legStiffness, legDamping)
                 }
-                hip.sweepJoint.configureMotorPosition(sweep * amt, sweepSpeed, legDamping)
-                hip.liftJoint?.configureMotorPosition(hip.liftSign * lift, legStiffness, legDamping)
               } else {
                 const stiff = legsLockedConst ? legStiffness : 0
                 hip.sweepJoint.configureMotorPosition(0, stiff, legDamping)

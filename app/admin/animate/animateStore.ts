@@ -52,8 +52,10 @@ export interface SimConfig {
   gripGlowEnabled: boolean
   gripFeet: Record<GripFoot, boolean>
   stepEnabled: boolean
+  stepFeet: Record<GripFoot, boolean>
   sweepAmount: number
   sweepSpeed: number
+  stanceSweepSpeed: number
   liftAmount: number
   legStiffness: number
   legDamping: number
@@ -86,8 +88,10 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
   gripGlowEnabled: true,
   gripFeet: { FL: true, FR: true, BL: true, BR: true },
   stepEnabled: true,
+  stepFeet: { FL: true, FR: true, BL: true, BR: true },
   sweepAmount: 0,
   sweepSpeed: 3000,
+  stanceSweepSpeed: 3000,
   liftAmount: 0.3,
   legStiffness: 3000,
   legDamping: 120,
@@ -143,8 +147,10 @@ export function pickSimConfig(s: SimConfig): SimConfig {
     gripGlowEnabled: s.gripGlowEnabled,
     gripFeet: { ...s.gripFeet },
     stepEnabled: s.stepEnabled,
+    stepFeet: { ...s.stepFeet },
     sweepAmount: s.sweepAmount,
     sweepSpeed: s.sweepSpeed,
+    stanceSweepSpeed: s.stanceSweepSpeed,
     liftAmount: s.liftAmount,
     legStiffness: s.legStiffness,
     legDamping: s.legDamping,
@@ -223,8 +229,10 @@ interface AnimateStore extends SimConfig {
   setGripGlowEnabled: (v: boolean) => void
   setGripFoot: (foot: GripFoot, on: boolean) => void
   setStepEnabled: (v: boolean) => void
+  setStepFoot: (foot: GripFoot, on: boolean) => void
   setSweepAmount: (v: number) => void
   setSweepSpeed: (v: number) => void
+  setStanceSweepSpeed: (v: number) => void
   setLiftAmount: (v: number) => void
   setLegStiffness: (v: number) => void
   setLegDamping: (v: number) => void
@@ -362,12 +370,15 @@ export const useAnimateStore = create<AnimateStore>()(
       setGripFoot: (foot, on) =>
         set((state) => ({ gripFeet: { ...state.gripFeet, [foot]: on } })),
       setStepEnabled: (v) => set({ stepEnabled: v }),
+      setStepFoot: (foot, on) =>
+        set((state) => ({ stepFeet: { ...state.stepFeet, [foot]: on } })),
       setSweepAmount: (v) => set({ sweepAmount: v }),
       setSweepSpeed: (v) => set({ sweepSpeed: v }),
+      setStanceSweepSpeed: (v) => set({ stanceSweepSpeed: v }),
       setLiftAmount: (v) => set({ liftAmount: v }),
       setLegStiffness: (v) => set({ legStiffness: v }),
       setLegDamping: (v) => set({ legDamping: v }),
-      resetSimConfig: () => set({ ...DEFAULT_SIM_CONFIG, gripFeet: { ...DEFAULT_SIM_CONFIG.gripFeet } }),
+      resetSimConfig: () => set({ ...DEFAULT_SIM_CONFIG, gripFeet: { ...DEFAULT_SIM_CONFIG.gripFeet }, stepFeet: { ...DEFAULT_SIM_CONFIG.stepFeet } }),
       applySimConfig: (partial) => {
         const keys = Object.keys(DEFAULT_SIM_CONFIG) as Array<keyof SimConfig>
         const next: Partial<SimConfig> = {}
@@ -375,6 +386,7 @@ export const useAnimateStore = create<AnimateStore>()(
           if (k in partial) (next as Record<string, unknown>)[k] = (partial as Record<string, unknown>)[k]
         }
         if (next.gripFeet) next.gripFeet = { ...next.gripFeet }
+        if (next.stepFeet) next.stepFeet = { ...next.stepFeet }
         set(next as Partial<AnimateStore>)
       },
     }),
