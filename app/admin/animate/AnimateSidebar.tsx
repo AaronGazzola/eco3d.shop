@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -123,8 +123,6 @@ function SimulateTab() {
   const setCpgDrive = useAnimateStore((s) => s.setCpgDrive)
   const cpgExcitability = useAnimateStore((s) => s.cpgExcitability)
   const setCpgExcitability = useAnimateStore((s) => s.setCpgExcitability)
-  const bodyWaves = useAnimateStore((s) => s.bodyWaves)
-  const setBodyWaves = useAnimateStore((s) => s.setBodyWaves)
   const frontDrive = useAnimateStore((s) => s.frontDrive)
   const setFrontDrive = useAnimateStore((s) => s.setFrontDrive)
   const frontSegments = useAnimateStore((s) => s.frontSegments)
@@ -144,8 +142,6 @@ function SimulateTab() {
   const setMuscleBeta = useAnimateStore((s) => s.setMuscleBeta)
   const muscleDamping = useAnimateStore((s) => s.muscleDamping)
   const setMuscleDamping = useAnimateStore((s) => s.setMuscleDamping)
-  const stanceMuscleBoost = useAnimateStore((s) => s.stanceMuscleBoost)
-  const setStanceMuscleBoost = useAnimateStore((s) => s.setStanceMuscleBoost)
 
   const bodyFriction = useAnimateStore((s) => s.bodyFriction)
   const setBodyFriction = useAnimateStore((s) => s.setBodyFriction)
@@ -167,10 +163,6 @@ function SimulateTab() {
 
   const stepEnabled = useAnimateStore((s) => s.stepEnabled)
   const setStepEnabled = useAnimateStore((s) => s.setStepEnabled)
-  const legClock = useAnimateStore((s) => s.legClock)
-  const setLegClock = useAnimateStore((s) => s.setLegClock)
-  const stepFreqHz = useAnimateStore((s) => s.stepFreqHz)
-  const setStepFreqHz = useAnimateStore((s) => s.setStepFreqHz)
   const sweepAmount = useAnimateStore((s) => s.sweepAmount)
   const setSweepAmount = useAnimateStore((s) => s.setSweepAmount)
   const sweepSpeed = useAnimateStore((s) => s.sweepSpeed)
@@ -200,9 +192,8 @@ function SimulateTab() {
   const [linkCopied, setLinkCopied] = useState(false)
   const [selectedPreset, setSelectedPreset] = useState('')
 
-  useEffect(() => {
-    useAnimateStore.persist.rehydrate()
-  }, [])
+  // Hydration is owned by useConfigLink in page.tsx (rehydrate → then apply the link on top). Doing it
+  // here too would re-run after the link applied and clobber the link's config with the saved one.
 
   const handleCopy = () => {
     const config = pickSimConfig(useAnimateStore.getState())
@@ -229,7 +220,7 @@ function SimulateTab() {
     if (st.overlays.length > 0) params.set('overlay', st.overlays.join(','))
     const base = window.location.origin + window.location.pathname
     navigator.clipboard
-      .writeText(`${base}?${params.toString()}`)
+      .writeText(`${base}#${params.toString()}`)
       .then(() => {
         setLinkCopied(true)
         setTimeout(() => setLinkCopied(false), 1500)
@@ -437,16 +428,6 @@ function SimulateTab() {
           format={(v) => v.toFixed(2)}
         />
         <Slider
-          label="Body waves"
-          tip="Total head-to-tail axial phase lag in cycles (Knusel gait signature). 1.58 = traveling wave (swim); 0 = standing wave (terrestrial walk/trot). Rebuilds the CPG."
-          value={bodyWaves}
-          min={0}
-          max={2}
-          step={0.02}
-          onChange={setBodyWaves}
-          format={(v) => v.toFixed(2)}
-        />
-        <Slider
           label="Front segments"
           tip="Differential drive (paper's forward-stepping): how many rostral-most spine segments get the lower Front drive instead of the global Drive. 0 = off (whole body on one drive)."
           value={frontSegments}
@@ -539,17 +520,6 @@ function SimulateTab() {
           onChange={setMuscleDamping}
           format={(v) => v.toFixed(2)}
         />
-        <Slider
-          label="Stance spine boost"
-          tip="Stage 1: scales the axial muscle's active gain by (1 + boost × stance-fraction), so the spine pushes harder while feet are planted. 0 = off (identical to before)."
-          value={stanceMuscleBoost}
-          min={0}
-          max={3}
-          step={0.05}
-          onChange={setStanceMuscleBoost}
-          format={(v) => (v > 0 ? v.toFixed(2) : 'off')}
-        />
-
         <Divider />
 
         <Slider
@@ -581,39 +551,6 @@ function SimulateTab() {
           on={stepEnabled}
           onChange={setStepEnabled}
         />
-        <div className="flex items-center justify-between gap-2 py-0.5">
-          <div className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate text-[11px] text-white/70">Leg clock</span>
-            <Info text="Clock for grip + sweep timing. body = measured body wave (default); limb = limb CPG oscillator (diagonal trot); time = independent sim-time oscillator at Step freq, so the sweep runs with the CPG off (isolates the leg pull)." />
-          </div>
-          <div className="flex gap-0.5">
-            {(['body', 'limb', 'time'] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setLegClock(m)}
-                className={cn(
-                  'rounded px-2 py-0.5 text-[10px] transition-colors',
-                  legClock === m ? 'bg-violet-600/50 text-violet-100' : 'bg-white/5 text-white/40 hover:text-white'
-                )}
-              >
-                {m}
-              </button>
-            ))}
-          </div>
-        </div>
-        {legClock === 'time' && (
-          <Slider
-            label="Step freq"
-            tip="Frequency of the independent sim-time leg clock (Hz), used when Leg clock = time."
-            value={stepFreqHz}
-            min={0.1}
-            max={2}
-            step={0.05}
-            onChange={setStepFreqHz}
-            format={(v) => `${v.toFixed(2)} Hz`}
-          />
-        )}
         {stepEnabled && (
           <>
             <Slider

@@ -149,7 +149,6 @@ interface CoupledHandle {
   buildLegs: boolean
   buildGround: boolean
   buildLimbs: boolean
-  buildBodyWaves: number
   // per-hip foot plant: while a foot grips, it is pinned to the ground spot it grabbed by a temporary
   // spherical joint to a fixed anchor body (so the body is levered over the planted foot — real
   // traction that does not depend on contact normal force). null = that foot is currently free.
@@ -311,10 +310,9 @@ export function useLocomotion(
     // built, which would corrupt the oscillator count). The four limb oscillators are added
     // independently of the leg bodies (own toggle); otherwise stay axial-only.
     const axial = axialChain(groups)
-    const bodyWaves = st.bodyWaves
     const spec = limbsOn
-      ? buildCpgSpec(axial.lengths, groups, axial.groupIds, bodyWaves)
-      : buildCpgSpec(axial.lengths, undefined, undefined, bodyWaves)
+      ? buildCpgSpec(axial.lengths, groups, axial.groupIds)
+      : buildCpgSpec(axial.lengths)
     // The CPG now runs at a fine resolution decoupled from the body's joints (paper Fig 2A). Remap each
     // body joint from its body-segment index to the fine-CPG oscillator it samples, so the muscle reads
     // the correct point of the fine chain (left = oscOfSegment[i], right = +spec.n).
@@ -325,7 +323,7 @@ export function useLocomotion(
     return {
       groups, world, body, cpgSpec: spec, cpgState: initCpgState(spec),
       delayBuffers: body.joints.map(() => createDelayBuffer(TIMESTEP)),
-      acc: 0, simTime: 0, buildLegs: legsOn, buildGround: groundOn, buildLimbs: limbsOn, buildBodyWaves: bodyWaves,
+      acc: 0, simTime: 0, buildLegs: legsOn, buildGround: groundOn, buildLimbs: limbsOn,
       gripPlantJoint: body.hipJoints.map(() => null),
       gripPlantBody: body.hipJoints.map(() => null),
       mechPhase: body.hipJoints.map(() => ({ mean: 0, prevR: 0, msR: 1e-6, msRdot: 1e-6, phase: 0, primed: false })),
@@ -371,8 +369,7 @@ export function useLocomotion(
         coupledRef.current.groups !== groups ||
         coupledRef.current.buildLegs !== wantLegs ||
         coupledRef.current.buildGround !== wantGround ||
-        coupledRef.current.buildLimbs !== wantLimbs ||
-        coupledRef.current.buildBodyWaves !== store.bodyWaves
+        coupledRef.current.buildLimbs !== wantLimbs
       ) {
         freeCoupled()
         coupledRef.current = buildCoupled()
@@ -390,25 +387,6 @@ export function useLocomotion(
         const alpha = store.muscleAlpha
         const beta = store.muscleBeta
         const jointDamping = store.muscleDamping
-        const stanceMuscleBoost = store.stanceMuscleBoost
-        // Leg clock source: default times grip/sweep off the MEASURED body-wave phase (mechPhase);
-        // when on, times them off the limb CPG oscillator (paper D2) so the legs have a clock
-        // INDEPENDENT of the body wave — lets sweep be isolated from undulation.
-        const legClock = store.legClock
-        const stepFreqHz = store.stepFreqHz
-        const limbClock = (limbIdx: number) =>
-          ((limbPhase(c.cpgState, c.cpgSpec, limbIdx) / (2 * Math.PI)) % 1 + 1) % 1
-        const sweepReverse = store.sweepReverse
-        // Leg-clock phase: 'time' = independent sim-time oscillator with a diagonal-trot offset
-        // (LF+RH together, RF+LH a half-cycle later) so the legs run a trot with the CPG off;
-        // 'limb' = limb CPG; 'body' = measured body wave.
-        const legPhaseOf = (limbIdx: number, bodyPhase: number) => {
-          if (legClock === 'time') {
-            const diag = (limbIdx === 0 || limbIdx === 3) ? 0 : 0.5
-            return ((c.simTime * stepFreqHz + diag) % 1 + 1) % 1
-          }
-          return legClock === 'limb' ? limbClock(limbIdx) : bodyPhase
-        }
         const gripEnabled = store.gripEnabled
         const legsLockedConst = store.legsLocked
         const stepEnabled = store.stepEnabled
@@ -480,8 +458,7 @@ export function useLocomotion(
                 .applyQuaternion(s.q.set(pq.x, pq.y, pq.z, pq.w))
               const reach = com.x - (pp.x + s.v1.x)
               const phase = updateMechPhase(c.mechPhase[h], reach, dt)
-              const winPhase = legPhaseOf(hip.limbIdx, phase)
-              const rel = ((winPhase - gripShift) % 1 + 1) % 1
+              const rel = ((phase - gripShift) % 1 + 1) % 1
               // Timing window drives the glow for ALL feet (so a foot toggled off still shows when it
               // *would* grip); actual gripping additionally requires the grip switch + that foot selected.
               const inWindow = rel < gripDuration
@@ -521,19 +498,6 @@ export function useLocomotion(
             for (const m of glows.values()) m.visible = false
           }
         }
-        // Stance-phase axial boost (Stage 1): how much of the gait is currently planted. Scales the
-        // axial muscle's ACTIVE gain so the spine pushes harder while feet are down. 0 boost = unchanged.
-        let stanceFrac = 0
-        if (c.body.hipJoints.length > 0) {
-          let nStance = 0
-          for (let h = 0; h < c.body.hipJoints.length; h++) {
-            const rel = ((c.mechPhase[h].phase - stepShift) % 1 + 1) % 1
-            if (rel < stepDuty) nStance++
-          }
-          stanceFrac = nStance / c.body.hipJoints.length
-        }
-        const alphaEff = alpha * (1 + stanceMuscleBoost * stanceFrac)
-
         let acc = c.acc + intake
         while (acc >= TIMESTEP) {
           // Axial proprioceptive feedback reads each axial joint's ACTUAL angle (body curvature) and
@@ -555,7 +519,7 @@ export function useLocomotion(
             // T = α(mL−mR) − β(mL+mR+γ)φ − δφ̇ = −kStiff(φ−φEq) − δφ̇. Implicit integration → no
             // numerical energy injection (an explicit external torque pumps energy and runs away).
             const kStiff = beta * (d.mL + d.mR + GAMMA)
-            const phiEq = kStiff > 1e-9 ? (alphaEff * (d.mL - d.mR)) / kStiff : 0
+            const phiEq = kStiff > 1e-9 ? (alpha * (d.mL - d.mR)) / kStiff : 0
             ;(jt.joint as RAPIER.RevoluteImpulseJoint).configureMotorPosition(phiEq, kStiff, jointDamping)
           }
           // Drive each hip's 2 DOF from the MEASURED undulation phase (same clock as the grip window),
@@ -568,7 +532,7 @@ export function useLocomotion(
             for (let hi = 0; hi < c.body.hipJoints.length; hi++) {
               const hip = c.body.hipJoints[hi]
               if (stepEnabled) {
-                const ph = legPhaseOf(hip.limbIdx, c.mechPhase[hi].phase)
+                const ph = c.mechPhase[hi].phase
                 const rel = ((ph - stepShift) % 1 + 1) % 1
                 // Map the sweep into the leg's own caps: +capStance forward, −capSwing back, scaled by
                 // the 0–1 sweep amount, so it can never exceed the calibrated angle limits.
@@ -585,7 +549,7 @@ export function useLocomotion(
                   sweep = -back + t * (fwd + back) // −back → +forward over swing (recovery)
                   lift = liftAmount * Math.sin(Math.PI * t) // raise then set the foot back down
                 }
-                hip.sweepJoint.configureMotorPosition(sweep * amt * (sweepReverse ? -1 : 1), sweepSpeed, legDamping)
+                hip.sweepJoint.configureMotorPosition(sweep * amt, sweepSpeed, legDamping)
                 hip.liftJoint?.configureMotorPosition(hip.liftSign * lift, legStiffness, legDamping)
               } else {
                 const stiff = legsLockedConst ? legStiffness : 0
@@ -637,7 +601,7 @@ export function useLocomotion(
         if (c.body.hipJoints.length > 0) {
           for (let h = 0; h < c.body.hipJoints.length; h++) {
             const hip = c.body.hipJoints[h]
-            const clk = legPhaseOf(c.body.hipJoints[h].limbIdx, c.mechPhase[h].phase)
+            const clk = c.mechPhase[h].phase
             const rel = ((clk - stepShift) % 1 + 1) % 1
             c.obs.phase[h] = clk
             c.obs.stance[h] = rel < stepDuty

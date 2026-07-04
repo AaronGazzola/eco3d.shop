@@ -78,7 +78,10 @@ function useStudioObservationHook() {
       // OVERLAY_NAMES; isolateLimb dims all but the named limb.
       setOverlays: (names: string[]) => store().setOverlays(Array.isArray(names) ? names : []),
       isolateLimb: (id: string | null) => store().setIsolateLimb(id),
-      // Build a shareable link that reproduces the current config + tab + overlays.
+      // Build a shareable link that reproduces the current config + tab + overlays. The params ride in
+      // the URL hash (not the query) so the browser never sends them to the server: a large ?sim= query
+      // rode along on every Server Action POST (e.g. the auth profile check) and could be rejected,
+      // bouncing the studio to the login screen. The hash fragment is client-only, so it can't.
       buildLink: () => {
         const st = store()
         const params = new URLSearchParams()
@@ -86,7 +89,7 @@ function useStudioObservationHook() {
         params.set('sim', encodeSimConfig(pickSimConfig(st as unknown as SimConfig)))
         if (st.overlays.length > 0) params.set('overlay', st.overlays.join(','))
         const base = typeof window !== 'undefined' ? window.location.origin + window.location.pathname : ''
-        return `${base}?${params.toString()}`
+        return `${base}#${params.toString()}`
       },
       copyLink: () => {
         const w2 = window as unknown as { __studio?: { buildLink?: () => string } }
