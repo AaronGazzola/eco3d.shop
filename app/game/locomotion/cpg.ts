@@ -98,19 +98,23 @@ function mapBodyToFine(segmentLengths: number[], n: number): number[] {
 export function buildCpgSpec(
   segmentLengths: number[],
   groups?: BodyGroup[],
-  chainGroupIds?: string[]
+  chainGroupIds?: string[],
+  withLimbOscillators = true
 ): CpgSpec {
   const nBody = segmentLengths.length
   // Fine CPG resolution, decoupled from the body's joint count (never coarser than the body).
   const n = Math.max(nBody, CPG_AXIAL_SEGMENTS)
   const oscOfSegment = mapBodyToFine(segmentLengths, n)
 
-  // Identify the limbs against the BODY chain, then remap the girdle indices to the fine CPG.
+  // Identify the limbs against the BODY chain, then remap the girdle indices to the fine CPG. This
+  // girdle→axial mapping is computed whenever the girdles are known, INDEPENDENT of whether the four
+  // limb oscillators are actually added — so the axial girdle phase (girdleClockPhase) is available as a
+  // gait clock even with limbCpgEnabled off. The limb OSCILLATORS are only added when requested.
   const limbWiringBody = identifyLimbWiring(groups, chainGroupIds)
   const limbWiring: CpgLimbWiring | null = limbWiringBody
     ? { kFore: oscOfSegment[limbWiringBody.kFore], kHind: oscOfSegment[limbWiringBody.kHind] }
     : null
-  const limbs = limbWiring ? LIMB_COUNT : 0
+  const limbs = limbWiring && withLimbOscillators ? LIMB_COUNT : 0
   const size = 2 * n + limbs
   const e: number[] = new Array(size).fill(E_AXIAL)
   const dTh: number[] = new Array(size).fill(D_TH_AXIAL)
@@ -131,7 +135,7 @@ export function buildCpgSpec(
     couplings.push({ from: k + 1 + n, to: k + n, w: 1, phi: -phiSeg })
   }
 
-  if (limbWiring) {
+  if (limbs > 0 && limbWiring) {
     const base = 2 * n
     const LF = base + LIMB_LF
     const RF = base + LIMB_RF
@@ -173,7 +177,7 @@ export function buildCpgSpec(
     initialPhases[k + n] = (wrapped + Math.PI) % TWO_PI
     cumulative -= phiSeg
   }
-  if (limbWiring) {
+  if (limbs > 0 && limbWiring) {
     const base = 2 * n
     initialPhases[base + LIMB_LF] = 0
     initialPhases[base + LIMB_RF] = Math.PI / 2
@@ -344,4 +348,18 @@ export function limbOutput(state: CpgState, spec: CpgSpec, limbIdx: number): num
 export function limbPhase(state: CpgState, spec: CpgSpec, limbIdx: number): number {
   if (spec.limbs === 0) return 0
   return state.phases[2 * spec.n + limbIdx]
+}
+
+// Girdle-local AXIAL CPG phase (0..1) for a limb: the phase of the axial oscillator sitting at the
+// limb's girdle segment, on that limb's own side (left/right). This is a clean, strictly-periodic clock
+// that drives the very body wave the foot should lock to, and — unlike the measured-reach clock — it is
+// immune to the grip perturbing the body (no self-corrupting feedback loop). Always valid whenever legs
+// exist (limbWiring indices are axial, independent of limbCpgEnabled). limbIdx: 0=LF,1=RF,2=LH,3=RH.
+export function girdleClockPhase(state: CpgState, spec: CpgSpec, limbIdx: number): number {
+  const w = spec.limbWiring
+  if (!w) return 0
+  const kBase = limbIdx < 2 ? w.kFore : w.kHind
+  const k = limbIdx === 1 || limbIdx === 3 ? kBase + spec.n : kBase
+  const ph = state.phases[k] ?? 0
+  return (((ph / (2 * Math.PI)) % 1) + 1) % 1
 }

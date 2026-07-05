@@ -6,75 +6,22 @@ export interface SimPreset {
   config: Partial<SimConfig>
 }
 
-const SWIM_BASE: Partial<SimConfig> = {
-  gravityEnabled: true,
-  landLegsEnabled: false,
-  landGroundEnabled: true,
-  limbCpgEnabled: true,
-  legsLocked: true,
-  environmentEnabled: true,
-  frontDrive: 0,
-  frontSegments: 0,
-  turnBias: 0,
-  bodyFriction: 0,
-  legFriction: 0.05,
-  gripEnabled: false,
-  gripShift: 0.27,
-  gripDuration: 0.41,
-  releaseFriction: 0,
-  gripGlowEnabled: true,
-  gripFeet: { FL: true, FR: true, BL: true, BR: true },
-  stepEnabled: false,
-  sweepAmount: 0.2,
-  sweepSpeed: 37000,
-  liftAmount: 0.3,
-  legStiffness: 3000,
-  legDamping: 120,
-}
-
-// "Energy" swim family — the muscle is tuned strong+elastic (α22, β35, δ6) so the joint amplitude
-// saturates at its cap across the WHOLE drive range, decoupling amplitude from frequency. With this
-// muscle the Drive knob behaves as a single "energy" control: it sets the undulation frequency (and
-// motion energy / KE) while amplitude stays maxed — low drive = slow but still full-amplitude wave,
-// high drive = fast full-amplitude wave. Verified via the observation loop (drive 0.5→2.5 all hold
-// maxJ ~100%, planar comY~0, tilt 1–4°). Stay below the axial saturation threshold d_th=3.
-const SWIM_ENERGY_BASE: Partial<SimConfig> = {
-  ...SWIM_BASE,
-  cpgExcitability: 0.5,
-  muscleAlpha: 22,
-  muscleBeta: 35,
-  muscleDamping: 6,
-}
-
-// Fully-isolated axial spine: legs OFF *and* the four limb oscillators OFF (limbCpgEnabled:false),
-// so the central wave is a single continuous undulation with nothing coupling into it — the truest
-// "core CPG" the rig can produce. Verified in isolation via the observe harness (11 axial nodes,
-// planar tilt ~1°). Two orthogonal knobs were mapped here:
-//   • Drive sets FREQUENCY + energy (ν = drive·exc·1.1) while the strong/elastic muscle holds joint
-//     amplitude at the angle cap. Drive 0.6→2.8 scales the swim smoothly; raising EXCITABILITY past
-//     ~1.0 instead collapses amplitude (muscle-bandwidth limit), and drive ≥3.0 falls off the axial
-//     saturation cliff (d_th=3) — so Drive is the reliable single "swim-strength" control.
-//   • α/β ratio sets the wave AMPLITUDE (tail Z-span 0.9 at α4/β35 → 5.2 at α40/β18), independent of
-//     frequency, with the joint angle cap as the ceiling.
-const AXIAL_ISO_BASE: Partial<SimConfig> = {
-  ...SWIM_ENERGY_BASE,
-  limbCpgEnabled: false,
-}
-
-// Walking on the measured-undulation timing. The grip/sweep window is clocked off each foot's MEASURED
-// body-wave reach (useLocomotion.updateMechPhase, 0 = max-forward reach), NOT the CPG phase — so a single
-// gripShift/gripDuration keeps the foot planting at max-forward and releasing at max-backward across ANY
-// drive/muscle (validated: max-forward reach lands at phase ~0 for drive 0.8-2.4). Gentle leg-motor
-// params (vs the stiff "locked-leg" hold values) keep the step stable; the body runs a traveling wave
-// (our compliant body can't hold the paper's standing wave) and that wave carries the legs through swing.
-const WALK_BASE: Partial<SimConfig> = {
+// Shared base for the grip-diagnosis presets: legs BUILT and held genuinely RIGID (legStiffness 200000
+// via the step-motor hold path — legsLocked alone lets the legs flop), the axial CPG running a
+// full-amplitude wave (β35/δ6), and body drag OFF so the ONLY horizontal force on the body is whatever a
+// gripped foot supplies. One front foot (FL) is the grip candidate; grip is off in the base. muscleAlpha
+// is set PER PRESET so the wave sits just under the joint angle cap (highest amplitude with NO clipping):
+// the drag load (swim) and the grip clamp change how hard the joints are pushed, so each regime needs a
+// different α — verified via the observe harness (peak maxJointFracOfCap 97-99%, never 100).
+const BASE_FL: Partial<SimConfig> = {
   gravityEnabled: true,
   landLegsEnabled: true,
   landGroundEnabled: true,
-  limbCpgEnabled: true,
-  legsLocked: false,
+  limbCpgEnabled: false,
+  legsLocked: true,
   environmentEnabled: false,
-  cpgExcitability: 0.5,
+  cpgDrive: 0.39,
+  cpgExcitability: 0.74,
   frontDrive: 0,
   frontSegments: 0,
   turnBias: 0,
@@ -84,116 +31,56 @@ const WALK_BASE: Partial<SimConfig> = {
   muscleAlpha: 22,
   muscleBeta: 35,
   muscleDamping: 6,
-  bodyFriction: 0.05,
-  legFriction: 0.6,
+  bodyFriction: 0,
+  legFriction: 0.05,
+  gripEnabled: false,
+  gripShift: 0.27,
+  gripDuration: 1,
   releaseFriction: 0,
-  gripEnabled: true,
-  gripShift: 0.05,
-  gripDuration: 0.5,
   gripGlowEnabled: true,
-  gripFeet: { FL: true, FR: true, BL: true, BR: true },
+  gripFeet: { FL: true, FR: false, BL: false, BR: false },
   stepEnabled: true,
-  sweepAmount: 0.3,
+  sweepAmount: 0,
   sweepSpeed: 37000,
-  liftAmount: 0.25,
-  legStiffness: 3000,
+  liftAmount: 0,
+  legStiffness: 200000,
   legDamping: 120,
 }
 
 export const SIM_PRESETS: SimPreset[] = [
-  // ── WALK STAGE 1 — the FOUNDATION body wave: the limb CPG oscillators run and shape the axial chain,
-  // but the physical LEGS ARE OFF (landLegsEnabled:false) so their inertia can't wobble the spine, and
-  // grip/step are OFF. The muscle is detuned to α7 so the body stays BELOW the joint angle caps (peak
-  // ~80%). On land (legs off) the body settles into a clean planar STANDING WAVE — stationary nodes /
-  // antinodes, the trunk bending in place (body-shape phase progression ≈0.18 cycles ≈ standing; the
-  // walking regime, vs the swimming traveling wave). tilt <1°. Judge the wave before turning legs on.
+  // The pure CPG body wave with the legs built and held rigid, no grip, no drag. With no drag the body
+  // just undulates in place (no net travel) — this is the clean traveling wave the grip timing is read
+  // against, and the baseline every grip experiment is compared to.
   {
-    name: 'Walk — 1 foundation wave',
-    description: 'Legs OFF, grip+step OFF — the pure body STANDING wave the walk is built on (nodes/antinodes bending in place). Under the angle caps (~80%). drive 1.5, α7.',
-    config: { ...WALK_BASE, cpgDrive: 1.5, muscleAlpha: 7, landLegsEnabled: false, gripEnabled: false, stepEnabled: false },
+    name: 'base wave',
+    description: 'Stiff legs, no grip, no drag — the pure CPG traveling wave undulating in place (no thrust). The reference wave. α11 → peak 99% of the angle cap (max amplitude, no clip).',
+    config: { ...BASE_FL, muscleAlpha: 11 },
   },
-
-  // ── WALK STAGE 2 — LEGS ON, HELD RIGID: the legs are built (landLegsEnabled) but grip is OFF and the
-  // step controller is on with sweepAmount/liftAmount = 0, so each hip motor just HOLDS the leg at rest
-  // against the spine's momentum. The hold uses the step path (sweepSpeed 37000 on the sweep axis,
-  // legStiffness 3000 on lift) — verified to hold the legs more rigidly than legsLocked (which only holds
-  // at legStiffness and visibly buzzes). α6 keeps the legs-on body wave under the angle caps (~80%).
-  // The legs ride the girdles smoothly (no motor buzz) — this is the rig the grip/sweep timing is read
-  // against in the next stage.
+  // Same as base wave but with body drag ON: the anisotropic resistance turns the same traveling wave
+  // into forward swimming. Drag damps the lateral bend, so α is raised (16 vs 11) to push the joints back
+  // up to just under the cap for the same near-max wave amplitude.
   {
-    name: 'Walk — 2 legs held + grip timing',
-    description: 'Legs ON, held rigid (grip+sweep OFF), but the foot GLOW shows the measured grip timing — each foot lights up as it reaches max-forward (gripShift 0.08), in the BL→FL→BR→FR walk sequence. drive 1.5, α6.',
-    config: { ...WALK_BASE, cpgDrive: 1.5, muscleAlpha: 6, gripShift: 0.08, gripEnabled: false, stepEnabled: true, sweepAmount: 0, liftAmount: 0, legsLocked: false, gripGlowEnabled: true },
+    name: 'base swim',
+    description: 'base wave + drag ON — the wave now swims the body forward. α16 (raised, drag damps the bend) → peak 97% of the cap.',
+    config: { ...BASE_FL, environmentEnabled: true, muscleAlpha: 16 },
   },
-
-  // ── WALK — legs stepping on the measured-undulation timing (grip plants at max-forward reach,
-  // releases at max-backward; one timing config holds across drive). The body wave carries the legs.
+  // The current one-foot experiment: FL grips continuously (gripDuration 1 = never releases) with the
+  // rigid leg and no drag. The rigid anchor pins the front girdle as a fixed node, reflecting the wave
+  // into a standing wave with zero travel. The clamp amplifies the girdle joint, so α is LOWERED (6 vs
+  // 11) to keep the peak just under the cap.
   {
-    name: 'Walk — slow',
-    description: 'Stable walk, slow body wave (drive 0.8). Grip/sweep timed to the measured reach. ~12 units/14s.',
-    config: { ...WALK_BASE, cpgDrive: 0.8 },
+    name: 'base FL grip',
+    description: 'base wave + FL gripping continuously (rigid leg, no drag). Fixed node → standing wave, no travel. α6 (lowered, clamp amplifies the joint) → peak 98% of the cap.',
+    config: { ...BASE_FL, gripEnabled: true, muscleAlpha: 6 },
   },
+  // base wave with the grip STILL OFF but the FL foot glow timed to the backward power stroke: the
+  // window opens at FL max-forward reach (measured φ_fwd≈0.15) and closes at max-backward (gripDuration
+  // 0.5), so the cyan foot marker lights up exactly while the foot is travelling backward — the grip
+  // timing made visible without the grip firing. Same dynamics as base wave (grip off), so same α11.
   {
-    name: 'Walk — mid',
-    description: 'Stable walk (drive 1.5). Same grip timing as slow/fast — invariant to drive. ~9 units/14s.',
-    config: { ...WALK_BASE, cpgDrive: 1.5 },
-  },
-  {
-    name: 'Walk — fast',
-    description: 'Faster walk (drive 2.4). Same grip timing. ~14 units/14s, stays planar (tilt ~3°).',
-    config: { ...WALK_BASE, cpgDrive: 2.4 },
-  },
-
-  // ── Isolated spine — WAVE SHAPE (drag OFF: the body oscillates in place so you can watch the
-  // amplitude/frequency of the pure undulation without it swimming out of frame). α/β sets amplitude.
-  {
-    name: 'Spine wave — small',
-    description: 'Isolated spine, drag off. Shallow undulation (α8/β35 → tail span ~1.5). Watch in place.',
-    config: { ...AXIAL_ISO_BASE, environmentEnabled: false, cpgDrive: 1.5, muscleAlpha: 8, muscleBeta: 35, muscleDamping: 6 },
-  },
-  {
-    name: 'Spine wave — medium',
-    description: 'Isolated spine, drag off. Mid undulation (α15/β35 → tail span ~2.5).',
-    config: { ...AXIAL_ISO_BASE, environmentEnabled: false, cpgDrive: 1.5, muscleAlpha: 15, muscleBeta: 35, muscleDamping: 6 },
-  },
-  {
-    name: 'Spine wave — broad',
-    description: 'Isolated spine, drag off. Broad slow wave at the angle cap (drive 1.0, α22/β35 → tail span ~3.5).',
-    config: { ...AXIAL_ISO_BASE, environmentEnabled: false, cpgDrive: 1.0, muscleAlpha: 22, muscleBeta: 35, muscleDamping: 6 },
-  },
-  {
-    name: 'Spine wave — huge eel',
-    description: 'Isolated spine, drag off. Maximum-amplitude eel bend (α40/β18 → tail span ~5.2, ~1.5 wavelengths).',
-    config: { ...AXIAL_ISO_BASE, environmentEnabled: false, cpgDrive: 1.2, muscleAlpha: 40, muscleBeta: 18, muscleDamping: 4 },
-  },
-  {
-    name: 'Spine wave — fast buzz',
-    description: 'Isolated spine, drag off. High frequency, small amplitude via excitability (exc 1.5 → tail span ~0.5).',
-    config: { ...AXIAL_ISO_BASE, environmentEnabled: false, cpgDrive: 1.5, cpgExcitability: 1.5 },
-  },
-
-  // ── Isolated spine — SWIM STRENGTH (drag ON: the single-knob energy ladder. Same muscle, only Drive
-  // changes — speed scales smoothly while the wave stays planar (tilt ~1°). This is the candidate for a
-  // single "swim strength" slider.) Forward travel over 10s noted in each description.
-  {
-    name: 'Spine swim — 1 idle',
-    description: 'Isolated spine, drag on. Gentle cruise (drive 0.6 → ~14 units/10s).',
-    config: { ...AXIAL_ISO_BASE, environmentEnabled: true, cpgDrive: 0.6 },
-  },
-  {
-    name: 'Spine swim — 2 cruise',
-    description: 'Isolated spine, drag on. Steady swim (drive 1.2 → ~28 units/10s).',
-    config: { ...AXIAL_ISO_BASE, environmentEnabled: true, cpgDrive: 1.2 },
-  },
-  {
-    name: 'Spine swim — 3 brisk',
-    description: 'Isolated spine, drag on. Brisk swim (drive 2.0 → ~45 units/10s).',
-    config: { ...AXIAL_ISO_BASE, environmentEnabled: true, cpgDrive: 2.0 },
-  },
-  {
-    name: 'Spine swim — 4 sprint',
-    description: 'Isolated spine, drag on. Fast sprint, still planar (drive 2.8 → ~58 units/10s; stay below the d_th=3 cliff).',
-    config: { ...AXIAL_ISO_BASE, environmentEnabled: true, cpgDrive: 2.8 },
+    name: 'base FL grip timing',
+    description: 'base wave, grip OFF — FL foot glow shows the grip window: lights at max-forward, off at max-backward (the backward power stroke). gripShift 0.15 / gripDuration 0.5. α11 → peak 99% of the cap.',
+    config: { ...BASE_FL, gripShift: 0.15, gripDuration: 0.5, muscleAlpha: 11 },
   },
 ]
 

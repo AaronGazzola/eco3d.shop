@@ -20,7 +20,7 @@ import {
   subsampleSamples,
   serializeCoupledCapture,
 } from './diagnostics'
-import { buildCpgSpec, CpgSpec, CpgState, initCpgState, limbPhase, oscillatorOutput, signedActivation, stepCpg } from './cpg'
+import { buildCpgSpec, CpgSpec, CpgState, girdleClockPhase, initCpgState, limbPhase, oscillatorOutput, signedActivation, stepCpg } from './cpg'
 import { createDelayBuffer, GAMMA, MuscleDelayBuffer, pushAndReadDelayed } from './muscles'
 
 interface GripCaptureSample {
@@ -325,9 +325,9 @@ export function useLocomotion(
     // built, which would corrupt the oscillator count). The four limb oscillators are added
     // independently of the leg bodies (own toggle); otherwise stay axial-only.
     const axial = axialChain(groups)
-    const spec = limbsOn
-      ? buildCpgSpec(axial.lengths, groups, axial.groupIds)
-      : buildCpgSpec(axial.lengths)
+    // Always pass the groups so the girdle→axial wiring is known (needed by the CPG-phase gait clock),
+    // but only ADD the four limb oscillators when the limb CPG is enabled.
+    const spec = buildCpgSpec(axial.lengths, groups, axial.groupIds, limbsOn)
     // The CPG now runs at a fine resolution decoupled from the body's joints (paper Fig 2A). Remap each
     // body joint from its body-segment index to the fine-CPG oscillator it samples, so the muscle reads
     // the correct point of the fine chain (left = oscOfSegment[i], right = +spec.n).
@@ -472,7 +472,12 @@ export function useLocomotion(
               s.v1.set(hip.footRestLocal.x, hip.footRestLocal.y, hip.footRestLocal.z)
                 .applyQuaternion(s.q.set(pq.x, pq.y, pq.z, pq.w))
               const reach = com.x - (pp.x + s.v1.x)
-              const phase = updateMechPhase(c.mechPhase[h], reach, dt)
+              // Keep the measured-reach estimator primed (used by the events/reach report and the legacy
+              // clock), but SELECT the clock the window runs on. gripClockCpg switches to the girdle's
+              // AXIAL CPG phase — a clean periodic clock the grip can't corrupt (fixes the self-corrupting
+              // feedback loop where a gripping foot distorts the very reach it is timed against).
+              const measuredPhase = updateMechPhase(c.mechPhase[h], reach, dt)
+              const phase = store.gripClockCpg ? girdleClockPhase(c.cpgState, c.cpgSpec, hip.limbIdx) : measuredPhase
               const rel = ((phase - gripShift) % 1 + 1) % 1
               // Timing window drives the glow for ALL feet (so a foot toggled off still shows when it
               // *would* grip); actual gripping additionally requires the grip switch + that foot selected.
@@ -503,7 +508,7 @@ export function useLocomotion(
               const glow = glows?.get(c.body.groupIds[hip.legBodyIndex])
               if (glow) {
                 glow.position.set(footX, footY, footZ)
-                glow.visible = glowOn && inWindow
+                glow.visible = glowOn && inWindow && selected
                 const mat = glow.material as THREE.MeshBasicMaterial
                 mat.color.set('#00e5ff')
                 mat.opacity = 1
@@ -704,7 +709,7 @@ export function useLocomotion(
             }
             for (let h = 0; h < hips.length; h++) {
               const hip = hips[h]
-              const phase = c.mechPhase[h].phase
+              const phase = store.gripClockCpg ? girdleClockPhase(c.cpgState, c.cpgSpec, hip.limbIdx) : c.mechPhase[h].phase
               const phaseRad = phase * 2 * Math.PI
               const rel = ((phase - gripShift) % 1 + 1) % 1
               const win = { grip: rel < gripDuration, sweep: rel < stepDuty, lift: rel >= stepDuty }

@@ -46,6 +46,7 @@ export interface SimConfig {
   bodyFriction: number
   legFriction: number
   gripEnabled: boolean
+  gripClockCpg: boolean
   gripShift: number
   gripDuration: number
   releaseFriction: number
@@ -80,6 +81,7 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
   bodyFriction: 0.05,
   legFriction: 0.05,
   gripEnabled: true,
+  gripClockCpg: false,
   gripShift: 0.05,
   gripDuration: 0.5,
   releaseFriction: 0,
@@ -137,6 +139,7 @@ export function pickSimConfig(s: SimConfig): SimConfig {
     bodyFriction: s.bodyFriction,
     legFriction: s.legFriction,
     gripEnabled: s.gripEnabled,
+    gripClockCpg: s.gripClockCpg,
     gripShift: s.gripShift,
     gripDuration: s.gripDuration,
     releaseFriction: s.releaseFriction,
