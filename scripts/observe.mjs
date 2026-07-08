@@ -315,25 +315,49 @@ function writeEventsReport(path, evs, cfg) {
   lines.push('Windows are computed from the limb-CPG phase ONLY — the grip/step switches need NOT be on,')
   lines.push('so this timing is observed without the behaviour interfering with the animation.')
   lines.push(`gripShift=${f(cfg.gripShift, 3)}  gripDuration=${f(cfg.gripDuration, 3)}  stepDuty(clamped)=${f(stepDuty, 3)}`)
-  lines.push('grip = rel<gripDuration ; sweep(power stroke) = rel<stepDuty ; lift = swing half (rel>=stepDuty)')
+  lines.push('grip = rel<gripDuration (foot planted) ; sweep = rel<stepDuty (leg sweeping BACKWARD, power')
+  lines.push('stroke) ; lift = rel>=stepDuty (leg sweeping FORWARD, recovery swing).')
+  lines.push('So the sweep DIRECTION flips: BACKWARD while `sweep` is on, FORWARD while `lift` is on.')
   lines.push(`gripEnabled=${cfg.gripEnabled}  stepEnabled=${cfg.stepEnabled}  (whether the behaviour was actually applied)`)
   lines.push('')
   const legs = [...new Set(evs.map((e) => e.leg))]
   const prims = ['grip', 'sweep', 'lift']
+  const intervalsOf = (leg, prim) => {
+    const seq = evs.filter((e) => e.leg === leg && e.primitive === prim)
+    const out = []
+    let open = null
+    for (const e of seq) {
+      if (e.edge === 'start') open = e
+      else if (e.edge === 'end' && open) { out.push([open.t, e.t]); open = null }
+    }
+    return out
+  }
   lines.push('## ON intervals per leg × primitive  [tStart → tEnd  (dur)]')
   for (const leg of legs) {
     lines.push(`\n### ${leg}`)
     for (const prim of prims) {
-      const seq = evs.filter((e) => e.leg === leg && e.primitive === prim)
-      const intervals = []
-      let open = null
-      for (const e of seq) {
-        if (e.edge === 'start') open = e
-        else if (e.edge === 'end' && open) { intervals.push([open.t, e.t]); open = null }
-      }
+      const intervals = intervalsOf(leg, prim)
       const txt = intervals.map(([a, b]) => `[${f(a, 2)}→${f(b, 2)} (${f(b - a, 2)}s)]`).join(' ')
-      lines.push(`${prim.padEnd(6)}: ${txt || '(no complete interval)'}`)
+      const label = prim === 'sweep' ? 'sweepBack' : prim === 'lift' ? 'sweepFwd' : prim
+      lines.push(`${label.padEnd(9)}: ${txt || '(no complete interval)'}`)
     }
+  }
+  lines.push('')
+  // Sync check: the backward sweep window should coincide with the grip window (both open at the grip
+  // start and close at the grip end). Compare each grip interval to the nearest sweepBack interval.
+  lines.push('## Sweep↔grip sync check (backward sweep should align with the grip window)')
+  for (const leg of legs) {
+    const grips = intervalsOf(leg, 'grip')
+    const backs = intervalsOf(leg, 'sweep')
+    if (!grips.length || !backs.length) { lines.push(`${leg}: (insufficient intervals)`); continue }
+    let maxStart = 0, maxEnd = 0
+    for (const [gs, ge] of grips) {
+      const near = backs.reduce((best, iv) => (Math.abs(iv[0] - gs) < Math.abs(best[0] - gs) ? iv : best), backs[0])
+      maxStart = Math.max(maxStart, Math.abs(near[0] - gs))
+      maxEnd = Math.max(maxEnd, Math.abs(near[1] - ge))
+    }
+    const ok = maxStart < 0.05 && maxEnd < 0.05
+    lines.push(`${leg}: max start Δ=${f(maxStart, 3)}s  max end Δ=${f(maxEnd, 3)}s  → ${ok ? 'IN SYNC' : 'OUT OF SYNC'}`)
   }
   lines.push('')
   lines.push('## Raw edge list')

@@ -248,7 +248,8 @@ export function useLocomotion(
   groups: BodyGroup[],
   _segments: SegmentData[] = [],
   rootRef?: RefObject<THREE.Group | null>,
-  footGlowRef?: RefObject<Map<string, THREE.Mesh>>
+  footGlowRef?: RefObject<Map<string, THREE.Mesh>>,
+  sweepArrowRef?: RefObject<Map<string, THREE.Mesh>>
 ) {
   const targetQuat = useRef(new THREE.Quaternion())
   const scratch = useRef({
@@ -448,6 +449,7 @@ export function useLocomotion(
           // watched with grip off; only the physical plant + friction switch is gated by gripEnabled.
           const glowOn = store.gripGlowEnabled
           const glows = footGlowRef?.current
+          const arrows = sweepArrowRef?.current
           if (c.body.hipJoints.length > 0) {
             const hips = c.body.hipJoints
             const gripShift = store.gripShift
@@ -513,9 +515,23 @@ export function useLocomotion(
                 mat.color.set('#00e5ff')
                 mat.opacity = 1
               }
+              // Sweep-direction indicator: a cone above the foot pointing the way the leg WOULD sweep
+              // this frame (independent of stepEnabled/sweepAmount, like the grip glow). Backward stroke
+              // (rel<stepDuty = the grip window = power stroke) → points +X (tail), orange; forward stroke
+              // (swing) → points −X (head), green. Since stepDuty and gripDuration are both gripDuration,
+              // the arrow flips to orange exactly as the grip glow turns on and to green as it turns off.
+              const arrow = arrows?.get(c.body.groupIds[hip.legBodyIndex])
+              if (arrow) {
+                const sweepingBack = rel < stepDuty
+                arrow.position.set(footX, footY + 1.3, footZ)
+                arrow.rotation.set(0, 0, sweepingBack ? -Math.PI / 2 : Math.PI / 2)
+                ;(arrow.material as THREE.MeshBasicMaterial).color.set(sweepingBack ? '#ff8c1a' : '#22c55e')
+                arrow.visible = glowOn && selected
+              }
             }
-          } else if (glows) {
-            for (const m of glows.values()) m.visible = false
+          } else {
+            if (glows) for (const m of glows.values()) m.visible = false
+            if (arrows) for (const m of arrows.values()) m.visible = false
           }
         }
         let acc = c.acc + intake
@@ -542,17 +558,17 @@ export function useLocomotion(
             const phiEq = kStiff > 1e-9 ? (alpha * (d.mL - d.mR)) / kStiff : 0
             ;(jt.joint as RAPIER.RevoluteImpulseJoint).configureMotorPosition(phiEq, kStiff, jointDamping)
           }
-          // Drive each hip's 2 DOF from the MEASURED undulation phase (same clock as the grip window),
-          // so the sweep tracks the body wave: STANCE (rel<duty) sweeps the leg BACKWARD from its
-          // forward reach as the body wave carries the girdle back; SWING (rest) sweeps quickly FORWARD
-          // and LIFTs to clear. With the phase = the foot's body-wave reach, the sweep's forward extreme
-          // lands on the body's max-forward and its rear extreme on max-backward, for any drive/muscle.
-          // Step off → hold at rest (stiff if Lock legs, else free/passive).
+          // Drive each hip's 2 DOF from the SAME clock as the grip window (CPG phase when gripClockCpg,
+          // else the measured reach), so STANCE (rel<duty) exactly coincides with the grip window: the
+          // leg sweeps BACKWARD while the foot is gripped (pushing the body forward against the plant),
+          // then SWING (rest) sweeps quickly FORWARD and LIFTs to clear while the foot is released. Using
+          // the CPG clock keeps the sweep locked to the grip and immune to the gripping self-corrupting
+          // the measured reach. Step off → hold at rest (stiff if Lock legs, else free/passive).
           if (c.body.hipJoints.length > 0) {
             for (let hi = 0; hi < c.body.hipJoints.length; hi++) {
               const hip = c.body.hipJoints[hi]
               if (stepEnabled) {
-                const ph = c.mechPhase[hi].phase
+                const ph = store.gripClockCpg ? girdleClockPhase(c.cpgState, c.cpgSpec, hip.limbIdx) : c.mechPhase[hi].phase
                 const rel = ((ph - stepShift) % 1 + 1) % 1
                 // Map the sweep into the leg's own caps: +capStance forward, −capSwing back, scaled by
                 // the 0–1 sweep amount, so it can never exceed the calibrated angle limits.
@@ -569,6 +585,9 @@ export function useLocomotion(
                   sweep = -back + t * (fwd + back) // −back → +forward over swing (recovery)
                   lift = liftAmount * Math.sin(Math.PI * t) // raise then set the foot back down
                 }
+                // Stance (rel<stepDuty = grip window) drives the leg BACKWARD (retraction / power stroke)
+                // and swing drives it FORWARD — matching the sweep-direction indicator and the grip window
+                // (verified in the harness: foot most-forward at grip start, most-backward at grip end).
                 hip.sweepJoint.configureMotorPosition(sweep * amt, sweepSpeed, legDamping)
                 hip.liftJoint?.configureMotorPosition(hip.liftSign * lift, legStiffness, legDamping)
               } else {

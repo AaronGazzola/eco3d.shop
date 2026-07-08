@@ -442,6 +442,7 @@ export function AnimatedModel({
   const pivotsRef = useRef<Map<string, THREE.Group>>(new Map())
   const bodyRefs = useRef<Map<string, THREE.Group>>(new Map())
   const footGlowRef = useRef<Map<string, THREE.Mesh>>(new Map())
+  const sweepArrowRef = useRef<Map<string, THREE.Mesh>>(new Map())
   const allLegs = useMemo(
     () => modelConfig.groups.filter((g) => g.type === 'leg-left' || g.type === 'leg-right'),
     [modelConfig.groups]
@@ -477,7 +478,7 @@ export function AnimatedModel({
     return { legsBySpineId: byParent, orphanLegs: orphans }
   }, [modelConfig.groups, chainIds])
 
-  useLocomotion(pivotsRef, bodyRefs, modelConfig.groups, segments, rootRef, footGlowRef)
+  useLocomotion(pivotsRef, bodyRefs, modelConfig.groups, segments, rootRef, footGlowRef, sweepArrowRef)
 
   return (
     <group ref={rootRef}>
@@ -553,6 +554,20 @@ export function AnimatedModel({
         >
           <sphereGeometry args={[0.45, 16, 16]} />
           <meshBasicMaterial color="#00e5ff" toneMapped={false} transparent opacity={0.85} />
+        </mesh>
+      ))}
+      {allLegs.map((leg) => (
+        <mesh
+          key={`sweeparrow-${leg.id}`}
+          ref={(m) => {
+            const map = sweepArrowRef.current
+            if (m) map.set(leg.id, m)
+            else map.delete(leg.id)
+          }}
+          visible={false}
+        >
+          <coneGeometry args={[0.35, 1.1, 14]} />
+          <meshBasicMaterial color="#22c55e" toneMapped={false} transparent opacity={0.9} />
         </mesh>
       ))}
     </group>

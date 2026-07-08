@@ -34,6 +34,7 @@ const BASE_FL: Partial<SimConfig> = {
   bodyFriction: 0,
   legFriction: 0.05,
   gripEnabled: false,
+  gripClockCpg: true,
   gripShift: 0.27,
   gripDuration: 1,
   releaseFriction: 0,
@@ -73,14 +74,34 @@ export const SIM_PRESETS: SimPreset[] = [
     description: 'base wave + FL gripping continuously (rigid leg, no drag). Fixed node → standing wave, no travel. α6 (lowered, clamp amplifies the joint) → peak 98% of the cap.',
     config: { ...BASE_FL, gripEnabled: true, muscleAlpha: 6 },
   },
-  // base wave with the grip STILL OFF but the FL foot glow timed to the backward power stroke: the
-  // window opens at FL max-forward reach (measured φ_fwd≈0.15) and closes at max-backward (gripDuration
-  // 0.5), so the cyan foot marker lights up exactly while the foot is travelling backward — the grip
-  // timing made visible without the grip firing. Same dynamics as base wave (grip off), so same α11.
+  // base wave with the grip STILL OFF but the FL foot glow timed to the backward power stroke, clocked
+  // off the CPG phase (gripClockCpg, the default). The window opens at FL max-forward reach (CPG-clock
+  // φ_fwd≈0.61) and closes at max-backward (gripDuration 0.5), so the cyan foot marker lights up exactly
+  // while the foot is travelling backward — the grip timing made visible without the grip firing. Same
+  // dynamics as base wave (grip off), so same α11.
   {
     name: 'base FL grip timing',
-    description: 'base wave, grip OFF — FL foot glow shows the grip window: lights at max-forward, off at max-backward (the backward power stroke). gripShift 0.15 / gripDuration 0.5. α11 → peak 99% of the cap.',
-    config: { ...BASE_FL, gripShift: 0.15, gripDuration: 0.5, muscleAlpha: 11 },
+    description: 'base wave, grip OFF — FL foot glow shows the CPG-clocked grip window: lights at max-forward, off at max-backward (the backward power stroke). gripShift 0.61 / gripDuration 0.5. α11 → peak 99% of the cap.',
+    config: { ...BASE_FL, gripShift: 0.61, gripDuration: 0.5, muscleAlpha: 11 },
+  },
+  // All four feet gripping on the CPG clock, timed to each foot's backward power stroke (gripShift 0.61,
+  // gripDuration 0.5). No sweep yet (sweepAmount 0). The gripped feet anchor on the backward stroke and
+  // release on the forward stroke, so the body inches forward and stays roughly straight — the first
+  // whole-body walk built on the CPG-timed grip.
+  {
+    name: 'base walk',
+    description: 'All 4 feet grip on the CPG clock, timed to the backward power stroke (gripShift 0.61 / gripDuration 0.5). No sweep. Inches forward, stays roughly straight — the base walk.',
+    config: { ...BASE_FL, gripEnabled: true, gripShift: 0.61, gripDuration: 0.5, muscleAlpha: 11, gripFeet: { FL: true, FR: true, BL: true, BR: true } },
+  },
+  // base walk with grip and sweep OFF (gripEnabled false, sweepAmount 0) so the body runs the clean
+  // undulation, but BOTH timing indicators are live: the cyan grip glow shows the grip window and the
+  // sweep arrow shows the sweep direction (green = would sweep forward, orange = would sweep backward),
+  // clocked off the CPG phase. They are locked together (both use gripShift 0.61 / gripDuration 0.5), so
+  // the arrow flips to orange exactly when the grip glow turns on and back to green when it turns off.
+  {
+    name: 'sweep & grip timing',
+    description: 'base wave (grip+sweep OFF) with BOTH timing indicators: grip glow + sweep arrow (green fwd / orange back). Sweep flips to back exactly when grip starts, to fwd when grip ends. CPG-clocked.',
+    config: { ...BASE_FL, gripEnabled: false, gripShift: 0.61, gripDuration: 0.5, muscleAlpha: 11, gripFeet: { FL: true, FR: true, BL: true, BR: true }, sweepAmount: 0 },
   },
 ]
 

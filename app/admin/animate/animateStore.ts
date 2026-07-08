@@ -81,7 +81,7 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
   bodyFriction: 0.05,
   legFriction: 0.05,
   gripEnabled: true,
-  gripClockCpg: false,
+  gripClockCpg: true,
   gripShift: 0.05,
   gripDuration: 0.5,
   releaseFriction: 0,
