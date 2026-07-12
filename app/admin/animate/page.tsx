@@ -5,6 +5,7 @@ import { AdminFrame } from '../_lib/AdminFrame'
 import { AnimateScene } from './AnimateScene'
 import { AnimateSidebar } from './AnimateSidebar'
 import { useSharedStore } from '../_lib/sharedStore'
+import { effectiveAngleCaps } from '@/app/game/locomotion/chain'
 import { useAnimateStore, decodeSimConfig, OVERLAY_NAMES, AnimateTab, SIM_CONFIG_STORAGE_KEY } from './animateStore'
 
 // Apply a shared config link on mount: #tab=simulate selects the tab, #sim=<base64> applies a full
@@ -72,9 +73,36 @@ function useLegWeightLink() {
   }, [groups, setGroupNodeWeight])
 }
 
+// Diagnostic override: force ALL legs to a symmetric fore/aft yaw cap of `legyaw` radians (pitch kept),
+// so the sweep's reach can be tested against a big, symmetric, known cap. Like legw, this isn't in
+// SimConfig — it rides in a `legyaw=<rad>` hash param and applies once the legs load (rebuilds the driver).
+function useLegYawLink() {
+  const groups = useSharedStore((s) => s.groups)
+  const setGroupAngleCaps = useSharedStore((s) => s.setGroupAngleCaps)
+  const appliedRef = useRef(false)
+  useEffect(() => {
+    if (appliedRef.current || typeof window === 'undefined') return
+    const hash = window.location.hash.replace(/^#/, '')
+    const params = new URLSearchParams(hash.length > 0 ? hash : window.location.search)
+    const raw = params.get('legyaw')
+    if (raw == null) { appliedRef.current = true; return }
+    const v = Number(raw)
+    if (!Number.isFinite(v)) { appliedRef.current = true; return }
+    const legs = groups.filter((g) => g.type === 'leg-left' || g.type === 'leg-right')
+    if (!legs.length) return // legs not loaded yet
+    const c = Math.max(0.05, Math.min(1.4, v))
+    for (const leg of legs) {
+      const cur = effectiveAngleCaps(leg)
+      setGroupAngleCaps(leg.id, { yaw: c, yawBack: c, pitchUp: cur.pitchUp, pitchDown: cur.pitchDown })
+    }
+    appliedRef.current = true
+  }, [groups, setGroupAngleCaps])
+}
+
 export default function AnimatePage() {
   useConfigLink()
   useLegWeightLink()
+  useLegYawLink()
   return (
     <AdminFrame
       scene={<AnimateScene />}
