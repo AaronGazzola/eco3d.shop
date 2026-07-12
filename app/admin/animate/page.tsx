@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { AdminFrame } from '../_lib/AdminFrame'
 import { AnimateScene } from './AnimateScene'
 import { AnimateSidebar } from './AnimateSidebar'
+import { useSharedStore } from '../_lib/sharedStore'
 import { useAnimateStore, decodeSimConfig, OVERLAY_NAMES, AnimateTab, SIM_CONFIG_STORAGE_KEY } from './animateStore'
 
 // Apply a shared config link on mount: #tab=simulate selects the tab, #sim=<base64> applies a full
@@ -48,8 +49,32 @@ function useConfigLink() {
   }, [])
 }
 
+// Leg weight lives in the shared-store groups (`nodeWeight`), not in SimConfig, so it can't ride in the
+// `sim=` blob. A separate `legw=<kg>` hash param carries it. The rig loads asynchronously, so this waits
+// for leg groups to appear (re-runs as `groups` updates) then sets ALL legs once. Clamped to a small
+// positive floor — a literal 0-mass hinge body is singular in the reduced-coordinate solver.
+function useLegWeightLink() {
+  const groups = useSharedStore((s) => s.groups)
+  const setGroupNodeWeight = useSharedStore((s) => s.setGroupNodeWeight)
+  const appliedRef = useRef(false)
+  useEffect(() => {
+    if (appliedRef.current || typeof window === 'undefined') return
+    const hash = window.location.hash.replace(/^#/, '')
+    const params = new URLSearchParams(hash.length > 0 ? hash : window.location.search)
+    const raw = params.get('legw')
+    if (raw == null) { appliedRef.current = true; return }
+    const w = Number(raw)
+    if (!Number.isFinite(w)) { appliedRef.current = true; return }
+    const leg = groups.find((g) => g.type === 'leg-left' || g.type === 'leg-right')
+    if (!leg) return // legs not loaded yet — wait for the next groups update
+    setGroupNodeWeight(leg.id, Math.max(0.02, Math.min(10, w))) // gangs all legs
+    appliedRef.current = true
+  }, [groups, setGroupNodeWeight])
+}
+
 export default function AnimatePage() {
   useConfigLink()
+  useLegWeightLink()
   return (
     <AdminFrame
       scene={<AnimateScene />}

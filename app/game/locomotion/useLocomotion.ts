@@ -89,6 +89,15 @@ interface NodeCaptureState {
   // a fixed axial phase), so it is the correct clock to lock grip/sweep timing to.
   reachAccum?: { c: number; s: number; n: number; cAx: number; sAx: number; minFore: number; maxFore: number; phiAtMin: number; phiAtMax: number }[]
   reachLegs?: string[]
+  // Peak-hold of the worst spine-joint fraction of its angle cap over the whole capture (per-frame max).
+  // The true clip guard — the once/sec diag sample aliases the wave period and misses the peak.
+  maxCapFrac?: number
+  // Roll-about-the-long-axis instrumentation (per-frame): peak |roll| and a reversal count (roll-rate
+  // sign flips) — the vibration/rocking the once/sec tilt sample can't resolve. prev* are trackers.
+  maxRollDeg?: number
+  rollFlips?: number
+  prevRoll?: number
+  prevRollRate?: number
 }
 interface NodeCaptureSpec {
   count: number
@@ -372,7 +381,10 @@ export function useLocomotion(
     const calibratingPitch = store.calibratingPitch
     const s = scratch.current
 
-    const coupledRunning = !calibrating && store.coupledRunning && !!cpgSpec && rapierReady.current
+    // When the MuJoCo engine is selected, the reduced-coordinate driver (useMujocoLocomotion) owns the
+    // sim + the body-matrix writes; the Rapier path idles so the two never fight over bodyRefs.
+    const coupledRunning =
+      !calibrating && store.coupledRunning && !!cpgSpec && rapierReady.current && store.simEngine !== 'mujoco'
 
     if (coupledRunning) {
       // Legs/ground/limbs are structural (baked at build), so toggling one forces a rebuild; gravity

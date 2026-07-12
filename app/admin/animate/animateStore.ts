@@ -58,7 +58,13 @@ export interface SimConfig {
   liftAmount: number
   legStiffness: number
   legDamping: number
+  // Physics engine for the coupled sim: 'rapier' (default, the maximal-coordinate path) or 'mujoco'
+  // (the reduced-coordinate servo engine — MuJoCo-WASM built from the node skeleton). Additive and
+  // defaulted so existing configs/links are unchanged.
+  simEngine: SimEngine
 }
+
+export type SimEngine = 'rapier' | 'mujoco'
 
 export const DEFAULT_SIM_CONFIG: SimConfig = {
   gravityEnabled: true,
@@ -93,6 +99,7 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
   liftAmount: 0.3,
   legStiffness: 3000,
   legDamping: 120,
+  simEngine: 'rapier',
 }
 
 export const SIM_CONFIG_STORAGE_KEY = 'eco3d-animate-sim-config'
@@ -151,6 +158,7 @@ export function pickSimConfig(s: SimConfig): SimConfig {
     liftAmount: s.liftAmount,
     legStiffness: s.legStiffness,
     legDamping: s.legDamping,
+    simEngine: s.simEngine,
   }
 }
 
@@ -231,6 +239,7 @@ interface AnimateStore extends SimConfig {
   setLiftAmount: (v: number) => void
   setLegStiffness: (v: number) => void
   setLegDamping: (v: number) => void
+  setSimEngine: (v: SimEngine) => void
   resetSimConfig: () => void
   applySimConfig: (partial: Partial<SimConfig>) => void
 }
@@ -370,6 +379,7 @@ export const useAnimateStore = create<AnimateStore>()(
       setLiftAmount: (v) => set({ liftAmount: v }),
       setLegStiffness: (v) => set({ legStiffness: v }),
       setLegDamping: (v) => set({ legDamping: v }),
+      setSimEngine: (v) => set({ simEngine: v }),
       resetSimConfig: () => set({ ...DEFAULT_SIM_CONFIG, gripFeet: { ...DEFAULT_SIM_CONFIG.gripFeet } }),
       applySimConfig: (partial) => {
         const keys = Object.keys(DEFAULT_SIM_CONFIG) as Array<keyof SimConfig>

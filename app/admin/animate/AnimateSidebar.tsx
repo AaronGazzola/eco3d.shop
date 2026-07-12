@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { pickSimConfig, useAnimateStore, encodeSimConfig, SimConfig } from './animateStore'
-import { SIM_PRESETS, findSimPreset } from './simPresets'
+import { presetsForEngine, findSimPreset } from './simPresets'
 import { CalibrateTab } from './CalibrateTab'
 
 function Info({ text }: { text: string }) {
@@ -150,6 +150,8 @@ function SimulateTab() {
 
   const gripEnabled = useAnimateStore((s) => s.gripEnabled)
   const setGripEnabled = useAnimateStore((s) => s.setGripEnabled)
+  const simEngine = useAnimateStore((s) => s.simEngine)
+  const setSimEngine = useAnimateStore((s) => s.setSimEngine)
   const gripFeet = useAnimateStore((s) => s.gripFeet)
   const setGripFoot = useAnimateStore((s) => s.setGripFoot)
   const gripShift = useAnimateStore((s) => s.gripShift)
@@ -206,11 +208,21 @@ function SimulateTab() {
       .catch((err) => console.error(err))
   }
 
+  const enginePresets = presetsForEngine(simEngine)
+
   const handleSelectPreset = (name: string) => {
     setSelectedPreset(name)
-    const preset = findSimPreset(name)
-    if (preset) applySimConfig(preset.config)
+    const preset = findSimPreset(name, simEngine)
+    if (preset) applySimConfig({ ...preset.config, simEngine: preset.engine })
   }
+
+  // Presets are scoped to the engine, so switching engines invalidates the current selection.
+  const handleSelectEngine = (e: typeof simEngine) => {
+    setSimEngine(e)
+    setSelectedPreset('')
+  }
+
+  const isMujoco = simEngine === 'mujoco'
 
   const handleCopyLink = () => {
     const st = useAnimateStore.getState()
@@ -258,6 +270,24 @@ function SimulateTab() {
             </button>
           </div>
           <div className="flex items-center gap-2">
+            <span className="shrink-0 text-[11px] text-white/55">Engine</span>
+            <div className="flex flex-1 gap-1">
+              {(['rapier', 'mujoco'] as const).map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => handleSelectEngine(e)}
+                  className={cn(
+                    'flex-1 rounded px-2 py-1 text-[11px] transition-colors',
+                    simEngine === e ? 'bg-cyan-600/40 text-cyan-200' : 'bg-white/10 text-white/60 hover:text-white'
+                  )}
+                >
+                  {e === 'rapier' ? 'Rapier' : 'MuJoCo'}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
             <span className="shrink-0 text-[11px] text-white/55">Preset</span>
             <select
               value={selectedPreset}
@@ -265,7 +295,7 @@ function SimulateTab() {
               className="min-w-0 flex-1 rounded-md border border-white/10 bg-black/30 px-2 py-1 text-xs text-white/80 focus:border-violet-500/60 focus:outline-none"
             >
               <option value="">Select a config…</option>
-              {SIM_PRESETS.map((p) => (
+              {enginePresets.map((p) => (
                 <option key={p.name} value={p.name}>
                   {p.name}
                 </option>
@@ -273,7 +303,7 @@ function SimulateTab() {
             </select>
           </div>
           {selectedPreset ? (
-            <p className="text-[10px] leading-snug text-white/45">{findSimPreset(selectedPreset)?.description}</p>
+            <p className="text-[10px] leading-snug text-white/45">{findSimPreset(selectedPreset, simEngine)?.description}</p>
           ) : null}
           {lastCapturePath ? (
             <p className="break-all font-mono text-[10px] text-emerald-300/70">{lastCapturePath}</p>
@@ -357,6 +387,8 @@ function SimulateTab() {
           </select>
         </div>
 
+        {!isMujoco && (
+          <>
         <Divider />
 
         <Toggle
@@ -404,6 +436,8 @@ function SimulateTab() {
           on={environmentEnabled}
           onChange={setEnvironmentEnabled}
         />
+          </>
+        )}
 
         <Divider />
 
@@ -510,16 +544,20 @@ function SimulateTab() {
           onChange={setMuscleBeta}
           format={(v) => v.toFixed(2)}
         />
-        <Slider
-          label="Muscle δ"
-          tip="Joint motor damping — resists fast joint motion. Higher δ trades a little speed for cleaner heading (less drift)."
-          value={muscleDamping}
-          min={0}
-          max={40}
-          step={0.1}
-          onChange={setMuscleDamping}
-          format={(v) => v.toFixed(2)}
-        />
+        {!isMujoco && (
+          <Slider
+            label="Muscle δ"
+            tip="Joint motor damping — resists fast joint motion. Higher δ trades a little speed for cleaner heading (less drift)."
+            value={muscleDamping}
+            min={0}
+            max={40}
+            step={0.1}
+            onChange={setMuscleDamping}
+            format={(v) => v.toFixed(2)}
+          />
+        )}
+        {!isMujoco && (
+          <>
         <Divider />
 
         <Slider
@@ -542,6 +580,8 @@ function SimulateTab() {
           onChange={setLegFriction}
           format={(v) => v.toFixed(2)}
         />
+          </>
+        )}
 
         <Divider />
 
@@ -565,7 +605,7 @@ function SimulateTab() {
             />
             <Slider
               label="Sweep speed"
-              tip="Gain of the fore/aft motor — how firmly the leg holds/reaches its commanded sweep angle (mass-independent, servo-like). Higher = stiffer, snappier."
+              tip="Gain of the fore/aft leg servo — how firmly the leg holds/reaches its commanded sweep angle. Under MuJoCo this is the sweep hip actuator's kp (rigid-peg stiffness); mass-independent, servo-like."
               value={sweepSpeed}
               min={0}
               max={200000}
@@ -585,7 +625,7 @@ function SimulateTab() {
             />
             <Slider
               label="Leg stiffness"
-              tip="Gain of the up/down (lift) motor — how firmly the leg holds its angle against the body's weight (mass-independent, servo-like). The anti-sag knob."
+              tip="Gain of the up/down (lift) leg servo — how firmly the leg holds its angle against the body's weight. Under MuJoCo this is the lift hip actuator's kp (rigid-peg stiffness). The anti-sag / anti-floppy knob."
               value={legStiffness}
               min={0}
               max={200000}
@@ -595,7 +635,7 @@ function SimulateTab() {
             />
             <Slider
               label="Leg damping"
-              tip="Damping on both hip motors — settles oscillation. For a firm, non-springy hold use roughly 2×√(stiffness)."
+              tip="Damping (kv) on both hip servos — settles wobble so the leg tracks its angle rigidly instead of springing. For a firm, non-springy hold use roughly 2×√(stiffness)."
               value={legDamping}
               min={0}
               max={2000}
@@ -655,16 +695,18 @@ function SimulateTab() {
           onChange={setGripDuration}
           format={(v) => `${Math.round(v * 100)}%`}
         />
-        <Slider
-          label="Release friction"
-          tip="Foot friction while NOT gripping. Lower = the foot slides freely between grips."
-          value={releaseFriction}
-          min={0}
-          max={1}
-          step={0.05}
-          onChange={setReleaseFriction}
-          format={(v) => v.toFixed(2)}
-        />
+        {!isMujoco && (
+          <Slider
+            label="Release friction"
+            tip="Foot friction while NOT gripping. Lower = the foot slides freely between grips."
+            value={releaseFriction}
+            min={0}
+            max={1}
+            step={0.05}
+            onChange={setReleaseFriction}
+            format={(v) => v.toFixed(2)}
+          />
+        )}
         <Toggle
           label="Foot glow"
           tip="Light up each foot while it is inside its grip window — a visual debug of grip timing."

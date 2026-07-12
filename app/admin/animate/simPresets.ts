@@ -1,8 +1,11 @@
-import { SimConfig } from './animateStore'
+import { SimConfig, SimEngine } from './animateStore'
 
 export interface SimPreset {
   name: string
   description: string
+  // The engine this preset was tuned for. The preset dropdown is scoped to the active engine, and
+  // applying a preset also switches the engine to this one so a shared link reproduces it exactly.
+  engine: SimEngine
   config: Partial<SimConfig>
 }
 
@@ -48,6 +51,19 @@ const BASE_FL: Partial<SimConfig> = {
   legDamping: 120,
 }
 
+// MuJoCo baseline: the same rigid-leg, no-grip, no-drag CPG wave as BASE_FL but flagged for the MuJoCo
+// engine. Under MuJoCo the leg gains ARE live (they map to the hip position-servo kp/kv): the Rapier
+// values (200000/37000/120) are so stiff+underdamped they make the legs BUZZ, rocking the body. Calm
+// MuJoCo gains (kp 3000 / kv 400) hold the legs as rigid pegs without vibrating.
+const MUJOCO_BASE: Partial<SimConfig> = {
+  ...BASE_FL,
+  simEngine: 'mujoco',
+  muscleAlpha: 11,
+  sweepSpeed: 3000,
+  legStiffness: 3000,
+  legDamping: 400,
+}
+
 export const SIM_PRESETS: SimPreset[] = [
   // The pure CPG body wave with the legs built and held rigid, no grip, no drag. With no drag the body
   // just undulates in place (no net travel) — this is the clean traveling wave the grip timing is read
@@ -55,6 +71,7 @@ export const SIM_PRESETS: SimPreset[] = [
   {
     name: 'base wave',
     description: 'Stiff legs, no grip, no drag — the pure CPG traveling wave undulating in place (no thrust). The reference wave. α11 → peak 99% of the angle cap (max amplitude, no clip).',
+    engine: 'rapier',
     config: { ...BASE_FL, muscleAlpha: 11 },
   },
   // Same as base wave but with body drag ON: the anisotropic resistance turns the same traveling wave
@@ -63,6 +80,7 @@ export const SIM_PRESETS: SimPreset[] = [
   {
     name: 'base swim',
     description: 'base wave + drag ON — the wave now swims the body forward. α16 (raised, drag damps the bend) → peak 97% of the cap.',
+    engine: 'rapier',
     config: { ...BASE_FL, environmentEnabled: true, muscleAlpha: 16 },
   },
   // The current one-foot experiment: FL grips continuously (gripDuration 1 = never releases) with the
@@ -72,6 +90,7 @@ export const SIM_PRESETS: SimPreset[] = [
   {
     name: 'base FL grip',
     description: 'base wave + FL gripping continuously (rigid leg, no drag). Fixed node → standing wave, no travel. α6 (lowered, clamp amplifies the joint) → peak 98% of the cap.',
+    engine: 'rapier',
     config: { ...BASE_FL, gripEnabled: true, muscleAlpha: 6 },
   },
   // base wave with the grip STILL OFF but the FL foot glow timed to the backward power stroke, clocked
@@ -82,6 +101,7 @@ export const SIM_PRESETS: SimPreset[] = [
   {
     name: 'base FL grip timing',
     description: 'base wave, grip OFF — FL foot glow shows the CPG-clocked grip window: lights at max-forward, off at max-backward (the backward power stroke). gripShift 0.61 / gripDuration 0.5. α11 → peak 99% of the cap.',
+    engine: 'rapier',
     config: { ...BASE_FL, gripShift: 0.61, gripDuration: 0.5, muscleAlpha: 11 },
   },
   // All four feet gripping on the CPG clock, timed to each foot's backward power stroke (gripShift 0.61,
@@ -91,6 +111,7 @@ export const SIM_PRESETS: SimPreset[] = [
   {
     name: 'base walk',
     description: 'All 4 feet grip on the CPG clock, timed to the backward power stroke (gripShift 0.61 / gripDuration 0.5). No sweep. Inches forward, stays roughly straight — the base walk.',
+    engine: 'rapier',
     config: { ...BASE_FL, gripEnabled: true, gripShift: 0.61, gripDuration: 0.5, muscleAlpha: 11, gripFeet: { FL: true, FR: true, BL: true, BR: true } },
   },
   // base walk with grip and sweep OFF (gripEnabled false, sweepAmount 0) so the body runs the clean
@@ -101,10 +122,39 @@ export const SIM_PRESETS: SimPreset[] = [
   {
     name: 'sweep & grip timing',
     description: 'base wave (grip+sweep OFF) with BOTH timing indicators: grip glow + sweep arrow (green fwd / orange back). Sweep flips to back exactly when grip starts, to fwd when grip ends. CPG-clocked.',
+    engine: 'rapier',
     config: { ...BASE_FL, gripEnabled: false, gripShift: 0.61, gripDuration: 0.5, muscleAlpha: 11, gripFeet: { FL: true, FR: true, BL: true, BR: true }, sweepAmount: 0 },
+  },
+
+  // ── MuJoCo (reduced-coordinate servo engine) ──────────────────────────────────────────────────────
+  // Stage 1 (base wave, no grip, no drag): high amplitude at three frequencies, none clipping the angle
+  // cap, body flat, legs rigid & non-vibrating. Tuned for LIGHT legs (~0.1 kg — set in the Calibrate tab
+  // or via the `legw=0.1` link param; leg weight can't ride in a preset). Higher drive raises frequency
+  // but drops amplitude, so α climbs with drive. New MuJoCo presets are appended as each stage is approved.
+  {
+    name: 'wave-slow',
+    description: 'MuJoCo Stage 1 — base wave, low frequency, high amplitude (drive 0.39 / α5 → ~98% of cap). No grip, no drag; body undulates in place. Assumes light legs (~0.1 kg).',
+    engine: 'mujoco',
+    config: { ...MUJOCO_BASE, cpgDrive: 0.39, muscleAlpha: 5 },
+  },
+  {
+    name: 'wave-mid',
+    description: 'MuJoCo Stage 1 — base wave, mid frequency (~2×), high amplitude (drive 0.80 / α12 → ~98% of cap). No grip, no drag. Assumes light legs (~0.1 kg).',
+    engine: 'mujoco',
+    config: { ...MUJOCO_BASE, cpgDrive: 0.8, muscleAlpha: 12 },
+  },
+  {
+    name: 'wave-fast',
+    description: 'MuJoCo Stage 1 — base wave, high frequency (~3×), high amplitude (drive 1.20 / α18 → ~92% of cap). No grip, no drag. Assumes light legs (~0.1 kg).',
+    engine: 'mujoco',
+    config: { ...MUJOCO_BASE, cpgDrive: 1.2, muscleAlpha: 18 },
   },
 ]
 
-export function findSimPreset(name: string): SimPreset | undefined {
-  return SIM_PRESETS.find((p) => p.name === name)
+export function presetsForEngine(engine: SimEngine): SimPreset[] {
+  return SIM_PRESETS.filter((p) => p.engine === engine)
+}
+
+export function findSimPreset(name: string, engine: SimEngine): SimPreset | undefined {
+  return SIM_PRESETS.find((p) => p.name === name && p.engine === engine)
 }

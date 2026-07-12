@@ -7,6 +7,7 @@ import { RoleTags } from './dragons.types'
 import { Phenotype } from './dragons.genetics'
 import { useAnimateStore } from '../admin/animate/animateStore'
 import { useLocomotion } from './locomotion/useLocomotion'
+import { useMujocoLocomotion } from './locomotion/useMujocoLocomotion'
 import { buildSkeletonTree, flattenSkeleton, SkeletonNode } from './locomotion/chain'
 
 function mergeGroupPositions(segments: SegmentData[]): Float32Array {
@@ -479,6 +480,7 @@ export function AnimatedModel({
   }, [modelConfig.groups, chainIds])
 
   useLocomotion(pivotsRef, bodyRefs, modelConfig.groups, segments, rootRef, footGlowRef, sweepArrowRef)
+  useMujocoLocomotion(bodyRefs, modelConfig.groups, rootRef)
 
   return (
     <group ref={rootRef}>

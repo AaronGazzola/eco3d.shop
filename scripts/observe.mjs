@@ -64,13 +64,14 @@ function findChromium() {
 // ---- arg parsing -----------------------------------------------------------
 const [, , CMD = 'config', ...REST] = process.argv
 function parseFlags(rest) {
-  const out = { positional: [], hz: 4, shots: false, events: false, eventShots: false, sets: {}, configFile: null }
+  const out = { positional: [], hz: 4, shots: false, events: false, eventShots: false, sets: {}, configFile: null, legw: null }
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i]
     if (a === '--shots') out.shots = true
     else if (a === '--events') out.events = true
     else if (a === '--event-shots') { out.events = true; out.eventShots = true }
     else if (a === '--hz') out.hz = Number(rest[++i])
+    else if (a === '--legw') out.legw = Number(rest[++i])
     else if (a === '--config') out.configFile = rest[++i]
     else if (a === '--set') {
       const [k, ...v] = rest[++i].split('=')
@@ -129,7 +130,7 @@ if (CMD === 'login') {
   const cfg = await page.evaluate(() => window.__studio.getConfig())
   console.log(JSON.stringify(cfg, null, 2))
 } else if (CMD === 'run') {
-  const { positional, hz, shots, events, eventShots, sets, configFile } = parseFlags(REST)
+  const { positional, hz, shots, events, eventShots, sets, configFile, legw } = parseFlags(REST)
   const seconds = Number(positional[0] ?? 8)
   let overrides = { ...sets }
   if (configFile) overrides = { ...JSON.parse(readFileSync(configFile, 'utf8')), ...overrides }
@@ -139,6 +140,11 @@ if (CMD === 'login') {
     if (Object.keys(ov).length) window.__studio.apply(ov)
     return window.__studio.getConfig()
   }, overrides)
+  if (legw != null && Number.isFinite(legw)) {
+    await page.evaluate((w) => window.__studio.legWeight(w), legw)
+    await page.waitForTimeout(400)
+    console.log(`leg weight set to ${legw} kg`)
+  }
   console.log(`run ${seconds}s  hz=${hz}  shots=${shots ? 'ON' : 'off'}  events=${events ? (eventShots ? 'ON+snapshots' : 'ON') : 'off'}  overrides=${JSON.stringify(overrides)}`)
 
   await page.evaluate((o) => { window.__studio.nodeCaptureStart(o); window.__studio.drive(true) }, { hz, maxSamples: 8000, events, eventSnapshots: eventShots })
@@ -178,6 +184,11 @@ if (CMD === 'login') {
     writeNodeReport(`${OUT}/nodes-${stamp}.md`, dump, applied, { seconds, hz })
     await renderTopDown(`${OUT}/nodes-${stamp}-topdown.png`, dump)
     console.log(`captured ${dump.samples.length} node samples (${dump.spec?.count} nodes @ ${hz}/s) → nodes-${stamp}.*`)
+    if (dump.maxCapFrac != null) console.log(`peak maxJointFracOfCap (per-frame peak-hold) = ${Math.round(dump.maxCapFrac * 100)}%  ${dump.maxCapFrac >= 1 ? '⚠ CLIPS CAP' : 'OK (under cap)'}`)
+    if (dump.maxRollDeg != null) {
+      const perSec = dump.rollFlips / Math.max(1, seconds)
+      console.log(`roll: peak |roll|=${dump.maxRollDeg.toFixed(2)}°  reversals=${dump.rollFlips} (${perSec.toFixed(1)}/s)  ${perSec >= 4 ? '⚠ VIBRATING' : 'steady'}`)
+    }
   }
   if (events) {
     const evs = dump.events ?? []
@@ -227,6 +238,8 @@ function writeNodeReport(path, dump, cfg, meta) {
   lines.push(`COM start: x=${f(c0.x)} y=${f(c0.y)} z=${f(c0.z)}`)
   lines.push(`COM end:   x=${f(c1.x)} y=${f(c1.y)} z=${f(c1.z)}`)
   lines.push(`COM travel: Δx=${f(c1.x - c0.x)} Δy=${f(c1.y - c0.y)} Δz=${f(c1.z - c0.z)}  |horizontal|=${f(Math.hypot(c1.x - c0.x, c1.z - c0.z))}`)
+  if (dump.maxCapFrac != null) lines.push(`peak maxJointFracOfCap (per-frame peak-hold): ${(dump.maxCapFrac * 100).toFixed(1)}%  ${dump.maxCapFrac >= 1 ? 'CLIPS CAP' : 'under cap'}`)
+  if (dump.maxRollDeg != null) lines.push(`roll about long axis: peak |roll|=${dump.maxRollDeg.toFixed(2)}°  reversals=${dump.rollFlips} (${(dump.rollFlips / Math.max(1, meta.seconds)).toFixed(1)}/s)`)
   lines.push('')
   lines.push('## Per-node range over capture (world units)')
   lines.push('idx groupId                 X[min..max]            Y[min..max]            Z[min..max]')

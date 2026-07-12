@@ -532,7 +532,8 @@ A dated log of decisions, with reasoning. Settled one at a time as we work throu
    This matches the paper, which used **uniform segments** (PDF Methods, "uniform" runs).
    (Settled in an explore session; implemented via the Phase C re-open change — see §4.)
 8. **Dimensionality & solver → full 3D on the Rapier physics engine (supersedes Decisions 1
-   & 2).** _2026-06-06._ The body is rebuilt as a chain of **3D rigid bodies in Rapier**
+   & 2).** _2026-06-06._ **⚠ The SOLVER half is SUPERSEDED by Decision 9 (2026-07-11):
+   reduced-coordinate articulated-body physics. The FULL-3D half still stands.** The body is rebuilt as a chain of **3D rigid bodies in Rapier**
    (`@dimforge/rapier3d-compat`, WASM, run in deterministic fixed-step mode), one body per
    segment (mass from `nodeWeight`, geometry/inertia from a collider sized by node spacing +
    `STD_SEGMENT_WIDTH`), joined by joints whose axes and limits come from the node skeleton +
@@ -554,6 +555,27 @@ A dated log of decisions, with reasoning. Settled one at a time as we work throu
    the 3D swimming re-proof (neutral-buoyancy water); on for walking. **Adhesion** (climbing)
    is a later phase — foot/body contact anchors with an adhesion force — but the 3D engine is
    the substrate that makes it possible. (Settled in an explore session, 2026-06-06.)
+9. **Solver → reduced-coordinate articulated-body physics; every joint a position servo
+   (supersedes the solver half of Decision 8).** _2026-07-11._ Full-3D (Decision 8) stands;
+   only the *engine class* changes. **Why:** Rapier is a **maximal-coordinate impulse
+   solver** — its joint motors act as springs, so position-servo limbs sag and store/release
+   energy under load instead of holding their angle and driving the body. The paper's limbs
+   (and, on the robot, every joint) are **position-controlled servos**; a reduced-coordinate
+   (Featherstone / articulated-body) solver represents joints in generalized coordinates so an
+   actuated joint is rigid **and** force-exerting — the faithful model of a servo. **What:**
+   every joint (spine + legs) becomes a force-limited position servo; the CPG is unchanged and
+   drives the servo targets. **Validation first:** the physics is proved with **MuJoCo**
+   (`@mujoco/mujoco`, Google-DeepMind's official WASM build) as a throwaway oracle, driven by
+   the *real* `cpg.ts` — confirmed loading and compiling our node-derived model under Node
+   (nq=25, nu=18, neq=4). **Shipping runtime:** a small custom ABA (or MuJoCo-WASM) built **at
+   runtime from the node skeleton** — rig-generality (rule 7 / Part 8) is **unchanged**; the
+   model is derived from nodes, never hard-coded per dragon. **Honest caveat (logged, not
+   ignored):** the paper ran on **ODE/Webots, also maximal-coordinate**, so maximal-coordinate
+   *can* walk a servo robot — our floppiness is likely worsened by our **2-DOF carrier hip**
+   (the paper and Phase D2 specify a **1-DOF** hip) and the added grip pin (Decision 4 wants
+   emergent contact). A faithful **1-DOF Rapier hip** therefore remains a viable fallback if
+   the reduced-coordinate move proves not worth its cost. (User authorized changing Decision 8;
+   tracked by OpenSpec change `validate-articulated-locomotion-mujoco`.)
 
 ---
 

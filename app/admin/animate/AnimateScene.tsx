@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useSharedStore } from '../_lib/sharedStore'
-import { useAnimateStore, pickSimConfig, SimConfig, encodeSimConfig } from './animateStore'
+import { useAnimateStore, pickSimConfig, SimConfig, SimEngine, encodeSimConfig } from './animateStore'
 import { findSimPreset } from './simPresets'
 import { CameraController, StudioCanvas } from '../_lib/StudioCanvas'
 import { CameraPreset, ModelConfigRow } from '../_lib/types'
@@ -28,11 +28,12 @@ function useStudioObservationHook() {
       // Apply a full/partial SimConfig in one call (used by the observation harness to load a named
       // preset without setting every knob individually). Only known SimConfig keys are written.
       applyConfig: (config: Record<string, unknown>) => store().applySimConfig(config),
-      // Apply a named preset from app/admin/animate/simPresets.ts. Returns true if the name matched.
-      preset: (name: string) => {
-        const p = findSimPreset(name)
+      // Apply a named preset from app/admin/animate/simPresets.ts (scoped to the given engine, or the
+      // current one). Returns true if the name matched. Also switches the engine to the preset's engine.
+      preset: (name: string, engine?: SimEngine) => {
+        const p = findSimPreset(name, engine ?? store().simEngine)
         if (!p) return false
-        store().applySimConfig(p.config)
+        store().applySimConfig({ ...p.config, simEngine: p.engine })
         return true
       },
       friction: (body: number, leg: number) => { store().setBodyFriction(body); store().setLegFriction(leg) },
@@ -63,6 +64,13 @@ function useStudioObservationHook() {
       // simulation logic is preserved — only its tunable parameters change.
       getConfig: () => pickSimConfig(store() as unknown as SimConfig),
       apply: (partial: Partial<SimConfig>) => store().applySimConfig(partial),
+      // Set ALL leg weights (kg) — leg mass lives in the shared-store groups, not SimConfig. Used by the
+      // observe harness (--legw) and mirrors the Calibrate leg-weight slider (which gangs all legs).
+      legWeight: (w: number) => {
+        const shared = useSharedStore.getState()
+        const g = shared.groups.find((x) => x.type === 'leg-left' || x.type === 'leg-right')
+        if (g) shared.setGroupNodeWeight(g.id, w)
+      },
       // Playback control (Increment A): freeze-frame, slow-motion, and forward single-stepping. `frozen`
       // halts sim advance while the render keeps drawing the held frame; `speed` scales slow-motion;
       // `step(n)` injects n exact fixed ticks (forward only in Increment A). All are pure view-state
@@ -88,6 +96,8 @@ function useStudioObservationHook() {
         params.set('tab', st.animateTab)
         params.set('sim', encodeSimConfig(pickSimConfig(st as unknown as SimConfig)))
         if (st.overlays.length > 0) params.set('overlay', st.overlays.join(','))
+        const leg = useSharedStore.getState().groups.find((g) => g.type === 'leg-left' || g.type === 'leg-right')
+        if (leg?.nodeWeight != null) params.set('legw', String(leg.nodeWeight))
         const base = typeof window !== 'undefined' ? window.location.origin + window.location.pathname : ''
         return `${base}#${params.toString()}`
       },
@@ -123,6 +133,9 @@ function useStudioObservationHook() {
           spec: (window as Window).__nodeCaptureSpec ?? null,
           reach: c?.reachAccum ?? null,
           reachLegs: c?.reachLegs ?? null,
+          maxCapFrac: c?.maxCapFrac ?? null,
+          maxRollDeg: c?.maxRollDeg ?? null,
+          rollFlips: c?.rollFlips ?? null,
         }
       },
       gripCaptureStart: (maxSamples?: number) => {
