@@ -430,14 +430,15 @@ function SimulateTab() {
           on={legsLocked}
           onChange={setLegsLocked}
         />
+          </>
+        )}
+
         <Toggle
           label="Drag"
-          tip="Anisotropic swimming drag — resists sideways motion more than forward, turning the body wave into forward thrust."
+          tip="Anisotropic swimming drag — resists sideways motion more than forward, turning the body wave into forward thrust. Works under MuJoCo too (per-segment resistive force)."
           on={environmentEnabled}
           onChange={setEnvironmentEnabled}
         />
-          </>
-        )}
 
         <Divider />
 

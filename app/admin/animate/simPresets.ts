@@ -143,11 +143,19 @@ export const SIM_PRESETS: SimPreset[] = [
     engine: 'mujoco',
     config: { ...MUJOCO_BASE, cpgDrive: 0.8, muscleAlpha: 12 },
   },
+  // Stage 2 (base swim): the base wave + anisotropic drag → forward swimming. Drag damps the lateral bend,
+  // so α is raised vs the dry wave to keep the stroke near the angle cap. Light legs (~0.1 kg).
   {
-    name: 'wave-fast',
-    description: 'MuJoCo Stage 1 — base wave, high frequency (~3×), high amplitude (drive 1.20 / α18 → ~92% of cap). No grip, no drag. Assumes light legs (~0.1 kg).',
+    name: 'swim-slow',
+    description: 'MuJoCo Stage 2 — base swim, low frequency (drive 0.39 / α18, drag ON → ~90% of cap). Strong slow stroke; swims forward fastest of the three. Assumes light legs (~0.1 kg).',
     engine: 'mujoco',
-    config: { ...MUJOCO_BASE, cpgDrive: 1.2, muscleAlpha: 18 },
+    config: { ...MUJOCO_BASE, environmentEnabled: true, cpgDrive: 0.39, muscleAlpha: 18 },
+  },
+  {
+    name: 'swim-mid',
+    description: 'MuJoCo Stage 2 — base swim, mid frequency (drive 0.80 / α16, drag ON → ~86% of cap). Swims forward, straight. Assumes light legs (~0.1 kg).',
+    engine: 'mujoco',
+    config: { ...MUJOCO_BASE, environmentEnabled: true, cpgDrive: 0.8, muscleAlpha: 16 },
   },
 ]
 
