@@ -157,6 +157,15 @@ export const SIM_PRESETS: SimPreset[] = [
     engine: 'mujoco',
     config: { ...MUJOCO_BASE, environmentEnabled: true, cpgDrive: 0.8, muscleAlpha: 16 },
   },
+  // Stage 4 (timing indicators only — grip + sweep NOT actuating, legs rigid): the foot glow + sweep arrow
+  // visualise the CPG-clocked gait. gripShift 0.36 = φ_fwd of the mid wave, so the grip window opens at
+  // max-forward reach and closes at max-back; the sweep arrow flips in lockstep (verified IN SYNC).
+  {
+    name: 'timing',
+    description: 'MuJoCo Stage 4 — grip/sweep timing indicators (grip+sweep OFF). Mid wave; grip glow lights at max-forward reach → off at max-back (gripShift 0.36), sweep arrow orange(back)↔green(fwd) in lockstep. Light legs (~0.1 kg).',
+    engine: 'mujoco',
+    config: { ...MUJOCO_BASE, cpgDrive: 0.8, muscleAlpha: 12, gripShift: 0.36, gripDuration: 0.5, gripFeet: { FL: true, FR: true, BL: true, BR: true } },
+  },
 ]
 
 export function presetsForEngine(engine: SimEngine): SimPreset[] {
