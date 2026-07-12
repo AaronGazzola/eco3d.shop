@@ -64,7 +64,7 @@ function findChromium() {
 // ---- arg parsing -----------------------------------------------------------
 const [, , CMD = 'config', ...REST] = process.argv
 function parseFlags(rest) {
-  const out = { positional: [], hz: 4, shots: false, events: false, eventShots: false, sets: {}, configFile: null, legw: null, legyaw: null }
+  const out = { positional: [], hz: 4, shots: false, events: false, eventShots: false, sets: {}, configFile: null, legw: null }
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i]
     if (a === '--shots') out.shots = true
@@ -72,7 +72,6 @@ function parseFlags(rest) {
     else if (a === '--event-shots') { out.events = true; out.eventShots = true }
     else if (a === '--hz') out.hz = Number(rest[++i])
     else if (a === '--legw') out.legw = Number(rest[++i])
-    else if (a === '--legyaw') out.legyaw = Number(rest[++i])
     else if (a === '--config') out.configFile = rest[++i]
     else if (a === '--set') {
       const [k, ...v] = rest[++i].split('=')
@@ -131,7 +130,7 @@ if (CMD === 'login') {
   const cfg = await page.evaluate(() => window.__studio.getConfig())
   console.log(JSON.stringify(cfg, null, 2))
 } else if (CMD === 'run') {
-  const { positional, hz, shots, events, eventShots, sets, configFile, legw, legyaw } = parseFlags(REST)
+  const { positional, hz, shots, events, eventShots, sets, configFile, legw } = parseFlags(REST)
   const seconds = Number(positional[0] ?? 8)
   let overrides = { ...sets }
   if (configFile) overrides = { ...JSON.parse(readFileSync(configFile, 'utf8')), ...overrides }
@@ -145,11 +144,6 @@ if (CMD === 'login') {
     await page.evaluate((w) => window.__studio.legWeight(w), legw)
     await page.waitForTimeout(400)
     console.log(`leg weight set to ${legw} kg`)
-  }
-  if (legyaw != null && Number.isFinite(legyaw)) {
-    await page.evaluate((v) => window.__studio.legYaw(v), legyaw)
-    await page.waitForTimeout(400)
-    console.log(`leg yaw caps set to ±${legyaw} rad (symmetric)`)
   }
   console.log(`run ${seconds}s  hz=${hz}  shots=${shots ? 'ON' : 'off'}  events=${events ? (eventShots ? 'ON+snapshots' : 'ON') : 'off'}  overrides=${JSON.stringify(overrides)}`)
 

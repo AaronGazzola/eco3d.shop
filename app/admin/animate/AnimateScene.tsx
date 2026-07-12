@@ -9,7 +9,6 @@ import { findSimPreset } from './simPresets'
 import { CameraController, StudioCanvas } from '../_lib/StudioCanvas'
 import { CameraPreset, ModelConfigRow } from '../_lib/types'
 import { AnimatedModel } from '@/app/game/AnimatedModel'
-import { effectiveAngleCaps } from '@/app/game/locomotion/chain'
 
 // Dev/observation hook: lets the headless observation harness (scripts/observe-swim.mjs) drive the
 // studio deterministically — set camera angle, start/stop the sim, toggle drag, tune the CPG, and
@@ -71,15 +70,6 @@ function useStudioObservationHook() {
         const shared = useSharedStore.getState()
         const g = shared.groups.find((x) => x.type === 'leg-left' || x.type === 'leg-right')
         if (g) shared.setGroupNodeWeight(g.id, w)
-      },
-      // Force ALL legs to a symmetric fore/aft yaw cap of `v` radians (pitch kept) — used to test the
-      // sweep's reach against a big symmetric cap. Mirrors the legyaw= link param.
-      legYaw: (v: number) => {
-        const shared = useSharedStore.getState()
-        for (const leg of shared.groups.filter((x) => x.type === 'leg-left' || x.type === 'leg-right')) {
-          const cur = effectiveAngleCaps(leg)
-          shared.setGroupAngleCaps(leg.id, { yaw: v, yawBack: v, pitchUp: cur.pitchUp, pitchDown: cur.pitchDown })
-        }
       },
       // Playback control (Increment A): freeze-frame, slow-motion, and forward single-stepping. `frozen`
       // halts sim advance while the render keeps drawing the held frame; `speed` scales slow-motion;
