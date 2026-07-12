@@ -166,6 +166,15 @@ export const SIM_PRESETS: SimPreset[] = [
     engine: 'mujoco',
     config: { ...MUJOCO_BASE, cpgDrive: 0.8, muscleAlpha: 12, gripShift: 0.36, gripDuration: 0.5, gripFeet: { FL: true, FR: true, BL: true, BR: true } },
   },
+  // Stage 5 (grip ON, no sweep): the four feet grip on the CPG clock (timed to the backward power stroke),
+  // legs held rigid & perpendicular. The timed plant/release converts the standing wave into a forward
+  // walk (Δx ~−10/14s, straight, flat) — grip is the sole thrust. Base walk.
+  {
+    name: 'grip-walk',
+    description: 'MuJoCo Stage 5 — timed 4-foot grip, no sweep (gripShift 0.36 / gripDuration 0.5). Walks forward from grip alone (~0.8 u/s), straight & flat; legs stay rigid pegs. Light legs (~0.1 kg).',
+    engine: 'mujoco',
+    config: { ...MUJOCO_BASE, cpgDrive: 0.8, muscleAlpha: 12, gripEnabled: true, gripShift: 0.36, gripDuration: 0.5, gripFeet: { FL: true, FR: true, BL: true, BR: true } },
+  },
 ]
 
 export function presetsForEngine(engine: SimEngine): SimPreset[] {
