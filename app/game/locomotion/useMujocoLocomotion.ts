@@ -78,6 +78,22 @@ export function useMujocoLocomotion(
     }
     ncap.prevRoll = roll
     if (Math.abs(rate) > 0.01) ncap.prevRollRate = rate
+    // Per-leg sweep-angle peak-hold (min/max vs caps) — how much of the fore/aft cap the sweep reaches.
+    const sweepLegs = driver.legObs()
+    if (!ncap.sweepLo) {
+      ncap.sweepLo = sweepLegs.map((l) => l.sweepAngle)
+      ncap.sweepHi = sweepLegs.map((l) => l.sweepAngle)
+      ncap.sweepLegs = sweepLegs.map((l) => l.leg)
+      ncap.sweepCapF = sweepLegs.map((l) => l.capStance)
+      ncap.sweepCapB = sweepLegs.map((l) => l.capSwing)
+    } else {
+      const lo = ncap.sweepLo
+      const hi = ncap.sweepHi ?? lo
+      for (let i = 0; i < sweepLegs.length; i++) {
+        if (sweepLegs[i].sweepAngle < lo[i]) lo[i] = sweepLegs[i].sweepAngle
+        if (sweepLegs[i].sweepAngle > hi[i]) hi[i] = sweepLegs[i].sweepAngle
+      }
+    }
     const tNow = (performance.now() - ncap.startWallTime) / 1000
     if (!window.__nodeCaptureSpec) {
       const spec = driver.nodeSpec()

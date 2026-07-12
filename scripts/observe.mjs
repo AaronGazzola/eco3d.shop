@@ -189,6 +189,14 @@ if (CMD === 'login') {
       const perSec = dump.rollFlips / Math.max(1, seconds)
       console.log(`roll: peak |roll|=${dump.maxRollDeg.toFixed(2)}°  reversals=${dump.rollFlips} (${perSec.toFixed(1)}/s)  ${perSec >= 4 ? '⚠ VIBRATING' : 'steady'}`)
     }
+    if (dump.sweepLo && dump.sweepHi) {
+      console.log('sweep angle reached (rad) vs cap [−back .. +fwd]:')
+      for (let i = 0; i < dump.sweepLo.length; i++) {
+        const fwdPct = Math.round((dump.sweepHi[i] / Math.max(1e-6, dump.sweepCapF[i])) * 100)
+        const backPct = Math.round((-dump.sweepLo[i] / Math.max(1e-6, dump.sweepCapB[i])) * 100)
+        console.log(`  ${dump.sweepLegs[i]}: [${dump.sweepLo[i].toFixed(2)} .. ${dump.sweepHi[i].toFixed(2)}]  cap[${(-dump.sweepCapB[i]).toFixed(2)} .. ${dump.sweepCapF[i].toFixed(2)}]  → fwd ${fwdPct}%  back ${backPct}%`)
+      }
+    }
   }
   if (events) {
     const evs = dump.events ?? []

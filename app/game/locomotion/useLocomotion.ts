@@ -98,6 +98,13 @@ interface NodeCaptureState {
   rollFlips?: number
   prevRoll?: number
   prevRollRate?: number
+  // Per-leg sweep-angle tracking: min/max achieved sweep joint angle over the capture vs its ± caps, so
+  // the harness can report how much of the fore/aft cap the sweep actually reaches.
+  sweepLo?: number[]
+  sweepHi?: number[]
+  sweepLegs?: string[]
+  sweepCapF?: number[]
+  sweepCapB?: number[]
 }
 interface NodeCaptureSpec {
   count: number

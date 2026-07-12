@@ -136,6 +136,11 @@ function useStudioObservationHook() {
           maxCapFrac: c?.maxCapFrac ?? null,
           maxRollDeg: c?.maxRollDeg ?? null,
           rollFlips: c?.rollFlips ?? null,
+          sweepLo: c?.sweepLo ?? null,
+          sweepHi: c?.sweepHi ?? null,
+          sweepLegs: c?.sweepLegs ?? null,
+          sweepCapF: c?.sweepCapF ?? null,
+          sweepCapB: c?.sweepCapB ?? null,
         }
       },
       gripCaptureStart: (maxSamples?: number) => {

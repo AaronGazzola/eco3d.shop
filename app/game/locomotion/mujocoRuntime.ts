@@ -112,6 +112,7 @@ interface LegDrive {
   groupId: string
   liftAct: number
   sweepAct: number
+  sweepQadr: number
   capStance: number
   capSwing: number
   liftSign: number
@@ -147,6 +148,9 @@ export interface MjLegObs {
   footX: number
   footY: number
   footZ: number
+  sweepAngle: number
+  capStance: number
+  capSwing: number
 }
 
 // A reduced-coordinate locomotion driver: a MuJoCo model compiled from the node skeleton, driven by
@@ -207,6 +211,7 @@ export class MujocoLocomotion {
       groupId: l.groupId,
       liftAct: id(OBJ.ACTUATOR, l.liftActuator),
       sweepAct: id(OBJ.ACTUATOR, l.sweepActuator),
+      sweepQadr: jntQadr[id(OBJ.JOINT, l.sweepJoint)],
       capStance: l.capStance,
       capSwing: l.capSwing,
       liftSign: l.liftSign,
@@ -487,6 +492,9 @@ export class MujocoLocomotion {
       footX: this.siteXpos[3 * lg.footSite],
       footY: this.siteXpos[3 * lg.footSite + 1],
       footZ: this.siteXpos[3 * lg.footSite + 2],
+      sweepAngle: this.qpos[lg.sweepQadr],
+      capStance: lg.capStance,
+      capSwing: lg.capSwing,
     }))
   }
 
