@@ -480,7 +480,7 @@ export function AnimatedModel({
   }, [modelConfig.groups, chainIds])
 
   useLocomotion(pivotsRef, bodyRefs, modelConfig.groups, segments, rootRef, footGlowRef, sweepArrowRef)
-  useMujocoLocomotion(bodyRefs, modelConfig.groups, rootRef)
+  useMujocoLocomotion(bodyRefs, modelConfig.groups, rootRef, footGlowRef, sweepArrowRef)
 
   return (
     <group ref={rootRef}>

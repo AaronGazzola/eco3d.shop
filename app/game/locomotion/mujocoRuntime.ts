@@ -109,6 +109,7 @@ interface SpineDrive {
 interface LegDrive {
   limbIdx: number
   leg: string
+  groupId: string
   liftAct: number
   sweepAct: number
   capStance: number
@@ -140,10 +141,12 @@ export interface MjDiag {
 export interface MjLegObs {
   leg: string
   limbIdx: number
+  groupId: string
   phase: number
   hipX: number
   footX: number
   footY: number
+  footZ: number
 }
 
 // A reduced-coordinate locomotion driver: a MuJoCo model compiled from the node skeleton, driven by
@@ -201,6 +204,7 @@ export class MujocoLocomotion {
     this.legs = meta.legs.map((l) => ({
       limbIdx: l.limbIdx,
       leg: GRIP_FOOT_BY_LIMB[l.limbIdx] ?? `L${l.limbIdx}`,
+      groupId: l.groupId,
       liftAct: id(OBJ.ACTUATOR, l.liftActuator),
       sweepAct: id(OBJ.ACTUATOR, l.sweepActuator),
       capStance: l.capStance,
@@ -477,10 +481,12 @@ export class MujocoLocomotion {
     return this.legs.map((lg) => ({
       leg: lg.leg,
       limbIdx: lg.limbIdx,
+      groupId: lg.groupId,
       phase: girdleClockPhase(this.cpgState, this.cpgSpec, lg.limbIdx),
       hipX: this.xpos[3 * lg.hipBody],
       footX: this.siteXpos[3 * lg.footSite],
       footY: this.siteXpos[3 * lg.footSite + 1],
+      footZ: this.siteXpos[3 * lg.footSite + 2],
     }))
   }
 

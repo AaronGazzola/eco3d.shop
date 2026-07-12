@@ -19,7 +19,9 @@ const DIAGNOSTICS_INTERVAL = 0.1
 export function useMujocoLocomotion(
   bodyRefs: RefObject<Map<string, THREE.Group>>,
   groups: BodyGroup[],
-  rootRef?: RefObject<THREE.Group | null>
+  rootRef?: RefObject<THREE.Group | null>,
+  footGlowRef?: RefObject<Map<string, THREE.Mesh>>,
+  sweepArrowRef?: RefObject<Map<string, THREE.Mesh>>
 ): void {
   const driverRef = useRef<MujocoLocomotion | null>(null)
   const loadingRef = useRef(false)
@@ -124,6 +126,46 @@ export function useMujocoLocomotion(
     }
   }
 
+  // Foot-glow + sweep-arrow timing indicators (mirrors useLocomotion): the grip glow lights while a foot
+  // is inside its CPG-clocked grip window; the sweep arrow points/colours the way the leg WOULD sweep
+  // (orange/+X back during the grip window = power stroke, green/−X forward during swing). Driven off the
+  // CPG phase alone, so they show the timing even with grip/sweep NOT actuating. Keyed by leg groupId.
+  const hideIndicators = (): void => {
+    for (const m of footGlowRef?.current?.values() ?? []) m.visible = false
+    for (const m of sweepArrowRef?.current?.values() ?? []) m.visible = false
+  }
+  const driveIndicators = (driver: MujocoLocomotion, store: ReturnType<typeof useAnimateStore.getState>): void => {
+    const glows = footGlowRef?.current
+    const arrows = sweepArrowRef?.current
+    if (!glows && !arrows) return
+    const glowOn = store.gripGlowEnabled
+    const gripShift = store.gripShift
+    const gripDuration = store.gripDuration
+    const stepDuty = Math.min(0.95, Math.max(0.05, gripDuration))
+    const gripFeet = store.gripFeet
+    for (const lo of driver.legObs()) {
+      const rel = ((lo.phase - gripShift) % 1 + 1) % 1
+      const inWindow = rel < gripDuration
+      const selected = gripFeet[lo.leg as keyof typeof gripFeet] ?? false
+      const glow = glows?.get(lo.groupId)
+      if (glow) {
+        glow.position.set(lo.footX, lo.footY, lo.footZ)
+        glow.visible = glowOn && inWindow && selected
+        const mat = glow.material as THREE.MeshBasicMaterial
+        mat.color.set('#00e5ff')
+        mat.opacity = 1
+      }
+      const arrow = arrows?.get(lo.groupId)
+      if (arrow) {
+        const sweepingBack = rel < stepDuty
+        arrow.position.set(lo.footX, lo.footY + 1.3, lo.footZ)
+        arrow.rotation.set(0, 0, sweepingBack ? -Math.PI / 2 : Math.PI / 2)
+        ;(arrow.material as THREE.MeshBasicMaterial).color.set(sweepingBack ? '#ff8c1a' : '#22c55e')
+        arrow.visible = glowOn && selected
+      }
+    }
+  }
+
   useFrame((_state, dt) => {
     const store = useAnimateStore.getState()
     const active = store.simEngine === 'mujoco' && store.coupledRunning && store.animateTab !== 'calibrate'
@@ -134,6 +176,7 @@ export function useMujocoLocomotion(
         driverRef.current.dispose()
         driverRef.current = null
         builtGroupsRef.current = null
+        hideIndicators()
       }
       accRef.current = 0
       return
@@ -194,5 +237,6 @@ export function useMujocoLocomotion(
     }
 
     publishObservation(driver, store, dt)
+    driveIndicators(driver, store)
   })
 }
