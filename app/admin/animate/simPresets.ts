@@ -175,6 +175,28 @@ export const SIM_PRESETS: SimPreset[] = [
     engine: 'mujoco',
     config: { ...MUJOCO_BASE, cpgDrive: 0.8, muscleAlpha: 12, gripEnabled: true, gripShift: 0.36, gripDuration: 0.5, gripFeet: { FL: true, FR: true, BL: true, BR: true } },
   },
+  // Stage 6 (sweep ON, no grip): the leg sweep swings fore/aft off the CPG clock while no foot grips. The
+  // MuJoCo position-servo spine keeps tracking the CPG regardless of the leg motion, so the wave survives
+  // (cap holds 98-100%) and the body stays flat — but with no grip there is no anchor, so no net travel.
+  // sweepSpeed 10000 is the fore/aft servo bandwidth needed for the sweep to reach its full angle cap.
+  {
+    name: 'sweep-only',
+    description: 'MuJoCo Stage 6 — full leg sweep, no grip (sweepAmount 1 / sweepSpeed 10000). The sweep momentum does NOT break the spine wave (cap 98-100%), body flat; no grip = no thrust, minimal travel. Light legs (~0.1 kg).',
+    engine: 'mujoco',
+    config: { ...MUJOCO_BASE, cpgDrive: 0.8, muscleAlpha: 12, sweepAmount: 1, sweepSpeed: 10000 },
+  },
+  // Stage 7 (grip + sweep = walk): the timed 4-foot grip pins each planted foot with a real solver
+  // `connect` equality (toggled via mj_setState/mjSTATE_EQ_ACTIVE — the reduced-coordinate analogue of
+  // Rapier's spherical-joint pin), so the sweeping leg drives the BODY over the planted foot instead of
+  // dragging the foot. Stable (no blowup), moves forward, legs sweep at 56-72% of cap. NOT yet flat: the
+  // body still climbs/pitches up as it walks (comY +1.35, tilt →25° over 14s) — the next tuning target is
+  // keeping the belly on the ground. Light legs (~0.1 kg).
+  {
+    name: 'grip-sweep-walk',
+    description: 'MuJoCo Stage 7 — grip + sweep walk. Real solver foot pin + timed sweep drives the body forward (drift 3.7/14s), no explosion, legs sweep 56-72% of cap. Not flat yet (body rears up, tilt →25°) — tuning target. Light legs (~0.1 kg).',
+    engine: 'mujoco',
+    config: { ...MUJOCO_BASE, cpgDrive: 0.8, muscleAlpha: 12, gripEnabled: true, gripShift: 0.36, gripDuration: 0.5, gripFeet: { FL: true, FR: true, BL: true, BR: true }, sweepAmount: 0.6, sweepSpeed: 10000, liftAmount: 0.3 },
+  },
 ]
 
 export function presetsForEngine(engine: SimEngine): SimPreset[] {

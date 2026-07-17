@@ -47,11 +47,16 @@ const OBJ = { BODY: 1, JOINT: 3, SITE: 6, ACTUATOR: 19 }
 // model rebuild.
 const NGAIN = 10
 const NBIAS = 10
-// Grip = a stiff foot-point spring toward the captured plant point (the app's spherical-joint pin
-// analogue), applied via xfrc_applied. Tuned in Phase 0: stiffer than ~1500 is unstable under
-// explicit application at 1/120; K≈300 / D≈10 holds the foot and stays stable.
-const K_GRIP = 300
-const D_GRIP = 10
+// Grip = a real MuJoCo `connect` equality constraint (built per-foot in the MJCF, starting inactive)
+// that pins the planted foot to a mocap anchor snapped to the capture point — the reduced-coordinate
+// analogue of Rapier's spherical-joint world pin, solved IMPLICITLY so it's a hard, stable pin the stiff
+// sweep servo can't overpower (the old xfrc spring, K≈300, was 30× softer than the sweep and blew up).
+//
+// The pin is toggled per-foot via `mj_setState(..., mjSTATE_EQ_ACTIVE)`: this WASM build can't expose
+// `data.eq_active` as a property (it's a bool memory-view — reading it throws), but the state API writes
+// the same flags from a plain double vector. Only planted feet get an active constraint, so free feet are
+// genuinely unconstrained (an always-active soft constraint is ill-conditioned on the ~0.1 kg legs).
+const STATE_EQ_ACTIVE = 512 // mjSTATE_EQ_ACTIVE
 // Anisotropic swimming drag (paper Fig 6 forward thrust): resist across-body motion far more than
 // along-body, so the undulation nets forward travel. Same coefficients as the Rapier path
 // (environment.ts) but applied as an explicit resistive FORCE via xfrc_applied (F = −C·L·v_component)
@@ -120,8 +125,8 @@ interface LegDrive {
   hipBody: number
   footSite: number
   planted: boolean
-  pin: [number, number, number]
-  footPrev: [number, number, number]
+  gripEqId: number
+  mocapId: number
 }
 interface TrunkDrag {
   body: number
@@ -178,9 +183,10 @@ export class MujocoLocomotion {
   private ctrl: Float64Array
   private siteXpos: Float64Array
   private xfrc: Float64Array
-  private xipos: Float64Array
   private xpos: Float64Array
   private xquat: Float64Array
+  private mocapPos: Float64Array
+  private eqActiveState: number[]
 
   constructor(
     private mujoco: MujocoModule,
@@ -198,6 +204,7 @@ export class MujocoLocomotion {
 
     const id = (t: number, name: string): number => mujoco.mj_name2id(model, t, name)
     const jntQadr = model.jnt_qposadr as unknown as Int32Array
+    const bodyMocapId = model.body_mocapid as unknown as Int32Array
     this.spine = meta.spineJoints.map((j) => ({
       k: j.childIndex,
       qadr: jntQadr[id(OBJ.JOINT, j.name)],
@@ -205,7 +212,7 @@ export class MujocoLocomotion {
       capF: j.capForward,
       capB: j.capBackward,
     }))
-    this.legs = meta.legs.map((l) => ({
+    this.legs = meta.legs.map((l, i) => ({
       limbIdx: l.limbIdx,
       leg: GRIP_FOOT_BY_LIMB[l.limbIdx] ?? `L${l.limbIdx}`,
       groupId: l.groupId,
@@ -219,8 +226,10 @@ export class MujocoLocomotion {
       hipBody: id(OBJ.BODY, `seg${l.parentSegIndex}`),
       footSite: id(OBJ.SITE, l.footSite),
       planted: false,
-      pin: [0, 0, 0],
-      footPrev: [0, 0, 0],
+      // gripEqId = the leg's index: the MJCF emits the `connect` equalities in `meta.legs` order, so
+      // equality i ↔ legs[i], which is also the index into the mjSTATE_EQ_ACTIVE state vector.
+      gripEqId: i,
+      mocapId: bodyMocapId[id(OBJ.BODY, l.anchorMocap)],
     }))
     this.bodyOf = meta.segmentBodies.map((s) => ({ groupId: s.groupId, body: id(OBJ.BODY, s.body), restCenter: s.restCenter }))
 
@@ -253,9 +262,12 @@ export class MujocoLocomotion {
     this.ctrl = data.ctrl as unknown as Float64Array
     this.siteXpos = data.site_xpos as unknown as Float64Array
     this.xfrc = data.xfrc_applied as unknown as Float64Array
-    this.xipos = data.xipos as unknown as Float64Array
     this.xpos = data.xpos as unknown as Float64Array
     this.xquat = data.xquat as unknown as Float64Array
+    this.mocapPos = data.mocap_pos as unknown as Float64Array
+    // eq_active state vector (one flag per equality), written through mj_setState. Sized from the model
+    // so it always matches neq; starts all-zero (every foot's pin inactive, matching MJCF active="false").
+    this.eqActiveState = new Array(mujoco.mj_stateSize(model, STATE_EQ_ACTIVE)).fill(0)
   }
 
   // Advance one fixed 1/120 tick under the given config (the studio's live SimConfig).
@@ -341,51 +353,31 @@ export class MujocoLocomotion {
       this.ctrl[lg.liftAct] = lg.liftSign * lift
     }
 
-    // grip: stiff foot-point spring toward the captured pin, on the gait clock
-    if (gripEnabled) {
-      for (const lg of this.legs) {
-        const bid = lg.legBody
-        const selected = gripFeet[GRIP_FOOT_BY_LIMB[lg.limbIdx]] ?? false
-        const ph = girdleClockPhase(state, spec, lg.limbIdx)
-        const rel = (((ph - gripShift) % 1) + 1) % 1
-        const gripping = selected && rel < gripDuration
-        const fx = this.siteXpos[3 * lg.footSite]
-        const fy = this.siteXpos[3 * lg.footSite + 1]
-        const fz = this.siteXpos[3 * lg.footSite + 2]
-        if (gripping) {
-          if (!lg.planted) {
-            lg.pin = [fx, fy, fz]
-            lg.footPrev = [fx, fy, fz]
-            lg.planted = true
-          }
-          const vx = (fx - lg.footPrev[0]) / TIMESTEP
-          const vy = (fy - lg.footPrev[1]) / TIMESTEP
-          const vz = (fz - lg.footPrev[2]) / TIMESTEP
-          const Fx = K_GRIP * (lg.pin[0] - fx) - D_GRIP * vx
-          const Fy = K_GRIP * (lg.pin[1] - fy) - D_GRIP * vy
-          const Fz = K_GRIP * (lg.pin[2] - fz) - D_GRIP * vz
-          const rx = fx - this.xipos[3 * bid]
-          const ry = fy - this.xipos[3 * bid + 1]
-          const rz = fz - this.xipos[3 * bid + 2]
-          this.xfrc[6 * bid] = Fx
-          this.xfrc[6 * bid + 1] = Fy
-          this.xfrc[6 * bid + 2] = Fz
-          this.xfrc[6 * bid + 3] = ry * Fz - rz * Fy
-          this.xfrc[6 * bid + 4] = rz * Fx - rx * Fz
-          this.xfrc[6 * bid + 5] = rx * Fy - ry * Fx
-          lg.footPrev = [fx, fy, fz]
-        } else {
-          lg.planted = false
-          for (let c = 0; c < 6; c++) this.xfrc[6 * bid + c] = 0
-        }
-      }
-    } else {
-      // Grip fully off: clear any leftover foot force so a previously-gripped foot exerts nothing.
-      for (const lg of this.legs) {
+    // grip: toggle each foot's `connect` equality constraint on the gait clock. On the plant edge, snap
+    // the foot's mocap anchor to the current foot world position and activate the constraint (a hard
+    // implicit pin); on release, deactivate it. The solver holds the foot while the sweep servo drives the
+    // leg, so the reaction moves the BODY over the planted foot — Rapier's pin, but rigid enough to
+    // transfer force. eq_active is written via mj_setState (the property is inaccessible in this build).
+    let eqDirty = false
+    for (const lg of this.legs) {
+      const selected = gripEnabled && (gripFeet[GRIP_FOOT_BY_LIMB[lg.limbIdx]] ?? false)
+      const ph = girdleClockPhase(state, spec, lg.limbIdx)
+      const rel = (((ph - gripShift) % 1) + 1) % 1
+      const gripping = selected && rel < gripDuration
+      if (gripping && !lg.planted) {
+        this.mocapPos[3 * lg.mocapId] = this.siteXpos[3 * lg.footSite]
+        this.mocapPos[3 * lg.mocapId + 1] = this.siteXpos[3 * lg.footSite + 1]
+        this.mocapPos[3 * lg.mocapId + 2] = this.siteXpos[3 * lg.footSite + 2]
+        this.eqActiveState[lg.gripEqId] = 1
+        lg.planted = true
+        eqDirty = true
+      } else if (!gripping && lg.planted) {
+        this.eqActiveState[lg.gripEqId] = 0
         lg.planted = false
-        for (let c = 0; c < 6; c++) this.xfrc[6 * lg.legBody + c] = 0
+        eqDirty = true
       }
     }
+    if (eqDirty) this.mujoco.mj_setState(this.model, this.data, this.eqActiveState, STATE_EQ_ACTIVE)
 
     // Anisotropic drag on the trunk segments (swim thrust). Force = −C·L·v per along/across component,
     // v from a one-step finite difference of the body position. Cleared when drag is off.
