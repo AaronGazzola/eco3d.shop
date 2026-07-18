@@ -185,6 +185,19 @@ if (CMD === 'login') {
     await renderTopDown(`${OUT}/nodes-${stamp}-topdown.png`, dump)
     console.log(`captured ${dump.samples.length} node samples (${dump.spec?.count} nodes @ ${hz}/s) → nodes-${stamp}.*`)
     if (dump.maxCapFrac != null) console.log(`peak maxJointFracOfCap (per-frame peak-hold) = ${Math.round(dump.maxCapFrac * 100)}%  ${dump.maxCapFrac >= 1 ? '⚠ CLIPS CAP' : 'OK (under cap)'}`)
+    if (dump.spineFracPeak && dump.spineFracPeak.length) {
+      console.log('spine-joint peak fraction of cap (by girdle distance, 0=at a girdle):')
+      const byDist = new Map()
+      for (let i = 0; i < dump.spineFracPeak.length; i++) {
+        const d = dump.spineGirdleDist?.[i] ?? -1
+        if (!byDist.has(d)) byDist.set(d, [])
+        byDist.get(d).push(dump.spineFracPeak[i])
+      }
+      const rows = dump.spineFracPeak.map((f, i) => `seg${dump.spineSeg?.[i] ?? i}(d${dump.spineGirdleDist?.[i] ?? '?'})=${Math.round(f * 100)}%`)
+      console.log('  ' + rows.join('  '))
+      const dists = [...byDist.keys()].sort((a, b) => a - b)
+      console.log('  mean by girdle-distance: ' + dists.map((d) => `d${d}=${Math.round((byDist.get(d).reduce((a, b) => a + b, 0) / byDist.get(d).length) * 100)}%`).join('  '))
+    }
     if (dump.maxRollDeg != null) {
       const perSec = dump.rollFlips / Math.max(1, seconds)
       console.log(`roll: peak |roll|=${dump.maxRollDeg.toFixed(2)}°  reversals=${dump.rollFlips} (${perSec.toFixed(1)}/s)  ${perSec >= 4 ? '⚠ VIBRATING' : 'steady'}`)

@@ -92,6 +92,11 @@ interface NodeCaptureState {
   // Peak-hold of the worst spine-joint fraction of its angle cap over the whole capture (per-frame max).
   // The true clip guard — the once/sec diag sample aliases the wave period and misses the peak.
   maxCapFrac?: number
+  // Per-spine-joint peak fraction of cap + static joint metadata (axial segment, girdle distance), for
+  // mapping how far the grip ground-reaction robs wave amplitude out from each girdle.
+  spineFracPeak?: number[]
+  spineSeg?: number[]
+  spineGirdleDist?: number[]
   // Roll-about-the-long-axis instrumentation (per-frame): peak |roll| and a reversal count (roll-rate
   // sign flips) — the vibration/rocking the once/sec tilt sample can't resolve. prev* are trackers.
   maxRollDeg?: number

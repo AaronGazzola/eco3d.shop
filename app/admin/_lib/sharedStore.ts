@@ -51,6 +51,30 @@ const debouncedLocalStorage: StateStorage = (() => {
   }
 })()
 
+// Undo the historical calibrate mirror bug: paired-leg caps were stored with forward↔back SWAPPED, while
+// the animation already mirrors direction via the per-side sweep axis. The right legs were calibrated
+// directly (correct); re-mirror each left leg straight from its paired right leg so forward stays forward.
+// Idempotent — legs already matching their pair are left untouched — so it is safe to run on every load.
+function normalizeMirroredLegCaps(groups: BodyGroup[]): BodyGroup[] {
+  if (!Array.isArray(groups)) return groups
+  const rightByPair = new Map<string, BodyGroup>()
+  for (const g of groups) {
+    if (g.type === 'leg-right' && g.attachedToSpineId) rightByPair.set(g.attachedToSpineId, g)
+  }
+  if (rightByPair.size === 0) return groups
+  return groups.map((g) => {
+    if (g.type !== 'leg-left' || !g.attachedToSpineId) return g
+    const right = rightByPair.get(g.attachedToSpineId)
+    const rc = right?.angleCaps
+    const lc = g.angleCaps
+    if (!rc || !lc) return g
+    const desiredYaw = rc.yaw
+    const desiredBack = rc.yawBack ?? rc.yaw
+    if (lc.yaw === desiredYaw && (lc.yawBack ?? lc.yaw) === desiredBack) return g
+    return { ...g, angleCaps: { ...lc, yaw: desiredYaw, yawBack: desiredBack } }
+  })
+}
+
 const SEGMENT_COLORS = [
   '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
   '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1',
@@ -104,7 +128,7 @@ export const useSharedStore = create<SharedStore>()(
           stlKey: config.stl_key,
           configId: config.id,
           configName: config.name,
-          groups: config.groups,
+          groups: normalizeMirroredLegCaps(config.groups),
           modelRotation: config.model_rotation,
         }),
 
@@ -217,7 +241,7 @@ export const useSharedStore = create<SharedStore>()(
     }),
     {
       name: 'studio-store',
-      version: 5,
+      version: 6,
       storage: createJSONStorage(() => debouncedLocalStorage),
       partialize: (state) => ({
         stlKey: state.stlKey,
@@ -246,6 +270,9 @@ export const useSharedStore = create<SharedStore>()(
         }
         if (version < 5) {
           delete state.step
+        }
+        if (version < 6 && Array.isArray(state.groups)) {
+          state.groups = normalizeMirroredLegCaps(state.groups as BodyGroup[])
         }
         return state
       },

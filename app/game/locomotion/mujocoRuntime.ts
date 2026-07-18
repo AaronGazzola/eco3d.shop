@@ -70,6 +70,14 @@ const DRAG_TANGENT = 0.05
 // at any magnitude, unlike an explicit force). Terrain-neutral — it damps the body, not the ground.
 const ROLL_DAMP = 12
 const PITCH_DAMP = 6
+// Grip-softness → connect-constraint timeconst range. MIN (0.02s) is the MuJoCo default rigid pin; MAX
+// keeps timeconst well above 2·timestep (2/120≈0.017s) for solver stability while making the pin visibly
+// compliant. gripSoftness in [0,1] lerps between them (see the eq_solref write in step()).
+const PIN_TIMECONST_MIN = 0.02
+const PIN_TIMECONST_MAX = 0.2
+// Girdle stall-torque boost falloff: how many axial segments out from a girdle the extra spine-servo gain
+// reaches (linear falloff to 0). Set from the measured grip-load undershoot-vs-distance profile.
+const GIRDLE_BOOST_REACH = 2
 // Init settle: step the freshly-built model this many ticks at rest (zero ctrl) so it comes to rest on
 // its contacts before the animation starts — removes the startup roll bounce.
 const SETTLE_STEPS = 60
@@ -187,6 +195,15 @@ export class MujocoLocomotion {
   private xquat: Float64Array
   private mocapPos: Float64Array
   private eqActiveState: number[]
+  private eqSolref: Float64Array
+  private pinSoft = -1
+  // Per-spine-joint axial-segment index and a flag for whether that segment carries a leg (a girdle).
+  // Used by the girdle stall-torque boost and the per-joint undershoot report.
+  private spineSeg: number[] = []
+  private spineGirdleDist: number[] = []
+  private girdleBoost = -1
+  private spineBaseKp: number[] = []
+  private spineBaseKv: number[] = []
 
   constructor(
     private mujoco: MujocoModule,
@@ -233,6 +250,18 @@ export class MujocoLocomotion {
     }))
     this.bodyOf = meta.segmentBodies.map((s) => ({ groupId: s.groupId, body: id(OBJ.BODY, s.body), restCenter: s.restCenter }))
 
+    // Girdle proximity of each spine joint: distance (in axial segments) from the joint's segment to the
+    // nearest leg-bearing segment. 0 = the joint IS at a girdle, 1 = its immediate neighbour, etc. The
+    // grip ground-reaction loads the girdle joints most and attenuates outward along the trunk, so this
+    // drives the localized stall-torque boost (and lets the harness report the undershoot vs distance).
+    const girdleSegs = new Set(meta.legs.map((l) => l.parentSegIndex))
+    this.spineSeg = meta.spineJoints.map((j) => j.childIndex)
+    this.spineGirdleDist = this.spineSeg.map((seg) => {
+      let best = Infinity
+      for (const g of girdleSegs) best = Math.min(best, Math.abs(seg - g))
+      return best
+    })
+
     // Observation infrastructure (harness parity): the per-node render/spec list, the trunk drag bodies
     // with their segment lengths, and the root body used for tilt. `axial` maps each trunk group to its
     // segment length; leg nodes get length 0 (unused by the reports).
@@ -268,6 +297,13 @@ export class MujocoLocomotion {
     // eq_active state vector (one flag per equality), written through mj_setState. Sized from the model
     // so it always matches neq; starts all-zero (every foot's pin inactive, matching MJCF active="false").
     this.eqActiveState = new Array(mujoco.mj_stateSize(model, STATE_EQ_ACTIVE)).fill(0)
+    // eq_solref = [timeconst, dampratio] per equality (mjNREF=2). The compiled `connect` pins use the
+    // MuJoCo default (timeconst 0.02 = a near-rigid pin), which rings against the stiff leg servos. The
+    // grip-softness config widens timeconst at runtime so the pin behaves as a compliant spring-damper.
+    this.eqSolref = model.eq_solref as unknown as Float64Array
+    // Base spine servo gains (the MJCF fixed kp/kv), captured so the girdle boost multiplies from them.
+    this.spineBaseKp = this.spine.map((sp) => this.gainprm[sp.act * NGAIN])
+    this.spineBaseKv = this.spine.map((sp) => -this.biasprm[sp.act * NBIAS + 2])
   }
 
   // Advance one fixed 1/120 tick under the given config (the studio's live SimConfig).
@@ -302,6 +338,34 @@ export class MujocoLocomotion {
         this.setPosGain(lg.sweepAct, sweepKp, legKv)
       }
       this.legGain = { lift: liftKp, sweep: sweepKp, damp: legKv }
+    }
+
+    // Foot-pin compliance: 0 = rigid pin (MuJoCo default timeconst 0.02); →1 relaxes the connect
+    // constraint's time-constant toward PIN_SOFT_MAX so it acts as a stiff spring-damper instead of a
+    // hard equality, which removes the high-frequency ring the rigid pin trades with the leg servos.
+    // Only rewritten when the value changes (like the leg gains) to keep the solver linearization fresh.
+    const pinSoft = Math.min(1, Math.max(0, num(cfg.gripSoftness, 0)))
+    if (pinSoft !== this.pinSoft) {
+      const timeconst = PIN_TIMECONST_MIN + pinSoft * (PIN_TIMECONST_MAX - PIN_TIMECONST_MIN)
+      for (const lg of this.legs) {
+        this.eqSolref[2 * lg.gripEqId] = timeconst
+        this.eqSolref[2 * lg.gripEqId + 1] = 1
+      }
+      this.pinSoft = pinSoft
+    }
+
+    // Girdle stall-torque boost: multiply the spine servo gain at the leg-bearing (girdle) joints and
+    // their neighbours so those joints hold the CPG-commanded wave against the grip ground-reaction that
+    // would otherwise rob their amplitude. Localized (linear falloff over GIRDLE_BOOST_REACH segments) so
+    // the lightly-loaded trunk/tail keep their natural gain and don't clip. Constant between changes.
+    const girdleBoost = Math.max(0, num(cfg.girdleBoost, 0))
+    if (girdleBoost !== this.girdleBoost) {
+      for (let i = 0; i < this.spine.length; i++) {
+        const w = Math.max(0, 1 - this.spineGirdleDist[i] / GIRDLE_BOOST_REACH)
+        const factor = 1 + girdleBoost * w
+        this.setPosGain(this.spine[i].act, this.spineBaseKp[i] * factor, this.spineBaseKv[i] * factor)
+      }
+      this.girdleBoost = girdleBoost
     }
 
     stepCpg(
@@ -466,6 +530,21 @@ export class MujocoLocomotion {
       if (frac > m) m = frac
     }
     return m
+  }
+
+  // Per-spine-joint fraction of its angle cap RIGHT NOW (|angle| / directional cap), aligned with the
+  // spine-joint order. Peak-held by the harness to map where the grip load robs wave amplitude.
+  spineFracNow(): number[] {
+    return this.spine.map((sp) => {
+      const ang = this.qpos[sp.qadr]
+      const cap = ang >= 0 ? sp.capF : sp.capB
+      return cap > 1e-6 ? Math.abs(ang) / cap : 0
+    })
+  }
+
+  // Static per-spine-joint metadata for the report: axial segment index and girdle distance (segments).
+  spineMeta(): { seg: number[]; girdleDist: number[] } {
+    return { seg: this.spineSeg.slice(), girdleDist: this.spineGirdleDist.slice() }
   }
 
   // Per-axial-segment signed CPG activation (left−right) — the neural signal, distinct from curvature.

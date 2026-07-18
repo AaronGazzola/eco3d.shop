@@ -158,6 +158,10 @@ function SimulateTab() {
   const setGripShift = useAnimateStore((s) => s.setGripShift)
   const gripDuration = useAnimateStore((s) => s.gripDuration)
   const setGripDuration = useAnimateStore((s) => s.setGripDuration)
+  const gripSoftness = useAnimateStore((s) => s.gripSoftness)
+  const setGripSoftness = useAnimateStore((s) => s.setGripSoftness)
+  const girdleBoost = useAnimateStore((s) => s.girdleBoost)
+  const setGirdleBoost = useAnimateStore((s) => s.setGirdleBoost)
   const releaseFriction = useAnimateStore((s) => s.releaseFriction)
   const setReleaseFriction = useAnimateStore((s) => s.setReleaseFriction)
   const gripGlowEnabled = useAnimateStore((s) => s.gripGlowEnabled)
@@ -719,6 +723,30 @@ function SimulateTab() {
           onChange={setGripDuration}
           format={(v) => `${Math.round(v * 100)}%`}
         />
+        {isMujoco && (
+          <Slider
+            label="Grip softness"
+            tip="Compliance of the planted-foot pin. 0 = rigid pin (rings against stiff legs); higher relaxes the pin into a spring-damper to smooth the buzz."
+            value={gripSoftness}
+            min={0}
+            max={1}
+            step={0.05}
+            onChange={setGripSoftness}
+            format={(v) => `${Math.round(v * 100)}%`}
+          />
+        )}
+        {isMujoco && (
+          <Slider
+            label="Girdle force boost"
+            tip="Extra spine-servo gain at the leg-bearing (girdle) joints and their neighbours, so the wave holds its amplitude against the grip load instead of being robbed by it. 0 = uniform."
+            value={girdleBoost}
+            min={0}
+            max={6}
+            step={0.5}
+            onChange={setGirdleBoost}
+            format={(v) => `${v.toFixed(1)}×`}
+          />
+        )}
         {!isMujoco && (
           <Slider
             label="Release friction"

@@ -67,6 +67,17 @@ export function useMujocoLocomotion(
     if (!ncap?.active) return
     const cf = driver.capFracNow()
     if (cf > (ncap.maxCapFrac ?? 0)) ncap.maxCapFrac = cf
+    // Per-spine-joint peak fraction of cap, so the harness can see where grip load robs wave amplitude.
+    const sf = driver.spineFracNow()
+    if (!ncap.spineFracPeak) {
+      ncap.spineFracPeak = sf.slice()
+      const sm = driver.spineMeta()
+      ncap.spineSeg = sm.seg
+      ncap.spineGirdleDist = sm.girdleDist
+    } else {
+      const peak = ncap.spineFracPeak
+      for (let i = 0; i < sf.length; i++) if (sf[i] > peak[i]) peak[i] = sf[i]
+    }
     // Roll rocking/vibration: peak |roll| + reversal count (roll-rate sign flips over a small deadband).
     const roll = driver.rollDegNow()
     const aRoll = Math.abs(roll)

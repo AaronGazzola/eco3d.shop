@@ -121,17 +121,12 @@ function GroupCalibrator({ group }: { group: BodyGroup }) {
       setGroupAngleCaps(group.id, next)
       if (isLeg && mirrored && pairedLeg) {
         const pairedCaps = effectiveAngleCaps(pairedLeg)
-        const swappedPartial: Partial<AngleCaps> = {}
-        if ('yaw' in partial) swappedPartial.yawBack = partial.yaw
-        if ('yawBack' in partial) swappedPartial.yaw = partial.yawBack
-        if ('pitchUp' in partial) swappedPartial.pitchUp = partial.pitchUp
-        if ('pitchDown' in partial) swappedPartial.pitchDown = partial.pitchDown
         const pairedNext: AngleCaps = {
           yaw: pairedCaps.yaw,
           yawBack: pairedCaps.yawBack,
           pitchUp: pairedCaps.pitchUp,
           pitchDown: pairedCaps.pitchDown,
-          ...swappedPartial,
+          ...partial,
         }
         setGroupAngleCaps(pairedLeg.id, pairedNext)
       }
