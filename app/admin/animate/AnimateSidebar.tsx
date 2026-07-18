@@ -165,6 +165,8 @@ function SimulateTab() {
 
   const stepEnabled = useAnimateStore((s) => s.stepEnabled)
   const setStepEnabled = useAnimateStore((s) => s.setStepEnabled)
+  const stepFeet = useAnimateStore((s) => s.stepFeet)
+  const setStepFoot = useAnimateStore((s) => s.setStepFoot)
   const sweepAmount = useAnimateStore((s) => s.sweepAmount)
   const setSweepAmount = useAnimateStore((s) => s.setSweepAmount)
   const sweepSpeed = useAnimateStore((s) => s.sweepSpeed)
@@ -594,6 +596,27 @@ function SimulateTab() {
         />
         {stepEnabled && (
           <>
+            <div className="flex items-start justify-between gap-2 py-0.5">
+              <div className="flex min-w-0 items-center gap-1.5 pt-0.5">
+                <span className="truncate text-[11px] text-white/70">Sweep feet</span>
+                <Info text="Toggle sweep per foot (front/back × left/right). A foot turned off holds perpendicular (no fore/aft swing) — use to isolate one leg." />
+              </div>
+              <div className="grid grid-cols-2 gap-0.5">
+                {(['FL', 'FR', 'BL', 'BR'] as const).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setStepFoot(f, !stepFeet[f])}
+                    className={cn(
+                      'rounded px-2 py-0.5 text-[10px] transition-colors',
+                      stepFeet[f] ? 'bg-emerald-600/50 text-emerald-100' : 'bg-white/5 text-white/40 hover:text-white'
+                    )}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </div>
             <Slider
               label="Sweep amount"
               tip="How far each leg swings fore/aft, as a fraction of the leg's calibrated angle caps (1 = full forward/back range). Stays within the caps."

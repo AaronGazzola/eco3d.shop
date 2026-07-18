@@ -198,6 +198,12 @@ export function buildMjcf(groups: BodyGroup[], opts: MjcfServoOpts = {}): MjcfRe
     const caps = effectiveAngleCaps(s.leg)
     const capStance = caps.yaw
     const capSwing = caps.yawBack ?? caps.yaw
+    // Sweep axis is MIRRORED per side (isLeft ? -1 : 1): the two contralateral legs are mirror images,
+    // so the same joint rotation must map to the same BODY-relative direction (both retract = sweep the
+    // foot toward the tail during their stance/grip window). Without the flip, one leg visually protracts
+    // while the other retracts during grip. The Calibrate tab uses this SAME per-side flip for its
+    // forward/back preview (see useLocomotion calibrate pose), so +capStance ("forward") reaches the
+    // forward cap toward the head on both sides.
     const sweepDir = isLeft ? -1 : 1
     // lift axis: horizontal, perpendicular to the leg's own horizontal direction (mirror body3d)
     const dir = new Vector3().subVectors(s.foot, s.hip).normalize()

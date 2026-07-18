@@ -287,6 +287,7 @@ export class MujocoLocomotion {
     const gripDuration = num(cfg.gripDuration, 0.5)
     const stepDuty = Math.min(0.95, Math.max(0.05, gripDuration))
     const gripFeet = (cfg.gripFeet ?? { FL: false, FR: false, BL: false, BR: false }) as Record<string, boolean>
+    const stepFeet = (cfg.stepFeet ?? { FL: true, FR: true, BL: true, BR: true }) as Record<string, boolean>
 
     // Leg servo stiffness/damping from the live config (lift = legStiffness, sweep = sweepSpeed, both
     // damped by legDamping) — written into the actuator gain/bias params, not the fixed MJCF kp. This is
@@ -328,9 +329,11 @@ export class MujocoLocomotion {
       this.ctrl[sp.act] = kStiff > 1e-9 ? (alpha * (d.mL - d.mR)) / kStiff : 0
     }
 
-    // legs: sweep/lift position targets from the gait clock (girdle CPG phase)
+    // legs: sweep/lift position targets from the gait clock (girdle CPG phase). A leg deselected in
+    // stepFeet holds perpendicular (sweep/lift target 0) — lets a single leg be isolated.
     for (const lg of this.legs) {
-      if (!stepEnabled) {
+      const stepping = stepFeet[GRIP_FOOT_BY_LIMB[lg.limbIdx]] ?? true
+      if (!stepEnabled || !stepping) {
         this.ctrl[lg.sweepAct] = 0
         this.ctrl[lg.liftAct] = 0
         continue

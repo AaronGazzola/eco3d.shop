@@ -945,7 +945,11 @@ export function useLocomotion(
         const legMesh = pivots.get(calibratingLeg.id)
         if (legMesh && hipNode) {
           s.v1.set(hipNode.x, hipNode.y ?? 0, hipNode.z)
-          s.qYaw.setFromAxisAngle(Y_AXIS, calibratingYaw)
+          // Mirror the yaw per side (isLeft ? -1 : 1) so the preview matches the animation's sweep, whose
+          // hinge axis is [0, sweepDir, 0]. Without this the left leg's forward/back preview was inverted
+          // versus how the sweep actually moves the leg (forward cap appeared to sweep backward).
+          const sweepDir = calibratingLeg.type === 'leg-left' ? -1 : 1
+          s.qYaw.setFromAxisAngle(Y_AXIS, sweepDir * calibratingYaw)
           s.qPitch.setFromAxisAngle(Z_AXIS, calibratingPitch)
           s.qLeg.copy(s.qYaw).multiply(s.qPitch)
           legMesh.quaternion.copy(s.qLeg)

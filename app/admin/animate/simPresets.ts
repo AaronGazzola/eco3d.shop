@@ -193,9 +193,9 @@ export const SIM_PRESETS: SimPreset[] = [
   // keeping the belly on the ground. Light legs (~0.1 kg).
   {
     name: 'grip-sweep-walk',
-    description: 'MuJoCo Stage 7 — grip + sweep walk. Real solver foot pin + timed sweep drives the body forward (drift 3.7/14s), no explosion, legs sweep 56-72% of cap. Not flat yet (body rears up, tilt →25°) — tuning target. Light legs (~0.1 kg).',
+    description: 'MuJoCo Stage 7 — grip + sweep walk (no leg lift). Real solver foot pin + timed sweep drives the body forward, no explosion. Not flat yet (body rears up) — tuning target. Light legs (~0.1 kg).',
     engine: 'mujoco',
-    config: { ...MUJOCO_BASE, cpgDrive: 0.8, muscleAlpha: 12, gripEnabled: true, gripShift: 0.36, gripDuration: 0.5, gripFeet: { FL: true, FR: true, BL: true, BR: true }, sweepAmount: 0.6, sweepSpeed: 10000, liftAmount: 0.3 },
+    config: { ...MUJOCO_BASE, cpgDrive: 0.8, muscleAlpha: 12, gripEnabled: true, gripShift: 0.36, gripDuration: 0.5, gripFeet: { FL: true, FR: true, BL: true, BR: true }, sweepAmount: 0.6, sweepSpeed: 10000, liftAmount: 0 },
   },
 ]
 
