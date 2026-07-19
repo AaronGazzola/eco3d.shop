@@ -166,6 +166,8 @@ function SimulateTab() {
   const setReleaseFriction = useAnimateStore((s) => s.setReleaseFriction)
   const gripGlowEnabled = useAnimateStore((s) => s.gripGlowEnabled)
   const setGripGlowEnabled = useAnimateStore((s) => s.setGripGlowEnabled)
+  const gripSlideAxis = useAnimateStore((s) => s.gripSlideAxis)
+  const setGripSlideAxis = useAnimateStore((s) => s.setGripSlideAxis)
 
   const stepEnabled = useAnimateStore((s) => s.stepEnabled)
   const setStepEnabled = useAnimateStore((s) => s.setStepEnabled)
@@ -764,6 +766,12 @@ function SimulateTab() {
           tip="Light up each foot while it is inside its grip window — a visual debug of grip timing."
           on={gripGlowEnabled}
           onChange={setGripGlowEnabled}
+        />
+        <Toggle
+          label="Grip slides on leg axis"
+          tip="Pin the planted foot to the leg-axis LINE (free to slide in/out along the leg, even past the foot) instead of a rigid point. Emulates a knee: the hip can travel over the contact without the rigid-arc fighting the body wave. Off = rigid point pin."
+          on={gripSlideAxis}
+          onChange={setGripSlideAxis}
         />
 
         <Divider />

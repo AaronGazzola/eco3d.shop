@@ -55,6 +55,7 @@ export interface LegMeta {
   gripEquality: string
   groupId: string
   restCenter: [number, number, number]
+  legAxisLocal: [number, number, number]
 }
 
 export interface MjcfMeta {
@@ -259,6 +260,13 @@ export function buildMjcf(groups: BodyGroup[], opts: MjcfServoOpts = {}): MjcfRe
       gripEquality,
       groupId: s.leg.id,
       restCenter: [s.center.x, s.center.y, s.center.z],
+      // Unit vector hip→foot in the leg-body-local frame. The runtime rotates it by the leg body's
+      // world quaternion to get the live leg axis, along which the slide-mode grip lets the foot travel.
+      legAxisLocal: (() => {
+        const a = new Vector3().subVectors(footLegLocal, aHipLeg)
+        const n = a.length() || 1
+        return [a.x / n, a.y / n, a.z / n]
+      })(),
     })
   }
 

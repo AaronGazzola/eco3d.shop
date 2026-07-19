@@ -105,6 +105,20 @@ function axialChain(groups: BodyGroup[]): { lengths: number[]; groupIds: string[
 const num = (v: unknown, d: number): number => (typeof v === 'number' ? v : d)
 const bool = (v: unknown, d: boolean): boolean => (typeof v === 'boolean' ? v : d)
 
+// Rotate a body-local vector into world by a body's xquat ([w,x,y,z] at offset 4*body). v' = v + 2w(q×v) + 2q×(q×v).
+function quatRotateVec(xquat: Float64Array, body: number, v: [number, number, number]): [number, number, number] {
+  const o = 4 * body
+  const w = xquat[o], x = xquat[o + 1], y = xquat[o + 2], z = xquat[o + 3]
+  const tx = 2 * (y * v[2] - z * v[1])
+  const ty = 2 * (z * v[0] - x * v[2])
+  const tz = 2 * (x * v[1] - y * v[0])
+  return [
+    v[0] + w * tx + (y * tz - z * ty),
+    v[1] + w * ty + (z * tx - x * tz),
+    v[2] + w * tz + (x * ty - y * tx),
+  ]
+}
+
 export interface BodyTransform {
   groupId: string
   pos: [number, number, number]
@@ -135,6 +149,8 @@ interface LegDrive {
   planted: boolean
   gripEqId: number
   mocapId: number
+  legAxisLocal: [number, number, number]
+  plantAnchor: [number, number, number]
 }
 interface TrunkDrag {
   body: number
@@ -247,6 +263,8 @@ export class MujocoLocomotion {
       // equality i ↔ legs[i], which is also the index into the mjSTATE_EQ_ACTIVE state vector.
       gripEqId: i,
       mocapId: bodyMocapId[id(OBJ.BODY, l.anchorMocap)],
+      legAxisLocal: l.legAxisLocal,
+      plantAnchor: [0, 0, 0],
     }))
     this.bodyOf = meta.segmentBodies.map((s) => ({ groupId: s.groupId, body: id(OBJ.BODY, s.body), restCenter: s.restCenter }))
 
@@ -425,16 +443,23 @@ export class MujocoLocomotion {
     // implicit pin); on release, deactivate it. The solver holds the foot while the sweep servo drives the
     // leg, so the reaction moves the BODY over the planted foot — Rapier's pin, but rigid enough to
     // transfer force. eq_active is written via mj_setState (the property is inaccessible in this build).
+    const gripSlideAxis = bool(cfg.gripSlideAxis, false)
     let eqDirty = false
     for (const lg of this.legs) {
       const selected = gripEnabled && (gripFeet[GRIP_FOOT_BY_LIMB[lg.limbIdx]] ?? false)
       const ph = girdleClockPhase(state, spec, lg.limbIdx)
       const rel = (((ph - gripShift) % 1) + 1) % 1
       const gripping = selected && rel < gripDuration
+      const fx = this.siteXpos[3 * lg.footSite]
+      const fy = this.siteXpos[3 * lg.footSite + 1]
+      const fz = this.siteXpos[3 * lg.footSite + 2]
       if (gripping && !lg.planted) {
-        this.mocapPos[3 * lg.mocapId] = this.siteXpos[3 * lg.footSite]
-        this.mocapPos[3 * lg.mocapId + 1] = this.siteXpos[3 * lg.footSite + 1]
-        this.mocapPos[3 * lg.mocapId + 2] = this.siteXpos[3 * lg.footSite + 2]
+        lg.plantAnchor[0] = fx
+        lg.plantAnchor[1] = fy
+        lg.plantAnchor[2] = fz
+        this.mocapPos[3 * lg.mocapId] = fx
+        this.mocapPos[3 * lg.mocapId + 1] = fy
+        this.mocapPos[3 * lg.mocapId + 2] = fz
         this.eqActiveState[lg.gripEqId] = 1
         lg.planted = true
         eqDirty = true
@@ -442,6 +467,19 @@ export class MujocoLocomotion {
         this.eqActiveState[lg.gripEqId] = 0
         lg.planted = false
         eqDirty = true
+      }
+      // Slide-along-axis grip: while planted, keep the connect anchor at the CURRENT foot's projection
+      // onto the leg-axis line through the plant point. The connect then only resists motion PERPENDICULAR
+      // to the leg (the fore/aft power stroke → thrust) while the foot slides freely IN/OUT along the leg —
+      // the radial DOF a rigid pin over-constrains (no knee). Rigid mode leaves the anchor at the plant point.
+      if (gripSlideAxis && lg.planted) {
+        const u = quatRotateVec(this.xquat, lg.legBody, lg.legAxisLocal)
+        const un = Math.hypot(u[0], u[1], u[2]) || 1
+        const ux = u[0] / un, uy = u[1] / un, uz = u[2] / un
+        const d = (fx - lg.plantAnchor[0]) * ux + (fy - lg.plantAnchor[1]) * uy + (fz - lg.plantAnchor[2]) * uz
+        this.mocapPos[3 * lg.mocapId] = lg.plantAnchor[0] + d * ux
+        this.mocapPos[3 * lg.mocapId + 1] = lg.plantAnchor[1] + d * uy
+        this.mocapPos[3 * lg.mocapId + 2] = lg.plantAnchor[2] + d * uz
       }
     }
     if (eqDirty) this.mujoco.mj_setState(this.model, this.data, this.eqActiveState, STATE_EQ_ACTIVE)

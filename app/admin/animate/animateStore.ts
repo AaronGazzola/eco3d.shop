@@ -50,6 +50,7 @@ export interface SimConfig {
   gripShift: number
   gripDuration: number
   gripSoftness: number
+  gripSlideAxis: boolean
   girdleBoost: number
   releaseFriction: number
   gripGlowEnabled: boolean
@@ -94,6 +95,7 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
   gripShift: 0.05,
   gripDuration: 0.5,
   gripSoftness: 0,
+  gripSlideAxis: false,
   girdleBoost: 0,
   releaseFriction: 0,
   gripGlowEnabled: true,
@@ -156,6 +158,7 @@ export function pickSimConfig(s: SimConfig): SimConfig {
     gripShift: s.gripShift,
     gripDuration: s.gripDuration,
     gripSoftness: s.gripSoftness,
+    gripSlideAxis: s.gripSlideAxis,
     girdleBoost: s.girdleBoost,
     releaseFriction: s.releaseFriction,
     gripGlowEnabled: s.gripGlowEnabled,
@@ -240,6 +243,7 @@ interface AnimateStore extends SimConfig {
   setGripShift: (v: number) => void
   setGripDuration: (v: number) => void
   setGripSoftness: (v: number) => void
+  setGripSlideAxis: (v: boolean) => void
   setGirdleBoost: (v: number) => void
   setReleaseFriction: (v: number) => void
   setGripGlowEnabled: (v: boolean) => void
@@ -382,6 +386,7 @@ export const useAnimateStore = create<AnimateStore>()(
       setGripShift: (v) => set({ gripShift: v }),
       setGripDuration: (v) => set({ gripDuration: v }),
       setGripSoftness: (v) => set({ gripSoftness: v }),
+      setGripSlideAxis: (v) => set({ gripSlideAxis: v }),
       setGirdleBoost: (v) => set({ girdleBoost: v }),
       setReleaseFriction: (v) => set({ releaseFriction: v }),
       setGripGlowEnabled: (v) => set({ gripGlowEnabled: v }),
