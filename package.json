@@ -11,8 +11,6 @@
     "prod:3002": "doppler run -- next build && doppler run -- next start -p 3002",
     "prod:3003": "doppler run -- next build && doppler run -- next start -p 3003",
     "lint": "eslint",
-    "observe": "node scripts/observe.mjs",
-    "observe:legacy": "node scripts/observe-swim.mjs",
     "db:seed": "doppler run -- tsx supabase/seed.ts",
     "seed:admin": "doppler run -- tsx scripts/seed-admin.ts",
     "db:reset-seed": "doppler run -- bash scripts/reset-seed.sh",
@@ -23,11 +21,9 @@
     "@aws-sdk/client-s3": "^3.1000.0",
     "@aws-sdk/s3-request-presigner": "^3.1000.0",
     "@base-ui/react": "^1.1.0",
-    "@dimforge/rapier3d-compat": "^0.12.0",
     "@hookform/resolvers": "^5.2.2",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
-    "@react-three/rapier": "^2.2.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.95.3",
     "@tailwindcss/postcss": "^4.1.18",
@@ -59,7 +55,6 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
-    "@mujoco/mujoco": "^3.10.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

@@ -13,14 +13,17 @@ interface Group {
 async function main() {
   const supabase = createClient(getSupabaseUrl(), getSupabaseSecretKey())
   const { data, error } = await supabase
-    .from('model_configs')
-    .select('name, groups')
-    .ilike('name', '%baby cyber dragon%')
+    .from('dragon_models')
+    .select('stage, groups, dragon_variants(name)')
+    .ilike('dragon_variants.name', '%baby cyber dragon%')
   if (error) throw error
-  if (!data || data.length === 0) throw new Error('no matching rig')
-  for (const cfg of data) {
-    const groups = cfg.groups as Group[]
-    console.log(`\n=== ${cfg.name} (${groups.length} groups) ===`)
+  const rows = (data ?? []).filter((r) => r.dragon_variants)
+  if (rows.length === 0) throw new Error('no matching rig')
+  for (const cfg of rows) {
+    const groups = cfg.groups as unknown as Group[]
+    const variant = cfg.dragon_variants as unknown as { name: string } | null
+    const label = `${variant?.name ?? ''} — ${cfg.stage}`
+    console.log(`\n=== ${label} (${groups.length} groups) ===`)
     const spineYs: number[] = []
     for (const g of groups) {
       if (g.type === 'head' || g.type === 'spine' || g.type === 'tail') {

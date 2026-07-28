@@ -299,39 +299,6 @@ export type Database = {
         }
         Relationships: []
       }
-      model_configs: {
-        Row: {
-          created_at: string
-          groups: Json
-          id: string
-          model_rotation: number[]
-          name: string
-          stl_key: string
-          updated_at: string
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          groups?: Json
-          id?: string
-          model_rotation?: number[]
-          name: string
-          stl_key: string
-          updated_at?: string
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          groups?: Json
-          id?: string
-          model_rotation?: number[]
-          name?: string
-          stl_key?: string
-          updated_at?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       profiles: {
         Row: {
           avatar_url: string | null

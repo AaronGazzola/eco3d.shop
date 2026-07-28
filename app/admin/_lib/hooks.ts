@@ -11,10 +11,12 @@ import { getCurrentProfileAction } from '@/app/layout.actions'
 import {
   listR2FilesAction,
   getSignedUrlAction,
-  saveModelConfigAction,
-  listModelConfigsAction,
+  saveDragonRigAction,
+  listDragonRigsAction,
+  getDragonRigAction,
 } from './actions'
-import { ModelConfigRow, SegmentData } from './types'
+import { listVariantsAction } from '@/app/admin/dragons/page.actions'
+import { DragonRigRow, SegmentData } from './types'
 import { useSharedStore } from './sharedStore'
 
 export function useIsStudioAdmin() {
@@ -81,10 +83,17 @@ export function useSignedUrl(key: string | null) {
   })
 }
 
-export function useModelConfigs() {
+export function useDragonRigs() {
   return useQuery({
-    queryKey: ['model-configs'],
-    queryFn: listModelConfigsAction,
+    queryKey: ['dragon-rigs'],
+    queryFn: listDragonRigsAction,
+  })
+}
+
+export function useVariants() {
+  return useQuery({
+    queryKey: ['dragon-variants'],
+    queryFn: listVariantsAction,
   })
 }
 
@@ -145,8 +154,10 @@ export function useStlLoader() {
   return { loadStl, loading }
 }
 
-export function useSaveConfig() {
+export function useSaveRig() {
   const configId = useSharedStore((s) => s.configId)
+  const variantId = useSharedStore((s) => s.variantId)
+  const stage = useSharedStore((s) => s.stage)
   const stlKey = useSharedStore((s) => s.stlKey)
   const groups = useSharedStore((s) => s.groups)
   const modelRotation = useSharedStore((s) => s.modelRotation)
@@ -155,39 +166,52 @@ export function useSaveConfig() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (name: string) =>
-      saveModelConfigAction({
+    mutationFn: () =>
+      saveDragonRigAction({
         id: configId,
+        variantId: variantId!,
+        stage: stage!,
         stlKey: stlKey!,
-        name,
         groups,
         modelRotation,
       }),
     onSuccess: (saved) => {
       setConfigId(saved.id)
-      setConfigName(saved.name)
-      queryClient.invalidateQueries({ queryKey: ['model-configs'] })
+      setConfigName(`${saved.variant_name} — ${saved.stage}`)
+      queryClient.invalidateQueries({ queryKey: ['dragon-rigs'] })
+      queryClient.invalidateQueries({ queryKey: ['dragon-models', saved.variant_id] })
     },
     onError: (err) => console.error(err),
   })
 }
 
-export function useLoadConfig() {
-  const loadConfig = useSharedStore((s) => s.loadConfig)
+export function useLoadRig() {
+  const loadRig = useSharedStore((s) => s.loadRig)
   const { loadStl } = useStlLoader()
   const [loading, setLoading] = useState(false)
 
-  async function loadFromConfig(config: ModelConfigRow) {
+  async function loadFromRig(rig: DragonRigRow) {
     setLoading(true)
     try {
-      loadConfig(config)
-      await loadStl(config.stl_key, true)
+      loadRig(rig)
+      await loadStl(rig.stl_key, true)
     } finally {
       setLoading(false)
     }
   }
 
-  return { loadFromConfig, loading }
+  async function loadFromRigId(id: string) {
+    setLoading(true)
+    try {
+      const rig = await getDragonRigAction(id)
+      loadRig(rig)
+      await loadStl(rig.stl_key, true)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return { loadFromRig, loadFromRigId, loading }
 }
 
 export function useEnsureStlLoaded() {

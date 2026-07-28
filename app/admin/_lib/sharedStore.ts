@@ -2,7 +2,8 @@
 
 import { create } from 'zustand'
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware'
-import { SegmentData, BodyGroup, BodyGroupType, ModelConfigRow, NodeType, AngleCaps } from './types'
+import { SegmentData, BodyGroup, BodyGroupType, DragonRigRow, NodeType, AngleCaps } from './types'
+import type { DragonStage } from '@/app/game/dragons.types'
 
 const PERSIST_DEBOUNCE_MS = 400
 
@@ -85,6 +86,8 @@ interface SharedStore {
   stlKey: string | null
   configId: string | null
   configName: string
+  variantId: string | null
+  stage: DragonStage | null
   segments: SegmentData[]
   groups: BodyGroup[]
   modelRotation: [number, number, number]
@@ -92,7 +95,9 @@ interface SharedStore {
   setStlKey: (key: string) => void
   setConfigId: (id: string | null) => void
   setConfigName: (name: string) => void
-  loadConfig: (config: ModelConfigRow) => void
+  setVariantId: (id: string) => void
+  setStage: (stage: DragonStage) => void
+  loadRig: (rig: DragonRigRow) => void
   setSegments: (segments: SegmentData[]) => void
   restoreSegments: (segments: SegmentData[]) => void
   rotateModel: (axis: 'x' | 'y' | 'z', delta: number) => void
@@ -113,6 +118,8 @@ export const useSharedStore = create<SharedStore>()(
       stlKey: null,
       configId: null,
       configName: '',
+      variantId: null,
+      stage: null,
       segments: [],
       groups: [],
       modelRotation: [0, 0, 0],
@@ -123,13 +130,19 @@ export const useSharedStore = create<SharedStore>()(
 
       setConfigName: (name) => set({ configName: name }),
 
-      loadConfig: (config) =>
+      setVariantId: (id) => set({ variantId: id }),
+
+      setStage: (stage) => set({ stage }),
+
+      loadRig: (rig) =>
         set({
-          stlKey: config.stl_key,
-          configId: config.id,
-          configName: config.name,
-          groups: normalizeMirroredLegCaps(config.groups),
-          modelRotation: config.model_rotation,
+          stlKey: rig.stl_key,
+          configId: rig.id,
+          configName: `${rig.variant_name} — ${rig.stage}`,
+          variantId: rig.variant_id,
+          stage: rig.stage,
+          groups: normalizeMirroredLegCaps(rig.groups),
+          modelRotation: rig.model_rotation,
         }),
 
       setSegments: (raw) =>
@@ -137,6 +150,8 @@ export const useSharedStore = create<SharedStore>()(
           segments: raw.map((s, i) => ({ ...s, color: SEGMENT_COLORS[i % SEGMENT_COLORS.length] })),
           groups: [],
           modelRotation: [0, 0, 0],
+          configId: null,
+          configName: '',
         }),
 
       restoreSegments: (raw) =>
@@ -241,12 +256,14 @@ export const useSharedStore = create<SharedStore>()(
     }),
     {
       name: 'studio-store',
-      version: 6,
+      version: 7,
       storage: createJSONStorage(() => debouncedLocalStorage),
       partialize: (state) => ({
         stlKey: state.stlKey,
         configId: state.configId,
         configName: state.configName,
+        variantId: state.variantId,
+        stage: state.stage,
         groups: state.groups,
         modelRotation: state.modelRotation,
       }),
@@ -273,6 +290,12 @@ export const useSharedStore = create<SharedStore>()(
         }
         if (version < 6 && Array.isArray(state.groups)) {
           state.groups = normalizeMirroredLegCaps(state.groups as BodyGroup[])
+        }
+        if (version < 7) {
+          state.configId = null
+          state.configName = ''
+          state.variantId = null
+          state.stage = null
         }
         return state
       },

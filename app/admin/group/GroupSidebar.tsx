@@ -5,10 +5,9 @@ import { useRouter } from 'next/navigation'
 import { useSharedStore } from '../_lib/sharedStore'
 import { useGroupStore } from './groupStore'
 import { BodyGroup, BodyGroupType, NodeType } from '../_lib/types'
-import { useSaveConfig } from '../_lib/hooks'
+import { useSaveRig } from '../_lib/hooks'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -128,7 +127,8 @@ export function GroupSidebar() {
   const groups = useSharedStore((s) => s.groups)
   const stlKey = useSharedStore((s) => s.stlKey)
   const configName = useSharedStore((s) => s.configName)
-  const setConfigName = useSharedStore((s) => s.setConfigName)
+  const variantId = useSharedStore((s) => s.variantId)
+  const stage = useSharedStore((s) => s.stage)
   const createGroup = useSharedStore((s) => s.createGroup)
   const addToGroup = useSharedStore((s) => s.addToGroup)
   const deleteGroup = useSharedStore((s) => s.deleteGroup)
@@ -142,7 +142,7 @@ export function GroupSidebar() {
   const setSelectedNodeId = useGroupStore((s) => s.setSelectedNodeId)
   const setPendingSegmentIds = useGroupStore((s) => s.setPendingSegmentIds)
 
-  const { mutate: saveConfig, isPending: saving } = useSaveConfig()
+  const { mutate: saveRig, isPending: saving } = useSaveRig()
 
   const [type, setType] = useState<BodyGroupType>('spine')
   const [attachedToSpineId, setAttachedToSpineId] = useState<string>('')
@@ -404,32 +404,26 @@ export function GroupSidebar() {
 
       {stlKey && hasGroups && (
         <div className="flex flex-col gap-2 pt-2 border-t border-white/8">
-          <Input
-            value={configName}
-            onChange={(e) => setConfigName(e.target.value)}
-            placeholder="Configuration name"
-            className="h-7 text-xs bg-white/5 border-white/10 text-white placeholder:text-white/25"
-          />
-          <Button
-            size="sm"
-            className="h-7 text-xs"
-            disabled={!configName.trim() || saving}
-            onClick={() => saveConfig(configName.trim())}
-          >
-            {saving ? 'Saving…' : 'Save Configuration'}
-          </Button>
+          {variantId && stage ? (
+            <>
+              <p className="text-[11px] text-white/60 capitalize">{configName}</p>
+              <Button
+                size="sm"
+                className="h-7 text-xs"
+                disabled={saving}
+                onClick={() => saveRig()}
+              >
+                {saving ? 'Saving…' : 'Save Rig'}
+              </Button>
+            </>
+          ) : (
+            <p className="text-[10px] text-amber-300/70 text-center py-1">
+              Choose a variant and stage in the Pick step before saving.
+            </p>
+          )}
         </div>
       )}
 
-      {hasGroups && (
-        <Button
-          size="sm"
-          className="h-8 text-xs bg-violet-600 hover:bg-violet-500 text-white"
-          onClick={() => router.push('/admin/animate')}
-        >
-          Animate →
-        </Button>
-      )}
     </div>
   )
 }

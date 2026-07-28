@@ -3,7 +3,7 @@
 import { use, useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { StudioCanvas } from '@/app/admin/_lib/StudioCanvas'
-import { PosedDragon } from '@/app/game/AnimatedModel'
+import { PosedDragon } from '@/app/game/StaticDragon'
 import { resolveGenotype, rollGenotype } from '@/app/game/dragons.genetics'
 import { Genotype } from '@/app/game/dragons.types'
 import { useStlSegments } from '@/app/game/useStlSegments'

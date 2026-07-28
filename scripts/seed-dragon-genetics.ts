@@ -41,16 +41,16 @@ async function main() {
   }
   const db = createClient<Database>(url, secretKey, { auth: { autoRefreshToken: false, persistSession: false } })
 
-  // Borrow a real model's geometry so role_tags key onto actual seg-N ids.
+  // Borrow a real rig's geometry so role_tags key onto actual seg-N ids.
   const src = await db
-    .from('model_configs')
+    .from('dragon_models')
     .select('stl_key, groups, model_rotation')
     .order('created_at', { ascending: false })
     .limit(1)
     .single()
   if (src.error || !src.data) {
     console.error(src.error)
-    throw new Error('No model_configs row to borrow geometry from — author a model first.')
+    throw new Error('No dragon_models row to borrow geometry from — author a rig first.')
   }
   const groups = src.data.groups as unknown as BodyGroup[]
   const stlKey = src.data.stl_key

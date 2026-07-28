@@ -1,3 +1,0 @@
-export const DRAGON_SCALE_INITIAL = 0.06
-export const DRAGON_SCALE_FINAL = 0.18
-export const EMERGE_DURATION_MS = 8000
