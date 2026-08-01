@@ -115,6 +115,7 @@ export type Database = {
       }
       dragon_models: {
         Row: {
+          animations: Json
           created_at: string
           groups: Json
           id: string
@@ -126,6 +127,7 @@ export type Database = {
           variant_id: string
         }
         Insert: {
+          animations?: Json
           created_at?: string
           groups?: Json
           id?: string
@@ -137,6 +139,7 @@ export type Database = {
           variant_id: string
         }
         Update: {
+          animations?: Json
           created_at?: string
           groups?: Json
           id?: string
