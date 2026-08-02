@@ -1,4 +1,5 @@
 import type { DragonStage } from '@/app/game/dragons.types'
+import type { Animations } from '@/app/game/animation.types'
 
 export interface R2FileNode {
   name: string
@@ -41,6 +42,7 @@ export interface DragonRigRow {
   stl_key: string
   groups: BodyGroup[]
   model_rotation: [number, number, number]
+  animations: Animations
 }
 
 export interface BodyGroup {

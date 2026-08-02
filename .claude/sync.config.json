@@ -26,8 +26,8 @@
     },
     "vercel": {
       "enabled": true,
-      "project": "<vercel-project>",
-      "method": "cli-or-github-deployments"
+      "repo": "AaronGazzola/eco3d.shop",
+      "method": "github-integration"
     },
     "sentry": {
       "enabled": false,

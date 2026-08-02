@@ -50,8 +50,10 @@ OpenSpec change `add-dragon-genetics-engine-render`. Makes a stored dragon visib
   STL. The locomotion studio's per-`BodyGroup` path is untouched.
 - **Preview**: `/game/dragons/[variantKey]` (e.g. `/game/dragons/demo`) — loads a variant, rolls a
   genotype, renders it, with stage + "Roll random" controls.
-- **Seed**: `scripts/seed-dragon-genetics.ts` writes a `demo` variant (borrowing a real model's
-  geometry) so the preview has something to render before the admin UIs (C) exist.
+- **Seed**: removed 1-Aug-2026. The seed script rebuilt the `demo` variant by deleting it and
+  borrowing the newest rig's geometry, which would have destroyed the authored Baby Cyberfang rig
+  now stored under that variant. The `demo` variant and its two rigs already exist; E2 will seed
+  genetics properly against the PHA filament rules.
 
 Verified: `scripts/check-dragon-genetics.ts` (engine, no DB) + `scripts/verify-dragon-render.ts`
 (DB-backed pipeline) + a headless render of `/game/dragons/demo` showing head/spine/limb/tail in

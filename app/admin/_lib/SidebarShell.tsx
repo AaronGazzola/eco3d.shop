@@ -10,9 +10,15 @@ import { useEnsureStlLoaded } from './hooks'
 const STEPS = [
   { n: 1 as const, label: 'Pick Model', path: '/admin/pick' },
   { n: 2 as const, label: 'Group Segments', path: '/admin/group' },
+  { n: 3 as const, label: 'Animate', path: '/admin/animate' },
+  { n: 4 as const, label: 'Locomotion', path: '/admin/locomotion' },
 ]
 
-function pathToStep(pathname: string | null): 1 | 2 {
+type Step = 1 | 2 | 3 | 4
+
+function pathToStep(pathname: string | null): Step {
+  if (pathname?.startsWith('/admin/locomotion')) return 4
+  if (pathname?.startsWith('/admin/animate')) return 3
   if (pathname?.startsWith('/admin/group')) return 2
   return 1
 }
@@ -33,15 +39,16 @@ export function SidebarShell({ children }: { children: ReactNode }) {
     }
   }, [ensureStlLoaded])
 
-  const canEnterStep = (n: 1 | 2) => {
+  const canEnterStep = (n: Step) => {
     if (n === 1) return true
+    if (n === 3 || n === 4) return groups.length > 0
     return segments.length > 0
   }
 
   const canGoBack = step > 1
-  const canGoForward = step < 2 && canEnterStep((step + 1) as 1 | 2)
+  const canGoForward = step < 4 && canEnterStep((step + 1) as Step)
 
-  const goToStep = (n: 1 | 2) => {
+  const goToStep = (n: Step) => {
     if (!canEnterStep(n)) return
     const target = STEPS.find((s) => s.n === n)
     if (target) router.push(target.path)
@@ -51,7 +58,7 @@ export function SidebarShell({ children }: { children: ReactNode }) {
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-white/8 shrink-0">
         <button
-          onClick={() => goToStep((step - 1) as 1 | 2)}
+          onClick={() => goToStep((step - 1) as Step)}
           disabled={!canGoBack}
           className="text-white/30 hover:text-white/70 disabled:opacity-0 disabled:pointer-events-none transition-opacity"
         >
@@ -82,7 +89,7 @@ export function SidebarShell({ children }: { children: ReactNode }) {
           })}
         </div>
         <button
-          onClick={() => goToStep((step + 1) as 1 | 2)}
+          onClick={() => goToStep((step + 1) as Step)}
           disabled={!canGoForward}
           className="text-white/30 hover:text-white/70 disabled:opacity-0 disabled:pointer-events-none transition-opacity"
         >

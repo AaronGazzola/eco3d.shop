@@ -6,6 +6,7 @@ import { createClient } from '@/supabase/server-client'
 import { checkIsAdminAction } from '@/app/layout.actions'
 import type { Database, Json } from '@/supabase/types'
 import type { DragonStage } from '@/app/game/dragons.types'
+import type { Animations } from '@/app/game/animation.types'
 import { R2FileNode, BodyGroup, DragonRigRow } from './types'
 
 async function assertAdmin() {
@@ -82,10 +83,12 @@ function toRigRow(row: DragonModelWithVariant): DragonRigRow {
     stl_key: row.stl_key,
     groups: row.groups as unknown as BodyGroup[],
     model_rotation: row.model_rotation as [number, number, number],
+    animations: (row.animations ?? {}) as unknown as Animations,
   }
 }
 
-const RIG_SELECT = 'id, variant_id, stage, stl_key, groups, model_rotation, dragon_variants(name)'
+const RIG_SELECT =
+  'id, variant_id, stage, stl_key, groups, model_rotation, animations, dragon_variants(name)'
 
 export async function saveDragonRigAction(params: {
   id: string | null
@@ -132,6 +135,29 @@ export async function saveDragonRigAction(params: {
       throw new Error(`A ${params.stage} rig already exists for this variant — load it to edit.`)
     }
     throw new Error('Failed to save rig')
+  }
+  return toRigRow(data as unknown as DragonModelWithVariant)
+}
+
+export async function saveAnimationsAction(
+  id: string,
+  animations: Animations,
+): Promise<DragonRigRow> {
+  await assertAdmin()
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('dragon_models')
+    .update({
+      animations: animations as unknown as Json,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select(RIG_SELECT)
+    .single()
+  if (error) {
+    console.error(error)
+    throw new Error('Failed to save animations')
   }
   return toRigRow(data as unknown as DragonModelWithVariant)
 }

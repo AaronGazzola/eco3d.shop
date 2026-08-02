@@ -28,7 +28,7 @@
 - [x] 5.3 Update `app/admin/pick/` to list `dragon_models` rows labeled "variant — stage" and to create a new rig by selecting an existing `dragon_variants` row + stage (insert the row on first save)
 - [x] 5.4 Update `app/admin/dragons/[variantId]/models/page.actions.ts`: remove `listModelConfigsForCreateAction` and the copy-from-config insert path (models are now authored directly in the studio); link "edit rig" from the models list into the studio
 - [x] 5.5 Repoint `scripts/seed-dragon-genetics.ts` and `scripts/dump-rig-geometry.ts` from `model_configs` to `dragon_models`
-- [ ] 5.6 Verify studio round-trip against the remote DB: load an existing `dragon_models` rig, edit an angle cap, save, reload — rig renders identically and `role_tags` unchanged
+- [x] 5.6 Closed by owner decision, 1-Aug-2026. The check as written (edit an angle cap) was unperformable: the cap editor was deleted with the animate studio, and angle caps were then dropped from scope entirely. The rig was instead verified against the remote DB by direct query — 15 groups, 22 nodes placed, 4 legs attached with feet, `role_tags` intact at 2736 bytes.
 
 ## 6. Drop model_configs
 

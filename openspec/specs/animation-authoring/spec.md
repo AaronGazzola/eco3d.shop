@@ -1,5 +1,8 @@
-## ADDED Requirements
+# animation-authoring Specification
 
+## Purpose
+TBD - created by archiving change add-walk-cycle-animation. Update Purpose after archive.
+## Requirements
 ### Requirement: Animate studio reuses the studio frame
 
 The `/admin/animate` route SHALL compose `AdminFrame` with a `StudioCanvas`-based scene and a collapsible `AnimateSidebar`, structurally matching the other studio steps. The scene SHALL render `AnimatedDragon` for the rig currently loaded in the shared store (`segments`, `groups`, `modelRotation`). A page-local `animateStore` SHALL hold only view, playback, and authoring state (selected cycle, selected keyframe, playing, speed, scrub phase) — no physics/sim config.
@@ -23,14 +26,14 @@ The sidebar SHALL provide transport controls (play/pause, a speed control, and a
 - **WHEN** an admin adds or selects a keyframe and edits it
 - **THEN** subsequent playback reflects the edited keyframe
 
-### Requirement: Per-joint pose editor clamped to caps
+### Requirement: Per-joint pose editor
 
-The sidebar SHALL expose a per-joint pose editor using the Calibrate-step accordion ordering (head → each spine → its attached legs → tail), with one yaw control and one pitch control per joint that write the selected keyframe's joint offset for that group. Each control SHALL be bounded by the joint's `effectiveAngleCaps` and SHALL NOT allow authoring an angle beyond the cap. The editor SHALL read caps but SHALL NOT modify `angleCaps`.
+The sidebar SHALL expose a per-joint pose editor ordered head → each spine → its attached legs → tail, with one yaw control and one pitch control per joint that write the selected keyframe's joint offset for that group. Each control SHALL span a fixed range wide enough to author any pose the author judges realistic. The editor SHALL NOT read or modify `angleCaps`.
 
-#### Scenario: Joint slider bounded by caps
+#### Scenario: Joint control spans the full authoring range
 
 - **WHEN** an admin drags a joint's yaw control to its extreme
-- **THEN** the authored value stops at that joint's `effectiveAngleCaps` and the caps themselves are unchanged
+- **THEN** the authored value reaches the control's fixed limit, and no stored `angleCaps` value is read or written
 
 ### Requirement: Cycles persist to dragon_models.animations
 
@@ -49,3 +52,4 @@ The `/admin/animate` route SHALL be reachable as step 3 "Animate" in the studio 
 
 - **WHEN** a rig has groups and the admin advances the stepper
 - **THEN** step 3 "Animate" navigates to `/admin/animate`
+

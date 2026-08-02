@@ -38,11 +38,17 @@ game and the procedural-locomotion research program are retired.
   selling creatures, spent on eggs/habitats/upgrades). Vids.Tube Credits
   convert INTO the game (egg purchases, gifts) and never convert back out.
 - **Rig foundation is sacrosanct**: the STL → segment-detection → segment-to-
-  node-skeleton assignment pipeline, and the skeleton→segment binding
-  (including per-joint angle caps) are the animation foundation. They are
-  preserved in full through any refactor. The CPG/MuJoCo/Rapier locomotion
-  driver and the animate research studio are dropped and replaced by simple
-  pose-cycle animation over the same skeleton.
+  node-skeleton assignment pipeline and the skeleton→segment binding are the
+  animation foundation. They are preserved in full through any refactor.
+  Per-joint angle caps are retained as stored data but are no longer read or
+  enforced.
+- **Locomotion is CPG-driven and kinematic** (settled 2-Aug-2026, supersedes the
+  pose-cycle plan). The oscillator model from the Knüsel paper drives body
+  undulation; the body's placement is solved each frame against planted feet, so
+  forward motion is an output of the wave rather than an authored slide. The
+  MuJoCo and Rapier physics drivers stay dropped: contact is asserted, never
+  simulated. Hand-authored pose cycles are never the locomotion path. Governing
+  document: `documentation/animation-criteria.md`.
 - **Table unification**: `model_configs` (old studio output) merges into
   `dragon_models` (variant x stage, rig + `role_tags`); the full `groups`
   schema — segment membership, node assignments, angle caps, rotation — is
@@ -57,11 +63,11 @@ roadmap committed, project description updated.
 
 ### E1 — Rig foundation
 Keep and harden the admin studio pipeline (segmentation worker, grouping,
-node-skeleton assignment, angle caps, role tagging). Delete
-`app/game/locomotion/*`, the `AnimatedModel` export, the animate studio, and
-MuJoCo deps. Build the simple animation layer: hand-tuned pose cycles (idle,
-wander, eat, sleep) tweened over the skeleton binding. Unify
-`model_configs` → `dragon_models`.
+node-skeleton assignment, role tagging). Unify `model_configs` →
+`dragon_models`. Then build locomotion in five stages — swim, plant, walk,
+turn, navigate — driven by the CPG oscillator and solved kinematically against
+planted feet. Scope is locomotion only; idle, eating and sleeping are out.
+Stages and success tests: `documentation/animation-roadmap.md`.
 
 ### E2 — Genetics v1 on PHA
 3 `filament_colors` rows; roles/genes/alleles with dominance; rare morphs;

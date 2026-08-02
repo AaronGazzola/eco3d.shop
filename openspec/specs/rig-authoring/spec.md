@@ -3,9 +3,7 @@
 ## Purpose
 
 The admin studio pipeline that turns an STL into a rigged dragon — STL import, segment detection, grouping, node-skeleton assignment with per-joint angle caps — and persists it to the unified `dragon_models` table (variant × stage).
-
 ## Requirements
-
 ### Requirement: Rig authoring pipeline is preserved verbatim
 
 The admin studio SHALL retain the full rig-authoring pipeline unchanged in behavior: STL import via `useStlLoader` (fetch from `/api/r2`, parse with STLLoader), segment detection in `segmentDetector.worker.ts`, segment grouping and node-skeleton assignment (node types front/back/hipLeft/hipRight/foot) in `app/admin/group/**`, per-joint angle caps, and model rotation. The segmentation worker, `groupStore`, `GroupScene`, `NodeOverlay`, and `sharedStore` group/selection logic SHALL NOT be functionally modified by this change.
@@ -37,3 +35,18 @@ Rig data in `dragon_models` SHALL be byte-equivalent JSON to what the studio aut
 
 - **WHEN** a rig is authored, saved to `dragon_models`, and reloaded by the studio or the static renderer
 - **THEN** segment grouping, node positions, and angle caps are identical to what was authored
+
+### Requirement: Studio stepper includes an Animate step
+
+The studio stepper (`SidebarShell`) SHALL present three steps in order: Pick (`/admin/pick`), Group (`/admin/group`), and Animate (`/admin/animate`). The Animate step SHALL be enabled only once the loaded rig has groups.
+
+#### Scenario: Animate step gated on groups
+
+- **WHEN** a rig has no groups
+- **THEN** the Animate step is disabled
+
+#### Scenario: Animate step reachable after grouping
+
+- **WHEN** the loaded rig has groups
+- **THEN** the stepper shows step 3 "Animate" enabled, navigating to `/admin/animate`
+

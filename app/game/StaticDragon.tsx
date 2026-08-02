@@ -119,7 +119,7 @@ export function StaticPosedModel({
   )
 }
 
-function StaticGroupBody({
+export function StaticGroupBody({
   group,
   segmentMap,
   opacity,

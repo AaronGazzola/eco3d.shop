@@ -3,6 +3,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware'
 import { SegmentData, BodyGroup, BodyGroupType, DragonRigRow, NodeType, AngleCaps } from './types'
+import type { Animations } from '@/app/game/animation.types'
 import type { DragonStage } from '@/app/game/dragons.types'
 
 const PERSIST_DEBOUNCE_MS = 400
@@ -52,30 +53,6 @@ const debouncedLocalStorage: StateStorage = (() => {
   }
 })()
 
-// Undo the historical calibrate mirror bug: paired-leg caps were stored with forward↔back SWAPPED, while
-// the animation already mirrors direction via the per-side sweep axis. The right legs were calibrated
-// directly (correct); re-mirror each left leg straight from its paired right leg so forward stays forward.
-// Idempotent — legs already matching their pair are left untouched — so it is safe to run on every load.
-function normalizeMirroredLegCaps(groups: BodyGroup[]): BodyGroup[] {
-  if (!Array.isArray(groups)) return groups
-  const rightByPair = new Map<string, BodyGroup>()
-  for (const g of groups) {
-    if (g.type === 'leg-right' && g.attachedToSpineId) rightByPair.set(g.attachedToSpineId, g)
-  }
-  if (rightByPair.size === 0) return groups
-  return groups.map((g) => {
-    if (g.type !== 'leg-left' || !g.attachedToSpineId) return g
-    const right = rightByPair.get(g.attachedToSpineId)
-    const rc = right?.angleCaps
-    const lc = g.angleCaps
-    if (!rc || !lc) return g
-    const desiredYaw = rc.yaw
-    const desiredBack = rc.yawBack ?? rc.yaw
-    if (lc.yaw === desiredYaw && (lc.yawBack ?? lc.yaw) === desiredBack) return g
-    return { ...g, angleCaps: { ...lc, yaw: desiredYaw, yawBack: desiredBack } }
-  })
-}
-
 const SEGMENT_COLORS = [
   '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
   '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1',
@@ -91,6 +68,7 @@ interface SharedStore {
   segments: SegmentData[]
   groups: BodyGroup[]
   modelRotation: [number, number, number]
+  animations: Animations
 
   setStlKey: (key: string) => void
   setConfigId: (id: string | null) => void
@@ -98,6 +76,7 @@ interface SharedStore {
   setVariantId: (id: string) => void
   setStage: (stage: DragonStage) => void
   loadRig: (rig: DragonRigRow) => void
+  setAnimations: (animations: Animations) => void
   setSegments: (segments: SegmentData[]) => void
   restoreSegments: (segments: SegmentData[]) => void
   rotateModel: (axis: 'x' | 'y' | 'z', delta: number) => void
@@ -123,6 +102,7 @@ export const useSharedStore = create<SharedStore>()(
       segments: [],
       groups: [],
       modelRotation: [0, 0, 0],
+      animations: {},
 
       setStlKey: (key) => set({ stlKey: key }),
 
@@ -141,9 +121,12 @@ export const useSharedStore = create<SharedStore>()(
           configName: `${rig.variant_name} — ${rig.stage}`,
           variantId: rig.variant_id,
           stage: rig.stage,
-          groups: normalizeMirroredLegCaps(rig.groups),
+          groups: rig.groups,
           modelRotation: rig.model_rotation,
+          animations: rig.animations ?? {},
         }),
+
+      setAnimations: (animations) => set({ animations }),
 
       setSegments: (raw) =>
         set({
@@ -287,9 +270,6 @@ export const useSharedStore = create<SharedStore>()(
         }
         if (version < 5) {
           delete state.step
-        }
-        if (version < 6 && Array.isArray(state.groups)) {
-          state.groups = normalizeMirroredLegCaps(state.groups as BodyGroup[])
         }
         if (version < 7) {
           state.configId = null
