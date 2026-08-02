@@ -14,6 +14,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # General rules:
 
+- Format all responses in accordance with the `/simple` skill unless otherwise specified
+- Any skills from the "AI Resources" repository (public; owned by AaronGazzola) should match any changes made to the local version. 
 - Don't include any comments in any files.
 - Don't use `console.log` in any app code unless requested, delete all logs after the related development is completed
 - All errors should be thrown - no "fallback" functionality
@@ -184,3 +186,7 @@ How OpenSpec changes and deferred work are managed. These rules exist to prevent
 
 
 **Backlog location:** Linear, Gazzola (personal) workspace, **"Az"** team, **"Eco3D.Shop"** project. Read open issues there before starting deferred work.
+
+# Animation
+
+Read `documentation/animation-criteria.md` before proposing, specifying or implementing anything to do with creature motion. It records the fixed physical constraints of the rig, the required behaviour, the geometric law any locomotion solution must obey, and the approaches already tried and rejected. Do not re-suggest anything listed there as void or settled.
