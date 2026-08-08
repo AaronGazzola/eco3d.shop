@@ -39,8 +39,12 @@ function useConfigLink() {
     const params = new URLSearchParams(hash.length > 0 ? hash : window.location.search)
     const tab = params.get('tab')
     if (tab === 'simulate' || tab === 'calibrate') store.setAnimateTab(tab as AnimateTab)
+    // A link carries the WHOLE config, so it is applied absolutely: any key it omits falls back to the
+    // default rather than surviving from the persisted config hydrated just above. Without this, opening
+    // a shared link in a browser that had been tuned locally shows a blend of the two, and the viewer is
+    // not seeing the run the link was built from.
     const sim = params.get('sim')
-    if (sim) store.applySimConfig(decodeSimConfig(sim))
+    if (sim) store.applySimConfigAbsolute(decodeSimConfig(sim))
     const overlay = params.get('overlay')
     if (overlay != null) {
       const names = overlay.split(',').map((n) => n.trim()).filter((n) => (OVERLAY_NAMES as readonly string[]).includes(n))

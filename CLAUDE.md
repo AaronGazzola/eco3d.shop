@@ -189,4 +189,11 @@ How OpenSpec changes and deferred work are managed. These rules exist to prevent
 
 # Animation
 
-Read `documentation/animation-criteria.md` before proposing, specifying or implementing anything to do with creature motion. It records the fixed physical constraints of the rig, the required behaviour, the geometric law any locomotion solution must obey, and the approaches already tried and rejected. Do not re-suggest anything listed there as void or settled.
+Read these before proposing, specifying or implementing anything to do with creature motion:
+
+- `documentation/locomotion.md` — how the paper's model is applied to our rig, and the fixed substrate that never changes.
+- `documentation/reference/locomotion-reference.md` — the verified extraction of the source paper. Single source of truth for every equation, coupling and constant. Where any other document disagrees, the reference wins.
+- `documentation/animation-roadmap.md` — the living plan, the locked decisions, and the decision log.
+- `documentation/observation-loop.md` — how to observe the running system before making any claim about its behaviour.
+
+Locomotion is CPG-driven inside a physics simulation. Movement emerges from controller → muscles → body dynamics → environment forces. Never hand-author locomotion, and never claim a behaviour without an observation to back it.

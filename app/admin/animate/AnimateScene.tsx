@@ -5,7 +5,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useSharedStore } from '../_lib/sharedStore'
 import { useAnimateStore, pickSimConfig, SimConfig, SimEngine, encodeSimConfig } from './animateStore'
-import { findSimPreset } from './simPresets'
+import { findSimPreset, applyPreset } from './simPresets'
 import { CameraController, StudioCanvas } from '../_lib/StudioCanvas'
 import { CameraPreset, ModelConfigRow } from '../_lib/types'
 import { AnimatedModel } from '@/app/game/AnimatedModel'
@@ -33,7 +33,7 @@ function useStudioObservationHook() {
       preset: (name: string, engine?: SimEngine) => {
         const p = findSimPreset(name, engine ?? store().simEngine)
         if (!p) return false
-        store().applySimConfig({ ...p.config, simEngine: p.engine })
+        applyPreset(p)
         return true
       },
       friction: (body: number, leg: number) => { store().setBodyFriction(body); store().setLegFriction(leg) },
@@ -64,6 +64,10 @@ function useStudioObservationHook() {
       // simulation logic is preserved — only its tunable parameters change.
       getConfig: () => pickSimConfig(store() as unknown as SimConfig),
       apply: (partial: Partial<SimConfig>) => store().applySimConfig(partial),
+      // Absolute apply: keys absent from `config` land on their DEFAULT rather than keeping whatever is
+      // loaded. The harness uses this for a whole-config file so a captured run cannot inherit state
+      // from a previous run in the same browser session; `apply` stays the merging path for --set.
+      applyAbsolute: (config: Partial<SimConfig>) => store().applySimConfigAbsolute(config),
       // Set ALL leg weights (kg) — leg mass lives in the shared-store groups, not SimConfig. Used by the
       // observe harness (--legw) and mirrors the Calibrate leg-weight slider (which gangs all legs).
       legWeight: (w: number) => {

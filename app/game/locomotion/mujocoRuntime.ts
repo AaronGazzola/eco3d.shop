@@ -150,6 +150,16 @@ export interface MjDiag {
   maxJointFracOfCap: number
   comYDrift: number
   maxTiltDeg: number
+  // Cumulative applied impulse since the run started, split by source, as RAW WORLD VECTORS. They are
+  // deliberately not projected onto a forward direction: doing so needs a heading, and the body has
+  // none — travel direction is a measured output, so the projection belongs in offline analysis.
+  // Together they answer "are the feet contributing" as a number rather than an impression.
+  footImpulseX: number
+  footImpulseY: number
+  footImpulseZ: number
+  dragImpulseX: number
+  dragImpulseY: number
+  dragImpulseZ: number
 }
 
 export interface MjLegObs {
@@ -182,6 +192,9 @@ export class MujocoLocomotion {
   private nodeSegLength: number[]
   private rootBody: number
   private simTime = 0
+  // World-frame impulse accumulated per source since the run started (see MjDiag).
+  private footImpulse: [number, number, number] = [0, 0, 0]
+  private dragImpulse: [number, number, number] = [0, 0, 0]
   private diagPrevNodes: number[][] | null = null
   private diagPrevT = 0
   private gainprm: Float64Array
@@ -321,6 +334,10 @@ export class MujocoLocomotion {
     const environmentEnabled = bool(cfg.environmentEnabled, false)
     const gripShift = num(cfg.gripShift, 0.61)
     const gripDuration = num(cfg.gripDuration, 0.5)
+    const footThrustEnabled = bool(cfg.footThrustEnabled, false)
+    const footThrustGain = num(cfg.footThrustGain, 0)
+    const footThrustShift = num(cfg.footThrustShift, 0.36)
+    const footThrustShiftHind = num(cfg.footThrustShiftHind, 0.86)
     const stepDuty = Math.min(0.95, Math.max(0.05, gripDuration))
     const gripFeet = (cfg.gripFeet ?? { FL: false, FR: false, BL: false, BR: false }) as Record<string, boolean>
     const stepFeet = (cfg.stepFeet ?? { FL: true, FR: true, BL: true, BR: true }) as Record<string, boolean>
@@ -482,6 +499,63 @@ export class MujocoLocomotion {
         if (td.prev) for (let c = 0; c < 6; c++) this.xfrc[6 * b + c] = 0
         td.prev = null
       }
+      this.dragImpulse[0] += this.xfrc[6 * b] * TIMESTEP
+      this.dragImpulse[1] += this.xfrc[6 * b + 1] * TIMESTEP
+      this.dragImpulse[2] += this.xfrc[6 * b + 2] * TIMESTEP
+    }
+
+    // Foot thrust (roadmap Decision 10) — the land-propulsion term that replaces the retired grip pin.
+    // Each foot pushes BACKWARD along its own hip segment's forward axis while it sweeps back, with a
+    // magnitude proportional to how fast it is sweeping.
+    //
+    // MuJoCo does NOT clear xfrc_applied between steps — the caller owns it. Leg bodies are outside the
+    // drag loop (Lmap covers the axial chain only), so nothing else ever writes their slots. Each leg's
+    // six components are therefore ZEROED every substep before the thrust is written; accumulating into
+    // them instead makes the force grow by one increment per substep (about 1440 over a 12 s run) and the
+    // body explodes within seconds. The zeroing is unconditional so that disabling thrust mid-run, and
+    // the forward half of every stroke, both genuinely apply no force rather than holding the last value.
+    //
+    // Why a force and not a constraint: the grip pin was a `connect` equality, and an equality removes a
+    // degree of freedom the muscles were driving — a pinned foot reflected the traveling wave into a
+    // standing wave with zero travel. A force enters as a generalized force, removes no DOF, and
+    // overrides no actuator target, so the axial wave is untouched. That is the whole point of the swap.
+    //
+    // Why the hip's axis and not a heading: the body has no heading. Heading is emergent, so reading one
+    // would mean inventing it. The hip segment's local +x is always defined and sweeps with the wave;
+    // over a stroke the sideways components of the four pushes cancel and the net is straight ahead.
+    // Unequal left/right gains leave that cancellation incomplete, which is where turning comes from.
+    for (const lg of this.legs) {
+      const b = lg.legBody
+      for (let c = 0; c < 6; c++) this.xfrc[6 * b + c] = 0
+      if (!footThrustEnabled || footThrustGain === 0) continue
+      // rel: 0 = max-forward reach, 0.5 = max-backward. The two girdles need SEPARATE shifts: measured
+      // directly, at any given girdle-clock phase the front feet are at max forward reach while the hind
+      // feet are at max backward, half a cycle apart. A single shared shift therefore puts the hind push
+      // on the swing, pushing backward while the foot sweeps forward — the opposite of the intent.
+      const ph = girdleClockPhase(state, spec, lg.limbIdx)
+      const shift = lg.limbIdx < 2 ? footThrustShift : footThrustShiftHind
+      const rel = (((ph - shift) % 1) + 1) % 1
+      // Foot fore/aft offset varies as cos(2π·rel), so its BACKWARD rate varies as sin(2π·rel):
+      // positive across the whole back stroke, zero at both turning points, peak at mid-stroke.
+      // Half-rectifying gives an exactly-zero forward stroke without a separate on/off window, and
+      // avoids the solver shock and visual tick a square window's discontinuity would cause.
+      const w = Math.sin(2 * Math.PI * rel)
+      if (w <= 0) continue
+      const h = lg.hipBody
+      const qw = this.xquat[4 * h]
+      const qx = this.xquat[4 * h + 1]
+      const qy = this.xquat[4 * h + 2]
+      const qz = this.xquat[4 * h + 3]
+      const fx = 1 - 2 * (qy * qy + qz * qz)
+      const fy = 2 * (qx * qy + qw * qz)
+      const fz = 2 * (qx * qz - qw * qy)
+      const mag = -footThrustGain * w
+      this.xfrc[6 * b] = mag * fx
+      this.xfrc[6 * b + 1] = mag * fy
+      this.xfrc[6 * b + 2] = mag * fz
+      this.footImpulse[0] += mag * fx * TIMESTEP
+      this.footImpulse[1] += mag * fy * TIMESTEP
+      this.footImpulse[2] += mag * fz * TIMESTEP
     }
 
     this.mujoco.mj_step(this.model, this.data)
@@ -618,6 +692,12 @@ export class MujocoLocomotion {
       maxJointFracOfCap: maxFrac,
       comYDrift: cy - base[1],
       maxTiltDeg,
+      footImpulseX: this.footImpulse[0],
+      footImpulseY: this.footImpulse[1],
+      footImpulseZ: this.footImpulse[2],
+      dragImpulseX: this.dragImpulse[0],
+      dragImpulseY: this.dragImpulse[1],
+      dragImpulseZ: this.dragImpulse[2],
     }
   }
 
@@ -628,6 +708,8 @@ export class MujocoLocomotion {
     for (let s = 0; s < steps; s++) this.mujoco.mj_step(this.model, this.data)
     this.simTime = 0
     this.diagPrevNodes = null
+    this.footImpulse = [0, 0, 0]
+    this.dragImpulse = [0, 0, 0]
   }
 
   // Live-set a position actuator's stiffness/damping (kp in gainprm[0]; −kp, −kv in biasprm[1..2]).

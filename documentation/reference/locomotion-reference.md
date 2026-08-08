@@ -247,24 +247,22 @@ terms to zero — i.e. **a fixed tonic drive**, no noise. That's the regime we w
 - Coupling topology and weights (§3, modulo the flagged phase-bias cells).
 - The constants in §7.
 
-We recreate the **controller** faithfully (§1–§3, §7). Everything downstream of the
-controller is replaced. See `../animation-criteria.md` for why, and for the geometry that
-replaces it.
+We recreate the full pipeline — CPG → Ekeberg muscles → multibody dynamics → environment
+forces — faithfully (§4, §5, and `documentation/locomotion.md §2–§3`).
 
-**Where we necessarily differ (all of it downstream of the controller):**
-- **No muscles, no dynamics.** §4's Ekeberg muscle block and the paper's multibody
-  simulation are not built. Oscillator output is read directly as a target bend per joint
-  and applied kinematically.
-- **No simulated contact.** The paper's ground friction is replaced by planted feet:
-  contact is asserted, and the body's placement is solved from it.
-- **Swimming thrust is a closed-form expression**, evaluated once per frame from each
-  segment's sideways velocity, not integrated forces.
-- **Body parameters come from our rig**: segment length from node spacing, joint axes at
-  the nodes. Mass and inertia are not needed, because nothing is integrated.
-- **Segment count comes from the rig**, not the paper's 25. Phase bias is scaled so the
-  total head-to-tail lag is held constant whatever the spine count.
-- **Output is the node skeleton.** Joint angles drive the pivots; the body's solved
-  placement drives the root frame. Angle caps are stored but never read.
+**Where we necessarily differ (bounded, and not in the controller):**
+- **Body parameters come from our rig**, not the salamander robot: segment length from
+  node spacing, **mass from an authored per-node weight (default uniform, mesh-decoupled)
+  with inertia derived from weight + length** (roadmap Decision 7 — the paper likewise used
+  uniform segments; mesh-derived mass was replaced after its ≈10:1 head:tail ratio broke the
+  Phase C swimming gate), joint axes at the nodes, joint limits = the studio `angleCaps`.
+  (How we adapt to any model.)
+- **Output is the node skeleton**, not motors/Webots: the integrated joint angles drive
+  the pivots (clamped to caps); the body's world pose drives the root frame.
+- **Full 3D on the Rapier physics engine** (roadmap Decision 8). The paper's body ran in 3D
+  (ODE/Webots); our earlier planar + custom-integrator plan was a tractability shortcut, now
+  dropped. We keep the paper's force laws — Ekeberg muscle via Rapier's implicit motor, RFT drag
+  as custom external forces, contact/friction from the engine — only the integrator changed.
 
 **We omit for v1 (optional in the paper):**
 - Proprioceptive feedback `sᵢ` (set to 0). It adapts gait to terrain; not needed first.

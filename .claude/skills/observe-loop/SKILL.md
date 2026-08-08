@@ -102,7 +102,41 @@ see, instantly**:
   exact state you observed.
 - Prefer **full-config-in-link** over named-preset-in-link, so any one-off tuned state is
   shareable without first saving it.
-- The link is the demo. Hand it over alongside the visual aid every iteration.
+
+### Every iteration ends with a clickable config link — mandatory
+
+The link is the deliverable, not a courtesy. A report without one asks the human to take your
+description of the behaviour on trust, which is exactly what this protocol exists to avoid.
+
+- **One link per config observed**, every iteration, without exception. If three gains were
+  swept, three links are handed over, not just the winner's.
+- **Rendered as a clickable link in the human's surface**, never as a bare URL and never as a
+  fenced code block — both render dead, and a long encoded config is unusable to copy by hand.
+  Use markdown link syntax with a short label: `[base swim](http://…)`.
+- **Labelled with what it is**, so a list of links is readable without opening them: the lever
+  value that distinguishes it, plus the one number that matters. Not "link 1, link 2, link 3".
+- **Served by the build the capture came from.** Rebuild before handing it over, or the human
+  opens a different build than the one you measured.
+- **Never hand over a link you have not produced from the running system** — build it through
+  the app's own link builder so it cannot drift from what the app actually accepts.
+
+### The completeness rule — non-negotiable
+
+A link or preset that reproduces *most* of the state is worse than none, because it produces
+silent disagreement: the human believes they are looking at your run and they are not.
+
+- **Absolute, never relative.** Applying a link or preset must reset the world to a known
+  state and then apply it. If application *merges* onto whatever is currently loaded, the
+  result depends on what was loaded before, so preset B after preset A is not preset B.
+  Start from defaults, then apply.
+- **Sweep up the state that lives outside the config object.** Almost every system has some
+  parameter that is not in the config blob — one held in a different store, a slider, an
+  environment variable. Enumerate them once and carry them explicitly. A config that assumes
+  "the human already set X" is broken by construction.
+- **Prove it, do not assert it.** Before handing over the first link of a session, apply it
+  in a clean context and confirm the run reproduces. Re-prove whenever a new parameter is added.
+- **State what is pinned.** Every handover says which parameters the link fixes, so an
+  omission is visible rather than invisible.
 - **Make every artifact link click-to-open in the human's surface.** Link generated files
   (PDFs, images) in whatever form *their* tool resolves on click — there is no universal one,
   so match the surface:
@@ -131,11 +165,34 @@ Run this loop per step. Keep each step tiny so cause and effect stay isolated.
    - the **expectation** (what they should see),
    - the **quality gate** (what must be true for them to approve this step and continue),
    - the **next step** (one line).
-5. **Get approval, then continue.** On approval, lock the result (save it as a named
-   state/preset) and start the next micro-goal. If a code mechanism was added, fold it into
-   the change/PR record.
+5. **Get approval, then continue.** Approval is the human's, given after they open the link
+   themselves — never inferred from silence, from a passing gate, or from your own reading of
+   the capture. On approval, lock the result as a named preset (see Part 5). If a code
+   mechanism was added, fold it into the change/PR record. On rejection, keep the capture and
+   record what was rejected, so the same config is not re-proposed.
 
-## Part 5 — When to stop
+## Part 5 — The preset ledger
+
+The presets are the durable output of the loop. By the end they should read as a ladder that
+someone else can walk up, each rung a state a human looked at and accepted.
+
+- **One approved step, one preset.** Nothing is added to the preset list until the human has
+  opened its link and said so. An unapproved config stays a link.
+- **A preset is the complete state**, under the completeness rule in Part 3 — including the
+  parameters that live outside the config object. A preset that only works if some other
+  slider happens to be right is not a preset.
+- **Name for the position on the ladder**, not for the mechanism. The reader is choosing what
+  to look at, not reading the implementation.
+- **The description carries the measurement**, not a claim: the gate numbers this state
+  achieved, so the list doubles as the result record.
+- **Retire superseded presets rather than accumulating them.** A list containing states from
+  three abandoned directions teaches the next reader the wrong thing. Delete on direction
+  change; git holds the history.
+- **Cover the axes, not just the winners.** Keep the off/low/high rungs of each lever, so the
+  contribution of that lever stays visible by comparison. The failures that bound the useful
+  range are worth keeping; the ones that taught nothing are not.
+
+## Part 6 — When to stop
 
 - Stop and **report a verified step** when the current micro-goal's gate passes and you have
   a clean next direction.
@@ -161,10 +218,18 @@ Run this loop per step. Keep each step tiny so cause and effect stay isolated.
 - **Visual aid generation:** assemble captured frames into an HTML page (images left→right,
   highlight boxes, captions) and print to a **landscape PDF** via the headless browser's
   print-to-PDF. Charts/flowcharts the same way.
+- **Observe a production build, never a dev server.** Dev-mode tooling (hot reload, strict-mode
+  double rendering, per-module runtime proxies) can make the system visibly slower or
+  differently-timed than the real thing, so what you observe is not what the code does. Find the
+  project's existing production script and use it verbatim rather than assembling your own.
+- **Rebuild and restart after every code change, before observing.** A running production server
+  keeps serving the old bundle. Skipping this captures the previous version of the code and
+  reports it as the new one — the easiest way to produce a confidently wrong result. Verify the
+  rebuild took by checking that the lever you just added appears in the reported config.
 - **Run environment notes:** run the driver and the app server from a shell that preserves
   the app's auth/network (some sandboxes reset it); use a loopback IP the server actually
-  binds; rebuild before observing if the app is served from a production build; launch the
-  server detached so it survives across separate command invocations.
+  binds; stop the previous server before restarting (the port stays bound); launch the server
+  detached so it survives across separate command invocations.
 
 ## Anti-patterns
 
@@ -172,4 +237,160 @@ Run this loop per step. Keep each step tiny so cause and effect stay isolated.
 - Moving multiple levers in one step.
 - Dumping raw, dense output instead of a focused signal.
 - Reporting without a one-click demo the human can open.
+- Handing over a bare URL or a link inside a code block, which renders dead.
+- Handing over only the winning config, when the sweep is what makes the winner meaningful.
 - Reconstructing a separate visualisation that can disagree with the real system.
+- Adding a preset the human never opened.
+- Handing over a link that depends on a setting the human is assumed to already have.
+- Treating a passing gate as approval.
+- Observing a dev server, or a production server that predates the change under test.
+
+---
+
+# Project binding — eco3d.shop creature locomotion
+
+The generic protocol above, pinned to this project. Update this section when any of it moves.
+
+## What is being observed
+
+The creature locomotion runtime in the admin studio (`/admin/animate`). Movement is generated
+by a CPG driving virtual muscles inside a physics simulation; it is never hand-authored. The
+governing documents are `documentation/locomotion.md` (how the paper maps onto the rig),
+`documentation/reference/locomotion-reference.md` (every equation and constant — it wins any
+disagreement), and `documentation/animation-roadmap.md` (the plan, the locked decisions, and
+**§5 Baseline**, the measured numbers every iteration is scored against).
+
+## Running the harness
+
+**Never observe a dev server.** `/admin/animate` is unusable under `next dev` — r3f reconciliation
+under Strict Mode plus Turbopack's per-module runtime proxy makes the animation lag badly enough
+that what you see is not what the code does. Everything observed, and every link handed to the
+human, must come from a **production build**.
+
+The project script is the contract. Use it, not a hand-assembled equivalent:
+
+```
+npm run prod:3002        # = doppler run -- next build && doppler run -- next start -p 3002
+```
+
+**Rebuild and restart after EVERY app-code change**, before observing and before handing over any
+link. There is no hot reload here: a running production server keeps serving the old bundle, so
+skipping the rebuild means capturing the previous version of the code and reporting it as the new
+one. That is the single easiest way to produce a confidently wrong result in this loop.
+
+The cycle per iteration is therefore: **edit → rebuild+restart → observe → report link**.
+
+Practical notes:
+
+- Run it from PowerShell, not the bash sandbox — the sandbox resets Supabase auth.
+- Launch it in the background/detached so the server survives across separate commands, and stop
+  the previous server first (the port stays bound otherwise).
+- Changes to `scripts/observe*.mjs` are harness-side and need no rebuild; anything under `app/`
+  does.
+- Verify the rebuild actually took before trusting a capture — the reported config should contain
+  any lever you just added.
+
+```
+$env:OBSERVE_RIG='Demo Dragon'
+node scripts/observe.mjs run 12 --hz 20 --events --legw 0.1 --config path\to\config.json
+```
+
+Auth is cached in `scripts/.observe-auth.json`. Captures land in
+`documentation/diagnostics/observe/` with the exact config embedded in the JSON. Forward axis
+is **−X**, lateral is **Z**, both confirmed from a known swim.
+
+## What "complete config" means here
+
+Per the completeness rule in Part 3, a run is reproduced by **two** things, not one:
+
+- The `SimConfig` object — every simulation lever, carried in the link's `sim=` parameter.
+- The **leg weight**, which lives in the rig's group store and NOT in `SimConfig`. It rides
+  in the link as `legw=` and in the harness as `--legw`. MuJoCo behaviour depends strongly on
+  it (light legs, about 0.1 kg). A config without a leg weight is not reproducible.
+
+`window.__studio.buildLink()` assembles both plus the tab and overlays. Hand over that link,
+never a hand-assembled one. A preset must carry the leg weight too, and must apply from
+defaults rather than merging onto whatever is currently loaded.
+
+## The two engines
+
+Presets are scoped per engine and are not interchangeable — the same behaviour needs
+different tunings on each.
+
+- **Rapier** — maximal-coordinate impulse solver. Joint motors behave like springs, so the
+  legs are compliant. Drag is applied to spine **and** leg bodies.
+- **MuJoCo** — reduced-coordinate, every joint a force-limited position servo. The legs are
+  genuinely rigid (measured 0.00 rad of sweep). Drag is applied to **spine segments only**, so
+  any forward impulse from the feet is cleanly attributable. Engine binaries are served from
+  `public/mujoco/`; if MuJoCo silently does nothing, check those two files are being served.
+
+## What is being optimised — read this before choosing a lever
+
+The authoritative definition is **`documentation/animation-roadmap.md` §6**. It supersedes any pass
+condition written anywhere else, including earlier sections of this skill. In summary:
+
+The deliverable is a **grid of presets**: 3 speeds × 3 turn levels × direction, each cell satisfying
+three metrics at once. The presets are guideposts for a later system that blends between them, so the
+grid needs to span the range cleanly rather than any one cell being perfect.
+
+- **Foot stillness in the plant window.** Each foot stays roughly in one place between its maximum
+  forward reach and its maximum backward reach. The window is **CPG-clocked, never derived from body
+  motion**, and the front and hind girdles need **separate phase shifts** because they sit half a cycle
+  apart. Reported as the foot's world travel during the window, in units and as a percentage of how far
+  the body advanced. Perfect planting is not the target; less movement is.
+- **Amplitude quality.** The wave reads as pronounced and is **even along the whole spine including the
+  tail**, with the front and hind hips rotating by about the same amount, nothing touching an angle cap,
+  and the **head excluded from the wave outright** — its region multiplier is zero, because the head is
+  aimed at a focal point later so the creature can track prey independently of the body. Gate on each
+  joint's peak angle against **its own** cap, which is turning-safe because a joint angle is local.
+  Describe the look with node travel measured against a **fitted curved centreline**, not a straight
+  axis, so the number survives turning.
+- **Velocity and direction.** Speeds come out ordered slow below medium below fast, turn rates low below
+  medium below high, and straight presets stay straight. Leg sweep must **not** move speed — if it does,
+  it has become a thrust term and this metric is compromised.
+
+**No fixed priority.** These pull against each other by design: faster currently plants better than
+slower, and flattening the tail will change speed. Do not silently pick a winner. Present variants that
+trade differently, with the numbers for each, and let the owner choose by looking. Record the choice.
+
+## Follow the roadmap, one stage at a time
+
+The stage ladder is `animation-roadmap.md` §3, Phase D-T. Work the current stage only; do not reach
+ahead. Each stage moves ONE thing, ends in a config link the owner opens, and becomes presets only on
+approval. When a stage completes, write a dated entry into the roadmap's Phase D-T status section (§7)
+with the numbers, the levers that won, and the variants that were rejected — that entry is how the next
+session knows where the work stands instead of re-deriving it.
+
+Two failures this project has already paid for, both caught by measuring rather than reasoning:
+
+- A metric that looked sensible but measured the wrong thing (body surge instead of foot stillness).
+  Restate the goal in the owner's words before trusting any number.
+- A diagnostic and an actuator reading different clocks, so the measurement quietly described the wrong
+  half of the stroke. Whenever a window drives behaviour, make the report use the same window.
+
+## Signals worth capturing
+
+The three §6 metrics first: foot world travel during the CPG plant window, in units and as a
+percentage of body advance, per foot; per-joint peak angle as a fraction of **its own** cap, with the
+spread across joints and the front-versus-hind hip comparison; forward speed, turn rate, lateral drift.
+
+Then the supporting signals: node travel measured against a fitted centreline (how pronounced the wave
+looks); accumulated impulse split by source (whether the feet or the drag are doing the work); vertical
+drift and maximum tilt (the body must stay flat); roll reversals per second (the buzz detector).
+
+And a **window placement check** confirming every plant window starts at the foot's max-forward reach
+and ends at max-backward. This one is not optional: a window half a cycle out reads the swing as the
+stance, and every other number silently inherits the error. It has already happened once here.
+
+## The cycle in this project
+
+1. Pick the single lever for the CURRENT roadmap stage, and state the gate in §6 metric terms.
+2. If any app code changed, **rebuild and restart the production server** before capturing.
+3. Run the harness, capture, analyse offline from the saved JSON.
+4. Report: the config link, the numbers against baseline, what to look for, the gate.
+5. **Wait for the human to open the link and approve.** Never assume.
+   - The link they open is served by the same server the capture came from, so the rebuild in
+     step 2 is what makes their view and yours the same build.
+6. On approval, add the preset with its measured numbers in the description.
+7. Record the result in the roadmap's Phase D-T status log (§7) when a stage completes — numbers, the
+   levers that won, and the variants that were rejected.

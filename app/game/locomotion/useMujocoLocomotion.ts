@@ -118,7 +118,12 @@ export function useMujocoLocomotion(
 
     if (!ncap.events) return
     const legs = driver.legObs()
-    const gripShift = store.gripShift
+    // The plant window is defined by the SAME per-girdle shifts the foot thrust fires on, so the window
+    // reported here is exactly the window the push acts in. Sharing one shift across all four legs put
+    // the hind windows half a cycle out, which made every hind measurement read the swing as if it were
+    // the stance. Falls back to the old grip shift when thrust is off, so older captures still decode.
+    const shiftFront = store.footThrustEnabled ? store.footThrustShift : store.gripShift
+    const shiftHind = store.footThrustEnabled ? store.footThrustShiftHind : store.gripShift
     const gripDuration = store.gripDuration
     const stepDuty = Math.min(0.95, Math.max(0.05, store.gripDuration))
     if (!ncap.prevWindows) ncap.prevWindows = legs.map(() => ({ grip: false, sweep: false, lift: false }))
@@ -130,7 +135,7 @@ export function useMujocoLocomotion(
       const lo = legs[h]
       const phase = lo.phase
       const phaseRad = phase * 2 * Math.PI
-      const rel = ((phase - gripShift) % 1 + 1) % 1
+      const rel = ((phase - (lo.limbIdx < 2 ? shiftFront : shiftHind)) % 1 + 1) % 1
       const win = { grip: rel < gripDuration, sweep: rel < stepDuty, lift: rel >= stepDuty }
       const prev = ncap.prevWindows[h]
       for (const prim of ['grip', 'sweep', 'lift'] as const) {

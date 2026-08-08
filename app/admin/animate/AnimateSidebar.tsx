@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { pickSimConfig, useAnimateStore, encodeSimConfig, SimConfig } from './animateStore'
-import { presetsForEngine, findSimPreset } from './simPresets'
+import { presetsForEngine, findSimPreset, applyPreset } from './simPresets'
 import { CalibrateTab } from './CalibrateTab'
 
 function Info({ text }: { text: string }) {
@@ -148,24 +148,8 @@ function SimulateTab() {
   const legFriction = useAnimateStore((s) => s.legFriction)
   const setLegFriction = useAnimateStore((s) => s.setLegFriction)
 
-  const gripEnabled = useAnimateStore((s) => s.gripEnabled)
-  const setGripEnabled = useAnimateStore((s) => s.setGripEnabled)
   const simEngine = useAnimateStore((s) => s.simEngine)
   const setSimEngine = useAnimateStore((s) => s.setSimEngine)
-  const gripFeet = useAnimateStore((s) => s.gripFeet)
-  const setGripFoot = useAnimateStore((s) => s.setGripFoot)
-  const gripShift = useAnimateStore((s) => s.gripShift)
-  const setGripShift = useAnimateStore((s) => s.setGripShift)
-  const gripDuration = useAnimateStore((s) => s.gripDuration)
-  const setGripDuration = useAnimateStore((s) => s.setGripDuration)
-  const gripSoftness = useAnimateStore((s) => s.gripSoftness)
-  const setGripSoftness = useAnimateStore((s) => s.setGripSoftness)
-  const girdleBoost = useAnimateStore((s) => s.girdleBoost)
-  const setGirdleBoost = useAnimateStore((s) => s.setGirdleBoost)
-  const releaseFriction = useAnimateStore((s) => s.releaseFriction)
-  const setReleaseFriction = useAnimateStore((s) => s.setReleaseFriction)
-  const gripGlowEnabled = useAnimateStore((s) => s.gripGlowEnabled)
-  const setGripGlowEnabled = useAnimateStore((s) => s.setGripGlowEnabled)
 
   const stepEnabled = useAnimateStore((s) => s.stepEnabled)
   const setStepEnabled = useAnimateStore((s) => s.setStepEnabled)
@@ -181,9 +165,16 @@ function SimulateTab() {
   const setLegStiffness = useAnimateStore((s) => s.setLegStiffness)
   const legDamping = useAnimateStore((s) => s.legDamping)
   const setLegDamping = useAnimateStore((s) => s.setLegDamping)
+  const footThrustEnabled = useAnimateStore((s) => s.footThrustEnabled)
+  const setFootThrustEnabled = useAnimateStore((s) => s.setFootThrustEnabled)
+  const footThrustGain = useAnimateStore((s) => s.footThrustGain)
+  const setFootThrustGain = useAnimateStore((s) => s.setFootThrustGain)
+  const footThrustShift = useAnimateStore((s) => s.footThrustShift)
+  const footThrustShiftHind = useAnimateStore((s) => s.footThrustShiftHind)
+  const setFootThrustShiftHind = useAnimateStore((s) => s.setFootThrustShiftHind)
+  const setFootThrustShift = useAnimateStore((s) => s.setFootThrustShift)
 
   const resetSimConfig = useAnimateStore((s) => s.resetSimConfig)
-  const applySimConfig = useAnimateStore((s) => s.applySimConfig)
 
   const frozen = useAnimateStore((s) => s.frozen)
   const setFrozen = useAnimateStore((s) => s.setFrozen)
@@ -219,7 +210,8 @@ function SimulateTab() {
   const handleSelectPreset = (name: string) => {
     setSelectedPreset(name)
     const preset = findSimPreset(name, simEngine)
-    if (preset) applySimConfig({ ...preset.config, simEngine: preset.engine })
+    if (!preset) return
+    applyPreset(preset)
   }
 
   // Presets are scoped to the engine, so switching engines invalidates the current selection.
@@ -677,93 +669,40 @@ function SimulateTab() {
         <Divider />
 
         <Toggle
-          label="Grip"
-          tip="When on, each foot pins to the floor during its window of the gait cycle, levering the body forward over the planted foot. Off = the timing and glow still run (so the window can be tuned and watched) but no foot plants."
-          on={gripEnabled}
-          onChange={setGripEnabled}
+          label="Foot thrust"
+          tip="Each foot pushes BACKWARD along its own hip's forward axis while it sweeps back, in proportion to how fast it sweeps. A force, not a pin — it removes no joint freedom, so the body wave is untouched. This replaces the retired grip."
+          on={footThrustEnabled}
+          onChange={setFootThrustEnabled}
         />
-        <div className="flex items-start justify-between gap-2 py-0.5">
-          <div className="flex min-w-0 items-center gap-1.5 pt-0.5">
-            <span className="truncate text-[11px] text-white/70">Grip feet</span>
-            <Info text="Toggle grip per foot (front/back × left/right). A foot turned off still shows its glow timing but doesn't grip." />
-          </div>
-          <div className="grid grid-cols-2 gap-0.5">
-            {(['FL', 'FR', 'BL', 'BR'] as const).map((f) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setGripFoot(f, !gripFeet[f])}
-                className={cn(
-                  'rounded px-2 py-0.5 text-[10px] transition-colors',
-                  gripFeet[f] ? 'bg-emerald-600/50 text-emerald-100' : 'bg-white/5 text-white/40 hover:text-white'
-                )}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-        </div>
         <Slider
-          label="Grip start"
-          tip="Where in each leg's CPG cycle the foot begins gripping."
-          value={gripShift}
+          label="Thrust gain"
+          tip="Peak push per foot at mid back-stroke, in newtons. Positive drives the body forward; NEGATIVE brakes, which is the only way this body can stop quickly — drag alone takes over 12 seconds."
+          value={footThrustGain}
+          min={-40}
+          max={40}
+          step={0.5}
+          onChange={setFootThrustGain}
+          format={(v) => v.toFixed(1)}
+        />
+        <Slider
+          label="Thrust start (front)"
+          tip="Where in the front legs' CPG cycle the back stroke begins. The push is zero across the whole forward stroke and peaks half way through the back stroke."
+          value={footThrustShift}
           min={0}
           max={1}
           step={0.01}
-          onChange={setGripShift}
+          onChange={setFootThrustShift}
           format={(v) => `${Math.round(v * 100)}%`}
         />
         <Slider
-          label="Grip duration"
-          tip="What fraction of the cycle each foot stays gripped (the window width)."
-          value={gripDuration}
+          label="Thrust start (hind)"
+          tip="The same for the hind legs, which need their own value: at any given CPG phase the front feet are at maximum forward reach while the hind feet are at maximum backward, half a cycle apart. Sharing one value makes the hind legs push while sweeping forward."
+          value={footThrustShiftHind}
           min={0}
           max={1}
           step={0.01}
-          onChange={setGripDuration}
+          onChange={setFootThrustShiftHind}
           format={(v) => `${Math.round(v * 100)}%`}
-        />
-        {isMujoco && (
-          <Slider
-            label="Grip softness"
-            tip="Compliance of the planted-foot pin. 0 = rigid pin (rings against stiff legs); higher relaxes the pin into a spring-damper to smooth the buzz."
-            value={gripSoftness}
-            min={0}
-            max={1}
-            step={0.05}
-            onChange={setGripSoftness}
-            format={(v) => `${Math.round(v * 100)}%`}
-          />
-        )}
-        {isMujoco && (
-          <Slider
-            label="Girdle force boost"
-            tip="Extra spine-servo gain at the leg-bearing (girdle) joints and their neighbours, so the wave holds its amplitude against the grip load instead of being robbed by it. 0 = uniform."
-            value={girdleBoost}
-            min={0}
-            max={6}
-            step={0.5}
-            onChange={setGirdleBoost}
-            format={(v) => `${v.toFixed(1)}×`}
-          />
-        )}
-        {!isMujoco && (
-          <Slider
-            label="Release friction"
-            tip="Foot friction while NOT gripping. Lower = the foot slides freely between grips."
-            value={releaseFriction}
-            min={0}
-            max={1}
-            step={0.05}
-            onChange={setReleaseFriction}
-            format={(v) => v.toFixed(2)}
-          />
-        )}
-        <Toggle
-          label="Foot glow"
-          tip="Light up each foot while it is inside its grip window — a visual debug of grip timing."
-          on={gripGlowEnabled}
-          onChange={setGripGlowEnabled}
         />
 
         <Divider />

@@ -65,6 +65,24 @@ export interface SimConfig {
   // (the reduced-coordinate servo engine — MuJoCo-WASM built from the node skeleton). Additive and
   // defaulted so existing configs/links are unchanged.
   simEngine: SimEngine
+  // Foot thrust (roadmap Decision 10), replacing the retired grip pin. Each foot pushes BACKWARD along
+  // its own hip segment's forward axis while it sweeps back, magnitude proportional to the sweep rate.
+  // A force, not a constraint — it removes no DOF, so the axial wave is untouched. All three default to
+  // off/zero, so an older config or link behaves byte-for-byte as before.
+  footThrustEnabled: boolean
+  // Signed peak force (N) per foot at maximum backward sweep. Positive propels, negative brakes — so
+  // braking needs no second lever and no second code path.
+  footThrustGain: number
+  // Phase offset (cycles) locating the start of the back stroke on the limb-CPG girdle clock, for the
+  // FRONT pair. 0.138 is the measured max-forward-reach phase of the approved MuJoCo base swim.
+  footThrustShift: number
+  // The same, for the HIND pair. The two girdles do NOT share a phase: at any given girdle-clock phase
+  // the front feet are at max forward reach while the hind feet are at max BACKWARD reach, half a cycle
+  // apart. Measured directly — with a single shared shift of 0.138 the front windows land on stance and
+  // the hind windows land on swing, so the hind feet were pushing backward while sweeping forward.
+  // Kept as a separate lever rather than a hard-coded half-cycle because the offset is a property of the
+  // travelling wave between the girdles, so it moves when the wave does.
+  footThrustShiftHind: number
 }
 
 export type SimEngine = 'rapier' | 'mujoco'
@@ -89,7 +107,7 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
   muscleDamping: 11.3,
   bodyFriction: 0.05,
   legFriction: 0.05,
-  gripEnabled: true,
+  gripEnabled: false,
   gripClockCpg: true,
   gripShift: 0.05,
   gripDuration: 0.5,
@@ -106,6 +124,10 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
   legStiffness: 3000,
   legDamping: 120,
   simEngine: 'rapier',
+  footThrustEnabled: false,
+  footThrustGain: 0,
+  footThrustShift: 0.36,
+  footThrustShiftHind: 0.86,
 }
 
 export const SIM_CONFIG_STORAGE_KEY = 'eco3d-animate-sim-config'
@@ -168,6 +190,10 @@ export function pickSimConfig(s: SimConfig): SimConfig {
     legStiffness: s.legStiffness,
     legDamping: s.legDamping,
     simEngine: s.simEngine,
+    footThrustEnabled: s.footThrustEnabled,
+    footThrustGain: s.footThrustGain,
+    footThrustShift: s.footThrustShift,
+    footThrustShiftHind: s.footThrustShiftHind,
   }
 }
 
@@ -252,8 +278,13 @@ interface AnimateStore extends SimConfig {
   setLegStiffness: (v: number) => void
   setLegDamping: (v: number) => void
   setSimEngine: (v: SimEngine) => void
+  setFootThrustEnabled: (v: boolean) => void
+  setFootThrustGain: (v: number) => void
+  setFootThrustShift: (v: number) => void
+  setFootThrustShiftHind: (v: number) => void
   resetSimConfig: () => void
   applySimConfig: (partial: Partial<SimConfig>) => void
+  applySimConfigAbsolute: (config: Partial<SimConfig>) => void
 }
 
 export const useAnimateStore = create<AnimateStore>()(
@@ -396,6 +427,10 @@ export const useAnimateStore = create<AnimateStore>()(
       setLegStiffness: (v) => set({ legStiffness: v }),
       setLegDamping: (v) => set({ legDamping: v }),
       setSimEngine: (v) => set({ simEngine: v }),
+      setFootThrustEnabled: (v) => set({ footThrustEnabled: v }),
+      setFootThrustGain: (v) => set({ footThrustGain: v }),
+      setFootThrustShift: (v) => set({ footThrustShift: v }),
+      setFootThrustShiftHind: (v) => set({ footThrustShiftHind: v }),
       resetSimConfig: () =>
         set({
           ...DEFAULT_SIM_CONFIG,
@@ -407,6 +442,21 @@ export const useAnimateStore = create<AnimateStore>()(
         const next: Partial<SimConfig> = {}
         for (const k of keys) {
           if (k in partial) (next as Record<string, unknown>)[k] = (partial as Record<string, unknown>)[k]
+        }
+        if (next.gripFeet) next.gripFeet = { ...next.gripFeet }
+        if (next.stepFeet) next.stepFeet = { ...next.stepFeet }
+        set(next as Partial<AnimateStore>)
+      },
+      // Absolute apply: every key the caller omits falls back to the DEFAULT, not to whatever happens to
+      // be loaded. This is what makes a preset reproducible — with a merge, preset B applied after preset
+      // A is not preset B, and the human ends up looking at a state nobody recorded. Presets and the
+      // `sim=` link both come through here; only the persisted-config rehydrate uses the merging path.
+      applySimConfigAbsolute: (config) => {
+        const keys = Object.keys(DEFAULT_SIM_CONFIG) as Array<keyof SimConfig>
+        const next: Partial<SimConfig> = {}
+        for (const k of keys) {
+          const v = k in config ? (config as Record<string, unknown>)[k] : (DEFAULT_SIM_CONFIG as unknown as Record<string, unknown>)[k]
+          ;(next as Record<string, unknown>)[k] = v
         }
         if (next.gripFeet) next.gripFeet = { ...next.gripFeet }
         if (next.stepFeet) next.stepFeet = { ...next.stepFeet }

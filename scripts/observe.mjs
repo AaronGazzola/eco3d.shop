@@ -136,10 +136,15 @@ if (CMD === 'login') {
   if (configFile) overrides = { ...JSON.parse(readFileSync(configFile, 'utf8')), ...overrides }
 
   await loadRig()
-  const applied = await page.evaluate((ov) => {
-    if (Object.keys(ov).length) window.__studio.apply(ov)
+  // A --config file is a WHOLE config, so it is applied absolutely: keys it omits land on their
+  // defaults rather than inheriting from whatever the page already had. Without that, a captured run
+  // can silently carry state from a previous run in the same browser session, and the config recorded
+  // alongside the capture stops matching what actually ran. --set overrides merge on top.
+  const applied = await page.evaluate(({ base, sets }) => {
+    if (base && Object.keys(base).length) window.__studio.applyAbsolute(base)
+    if (Object.keys(sets).length) window.__studio.apply(sets)
     return window.__studio.getConfig()
-  }, overrides)
+  }, { base: configFile ? JSON.parse(readFileSync(configFile, 'utf8')) : null, sets })
   if (legw != null && Number.isFinite(legw)) {
     await page.evaluate((w) => window.__studio.legWeight(w), legw)
     await page.waitForTimeout(400)
@@ -174,14 +179,29 @@ if (CMD === 'login') {
     }
   }
 
+  const finalDiag = await page.evaluate(() => window.__studio.diag())
+  const link = await page.evaluate(() => window.__studio.buildLink())
   const dump = await page.evaluate(() => window.__studio.nodeCaptureStop())
   await page.evaluate(() => window.__studio.drive(false))
+
+  // Impulse split: how much of the applied push came from the feet vs from drag. Raw world vectors —
+  // deliberately not projected onto a forward direction, because the body has no heading and travel
+  // direction is a measured output. This is the number that answers "are the feet contributing".
+  const imp = (x, y, z) => `(${Number(x ?? 0).toFixed(2)}, ${Number(y ?? 0).toFixed(2)}, ${Number(z ?? 0).toFixed(2)})  |${Math.hypot(x ?? 0, y ?? 0, z ?? 0).toFixed(2)}|`
+  const hasImpulse = finalDiag && finalDiag.footImpulseX != null
+  if (hasImpulse) {
+    console.log(`impulse from foot thrust: ${imp(finalDiag.footImpulseX, finalDiag.footImpulseY, finalDiag.footImpulseZ)}`)
+    console.log(`impulse from drag:        ${imp(finalDiag.dragImpulseX, finalDiag.dragImpulseY, finalDiag.dragImpulseZ)}`)
+  } else {
+    console.log('impulse split: not reported (Rapier engine — accounting is MuJoCo-only)')
+  }
+  console.log(`config link: ${link}`)
 
   if (!dump.samples.length) {
     console.log('WARNING: no node samples captured (is the rig loaded and sim running?)')
   } else {
-    writeFileSync(`${OUT}/nodes-${stamp}.json`, JSON.stringify({ config: applied, spec: dump.spec, samples: dump.samples, events: dump.events }))
-    writeNodeReport(`${OUT}/nodes-${stamp}.md`, dump, applied, { seconds, hz })
+    writeFileSync(`${OUT}/nodes-${stamp}.json`, JSON.stringify({ config: applied, spec: dump.spec, samples: dump.samples, events: dump.events, diag: finalDiag, link }))
+    writeNodeReport(`${OUT}/nodes-${stamp}.md`, dump, applied, { seconds, hz, diag: finalDiag, link })
     await renderTopDown(`${OUT}/nodes-${stamp}-topdown.png`, dump)
     console.log(`captured ${dump.samples.length} node samples (${dump.spec?.count} nodes @ ${hz}/s) → nodes-${stamp}.*`)
     if (dump.maxCapFrac != null) console.log(`peak maxJointFracOfCap (per-frame peak-hold) = ${Math.round(dump.maxCapFrac * 100)}%  ${dump.maxCapFrac >= 1 ? '⚠ CLIPS CAP' : 'OK (under cap)'}`)
@@ -260,6 +280,14 @@ function writeNodeReport(path, dump, cfg, meta) {
   lines.push(`COM end:   x=${f(c1.x)} y=${f(c1.y)} z=${f(c1.z)}`)
   lines.push(`COM travel: Δx=${f(c1.x - c0.x)} Δy=${f(c1.y - c0.y)} Δz=${f(c1.z - c0.z)}  |horizontal|=${f(Math.hypot(c1.x - c0.x, c1.z - c0.z))}`)
   if (dump.maxCapFrac != null) lines.push(`peak maxJointFracOfCap (per-frame peak-hold): ${(dump.maxCapFrac * 100).toFixed(1)}%  ${dump.maxCapFrac >= 1 ? 'CLIPS CAP' : 'under cap'}`)
+  if (meta.diag?.footImpulseX != null) {
+    const v = (x, y, z) => `(${f(x)}, ${f(y)}, ${f(z)})  |${f(Math.hypot(x, y, z))}|`
+    lines.push('')
+    lines.push('Applied impulse by source (raw world vectors, not projected onto any heading):')
+    lines.push(`  foot thrust: ${v(meta.diag.footImpulseX, meta.diag.footImpulseY, meta.diag.footImpulseZ)}`)
+    lines.push(`  drag:        ${v(meta.diag.dragImpulseX, meta.diag.dragImpulseY, meta.diag.dragImpulseZ)}`)
+  }
+  if (meta.link) { lines.push(''); lines.push(`Config link: ${meta.link}`) }
   if (dump.maxRollDeg != null) lines.push(`roll about long axis: peak |roll|=${dump.maxRollDeg.toFixed(2)}°  reversals=${dump.rollFlips} (${(dump.rollFlips / Math.max(1, meta.seconds)).toFixed(1)}/s)`)
   lines.push('')
   lines.push('## Per-node range over capture (world units)')

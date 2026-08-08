@@ -1,71 +1,56 @@
 # eco3d.shop
 
-A multi-species breed-and-sell creature tycoon game with compostable 3D-print fulfillment.
-Dragons are the first species. Players buy rarity-tiered eggs, breed, sell and upgrade, and
-may print a creature they own while that creature is alive. The current engineering focus is
-creature animation; the product track is in `docs/roadmap.md`.
+A game built around 3D-printable creatures. Each creature is a 3D model brought to life by a constraint-based procedural animation system. The gameplay layer is undefined and intentionally not in scope yet — the current focus is the animation framework. Eventually, players will be able to purchase the 3D models from the game to be printed and delivered as physical objects.
 
-## What's in the repo
+## What's in the repo right now
 
-- **Admin studio** (`app/admin/`) — the authoring workflow that turns a 3D model into an
-  animation-ready rig. Admin login required. Not player-facing.
-- **Creature runtime** (`app/game/`) — the skeleton model, the static and animated renderers,
-  and the colour-genetics engine.
-- **Genetics** — schema, pure engine and admin authoring surfaces, described in
-  `documentation/dragon-genetics.md`.
+- **Admin / studio** (`app/admin/`) — an authoring workflow that turns a raw 3D model into an animation-ready rig. Gated to admin users (login required at `/admin`). The studio is *not* a player-facing tool.
+- **Animation runtime** (`app/game/`) — the constraint-based procedural animation system that drives any rig authored in the studio. Renderer-contract is fixed; the animator can be swapped without touching the renderer.
+- **Home page** (`app/page.tsx`) — a single dragon animating against the same runtime. Today this stands in for "the game."
 
-There is no shop, no checkout and no commerce surface. Those arrive at E5 on the product roadmap.
+There is no shop, no checkout, no commerce surface yet. The Supabase backend exists for future use; nothing in the current animation work depends on it.
 
-## The studio pipeline
+## The studio→animation pipeline
 
-1. **Pick a model.** An STL is chosen from storage, against a target variant and life stage.
-2. **Group segments.** A detection pass splits the STL into connected components, which are
-   assembled into body groups, each typed as head, spine, tail, leg-left or leg-right.
-3. **Place nodes.** Head, spine and tail groups take a front and a back node; spine groups
-   carrying legs also take hip nodes; each leg takes a foot node.
-4. **Animate.** The node skeleton is what animates. Mesh groups are passengers, positioned
-   and rotated each frame to follow the skeleton.
+This is the load-bearing concept. Every other doc builds on it.
 
-Every per-rig dimension comes from node placement. Nothing is hard-coded per model, and any
-rig following the head, spine, tail topology with legs on hip sockets will work.
+1. **Import a 3D model.** The model arrives as a set of separable meshes (one STL per part, conceptually).
+2. **Group segments.** Step 1 of the studio lets the user assemble those meshes into `BodyGroup`s, each typed as one of: `head`, `spine`, `tail`, `leg-left`, `leg-right`.
+3. **Place nodes on each group.** Step 2 places small 2D anchor points onto each group: spine groups get a `nodeFront` and `nodeBack` (their bone endpoints); spine groups with legs attached also get `nodeHipLeft` / `nodeHipRight`; each leg group gets a `nodeFoot`. These nodes are deliberately *shared* between adjacent groups so consecutive bones share endpoints.
+4. **Animate.** Step 3 runs the locomotion simulation. The node skeleton is what gets animated; the 3D mesh groups are positioned and rotated each frame to follow the node skeleton.
 
-## Animation documentation
+The animation is adaptive — it works for any rig that follows the same essential structure (head, spine, tail, two pairs of legs), regardless of how many spine joints the user placed, how long each segment is, or where the hips and feet sit. Every per-rig dimension is derived from the studio node placement; nothing is hardcoded for a specific model.
 
-Read in this order before touching creature motion.
+Locomotion is **not** hand-authored. A central pattern generator drives virtual muscles inside a physics simulation, and movement emerges from controller → muscles → body dynamics → environment forces, following Knüsel et al. (2020).
 
-1. **`documentation/animation-criteria.md`** — governing document. The rig's fixed physical
-   constraints, the substrate invariants, the geometric law any locomotion solution must obey,
-   the rules, and the approaches already rejected.
-2. **`documentation/animation-roadmap.md`** — the five stages, and how each is proved.
-3. **`documentation/cpg-model.md`** — the oscillator model in plain language.
-4. **`documentation/reference/locomotion-reference.md`** — the verified equation-by-equation
-   extraction of the source paper. Wins any conflict on a number or a formula.
-5. **`documentation/reference/knusel-2020-salamander-cpg.pdf`** — the paper itself.
+## Canonical documentation
 
-`documentation/observation-loop.md` describes how to watch the animation headlessly. That
-document is rewritten once Stage 1 exposes real hooks.
+Read these in order to get full context on the animation system. They are the source of truth — any conflict with code is a doc bug to be fixed, not the other way around.
 
-## Other documentation
+1. **`documentation/reference/locomotion-reference.md`** — the verified, equation-by-equation extraction of the source paper. Every number, coupling and formula comes from here; where anything else disagrees, the reference wins.
+2. **`documentation/locomotion.md`** — how the paper's model maps onto our rig: the fixed substrate, the pipeline, and the L0–L8 layer decomposition.
+3. **`documentation/animation-roadmap.md`** — the living plan: the model in plain language, the locked decisions, the build phases, the decision log, and the measured baseline (§5) every change is scored against.
+4. **`documentation/observation-loop.md`** — how to observe the running system. No claim about behaviour is made without a capture.
 
-- `CLAUDE.md` — code conventions, file organisation, spec governance.
-- `docs/roadmap.md` — the product track, E0 to E5.
-- `documentation/dragon-genetics.md` — genetics schema, engine and admin surfaces.
-- `documentation/react-query.guide.md` — data-fetching patterns.
-- `documentation/starter_kit.plan.phase{1,2,3}.md` and `documentation/initial_configuration/` —
-  scaffolding and setup notes.
-- `documentation/template_files/` — the utility-file templates cited by `CLAUDE.md`.
+Active engineering history (still relevant context):
 
-## Specifications
+- `documentation/locomotion-handover.md` — where the work stands, what is proven with numbers, what was tried and rejected, and the next step.
 
-Capability specs live under `openspec/specs/`. In-flight changes live under
-`openspec/changes/`, each with a proposal, a task list and per-capability spec deltas.
-Completed changes are archived alongside. Per `CLAUDE.md`, a backlog item is promoted into a
-new change before any code is written.
+Unrelated to animation:
+
+- `documentation/react-query.guide.md` — React Query patterns used elsewhere in the app.
+- `documentation/starter_kit.plan.phase{1,2,3}.md` — Next.js / Supabase scaffolding plans.
+- `documentation/initial_configuration/*.md` — initial app setup notes.
+
+## OpenSpec changes
+
+In-flight architectural changes live under `openspec/changes/`. Each change has `proposal.md`, `design.md`, `tasks.md`, and a per-capability spec delta under `specs/<capability>/spec.md`. Capabilities live under `openspec/specs/`: `locomotion`, `rig-authoring`, `dragon-rendering`, `dragon-genetics`.
+
+An active change contains only tasks that will be implemented in the current cycle. Anything that cannot be finished in code moves to Linear and leaves `tasks.md`. See the governance rules in `CLAUDE.md`.
 
 ## Stack
 
-Next.js 15 (App Router), TypeScript, TailwindCSS v4, Shadcn/ui, Supabase (remote only),
-Zustand, React Query, and react-three-fiber.
+Next.js 15 (App Router), TypeScript, TailwindCSS v4, Shadcn/ui, Supabase (remote only), Zustand, React Query, R3F (`@react-three/fiber`). See `CLAUDE.md` for code conventions and file-organization rules.
 
 ## Local dev
 
@@ -73,19 +58,37 @@ Zustand, React Query, and react-three-fiber.
 npm run dev
 ```
 
-Then open `/admin` for the authoring workflow.
+Then open [http://localhost:3000](http://localhost:3000) for the home page or `/admin` for the authoring workflow.
 
-### Use the prod build for animation work
+### Dev-mode performance — use the prod build for animation work
 
-The studio is close to unusable under `next dev`. The cost is not in the animation runtime;
-the same code runs fast in a production build. Dev-mode overhead comes from react-three-fiber
-reconciliation amplified by React Strict Mode, Turbopack's per-module runtime proxy,
-non-minified bundles and the dev overlay. Two symptoms appear: a multi-second freeze on first
-mount, and per-frame overhead that persists afterwards. Both disappear in a production build.
+`/admin/animate` is essentially unusable in `next dev`. The cost is **not** a bug in the animation runtime — the prod build runs the same code fast. The dev-mode tax comes from r3f Fiber reconciliation amplified by React Strict Mode, Next.js Turbopack's per-module runtime proxy, non-minified bundles, and the dev overlay. A Firefox Performance trace of the dev freeze shows 65–70% of samples inside the r3f reconciler stack (`performWorkUntilDeadline → Xl → Di → Wa → Ap → Lf → yh → Hf → _h → el → Eh → lh → wr → ...`); the same stack is fast in prod where StrictMode and HMR aren't running.
+
+There are two costs in dev:
+
+1. **Mount freeze on first load** — several seconds while r3f reconciles the rig.
+2. **Ongoing per-frame overhead** — the animation continues to feel sluggish after mount, because every `useFrame` tick pays Turbopack's runtime cost on every helper call.
+
+Both go away in prod. The recommended workflow when working on the animation is therefore to **rebuild and run the prod build between code changes**:
 
 ```bash
 npm run prod
 ```
 
-Rebuild between changes when working on animation. Record performance profiles against the
-production build only; dev traces are dominated by double-mount noise and minifier artefacts.
+That runs `doppler run -- next build && doppler run -- next start`. It's slow per-edit (a few seconds to rebuild) but the resulting app is honest about runtime perf. Use `npm run dev` for non-animation work where HMR is more valuable than runtime fidelity.
+
+If you record a profile during a real perf investigation, do it against the prod build. The flame graph is non-minified (readable function names, no double-mount noise) and only there does CPU time reflect what real users see.
+
+## Briefing a fresh AI on this project
+
+Have it read, in this order:
+
+1. This `README.md`.
+2. `CLAUDE.md` — code conventions, file-organization rules, and spec governance.
+3. `documentation/locomotion.md` — how the paper's model maps onto our rig.
+4. `documentation/animation-roadmap.md` — the plan, the locked decisions, and the measured baseline (§5).
+5. `documentation/locomotion-handover.md` — current state, what is proven, what is rejected, what is next.
+6. `documentation/observation-loop.md` — how to see the system before making any claim about it.
+7. Whichever in-flight OpenSpec change under `openspec/changes/` is the focus of the work.
+
+Pull every equation and constant from `documentation/reference/locomotion-reference.md`, never from memory. That is enough context to continue the animation work coherently.
