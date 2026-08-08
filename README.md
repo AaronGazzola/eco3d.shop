@@ -32,9 +32,9 @@ Read these in order to get full context on the animation system. They are the so
 3. **`documentation/animation-roadmap.md`** — the living plan: the model in plain language, the locked decisions, the build phases, the decision log, and the measured baseline (§5) every change is scored against.
 4. **`documentation/observation-loop.md`** — how to observe the running system. No claim about behaviour is made without a capture.
 
-Active engineering history (still relevant context):
+Disposable, not a reference:
 
-- `documentation/locomotion-handover.md` — where the work stands, what is proven with numbers, what was tried and rejected, and the next step.
+- `documentation/locomotion-handover.md` — a **delete-after-reading** baton from the last session to the next. It is dated, it goes stale as soon as anything changes, and it must be deleted and rewritten rather than updated. Never cite it as a source; the four documents above are the record.
 
 Unrelated to animation:
 
@@ -87,7 +87,7 @@ Have it read, in this order:
 2. `CLAUDE.md` — code conventions, file-organization rules, and spec governance.
 3. `documentation/locomotion.md` — how the paper's model maps onto our rig.
 4. `documentation/animation-roadmap.md` — the plan, the locked decisions, and the measured baseline (§5).
-5. `documentation/locomotion-handover.md` — current state, what is proven, what is rejected, what is next.
+5. `documentation/locomotion-handover.md` — the last session's baton. Read it once for where things stand, then delete it and write a fresh one when you finish; it is dated and goes stale immediately.
 6. `documentation/observation-loop.md` — how to see the system before making any claim about it.
 7. Whichever in-flight OpenSpec change under `openspec/changes/` is the focus of the work.
 

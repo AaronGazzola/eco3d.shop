@@ -1,14 +1,24 @@
-# Locomotion handover — where the work stands
+# Locomotion handover — DELETE AFTER READING
 
-Status as of 2026-08-03, branch `feat/e1-walk-cycle`. This is the "resume without re-deriving it"
-record: what runs, what is proven with numbers, what was tried and rejected, and the next step.
-Companion records: `animation-roadmap.md` (phases, decisions, the measured baseline in §5),
-`locomotion.md` (how the paper maps onto our rig), `reference/locomotion-reference.md` (the paper),
-`observation-loop.md` (how to see the system rather than infer it).
+**Written 8-Aug-2026. Disposable by design.**
 
-> Superseded: this document previously (2026-06-29) described a grip-pin walk driven by levers
-> (`legClock`, `bodyWaves`, `sweepReverse`, `stanceMuscleBoost`) that no longer exist in the code.
-> Grip itself is retired by **roadmap Decision 10**. Nothing from that version should be resumed.
+This is a one-shot baton, not a reference. It exists so the next session can resume without re-deriving
+the last one, and it goes **stale the moment that session changes anything**. Read it once, act on it,
+then **delete it and write a fresh one** describing where you left off. Never cite it as a source, never
+update it in place, and never treat an undated claim in it as current.
+
+Everything durable lives elsewhere, and those documents ARE meant to be re-read:
+
+- `animation-roadmap.md` — decisions (§2), phases (§3), the measured baseline (§5), the success metrics
+  (§6), and the dated Phase D-T status log (§7). This is the record. Where it disagrees with this file,
+  it wins.
+- `locomotion.md` — how the paper maps onto our rig.
+- `reference/locomotion-reference.md` — the paper. Wins any disagreement about an equation or constant.
+- `observation-loop.md` — how to see the system rather than infer it.
+
+> A previous version of this file (2026-06-29) described a grip-pin walk driven by levers that no longer
+> exist in the code, and it survived long enough to mislead. That is exactly the failure this
+> delete-after-reading rule exists to prevent.
 
 ## 1. Goal and approach
 
@@ -93,16 +103,27 @@ roadmap §7, 8-Aug-2026. Read that before touching anything; the summary here is
 - **Evenness is now measured in degrees, not cap fraction** (owner's decision, §6 rewritten). Forced by
   finding the authored caps uneven by 2.2×, which made the two measures different targets.
 
-**Blocked on one owner decision: the angle caps.** They read 21, 23, 37, 39, 28, 28, 22, 30, 30° along
-the spine and 45° at the tail, with three joints on untouched defaults and the rest hand-authored with no
-consistent gradient. A 22° dip at joint 7, sitting between neighbours of 28° and 30°, is what clips in the
-best variant — one eyeballed value is capping the whole wave. §7 records the recommendation (one cap per
-region: head 21°, trunk 32°, tail 40°) and the fallback if the values turn out to be the printed model's
-real range. **Do not change them without that ruling.**
+**The angle caps are frozen — settled, not open.** They read 21, 23, 37, 39, 28, 28, 22, 30, 30° along the
+spine and 45° at the tail, and they are the **real range of motion of the printed 3D model**: exceeding one
+makes that segment clip into its neighbour. A proposal to smooth them was rejected on that basis. **Never
+raise a cap to make the wave fit.**
 
-**Then:** finish flattening (the last three clipping joints sit between arc 0.58 and 0.76) → the speed
-ladder using every lever together → leg sweep (no thrust, foot stillness only) → turn levels → land the
-grid. See `animation-roadmap.md` §3, Phase D-T.
+**Pick up here.** With the caps frozen and evenness measured in degrees, the target is now concrete: a
+**uniform 20–21° bend across joints 2–10**, set by joint 7's 22° cap (joint 2's 23° is next; the head
+joint's 21° does not bind because isolation holds it near zero). The current best variant runs 10–30°, so
+the job is to **lift the front** (joints 2–4, at 11–14°) and **hold the tail down** (joints 8–9, at
+28–30°). The five profile control points sit at arc 0, 0.25, 0.5, 0.75 and 1.0; the three joints still
+clipping sit between arc 0.58 and 0.76, so the hip-to-mid-tail span is where to cut. Expect a compressive
+response — the Ekeberg equilibrium angle is a ratio whose tonic term does not scale, so overshoot rather
+than assuming a 20% cut buys 20%.
+
+**Then:** the speed ladder using every lever together → leg sweep (no thrust, foot stillness only) → turn
+levels → land the grid. See `animation-roadmap.md` §3, Phase D-T, and the open tasks in
+`openspec/changes/add-wave-shaping/tasks.md`.
+
+**Before observing anything:** rebuild. `npm run prod:3002` from PowerShell, detached. The server from the
+last session was killed deliberately, so every config link in that session's report is dead — regenerate
+them from the harness rather than reusing an old one.
 
 **The floor to beat.** 59% plant slip is the best rigid legs achieve. The residue is the foot's sideways
 swing, which no amount of forward body motion cancels. Shrinking the girdle rotation (D-T2) and adding

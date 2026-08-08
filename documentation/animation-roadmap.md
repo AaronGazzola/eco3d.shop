@@ -577,7 +577,7 @@ A dated log of decisions, with reasoning. Settled one at a time as we work throu
    the reduced-coordinate move proves not worth its cost. (User authorized changing Decision 8;
    tracked by OpenSpec change `validate-articulated-locomotion-mujoco`.)
 10. **Land propulsion → foot thrust, replacing the foot grip pin.** _2026-08-03._ **Supersedes
-    the grip design note in `locomotion-handover.md` §5.** **Why:** the grip pin is a hard
+    every earlier grip design note.** **Why:** the grip pin is a hard
     constraint tying a foot to a world anchor. Every constraint the solver enforces steals
     authority from the muscles, so the axial wave flattened whenever grip engaged — the wave
     and the pin were fighting for the same joints. Timing was never the fault: with grip off,
@@ -1359,7 +1359,11 @@ The body wave should read as pronounced on screen and be **even along the whole 
 - **Even, not merely large.** The tail currently swings 2.4× the front; it comes down to match rather
   than the rest coming up. Front and hind hips should rotate by about the same amount — that equality is
   what lets one body speed suit both girdles.
-- **Never touching the angle caps.** High amplitude means just under the cap, never clipping.
+- **Never touching the angle caps, and never raising one.** High amplitude means just under the cap,
+  never clipping. The caps are the **real range of motion of the printed 3D model** — exceeding one makes
+  that segment clip into its neighbour — so they are a fixed constraint the wave is shaped to fit, not a
+  lever. They are uneven by 2.2× (21°–45° along the spine) and that unevenness is physical, not an
+  authoring accident. The tightest joint therefore sets the ceiling for a uniform wave: **about 22°**.
 - **The head is excluded from the wave outright**, not damped. Its region multiplier is zero. It is
   later aimed at a focal point so the creature can track prey and look around independently.
 - **Evenness is measured in DEGREES.** _Settled 8-Aug-2026 by the owner, replacing the earlier
@@ -1453,14 +1457,17 @@ Each preset travels in the direction it intends, at the speed it intends.
   **Evenness redefined, by the owner.** Degrees, not cap fraction — see §6. Forced by discovering that
   the authored caps are uneven by 2.2×, which made the two measures different targets.
 
-  **Pending decision: the angle caps.** Measured per spine joint (forward and backward are equal
-  everywhere): **21, 23, 37, 39, 28, 28, 22, 30, 30, 45°**. Joints 8, 9 and 10 sit exactly on the
-  defaults (spine 30°, tail 45°); the other seven are hand-authored overrides with no consistent
-  gradient — a 37°/39° bulge at joints 3–4 and a 22° dip at joint 7 between neighbours of 28° and 30°.
-  That single 22° dip is what clips in the best variant, so one eyeballed value is capping the whole wave.
-  **Recommended** (not applied — the caps live on the rig, and whether they encode the printed model's
-  real range of motion is the owner's knowledge, not mine): replace the per-joint values with one value
-  per region — head joint 21°, trunk joints 32°, tail joints 40°. That keeps the anatomically sensible
-  tight-front / wide-tail gradient, removes the bumps, and lets a uniform 28° wave sit at 88% of trunk cap
-  with nothing clipping. If the current values *were* measured from the print, change nothing and accept a
-  uniform wave of about 22°, which is what joint 7 allows.
+  **The angle caps are physical, and are FROZEN.** _Settled 8-Aug-2026 by the owner._ Measured per spine
+  joint, forward and backward equal everywhere: **21, 23, 37, 39, 28, 28, 22, 30, 30, 45°**. They are not
+  eyeballed — they are the **real range of motion of the printed 3D model**, and exceeding one makes that
+  segment clip into its neighbour. A proposal to smooth them into one value per region was **rejected on
+  that basis**. Three joints happening to sit on the code defaults (spine 30°, tail 45°) is coincidence,
+  not evidence they were never set. **Do not raise a cap to make the wave fit. The wave fits the caps.**
+
+  **What that fixes as the amplitude target.** With evenness measured in degrees and the caps frozen, the
+  binding joint is **joint 7 at 22°**, then joint 2 at 23°. The head joint's 21° does not bind, because
+  head isolation holds that joint near zero. So the target is a **uniform bend of about 20–21° across
+  joints 2–10** — roughly 95% of joint 7's cap, with nothing clipping. The wide-capped joints (3 and 4 at
+  37–39°, the tail tip at 45°) will sit at little over half their range, and that is simply what even
+  angles cost on this rig. Current best variant runs 10–30°, so the work is to lift the front (joints 2–4,
+  at 11–14°) and hold the tail down (joints 8–9, at 28–30°).
