@@ -200,7 +200,15 @@ if (CMD === 'login') {
   if (!dump.samples.length) {
     console.log('WARNING: no node samples captured (is the rig loaded and sim running?)')
   } else {
-    writeFileSync(`${OUT}/nodes-${stamp}.json`, JSON.stringify({ config: applied, spec: dump.spec, samples: dump.samples, events: dump.events, diag: finalDiag, link }))
+    // The per-joint arrays ride in the JSON so a capture can be re-analysed offline against a metric
+    // that did not exist when it was taken — without them the run has to be repeated to answer a new
+    // question. Learned the hard way while adding the §6 metric-2 reports.
+    writeFileSync(`${OUT}/nodes-${stamp}.json`, JSON.stringify({
+      config: applied, spec: dump.spec, samples: dump.samples, events: dump.events, diag: finalDiag, link,
+      spineFracPeak: dump.spineFracPeak, spineSeg: dump.spineSeg, spineGirdleDist: dump.spineGirdleDist,
+      spineCapF: dump.spineCapF, spineCapB: dump.spineCapB,
+      maxCapFrac: dump.maxCapFrac, maxRollDeg: dump.maxRollDeg, rollFlips: dump.rollFlips,
+    }))
     writeNodeReport(`${OUT}/nodes-${stamp}.md`, dump, applied, { seconds, hz, diag: finalDiag, link })
     await renderTopDown(`${OUT}/nodes-${stamp}-topdown.png`, dump)
     console.log(`captured ${dump.samples.length} node samples (${dump.spec?.count} nodes @ ${hz}/s) → nodes-${stamp}.*`)
@@ -218,6 +226,7 @@ if (CMD === 'login') {
       const dists = [...byDist.keys()].sort((a, b) => a - b)
       console.log('  mean by girdle-distance: ' + dists.map((d) => `d${d}=${Math.round((byDist.get(d).reduce((a, b) => a + b, 0) / byDist.get(d).length) * 100)}%`).join('  '))
     }
+    reportAmplitudeQuality(dump, (s) => console.log(s))
     if (dump.maxRollDeg != null) {
       const perSec = dump.rollFlips / Math.max(1, seconds)
       console.log(`roll: peak |roll|=${dump.maxRollDeg.toFixed(2)}°  reversals=${dump.rollFlips} (${perSec.toFixed(1)}/s)  ${perSec >= 4 ? '⚠ VIBRATING' : 'steady'}`)
@@ -250,6 +259,156 @@ if (CMD === 'login') {
   if (shots && shotRows.length) {
     await buildContactSheet(`${OUT}/shots-${stamp}.png`, shotRows)
     console.log(`saved shots-${stamp}.png`)
+  }
+}
+
+// ---- §6 metric 2: amplitude quality ---------------------------------------
+// Everything roadmap §6 metric 2 gates on, in one place so the console and the report can never
+// disagree. Returns null when the capture lacks the per-joint cap data (e.g. the Rapier path).
+function amplitudeQuality(dump) {
+  const frac = dump.spineFracPeak
+  if (!frac || !frac.length) return null
+  const seg = dump.spineSeg ?? frac.map((_, i) => i)
+  const gdist = dump.spineGirdleDist ?? frac.map(() => -1)
+
+  // Evenness: the spread of each joint's peak angle as a fraction of ITS OWN cap. Local by
+  // construction, so it survives turning, and it is the same quantity the cap limit uses.
+  let min = Infinity, max = -Infinity, sum = 0
+  for (const v of frac) { if (v < min) min = v; if (v > max) max = v; sum += v }
+  const mean = sum / frac.length
+
+  // Girdle pair: the two leg-bearing joints. Ordered along the body, so the first is the front
+  // girdle and the last is the hind. §5 records this pair as imbalanced 2 to 1.
+  const girdleIdx = frac.map((_, i) => i).filter((i) => gdist[i] === 0).sort((a, b) => seg[a] - seg[b])
+  const front = girdleIdx.length ? frac[girdleIdx[0]] : null
+  const hind = girdleIdx.length > 1 ? frac[girdleIdx[girdleIdx.length - 1]] : null
+
+  // Head: the joint nearest the nose. Head isolation is judged on this and on the head node's swing.
+  let headJ = 0
+  for (let i = 1; i < frac.length; i++) if (seg[i] < seg[headJ]) headJ = i
+
+  return { min, max, mean, spread: max - min, front, hind, ratio: front && hind ? hind / front : null, head: frac[headJ] }
+}
+
+// Each node's sideways swing measured against a FITTED CURVED CENTRELINE rather than a straight axis.
+// A straight axis mixes the body's own curvature into the swing and stops meaning anything once the
+// body turns. The fit is a per-frame least-squares QUADRATIC of lateral offset against arc position:
+// low enough order to absorb the gross arc (turning) while leaving the ~1.3-wave undulation as the
+// residual, which is what actually reads as pronounced on screen.
+function centrelineSwing(dump) {
+  const { samples, spec } = dump
+  if (!samples || !samples.length) return null
+  const segLen = spec?.segLength ?? []
+  const nAx = segLen.length ? segLen.filter((L) => L > 1e-9).length : samples[0].nodes.length
+  if (nAx < 4) return null
+  const lo = new Array(nAx).fill(Infinity)
+  const hi = new Array(nAx).fill(-Infinity)
+
+  for (const s of samples) {
+    const P = s.nodes.slice(0, nAx)
+    // Arc position along the body this frame, and the head→tail chord as the local frame.
+    const arc = [0]
+    for (let i = 1; i < nAx; i++) arc.push(arc[i - 1] + Math.hypot(P[i].x - P[i - 1].x, P[i].z - P[i - 1].z))
+    const total = arc[nAx - 1] || 1
+    const ax = (P[nAx - 1].x - P[0].x) / (Math.hypot(P[nAx - 1].x - P[0].x, P[nAx - 1].z - P[0].z) || 1)
+    const az = (P[nAx - 1].z - P[0].z) / (Math.hypot(P[nAx - 1].x - P[0].x, P[nAx - 1].z - P[0].z) || 1)
+    const u = arc.map((a) => a / total)
+    const v = P.map((p) => {
+      const dx = p.x - P[0].x, dz = p.z - P[0].z
+      return dx * -az + dz * ax // perpendicular offset from the head→tail chord
+    })
+    // Least-squares quadratic v ≈ c0 + c1·u + c2·u² by normal equations.
+    let S = [0, 0, 0, 0, 0], T = [0, 0, 0]
+    for (let i = 0; i < nAx; i++) {
+      const p = [1, u[i], u[i] * u[i], u[i] ** 3, u[i] ** 4]
+      for (let k = 0; k < 5; k++) S[k] += p[k]
+      for (let k = 0; k < 3; k++) T[k] += v[i] * p[k]
+    }
+    const M = [[S[0], S[1], S[2]], [S[1], S[2], S[3]], [S[2], S[3], S[4]]]
+    const c = solve3(M, T)
+    for (let i = 0; i < nAx; i++) {
+      const fit = c ? c[0] + c[1] * u[i] + c[2] * u[i] * u[i] : 0
+      const r = v[i] - fit
+      if (r < lo[i]) lo[i] = r
+      if (r > hi[i]) hi[i] = r
+    }
+  }
+  return lo.map((l, i) => hi[i] - l)
+}
+
+function solve3(M, b) {
+  const A = M.map((r, i) => [...r, b[i]])
+  for (let i = 0; i < 3; i++) {
+    let p = i
+    for (let r = i + 1; r < 3; r++) if (Math.abs(A[r][i]) > Math.abs(A[p][i])) p = r
+    if (Math.abs(A[p][i]) < 1e-12) return null
+    ;[A[i], A[p]] = [A[p], A[i]]
+    for (let r = 0; r < 3; r++) {
+      if (r === i) continue
+      const f = A[r][i] / A[i][i]
+      for (let k = i; k < 4; k++) A[r][k] -= f * A[i][k]
+    }
+  }
+  return [A[0][3] / A[0][0], A[1][3] / A[1][1], A[2][3] / A[2][2]]
+}
+
+// Peak bend at each spine joint in DEGREES, from the node geometry. Reported beside the cap fraction
+// because the two answer different questions and this rig's caps are uneven by more than 3 to 1: a joint
+// can read 41% of cap while bending further than one reading 101%. "The hips should rotate by
+// approximately equal amounts" is a statement about degrees; "nothing touches its cap" is about the
+// fraction. Shaping to the fraction alone would chase the caps rather than the wave.
+function jointBendDegrees(dump) {
+  const { samples, spec } = dump
+  if (!samples || !samples.length) return null
+  const segLen = spec?.segLength ?? []
+  const nAx = segLen.length ? segLen.filter((L) => L > 1e-9).length : samples[0].nodes.length
+  if (nAx < 3) return null
+  const peak = new Array(nAx - 2).fill(0)
+  for (const s of samples) {
+    for (let i = 1; i <= nAx - 2; i++) {
+      const a = s.nodes[i - 1], b = s.nodes[i], c = s.nodes[i + 1]
+      const ux = b.x - a.x, uz = b.z - a.z, vx = c.x - b.x, vz = c.z - b.z
+      const th = Math.abs(Math.atan2(ux * vz - uz * vx, ux * vx + uz * vz)) * 180 / Math.PI
+      if (th > peak[i - 1]) peak[i - 1] = th
+    }
+  }
+  return peak
+}
+
+function reportAmplitudeQuality(dump, emit) {
+  const q = amplitudeQuality(dump)
+  const pct = (v) => `${Math.round(v * 100)}%`
+  if (q) {
+    emit(`amplitude evenness (peak angle vs each joint's OWN cap): min=${pct(q.min)} max=${pct(q.max)} mean=${pct(q.mean)} spread=${pct(q.spread)}`)
+    if (q.front != null && q.hind != null) {
+      emit(`  girdle pair: front=${pct(q.front)}  hind=${pct(q.hind)}  ratio hind/front=${q.ratio.toFixed(2)}  (target 1.00)`)
+    }
+    emit(`  head joint: ${pct(q.head)} of its cap`)
+  }
+  const deg = jointBendDegrees(dump)
+  if (deg) {
+    emit('peak bend per joint in DEGREES (what "the hips rotate equally" actually means):')
+    emit('  ' + deg.map((v, i) => `j${i + 1}=${v.toFixed(1)}°`).join('  '))
+    const lo = Math.min(...deg), hi = Math.max(...deg)
+    emit(`  min=${lo.toFixed(1)}°  max=${hi.toFixed(1)}°  spread=${(hi - lo).toFixed(1)}°  ratio max/min=${(hi / Math.max(1e-6, lo)).toFixed(2)}`)
+    emit('  (geometric turn angle between adjacent node segments, so it approximates the joint angle')
+    emit('   rather than reading it — least reliable at the two ends, where a node sits past the joint)')
+  }
+  const capF = dump.spineCapF
+  if (capF && capF.length) {
+    const d = capF.map((r) => (r * 180) / Math.PI)
+    const lo = Math.min(...d), hi = Math.max(...d)
+    emit('authored angle cap per spine joint (forward, degrees):')
+    emit('  ' + d.map((v, i) => `seg${dump.spineSeg?.[i] ?? i}=${v.toFixed(0)}°`).join('  '))
+    emit(`  ${lo.toFixed(0)}°..${hi.toFixed(0)}°, uneven by ${(hi / Math.max(1e-6, lo)).toFixed(1)}× — where the caps are`)
+    emit('  uneven, an even set of cap FRACTIONS and an even set of bend ANGLES are different targets.')
+  }
+  const sw = centrelineSwing(dump)
+  if (sw) {
+    emit('node swing vs FITTED CURVED centreline (peak-to-peak, world units; survives turning):')
+    emit('  ' + sw.map((v, i) => `n${i}=${v.toFixed(2)}`).join('  '))
+    const growth = sw[0] > 1e-6 ? Math.max(...sw) / sw[0] : null
+    emit(`  head swing=${sw[0].toFixed(3)}  peak=${Math.max(...sw).toFixed(3)}  head→peak growth=${growth ? growth.toFixed(2) + '×' : 'n/a'}`)
   }
 }
 
@@ -287,6 +446,9 @@ function writeNodeReport(path, dump, cfg, meta) {
     lines.push(`  foot thrust: ${v(meta.diag.footImpulseX, meta.diag.footImpulseY, meta.diag.footImpulseZ)}`)
     lines.push(`  drag:        ${v(meta.diag.dragImpulseX, meta.diag.dragImpulseY, meta.diag.dragImpulseZ)}`)
   }
+  lines.push('')
+  lines.push('## Amplitude quality (roadmap §6 metric 2)')
+  reportAmplitudeQuality(dump, (s) => lines.push(s))
   if (meta.link) { lines.push(''); lines.push(`Config link: ${meta.link}`) }
   if (dump.maxRollDeg != null) lines.push(`roll about long axis: peak |roll|=${dump.maxRollDeg.toFixed(2)}°  reversals=${dump.rollFlips} (${(dump.rollFlips / Math.max(1, meta.seconds)).toFixed(1)}/s)`)
   lines.push('')

@@ -173,6 +173,18 @@ function SimulateTab() {
   const footThrustShiftHind = useAnimateStore((s) => s.footThrustShiftHind)
   const setFootThrustShiftHind = useAnimateStore((s) => s.setFootThrustShiftHind)
   const setFootThrustShift = useAnimateStore((s) => s.setFootThrustShift)
+  const waveNose = useAnimateStore((s) => s.waveNose)
+  const setWaveNose = useAnimateStore((s) => s.setWaveNose)
+  const waveShoulder = useAnimateStore((s) => s.waveShoulder)
+  const setWaveShoulder = useAnimateStore((s) => s.setWaveShoulder)
+  const waveHip = useAnimateStore((s) => s.waveHip)
+  const setWaveHip = useAnimateStore((s) => s.setWaveHip)
+  const waveTailMid = useAnimateStore((s) => s.waveTailMid)
+  const setWaveTailMid = useAnimateStore((s) => s.setWaveTailMid)
+  const waveTailTip = useAnimateStore((s) => s.waveTailTip)
+  const setWaveTailTip = useAnimateStore((s) => s.setWaveTailTip)
+  const headIsolated = useAnimateStore((s) => s.headIsolated)
+  const setHeadIsolated = useAnimateStore((s) => s.setHeadIsolated)
 
   const resetSimConfig = useAnimateStore((s) => s.resetSimConfig)
 
@@ -703,6 +715,65 @@ function SimulateTab() {
           step={0.01}
           onChange={setFootThrustShiftHind}
           format={(v) => `${Math.round(v * 100)}%`}
+        />
+
+        <Divider />
+
+        <Toggle
+          label="Isolate head"
+          tip="Excludes the head from the body wave outright, so it stops adding a swing of its own. It does NOT hold the head steady in the world — the head is held straight relative to the neck, and the neck still waves. Aiming the head at a target comes later."
+          on={headIsolated}
+          onChange={setHeadIsolated}
+        />
+        <Slider
+          label="Wave · nose (0%)"
+          tip="Drive multiplier at the tip of the nose. The five wave sliders set the amplitude profile along the spine and are blended smoothly between. 1.0 everywhere is the unshaped wave."
+          value={waveNose}
+          min={0}
+          max={2}
+          step={0.05}
+          onChange={setWaveNose}
+          format={(v) => v.toFixed(2)}
+        />
+        <Slider
+          label="Wave · shoulder (25%)"
+          tip="Drive multiplier a quarter of the way down the body, which on this rig sits almost exactly on the front girdle. Set against the hip slider to make the two girdles rotate by the same amount."
+          value={waveShoulder}
+          min={0}
+          max={2}
+          step={0.05}
+          onChange={setWaveShoulder}
+          format={(v) => v.toFixed(2)}
+        />
+        <Slider
+          label="Wave · hip (50%)"
+          tip="Drive multiplier half way down the body, which on this rig sits almost exactly on the hind girdle."
+          value={waveHip}
+          min={0}
+          max={2}
+          step={0.05}
+          onChange={setWaveHip}
+          format={(v) => v.toFixed(2)}
+        />
+        <Slider
+          label="Wave · mid-tail (75%)"
+          tip="Drive multiplier three quarters of the way down the body. Half this rig's length lies behind the hind girdle, so both tail sliders act on tail."
+          value={waveTailMid}
+          min={0}
+          max={2}
+          step={0.05}
+          onChange={setWaveTailMid}
+          format={(v) => v.toFixed(2)}
+        />
+        <Slider
+          label="Wave · tail tip (100%)"
+          tip="Drive multiplier at the very end of the tail. The tail swings furthest, so this is usually the first slider to come down when evening out the wave."
+          value={waveTailTip}
+          min={0}
+          max={2}
+          step={0.05}
+          onChange={setWaveTailTip}
+          format={(v) => v.toFixed(2)}
         />
 
         <Divider />

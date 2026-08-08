@@ -340,11 +340,13 @@ grid needs to span the range cleanly rather than any one cell being perfect.
   the body advanced. Perfect planting is not the target; less movement is.
 - **Amplitude quality.** The wave reads as pronounced and is **even along the whole spine including the
   tail**, with the front and hind hips rotating by about the same amount, nothing touching an angle cap,
-  and the **head excluded from the wave outright** — its region multiplier is zero, because the head is
-  aimed at a focal point later so the creature can track prey independently of the body. Gate on each
-  joint's peak angle against **its own** cap, which is turning-safe because a joint angle is local.
-  Describe the look with node travel measured against a **fitted curved centreline**, not a straight
-  axis, so the number survives turning.
+  and the **head excluded from the wave outright**, because the head is aimed at a focal point later so
+  the creature can track prey independently of the body. **Gate on peak bend in DEGREES**, with the
+  spread and max/min ratio across the spine joints — not on cap fraction. The two were assumed to agree
+  and do not: this rig's authored caps run 21°–45°, so a joint can read 41% of its cap while bending
+  further than one reading 101%. Cap fraction stays as the **clipping guard only**. Describe the look
+  with node travel measured against a **fitted curved centreline**, not a straight axis, so the number
+  survives turning.
 - **Velocity and direction.** Speeds come out ordered slow below medium below fast, turn rates low below
   medium below high, and straight presets stay straight. Leg sweep must **not** move speed — if it does,
   it has become a thrust term and this metric is compromised.
@@ -361,22 +363,36 @@ approval. When a stage completes, write a dated entry into the roadmap's Phase D
 with the numbers, the levers that won, and the variants that were rejected — that entry is how the next
 session knows where the work stands instead of re-deriving it.
 
-Two failures this project has already paid for, both caught by measuring rather than reasoning:
+Four failures this project has already paid for. The first two were caught by measuring rather than
+reasoning; the last two by reading the code rather than trusting that two things agreed.
 
 - A metric that looked sensible but measured the wrong thing (body surge instead of foot stillness).
   Restate the goal in the owner's words before trusting any number.
 - A diagnostic and an actuator reading different clocks, so the measurement quietly described the wrong
   half of the stroke. Whenever a window drives behaviour, make the report use the same window.
+- Two runtimes sharing one controller but indexing it differently: MuJoCo read the CPG chain by
+  body-segment index where Rapier remapped by arc position, so the two engines ran different waves for
+  months. When two paths consume the same module, check they consume it the same way.
+- A normalised measure hiding an un-normalised one: cap *fraction* looked like a fair evenness metric
+  until the caps themselves turned out to be uneven by 2.2×. Before gating on a ratio, look at its
+  denominator.
+
+Also: save enough per-run data to answer a question you have not thought of yet. Captures now carry the
+per-joint arrays in the JSON precisely because a new metric arrived and every earlier run had to be redone.
 
 ## Signals worth capturing
 
 The three §6 metrics first: foot world travel during the CPG plant window, in units and as a
-percentage of body advance, per foot; per-joint peak angle as a fraction of **its own** cap, with the
-spread across joints and the front-versus-hind hip comparison; forward speed, turn rate, lateral drift.
+percentage of body advance, per foot; per-joint peak bend in **degrees**, with the spread, the max/min
+ratio and the front-versus-hind girdle comparison; forward speed, turn rate, lateral drift.
 
-Then the supporting signals: node travel measured against a fitted centreline (how pronounced the wave
-looks); accumulated impulse split by source (whether the feet or the drag are doing the work); vertical
-drift and maximum tilt (the body must stay flat); roll reversals per second (the buzz detector).
+Then the supporting signals: per-joint peak angle as a fraction of its own cap (the clipping guard, no
+longer the evenness gate) alongside the authored caps themselves, since a fraction cannot be read without
+its denominator; node travel measured against a fitted centreline (how pronounced the wave looks);
+accumulated impulse split by source (whether the feet or the drag are doing the work); vertical drift and
+maximum tilt (the body must stay flat); roll reversals per second (the buzz detector — and note it
+degrades on a small signal, counting noise crossings when peak roll is under about 1°, so read it beside
+the peak rather than alone).
 
 And a **window placement check** confirming every plant window starts at the foot's max-forward reach
 and ends at max-backward. This one is not optional: a window half a cycle out reads the swing as the

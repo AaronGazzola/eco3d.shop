@@ -78,13 +78,31 @@ touching anything; it is the authoritative definition and it supersedes every ea
 plant slip falls from 159% to 59%. Front and hind carry separate phase shifts (0.138 / 0.638) because
 the girdles are half a cycle apart — sharing one put the hind push on the swing.
 
-**Next (D-T2).** Per-region drive multipliers along the spine (roadmap Decision 11), head multiplier
-zero. The tail swings 2.4× the front and the two girdles rotate by amounts differing 2 to 1; that
-unevenness is why no single body speed suits both girdles, so it is the blocker on both metric 1 and
-metric 2. Front-vs-back drive is too coarse — pulling the tail down pulls the middle down with it.
+**In progress (D-T2).** Tracked by the OpenSpec change `add-wave-shaping`. Full record with numbers in
+roadmap §7, 8-Aug-2026. Read that before touching anything; the summary here is only the shape of it.
 
-**Then:** the speed ladder using every lever together → leg sweep (no thrust, foot stillness only) →
-turn levels → land the grid. See `animation-roadmap.md` §3, Phase D-T.
+- **A sampling defect was found and fixed.** MuJoCo was reading only the front 44% of the CPG chain,
+  holding 0.66 body waves instead of 1.58, because it used body-segment indices as fine-oscillator
+  indices while Rapier remapped through `oscOfSegment`. The two engines were running different waves.
+  Fixing it made the body faster (1.06 → 1.36 u/s) and removed a dead spot mid-body — and pushed 6 of 10
+  spine joints to their caps at the previously approved config. **The pre-fix look cannot be reproduced
+  from a config link**, because the difference is code.
+- **The five-point spine profile and head isolation ship**, both off by default and verified inert there.
+  Head isolation takes the head joint from 101% of its cap to 23%, but head *swing* falls only 5% — the
+  head is rigid to a neck that still waves, so this is not head stabilisation.
+- **Evenness is now measured in degrees, not cap fraction** (owner's decision, §6 rewritten). Forced by
+  finding the authored caps uneven by 2.2×, which made the two measures different targets.
+
+**Blocked on one owner decision: the angle caps.** They read 21, 23, 37, 39, 28, 28, 22, 30, 30° along
+the spine and 45° at the tail, with three joints on untouched defaults and the rest hand-authored with no
+consistent gradient. A 22° dip at joint 7, sitting between neighbours of 28° and 30°, is what clips in the
+best variant — one eyeballed value is capping the whole wave. §7 records the recommendation (one cap per
+region: head 21°, trunk 32°, tail 40°) and the fallback if the values turn out to be the printed model's
+real range. **Do not change them without that ruling.**
+
+**Then:** finish flattening (the last three clipping joints sit between arc 0.58 and 0.76) → the speed
+ladder using every lever together → leg sweep (no thrust, foot stillness only) → turn levels → land the
+grid. See `animation-roadmap.md` §3, Phase D-T.
 
 **The floor to beat.** 59% plant slip is the best rigid legs achieve. The residue is the foot's sideways
 swing, which no amount of forward body motion cancels. Shrinking the girdle rotation (D-T2) and adding
@@ -131,4 +149,9 @@ known swim. Captures land in `documentation/diagnostics/observe/` with the exact
   between them. They were **not** restored — open task boxes are the poisoning vector the repo rules
   forbid. Their outcome is recorded in the roadmap's 2026-06-18 → 2026-07-26 status entry instead.
 - `AZ-183` and `AZ-184` are closed but describe the deleted keyframe runtime; both need correcting.
-- Phase D-T1 is tracked by the OpenSpec change `add-foot-thrust`.
+- Phase D-T1's change `add-foot-thrust` was verified and **archived** on 8-Aug-2026, merging eight
+  requirements into the locomotion capability spec. Its section 8 was rewritten before archiving: those
+  tasks gated on the retired body-surge metric, so the sweep that was actually run is recorded against the
+  new metric and the tasks that only served the old gate are marked dropped with reasons.
+- Phase D-T2 is tracked by the OpenSpec change `add-wave-shaping`, currently active with sections 1.4,
+  5.1b–5.5 and 5.7 open. 5.7 is the angle-cap decision and needs the owner.

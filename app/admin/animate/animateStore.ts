@@ -83,6 +83,28 @@ export interface SimConfig {
   // Kept as a separate lever rather than a hard-coded half-cycle because the offset is a property of the
   // travelling wave between the girdles, so it moves when the wave does.
   footThrustShiftHind: number
+  // Spine amplitude profile (roadmap Decision 11). Five drive multipliers at normalised arc positions
+  // 0, 0.25, 0.5, 0.75 and 1.0 along the CPG chain, linearly interpolated between. The paper already
+  // drives by region (front 3 segments at 0.6 against 1.0 for the rest); this is more regions, not a new
+  // mechanism. Purpose: the swim envelope grows head→tail, so the two girdles rotate by different amounts
+  // and no single body speed can plant both feet. Bringing the tail DOWN to the front is what evens it.
+  // On the current rig control point 2 lands on the front girdle (arc 0.254) and point 3 on the hind
+  // (arc 0.506), so the girdle pair is dialled directly by those two against each other.
+  // Note the response is compressive: the Ekeberg equilibrium angle is a RATIO whose tonic γ term does
+  // not scale, so halving a multiplier moves the resulting angle by less than half. Expect to overshoot.
+  // All five default to 1.0, which reproduces the unshaped wave exactly.
+  waveNose: number
+  waveShoulder: number
+  waveHip: number
+  waveTailMid: number
+  waveTailTip: number
+  // Excludes the head from the wave OUTRIGHT rather than damping it: the head joint's servo target is
+  // forced to zero, so the head adds no bend of its own and its oscillators stop pulling on their
+  // neighbours. NOT a control point of the profile above — linear interpolation cannot hold a multiplier
+  // at zero across the head segment, whose centre sits at arc 0.083 while the next control point is 0.25.
+  // Does NOT hold the head steady in world space: the head is rigid to the neck and the neck still waves.
+  // Aiming the head at a focal point is a separate, later layer. MuJoCo only.
+  headIsolated: boolean
 }
 
 export type SimEngine = 'rapier' | 'mujoco'
@@ -128,6 +150,12 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
   footThrustGain: 0,
   footThrustShift: 0.36,
   footThrustShiftHind: 0.86,
+  waveNose: 1,
+  waveShoulder: 1,
+  waveHip: 1,
+  waveTailMid: 1,
+  waveTailTip: 1,
+  headIsolated: false,
 }
 
 export const SIM_CONFIG_STORAGE_KEY = 'eco3d-animate-sim-config'
@@ -194,6 +222,12 @@ export function pickSimConfig(s: SimConfig): SimConfig {
     footThrustGain: s.footThrustGain,
     footThrustShift: s.footThrustShift,
     footThrustShiftHind: s.footThrustShiftHind,
+    waveNose: s.waveNose,
+    waveShoulder: s.waveShoulder,
+    waveHip: s.waveHip,
+    waveTailMid: s.waveTailMid,
+    waveTailTip: s.waveTailTip,
+    headIsolated: s.headIsolated,
   }
 }
 
@@ -282,6 +316,12 @@ interface AnimateStore extends SimConfig {
   setFootThrustGain: (v: number) => void
   setFootThrustShift: (v: number) => void
   setFootThrustShiftHind: (v: number) => void
+  setWaveNose: (v: number) => void
+  setWaveShoulder: (v: number) => void
+  setWaveHip: (v: number) => void
+  setWaveTailMid: (v: number) => void
+  setWaveTailTip: (v: number) => void
+  setHeadIsolated: (v: boolean) => void
   resetSimConfig: () => void
   applySimConfig: (partial: Partial<SimConfig>) => void
   applySimConfigAbsolute: (config: Partial<SimConfig>) => void
@@ -431,6 +471,12 @@ export const useAnimateStore = create<AnimateStore>()(
       setFootThrustGain: (v) => set({ footThrustGain: v }),
       setFootThrustShift: (v) => set({ footThrustShift: v }),
       setFootThrustShiftHind: (v) => set({ footThrustShiftHind: v }),
+      setWaveNose: (v) => set({ waveNose: v }),
+      setWaveShoulder: (v) => set({ waveShoulder: v }),
+      setWaveHip: (v) => set({ waveHip: v }),
+      setWaveTailMid: (v) => set({ waveTailMid: v }),
+      setWaveTailTip: (v) => set({ waveTailTip: v }),
+      setHeadIsolated: (v) => set({ headIsolated: v }),
       resetSimConfig: () =>
         set({
           ...DEFAULT_SIM_CONFIG,

@@ -97,6 +97,10 @@ interface NodeCaptureState {
   spineFracPeak?: number[]
   spineSeg?: number[]
   spineGirdleDist?: number[]
+  // The authored angle caps (radians, forward and backward) per spine joint. Reported so a cap fraction
+  // can be read back as an angle: the two disagree whenever the caps are uneven along the spine.
+  spineCapF?: number[]
+  spineCapB?: number[]
   // Roll-about-the-long-axis instrumentation (per-frame): peak |roll| and a reversal count (roll-rate
   // sign flips) — the vibration/rocking the once/sec tilt sample can't resolve. prev* are trackers.
   maxRollDeg?: number

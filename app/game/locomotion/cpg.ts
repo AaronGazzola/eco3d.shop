@@ -226,7 +226,16 @@ export function stepCpg(
   // for the walking standing wave. jointAngles is indexed by axial segment (length spec.n); 0 = off.
   jointAngles?: number[],
   feedbackIpsi?: number,
-  feedbackContra?: number
+  feedbackContra?: number,
+  // Spine amplitude profile (roadmap Decision 11): drive multipliers at evenly spaced normalised arc
+  // positions along the axial chain, linearly interpolated between and applied per axial oscillator.
+  // The paper already drives by region (front 3 segments at 0.6 against 1.0 for the rest) — this is more
+  // regions, not a new mechanism. Since R ≈ d in the forward regime, scaling drive scales amplitude; it
+  // also scales ν = d·e, so a shaped region has a lower INTRINSIC frequency. That does not split the body
+  // into two frequencies (the couplings entrain the chain to one) but it is supplied by oscillators
+  // settling off their preferred offsets, so a strongly shaped profile will shift the phase lag.
+  // Undefined, empty, or all-ones leaves driveArr bit-identical to the unshaped path.
+  waveProfile?: number[]
 ): void {
   if (spec.n === 0) return
   const clampedDt = Math.max(0, Math.min(dt, CPG_MAX_DT))
@@ -255,6 +264,15 @@ export function stepCpg(
   // Limb oscillators (i >= base) take the independent limb drive when set (>0); else they follow the
   // global drive exactly (bit-exact with the pre-limb-drive build).
   const ld = limbDrive ?? 0
+  // Profile lookup, skipped entirely when the profile is absent or flat so the default path is untouched.
+  const prof = waveProfile && waveProfile.length >= 2 && waveProfile.some((v) => v !== 1) ? waveProfile : null
+  const profileAt = (k: number): number => {
+    if (!prof) return 1
+    const u = spec.n > 1 ? k / (spec.n - 1) : 0
+    const span = (prof.length - 1) * Math.min(1, Math.max(0, u))
+    const lo = Math.min(prof.length - 2, Math.floor(span))
+    return prof[lo] + (span - lo) * (prof[lo + 1] - prof[lo])
+  }
   const driveArr: number[] = new Array(size)
   for (let i = 0; i < size; i++) {
     let d: number
@@ -262,6 +280,10 @@ export function stepCpg(
     else if (fc > 0 && i < spec.n) d = i < fc ? fd : drive
     else if (fc > 0 && i < base) d = i - spec.n < fc ? fd : drive
     else d = drive
+    // Applied AFTER the front/back split and BEFORE the left/right turn factor, so shaping and turning
+    // compose rather than one replacing the other. Limb oscillators are never shaped — they carry their
+    // own drive, and the profile describes positions along the spine.
+    if (prof && i < base) d *= profileAt(i < spec.n ? i : i - spec.n)
     let side: number
     if (i < spec.n) side = leftFactor
     else if (i < base) side = rightFactor

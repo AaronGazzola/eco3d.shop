@@ -1362,14 +1362,21 @@ The body wave should read as pronounced on screen and be **even along the whole 
 - **Never touching the angle caps.** High amplitude means just under the cap, never clipping.
 - **The head is excluded from the wave outright**, not damped. Its region multiplier is zero. It is
   later aimed at a focal point so the creature can track prey and look around independently.
-- **Measured two ways, both reported every run.**
-  - *Primary, and the gate:* each spine joint's peak angle as a fraction of **its own** cap. A joint
-    angle is local, so this is unaffected by turning, and it is the same quantity the cap limit uses —
-    so "as high as possible without clipping" is one number. Evenness is the spread across joints, and
-    hip equality falls straight out of it.
-  - *Secondary, describing the look:* each node's sideways travel measured against a **fitted curved
-    centreline**, not a straight axis. This is what actually reads as pronounced, because it accounts
-    for segment length. Fitting a curve rather than a line is what keeps it meaningful while turning.
+- **Evenness is measured in DEGREES.** _Settled 8-Aug-2026 by the owner, replacing the earlier
+  cap-fraction gate._ The two measures were assumed to agree and they do not: the authored angle caps on
+  the current rig run **21° to 45°**, uneven by 2.2×, so a joint can read 41% of its cap while bending
+  further than one reading 101%. "The front and hind hips should rotate approximately equal amounts" is a
+  statement about angles, so degrees is the gate. The spread and the max-to-min ratio of peak bend across
+  the spine joints are the evenness numbers.
+- **Measured three ways, all reported every run.**
+  - *The gate:* each spine joint's **peak bend in degrees**, with the spread and the max/min ratio.
+    Evenness is the spread; hip equality is the two girdle joints compared directly.
+  - *The clipping guard:* each joint's peak angle as a fraction of **its own** cap. This no longer
+    defines evenness, but it is still what "never touching a cap" means, and a joint angle is local so
+    it survives turning. Reported beside the degrees, never instead of them.
+  - *Describing the look:* each node's sideways travel measured against a **fitted curved centreline**,
+    not a straight axis. This is what actually reads as pronounced, because it accounts for segment
+    length. Fitting a curve rather than a line is what keeps it meaningful while turning.
 
 ### Metric 3 — velocity and direction
 
@@ -1409,3 +1416,51 @@ Each preset travels in the direction it intends, at the speed it intends.
   **Goal restated by the owner.** Body surge was the wrong target and is dropped. The target is foot
   stillness in the CPG-clocked plant window, together with an even high-amplitude wave and ordered
   speeds and turn rates — see §6. Phase D was re-planned around the preset grid on the same day.
+
+- **2026-08-08 (D-T2 in progress; a sampling defect fixed; evenness redefined)** — Tracked by the
+  OpenSpec change `add-wave-shaping`. Three things landed and one decision is pending.
+
+  **A defect that invalidated the baseline.** The axial CPG runs at 25 fine oscillators decoupled from
+  the body's joint count, and `CpgSpec.oscOfSegment` maps each body segment onto the fine chain by arc
+  position. Rapier applies that map; **MuJoCo did not** — it passed each joint's body-segment index
+  straight into `oscillatorOutput`. The 11-segment rig therefore read only fine oscillators 0–10 of 25:
+  **44% of the chain**, about **0.66 body waves instead of 1.58**, with every joint crowded into the head
+  end. The two engines were not running the same wave despite sharing `cpg.ts`. Found by reading the code
+  while scoping the region profile, because a profile indexed by spine position is meaningless on a
+  mapping where spine position and chain position disagree by more than 2×.
+  Fixed. Speed **1.06 → 1.36 u/s**, a dead spot in the middle of the body disappears (minimum centreline
+  swing 0.58 → 1.25 u), head swing **2.16 → 1.65 u**. It also puts **6 of 10 spine joints at or over
+  their caps** at the previously approved config. Lowering `muscleAlpha` to de-clip was measured (15 →
+  still 100%; 12 → 80% but speed down to 0.72 u/s and evenness no better) and rejected: it scales the
+  whole spine when only some joints are over.
+  **The pre-fix look is not reachable by config**, since the difference is a code fix rather than a
+  lever, so the old MuJoCo `base swim` numbers are the only record of it.
+
+  **Honest note on the evidence.** The defect is established from the code, which is unambiguous. It is
+  *not* confirmed by measurement: per-joint phase lag on the baseline reads 0.711 cycles across joints
+  1–9, between the 0.53 predicted for the broken mapping and the 0.92 for the fixed one. A joint angle is
+  a loaded mechanical response, so it cannot discriminate. Do not cite that number as evidence either way.
+
+  **Wave shaping and head isolation ship.** Five drive multipliers along the spine at arc 0, 0.25, 0.5,
+  0.75 and 1.0, linearly interpolated, all defaulting to 1.0 and verified inert at that default. Head
+  isolation drops the head joint from **101% of its cap to 23%** and stops it being the clipper. Head node
+  swing falls only **1.65 → 1.56 u**, about 5% — the head is held straight against a neck that still
+  waves, so isolation is not stabilisation, and aiming remains a later layer.
+  Best variant so far is head isolation plus a tail cut (mid-tail and tip at 0.6): girdle ratio
+  **0.84 → 0.94**, bend spread **27.6° → 19.9°**, max/min bend **3.28 → 2.93**, speed 0.87 u/s. Three
+  joints still clip, between arc 0.58 and 0.76.
+
+  **Evenness redefined, by the owner.** Degrees, not cap fraction — see §6. Forced by discovering that
+  the authored caps are uneven by 2.2×, which made the two measures different targets.
+
+  **Pending decision: the angle caps.** Measured per spine joint (forward and backward are equal
+  everywhere): **21, 23, 37, 39, 28, 28, 22, 30, 30, 45°**. Joints 8, 9 and 10 sit exactly on the
+  defaults (spine 30°, tail 45°); the other seven are hand-authored overrides with no consistent
+  gradient — a 37°/39° bulge at joints 3–4 and a 22° dip at joint 7 between neighbours of 28° and 30°.
+  That single 22° dip is what clips in the best variant, so one eyeballed value is capping the whole wave.
+  **Recommended** (not applied — the caps live on the rig, and whether they encode the printed model's
+  real range of motion is the owner's knowledge, not mine): replace the per-joint values with one value
+  per region — head joint 21°, trunk joints 32°, tail joints 40°. That keeps the anatomically sensible
+  tight-front / wide-tail gradient, removes the bumps, and lets a uniform 28° wave sit at 88% of trunk cap
+  with nothing clipping. If the current values *were* measured from the print, change nothing and accept a
+  uniform wave of about 22°, which is what joint 7 allows.

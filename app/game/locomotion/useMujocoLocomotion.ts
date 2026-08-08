@@ -74,6 +74,8 @@ export function useMujocoLocomotion(
       const sm = driver.spineMeta()
       ncap.spineSeg = sm.seg
       ncap.spineGirdleDist = sm.girdleDist
+      ncap.spineCapF = sm.capF
+      ncap.spineCapB = sm.capB
     } else {
       const peak = ncap.spineFracPeak
       for (let i = 0; i < sf.length; i++) if (sf[i] > peak[i]) peak[i] = sf[i]

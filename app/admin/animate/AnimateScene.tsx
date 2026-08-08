@@ -141,6 +141,8 @@ function useStudioObservationHook() {
           spineFracPeak: c?.spineFracPeak ?? null,
           spineSeg: c?.spineSeg ?? null,
           spineGirdleDist: c?.spineGirdleDist ?? null,
+          spineCapF: c?.spineCapF ?? null,
+          spineCapB: c?.spineCapB ?? null,
           maxRollDeg: c?.maxRollDeg ?? null,
           rollFlips: c?.rollFlips ?? null,
           sweepLo: c?.sweepLo ?? null,

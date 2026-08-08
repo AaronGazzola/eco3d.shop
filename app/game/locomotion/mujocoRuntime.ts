@@ -214,6 +214,8 @@ export class MujocoLocomotion {
   // Used by the girdle stall-torque boost and the per-joint undershoot report.
   private spineSeg: number[] = []
   private spineGirdleDist: number[] = []
+  // The spine joint nearest the nose (smallest body-segment index) — the one head isolation zeroes.
+  private headJointIdx = -1
   private girdleBoost = -1
   private spineBaseKp: number[] = []
   private spineBaseKv: number[] = []
@@ -235,8 +237,13 @@ export class MujocoLocomotion {
     const id = (t: number, name: string): number => mujoco.mj_name2id(model, t, name)
     const jntQadr = model.jnt_qposadr as unknown as Int32Array
     const bodyMocapId = model.body_mocapid as unknown as Int32Array
+    // The CPG runs at a fine resolution decoupled from the body's joint count (paper Fig 2A), so a joint's
+    // BODY-segment index is not an oscillator index. Remap through oscOfSegment — the fine oscillator at
+    // that segment's fractional arc position — exactly as the Rapier runtime does. Reading childIndex
+    // directly would confine an 11-segment body to fine oscillators 0..10 of 25, holding 0.66 body waves
+    // instead of 1.58 and crowding every joint into the head end of the wave.
     this.spine = meta.spineJoints.map((j) => ({
-      k: j.childIndex,
+      k: this.cpgSpec.oscOfSegment[j.childIndex] ?? j.childIndex,
       qadr: jntQadr[id(OBJ.JOINT, j.name)],
       act: id(OBJ.ACTUATOR, j.actuator),
       capF: j.capForward,
@@ -274,6 +281,9 @@ export class MujocoLocomotion {
       for (const g of girdleSegs) best = Math.min(best, Math.abs(seg - g))
       return best
     })
+    for (let i = 0; i < this.spineSeg.length; i++) {
+      if (this.headJointIdx < 0 || this.spineSeg[i] < this.spineSeg[this.headJointIdx]) this.headJointIdx = i
+    }
 
     // Observation infrastructure (harness parity): the per-node render/spec list, the trunk drag bodies
     // with their segment lengths, and the root body used for tilt. `axial` maps each trunk group to its
@@ -397,12 +407,28 @@ export class MujocoLocomotion {
       num(cfg.limbDrive, 0),
       undefined,
       num(cfg.feedbackIpsi, 0),
-      num(cfg.feedbackContra, 0)
+      num(cfg.feedbackContra, 0),
+      [
+        num(cfg.waveNose, 1),
+        num(cfg.waveShoulder, 1),
+        num(cfg.waveHip, 1),
+        num(cfg.waveTailMid, 1),
+        num(cfg.waveTailTip, 1),
+      ]
     )
 
     // spine: Ekeberg equilibrium angle φEq → fixed-gain position servo (target only; gains from MJCF)
+    const headIsolated = bool(cfg.headIsolated, false)
     for (let i = 0; i < this.spine.length; i++) {
       const sp = this.spine[i]
+      // Head isolation (Decision 11): the head is EXCLUDED from the wave rather than damped, so its
+      // target is forced to zero rather than its muscle inputs being scaled. The servo then actively
+      // holds the head straight relative to the neck — it does NOT hold the head steady in world space,
+      // because the neck still waves. Aiming at a focal point is a later layer.
+      if (headIsolated && i === this.headJointIdx) {
+        this.ctrl[sp.act] = 0
+        continue
+      }
       const mL = oscillatorOutput(state, sp.k) * CPG_TO_MUSCLE_GAIN
       const mR = oscillatorOutput(state, sp.k + spec.n) * CPG_TO_MUSCLE_GAIN
       const d = pushAndReadDelayed(this.delays[i], mL, mR)
@@ -617,8 +643,17 @@ export class MujocoLocomotion {
   }
 
   // Static per-spine-joint metadata for the report: axial segment index and girdle distance (segments).
-  spineMeta(): { seg: number[]; girdleDist: number[] } {
-    return { seg: this.spineSeg.slice(), girdleDist: this.spineGirdleDist.slice() }
+  // Static per-spine-joint metadata for the report: axial segment index, girdle distance (segments) and
+  // the authored angle caps in radians. The caps are reported because a cap FRACTION and a bend ANGLE
+  // answer different questions whenever the caps are uneven, and on this rig they are — a joint can read
+  // 41% of cap while bending further than one reading 101%.
+  spineMeta(): { seg: number[]; girdleDist: number[]; capF: number[]; capB: number[] } {
+    return {
+      seg: this.spineSeg.slice(),
+      girdleDist: this.spineGirdleDist.slice(),
+      capF: this.spine.map((sp) => sp.capF),
+      capB: this.spine.map((sp) => sp.capB),
+    }
   }
 
   // Per-axial-segment signed CPG activation (left−right) — the neural signal, distinct from curvature.
