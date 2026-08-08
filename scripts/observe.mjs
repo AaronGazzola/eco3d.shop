@@ -25,6 +25,7 @@ import { chromium } from 'playwright-core'
 import { mkdirSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir, platform } from 'node:os'
+import { bendDegrees, bendDegreesGeometric, centrelineSwing } from './observe-metrics.mjs'
 
 const BASE = process.env.OBSERVE_URL ?? 'http://127.0.0.1:3002'
 const EMAIL = process.env.OBSERVE_EMAIL ?? 'aaron@gazzola.dev'
@@ -290,91 +291,6 @@ function amplitudeQuality(dump) {
   return { min, max, mean, spread: max - min, front, hind, ratio: front && hind ? hind / front : null, head: frac[headJ] }
 }
 
-// Each node's sideways swing measured against a FITTED CURVED CENTRELINE rather than a straight axis.
-// A straight axis mixes the body's own curvature into the swing and stops meaning anything once the
-// body turns. The fit is a per-frame least-squares QUADRATIC of lateral offset against arc position:
-// low enough order to absorb the gross arc (turning) while leaving the ~1.3-wave undulation as the
-// residual, which is what actually reads as pronounced on screen.
-function centrelineSwing(dump) {
-  const { samples, spec } = dump
-  if (!samples || !samples.length) return null
-  const segLen = spec?.segLength ?? []
-  const nAx = segLen.length ? segLen.filter((L) => L > 1e-9).length : samples[0].nodes.length
-  if (nAx < 4) return null
-  const lo = new Array(nAx).fill(Infinity)
-  const hi = new Array(nAx).fill(-Infinity)
-
-  for (const s of samples) {
-    const P = s.nodes.slice(0, nAx)
-    // Arc position along the body this frame, and the head→tail chord as the local frame.
-    const arc = [0]
-    for (let i = 1; i < nAx; i++) arc.push(arc[i - 1] + Math.hypot(P[i].x - P[i - 1].x, P[i].z - P[i - 1].z))
-    const total = arc[nAx - 1] || 1
-    const ax = (P[nAx - 1].x - P[0].x) / (Math.hypot(P[nAx - 1].x - P[0].x, P[nAx - 1].z - P[0].z) || 1)
-    const az = (P[nAx - 1].z - P[0].z) / (Math.hypot(P[nAx - 1].x - P[0].x, P[nAx - 1].z - P[0].z) || 1)
-    const u = arc.map((a) => a / total)
-    const v = P.map((p) => {
-      const dx = p.x - P[0].x, dz = p.z - P[0].z
-      return dx * -az + dz * ax // perpendicular offset from the head→tail chord
-    })
-    // Least-squares quadratic v ≈ c0 + c1·u + c2·u² by normal equations.
-    let S = [0, 0, 0, 0, 0], T = [0, 0, 0]
-    for (let i = 0; i < nAx; i++) {
-      const p = [1, u[i], u[i] * u[i], u[i] ** 3, u[i] ** 4]
-      for (let k = 0; k < 5; k++) S[k] += p[k]
-      for (let k = 0; k < 3; k++) T[k] += v[i] * p[k]
-    }
-    const M = [[S[0], S[1], S[2]], [S[1], S[2], S[3]], [S[2], S[3], S[4]]]
-    const c = solve3(M, T)
-    for (let i = 0; i < nAx; i++) {
-      const fit = c ? c[0] + c[1] * u[i] + c[2] * u[i] * u[i] : 0
-      const r = v[i] - fit
-      if (r < lo[i]) lo[i] = r
-      if (r > hi[i]) hi[i] = r
-    }
-  }
-  return lo.map((l, i) => hi[i] - l)
-}
-
-function solve3(M, b) {
-  const A = M.map((r, i) => [...r, b[i]])
-  for (let i = 0; i < 3; i++) {
-    let p = i
-    for (let r = i + 1; r < 3; r++) if (Math.abs(A[r][i]) > Math.abs(A[p][i])) p = r
-    if (Math.abs(A[p][i]) < 1e-12) return null
-    ;[A[i], A[p]] = [A[p], A[i]]
-    for (let r = 0; r < 3; r++) {
-      if (r === i) continue
-      const f = A[r][i] / A[i][i]
-      for (let k = i; k < 4; k++) A[r][k] -= f * A[i][k]
-    }
-  }
-  return [A[0][3] / A[0][0], A[1][3] / A[1][1], A[2][3] / A[2][2]]
-}
-
-// Peak bend at each spine joint in DEGREES, from the node geometry. Reported beside the cap fraction
-// because the two answer different questions and this rig's caps are uneven by more than 3 to 1: a joint
-// can read 41% of cap while bending further than one reading 101%. "The hips should rotate by
-// approximately equal amounts" is a statement about degrees; "nothing touches its cap" is about the
-// fraction. Shaping to the fraction alone would chase the caps rather than the wave.
-function jointBendDegrees(dump) {
-  const { samples, spec } = dump
-  if (!samples || !samples.length) return null
-  const segLen = spec?.segLength ?? []
-  const nAx = segLen.length ? segLen.filter((L) => L > 1e-9).length : samples[0].nodes.length
-  if (nAx < 3) return null
-  const peak = new Array(nAx - 2).fill(0)
-  for (const s of samples) {
-    for (let i = 1; i <= nAx - 2; i++) {
-      const a = s.nodes[i - 1], b = s.nodes[i], c = s.nodes[i + 1]
-      const ux = b.x - a.x, uz = b.z - a.z, vx = c.x - b.x, vz = c.z - b.z
-      const th = Math.abs(Math.atan2(ux * vz - uz * vx, ux * vx + uz * vz)) * 180 / Math.PI
-      if (th > peak[i - 1]) peak[i - 1] = th
-    }
-  }
-  return peak
-}
-
 function reportAmplitudeQuality(dump, emit) {
   const q = amplitudeQuality(dump)
   const pct = (v) => `${Math.round(v * 100)}%`
@@ -385,14 +301,24 @@ function reportAmplitudeQuality(dump, emit) {
     }
     emit(`  head joint: ${pct(q.head)} of its cap`)
   }
-  const deg = jointBendDegrees(dump)
+  // THE gate. Degrees are (peak fraction of cap) × (authored cap) — the engine's own joint angle, exact
+  // by construction, so it cannot disagree with the clipping guard printed above it. The head joint is
+  // excluded from the spread because isolation holds it near zero by design.
+  const deg = bendDegrees(dump)
   if (deg) {
-    emit('peak bend per joint in DEGREES (what "the hips rotate equally" actually means):')
-    emit('  ' + deg.map((v, i) => `j${i + 1}=${v.toFixed(1)}°`).join('  '))
-    const lo = Math.min(...deg), hi = Math.max(...deg)
-    emit(`  min=${lo.toFixed(1)}°  max=${hi.toFixed(1)}°  spread=${(hi - lo).toFixed(1)}°  ratio max/min=${(hi / Math.max(1e-6, lo)).toFixed(2)}`)
-    emit('  (geometric turn angle between adjacent node segments, so it approximates the joint angle')
-    emit('   rather than reading it — least reliable at the two ends, where a node sits past the joint)')
+    const seg = dump.spineSeg ?? deg.map((_, i) => i)
+    let headJ = 0
+    for (let i = 1; i < seg.length; i++) if (seg[i] < seg[headJ]) headJ = i
+    const sub = deg.filter((_, i) => i !== headJ)
+    const lo = Math.min(...sub), hi = Math.max(...sub)
+    emit('peak bend per joint in DEGREES — THE GATE (what "the hips rotate equally" actually means):')
+    emit('  ' + deg.map((v, i) => `seg${seg[i]}=${v.toFixed(1)}°`).join('  '))
+    emit(`  excluding the head joint: min=${lo.toFixed(1)}°  max=${hi.toFixed(1)}°  spread=${(hi - lo).toFixed(1)}°  ratio max/min=${(hi / Math.max(1e-6, lo)).toFixed(2)}`)
+  }
+  const geo = bendDegreesGeometric(dump)
+  if (geo) {
+    emit('  cross-check, node-geometry turn angle (approximate — a node does not sit on its joint frame):')
+    emit('    ' + geo.map((v, i) => `j${i + 1}=${v.toFixed(1)}°`).join('  '))
   }
   const capF = dump.spineCapF
   if (capF && capF.length) {

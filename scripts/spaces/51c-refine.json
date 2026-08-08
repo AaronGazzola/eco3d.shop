@@ -1,0 +1,18 @@
+{
+  "note": "Refinement pass around the coarse sweep's only even-spine basin (sample d0.39 a14 [1/1/0.7/0.5/0.3], spread 10.5 deg, nothing clipping, but girdle 1.49 and only 0.32 u/s). The two things wrong with it are the girdle imbalance and the speed, so this pass varies what can move those: the shoulder control point (which sits on the front girdle) against the hip one (which sits on the hind), plus drive and muscle gain. Shoulder is allowed above 1.0 here as the LAST RESORT the owner flagged, and samples at 1.0 are kept alongside so the cost of going above 1 is visible rather than assumed.",
+  "grid": {
+    "cpgDrive": [0.39, 0.5, 0.65],
+    "muscleAlpha": [14, 16, 18],
+    "waveNose": [0.9, 1.0, 1.2],
+    "waveShoulder": [1.0, 1.15, 1.3],
+    "waveHip": [0.5, 0.6, 0.7],
+    "waveTailMid": [0.35, 0.45, 0.55],
+    "waveTailTip": [0.25, 0.35]
+  },
+  "anchors": [
+    { "label": "anchor: coarse best (even spine)", "cpgDrive": 0.39, "muscleAlpha": 14, "waveNose": 1, "waveShoulder": 1, "waveHip": 0.7, "waveTailMid": 0.5, "waveTailTip": 0.3 },
+    { "label": "anchor: coarse 2nd (most headroom)", "cpgDrive": 0.39, "muscleAlpha": 14, "waveNose": 1, "waveShoulder": 0.8, "waveHip": 0.7, "waveTailMid": 0.7, "waveTailTip": 0.3 },
+    { "label": "anchor: coarse equal-girdle", "cpgDrive": 0.5, "muscleAlpha": 14, "waveNose": 0.8, "waveShoulder": 1, "waveHip": 1, "waveTailMid": 0.5, "waveTailTip": 0.5 },
+    { "label": "anchor: 5.1b baseline", "cpgDrive": 0.39, "muscleAlpha": 18, "waveNose": 1, "waveShoulder": 1, "waveHip": 1, "waveTailMid": 0.6, "waveTailTip": 0.6 }
+  ]
+}

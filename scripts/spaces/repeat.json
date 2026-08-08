@@ -1,0 +1,79 @@
+{
+  "note": "Determinism check. The batch path and the single-run path report different numbers for the SAME config (bend spread 5.9 vs 8.3 degrees, girdle 1.10 vs 0.89). Repeated anchors inside one batch reproduced to three significant figures, which suggests the batch is repeatable and the two paths differ — but that has to be measured, not assumed, because every preset decision rests on these numbers. Six identical runs of the gain-4 candidate.",
+  "fixed": {
+    "footThrustEnabled": true
+  },
+  "grid": {
+    "footThrustGain": [
+      4
+    ]
+  },
+  "anchors": [
+    {
+      "label": "repeat 1",
+      "cpgDrive": 0.39,
+      "muscleAlpha": 14,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 0.7,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.3,
+      "footThrustGain": 4
+    },
+    {
+      "label": "repeat 2",
+      "cpgDrive": 0.39,
+      "muscleAlpha": 14,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 0.7,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.3,
+      "footThrustGain": 4
+    },
+    {
+      "label": "repeat 3",
+      "cpgDrive": 0.39,
+      "muscleAlpha": 14,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 0.7,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.3,
+      "footThrustGain": 4
+    },
+    {
+      "label": "repeat 4",
+      "cpgDrive": 0.39,
+      "muscleAlpha": 14,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 0.7,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.3,
+      "footThrustGain": 4
+    },
+    {
+      "label": "repeat 5",
+      "cpgDrive": 0.39,
+      "muscleAlpha": 14,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 0.7,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.3,
+      "footThrustGain": 4
+    },
+    {
+      "label": "repeat 6",
+      "cpgDrive": 0.39,
+      "muscleAlpha": 14,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 0.7,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.3,
+      "footThrustGain": 4
+    }
+  ]
+}
