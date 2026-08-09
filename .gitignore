@@ -13,8 +13,12 @@
 # testing
 /coverage
 
-# locomotion diagnostic captures + observation frames
-/docs/diagnostics/
+# locomotion diagnostics: the scored evidence is tracked, the regenerable bulk is not.
+# sweep-*.json/.md, single-run *.md reports and *.pdf aids are shared history between
+# accounts; raw node captures and top-down frames rebuild from the config in those files.
+/docs/diagnostics/observe/nodes-*.json
+/docs/diagnostics/observe/*-topdown.png
+/docs/diagnostics/observe/*.png
 
 # observation harness: cached browser session (contains auth tokens) + transient server/build logs
 /scripts/.observe-auth.json
