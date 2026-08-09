@@ -135,6 +135,11 @@ interface LegDrive {
   planted: boolean
   gripEqId: number
   mocapId: number
+  // Plant-hold state: the absolute floor point this foot was standing on when its plant window opened,
+  // held in world coordinates and never recomputed from the model.
+  holdPx: number
+  holdPz: number
+  holdOpen: boolean
 }
 interface TrunkDrag {
   body: number
@@ -191,6 +196,7 @@ export class MujocoLocomotion {
   private nodeGroupIds: string[]
   private nodeSegLength: number[]
   private rootBody: number
+  private rootQadr = 0
   private simTime = 0
   // World-frame impulse accumulated per source since the run started (see MjDiag).
   private footImpulse: [number, number, number] = [0, 0, 0]
@@ -267,6 +273,9 @@ export class MujocoLocomotion {
       // equality i ↔ legs[i], which is also the index into the mjSTATE_EQ_ACTIVE state vector.
       gripEqId: i,
       mocapId: bodyMocapId[id(OBJ.BODY, l.anchorMocap)],
+      holdPx: 0,
+      holdPz: 0,
+      holdOpen: false,
     }))
     this.bodyOf = meta.segmentBodies.map((s) => ({ groupId: s.groupId, body: id(OBJ.BODY, s.body), restCenter: s.restCenter }))
 
@@ -305,6 +314,8 @@ export class MujocoLocomotion {
     const bodyJntadr = model.body_jntadr as unknown as Int32Array
     const dofDamping = model.dof_damping as unknown as Float64Array
     const rootDof = jntDofadr[bodyJntadr[this.rootBody]]
+    // The free base's translation slots in qpos, so plant-hold can shift the whole body.
+    this.rootQadr = jntQadr[bodyJntadr[this.rootBody]]
     dofDamping[rootDof + 3] = ROLL_DAMP
     dofDamping[rootDof + 5] = PITCH_DAMP
 
@@ -339,6 +350,8 @@ export class MujocoLocomotion {
     const beta = num(cfg.muscleBeta, 35)
     const stepEnabled = bool(cfg.stepEnabled, true)
     const sweepAmount = num(cfg.sweepAmount, 0)
+    const plantHoldEnabled = bool(cfg.plantHoldEnabled, false)
+    const plantHoldGain = num(cfg.plantHoldGain, 0)
     const liftAmount = num(cfg.liftAmount, 0)
     const gripEnabled = bool(cfg.gripEnabled, false)
     const environmentEnabled = bool(cfg.environmentEnabled, false)
@@ -585,6 +598,48 @@ export class MujocoLocomotion {
     }
 
     this.mujoco.mj_step(this.model, this.data)
+
+    // Plant hold: instead of the legs reaching for their floor points, the BODY is moved so the feet
+    // already standing on theirs stay there. With rigid legs the feet are welded to the body, so one
+    // translation moves every foot equally and the best it can do for several planted feet at once is
+    // their MEAN error — a single foot can be held exactly, more than one only on average.
+    //
+    // This is a kinematic correction applied after the solver, not a force. It is therefore hand-placed
+    // motion, and it is deliberately gated behind an off-by-default lever. Applied as a fraction of the
+    // error per step rather than a snap: writing the full correction fights the velocity state the
+    // solver just integrated, which shows up as buzz.
+    if (plantHoldEnabled && plantHoldGain > 0) {
+      let ex = 0
+      let ez = 0
+      let n = 0
+      for (const lg of this.legs) {
+        const ph = girdleClockPhase(state, spec, lg.limbIdx)
+        const shift = lg.limbIdx < 2 ? footThrustShift : footThrustShiftHind
+        const rel = (((ph - shift) % 1) + 1) % 1
+        const inPlant = rel < 0.5
+        const fx = this.siteXpos[3 * lg.footSite]
+        const fz = this.siteXpos[3 * lg.footSite + 2]
+        if (inPlant && !lg.holdOpen) {
+          lg.holdPx = fx
+          lg.holdPz = fz
+          lg.holdOpen = true
+        } else if (!inPlant && lg.holdOpen) {
+          lg.holdOpen = false
+        }
+        if (!lg.holdOpen) continue
+        ex += fx - lg.holdPx
+        ez += fz - lg.holdPz
+        n++
+      }
+      if (n > 0) {
+        this.qpos[this.rootQadr] -= (plantHoldGain * ex) / n
+        this.qpos[this.rootQadr + 2] -= (plantHoldGain * ez) / n
+        // Re-derive every world position from the moved qpos, so anything read this step (foot sites,
+        // the drag velocities, the observation path) sees the body where it actually is.
+        this.mujoco.mj_forward(this.model, this.data)
+      }
+    }
+
     this.simTime += TIMESTEP
   }
 

@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { pickSimConfig, useAnimateStore, encodeSimConfig, SimConfig } from './animateStore'
+import { pickSimConfig, useAnimateStore, buildConfigLink, EMBED_PATH } from './animateStore'
+import { useSharedStore } from '../_lib/sharedStore'
 import { presetsForEngine, findSimPreset, applyPreset } from './simPresets'
 import { CalibrateTab } from './CalibrateTab'
 
@@ -185,6 +186,10 @@ function SimulateTab() {
   const setWaveTailTip = useAnimateStore((s) => s.setWaveTailTip)
   const headIsolated = useAnimateStore((s) => s.headIsolated)
   const setHeadIsolated = useAnimateStore((s) => s.setHeadIsolated)
+  const plantHoldEnabled = useAnimateStore((s) => s.plantHoldEnabled)
+  const setPlantHoldEnabled = useAnimateStore((s) => s.setPlantHoldEnabled)
+  const plantHoldGain = useAnimateStore((s) => s.plantHoldGain)
+  const setPlantHoldGain = useAnimateStore((s) => s.setPlantHoldGain)
 
   const resetSimConfig = useAnimateStore((s) => s.resetSimConfig)
 
@@ -201,7 +206,9 @@ function SimulateTab() {
 
   const [copied, setCopied] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
+  const [overlayLinkCopied, setOverlayLinkCopied] = useState(false)
   const [selectedPreset, setSelectedPreset] = useState('')
+  const configId = useSharedStore((s) => s.configId)
 
   // Hydration is owned by useConfigLink in page.tsx (rehydrate → then apply the link on top). Doing it
   // here too would re-run after the link applied and clobber the link's config with the saved one.
@@ -234,21 +241,18 @@ function SimulateTab() {
 
   const isMujoco = simEngine === 'mujoco'
 
-  const handleCopyLink = () => {
-    const st = useAnimateStore.getState()
-    const params = new URLSearchParams()
-    params.set('tab', st.animateTab)
-    params.set('sim', encodeSimConfig(pickSimConfig(st as unknown as SimConfig)))
-    if (st.overlays.length > 0) params.set('overlay', st.overlays.join(','))
-    const base = window.location.origin + window.location.pathname
+  const copyLink = (path: string | undefined, mark: (v: boolean) => void) => {
     navigator.clipboard
-      .writeText(`${base}#${params.toString()}`)
+      .writeText(buildConfigLink(path))
       .then(() => {
-        setLinkCopied(true)
-        setTimeout(() => setLinkCopied(false), 1500)
+        mark(true)
+        setTimeout(() => mark(false), 1500)
       })
       .catch((err) => console.error(err))
   }
+
+  const handleCopyLink = () => copyLink(undefined, setLinkCopied)
+  const handleCopyOverlayLink = () => copyLink(EMBED_PATH, setOverlayLinkCopied)
 
   return (
     <TooltipProvider>
@@ -717,6 +721,23 @@ function SimulateTab() {
           format={(v) => `${Math.round(v * 100)}%`}
         />
 
+        <Toggle
+          label="Plant hold"
+          tip="Moves the whole body each step so the feet whose plant window is open stay on the floor spots they were standing on when the window opened. The legs stay rigid and never sweep. Several planted feet can only be held on average, because a rigid leg welds its foot to the body. MuJoCo only."
+          on={plantHoldEnabled}
+          onChange={setPlantHoldEnabled}
+        />
+        <Slider
+          label="Plant hold · strength"
+          tip="How much of the measured foot error is corrected each step. Low values pull the body toward the correction, 1.0 snaps it there and tends to buzz against the velocity the solver just integrated."
+          value={plantHoldGain}
+          min={0}
+          max={1}
+          step={0.05}
+          onChange={setPlantHoldGain}
+          format={(v) => v.toFixed(2)}
+        />
+
         <Divider />
 
         <Toggle
@@ -801,6 +822,14 @@ function SimulateTab() {
               {linkCopied ? 'Copied!' : 'Copy link'}
             </button>
           </div>
+          <button
+            type="button"
+            onClick={handleCopyOverlayLink}
+            disabled={!configId}
+            className="mt-2 w-full rounded-md bg-white/10 py-1.5 text-xs text-white/70 transition-colors hover:text-white disabled:cursor-not-allowed disabled:text-white/25 disabled:hover:text-white/25"
+          >
+            {overlayLinkCopied ? 'Copied!' : 'Copy overlay link'}
+          </button>
         </div>
       </div>
     </TooltipProvider>

@@ -1,0 +1,120 @@
+{
+  "note": "Calibration of the thrust gain scale. The first thrust sweep used gains 8/16/28 taken from the slider bounds (-40..40) rather than from the range D-T1 actually worked in, and the body launched: 83 units in 12s, roughly 5 body lengths per second, with head isolation overpowered (head joint at 91% of its cap against 23% normally). This finds the usable range before anything else is swept across it.",
+  "fixed": {
+    "footThrustEnabled": true
+  },
+  "grid": {
+    "footThrustGain": [
+      0,
+      0.25,
+      0.5,
+      1,
+      1.5,
+      2,
+      3,
+      4,
+      6
+    ]
+  },
+  "anchors": [
+    {
+      "label": "gain 0",
+      "cpgDrive": 0.39,
+      "muscleAlpha": 14,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 0.7,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.3,
+      "footThrustGain": 0
+    },
+    {
+      "label": "gain 0.25",
+      "cpgDrive": 0.39,
+      "muscleAlpha": 14,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 0.7,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.3,
+      "footThrustGain": 0.25
+    },
+    {
+      "label": "gain 0.5",
+      "cpgDrive": 0.39,
+      "muscleAlpha": 14,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 0.7,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.3,
+      "footThrustGain": 0.5
+    },
+    {
+      "label": "gain 1",
+      "cpgDrive": 0.39,
+      "muscleAlpha": 14,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 0.7,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.3,
+      "footThrustGain": 1
+    },
+    {
+      "label": "gain 1.5",
+      "cpgDrive": 0.39,
+      "muscleAlpha": 14,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 0.7,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.3,
+      "footThrustGain": 1.5
+    },
+    {
+      "label": "gain 2",
+      "cpgDrive": 0.39,
+      "muscleAlpha": 14,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 0.7,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.3,
+      "footThrustGain": 2
+    },
+    {
+      "label": "gain 3",
+      "cpgDrive": 0.39,
+      "muscleAlpha": 14,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 0.7,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.3,
+      "footThrustGain": 3
+    },
+    {
+      "label": "gain 4",
+      "cpgDrive": 0.39,
+      "muscleAlpha": 14,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 0.7,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.3,
+      "footThrustGain": 4
+    },
+    {
+      "label": "gain 6",
+      "cpgDrive": 0.39,
+      "muscleAlpha": 14,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 0.7,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.3,
+      "footThrustGain": 6
+    }
+  ]
+}

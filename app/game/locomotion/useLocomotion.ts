@@ -53,6 +53,10 @@ interface NodeCaptureSample {
   // the NEURAL signal the paper's Fig 6 standing/traveling-wave classification is based on — distinct
   // from the mechanical body curvature (node positions), which lags it by the EMG-to-curvature delay.
   cpg?: number[]
+  // Per-leg foot world position plus that leg's girdle-clock phase, so foot stillness can be scored
+  // offline against the CPG-clocked plant window. The phase must come from the runtime: deriving the
+  // window from body motion is the error the roadmap already records once.
+  legs?: { leg: string; limbIdx: number; phase: number; footX: number; footY: number; footZ: number }[]
 }
 // A primitive-window boundary crossing, detected at render rate from the CPG phase alone (so it is
 // observed WITHOUT the grip/step switches being on — the behaviour never interferes). Optionally

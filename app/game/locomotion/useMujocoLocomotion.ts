@@ -115,7 +115,12 @@ export function useMujocoLocomotion(
     const interval = ncap.hz > 0 ? 1 / ncap.hz : 0
     if (ncap.buffer.length < ncap.maxSamples && tNow - ncap.lastSampleTime >= interval - 1e-4) {
       ncap.lastSampleTime = tNow
-      ncap.buffer.push({ t: tNow, nodes: driver.nodePositions(), cpg: driver.cpgSigned() })
+      ncap.buffer.push({
+        t: tNow,
+        nodes: driver.nodePositions(),
+        cpg: driver.cpgSigned(),
+        legs: sweepLegs.map((l) => ({ leg: l.leg, limbIdx: l.limbIdx, phase: l.phase, footX: l.footX, footY: l.footY, footZ: l.footZ })),
+      })
     }
 
     if (!ncap.events) return

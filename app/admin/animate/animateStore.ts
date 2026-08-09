@@ -3,6 +3,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { CameraPreset } from '../_lib/types'
+import { useSharedStore } from '../_lib/sharedStore'
 
 export type AnimateTab = 'simulate' | 'calibrate'
 
@@ -105,6 +106,16 @@ export interface SimConfig {
   // Does NOT hold the head steady in world space: the head is rigid to the neck and the neck still waves.
   // Aiming the head at a focal point is a separate, later layer. MuJoCo only.
   headIsolated: boolean
+  // Plant hold. The legs stay rigid and never sweep; instead the BODY is shifted each step so the feet
+  // whose plant window is open stay on the floor spots they were standing on when that window opened.
+  // With rigid legs a foot is welded to the body, so one translation moves all feet together and several
+  // planted feet can only be held on average, not each exactly. The window is CPG-clocked with separate
+  // front and hind shifts, the same window foot thrust uses. MuJoCo only. Off by default.
+  plantHoldEnabled: boolean
+  // Fraction of the measured foot error corrected per step, 0 to 1. Below 1 the body is pulled toward
+  // the correction rather than snapped to it, which is what keeps it from fighting the velocity the
+  // solver just integrated. 0 disables the hold even when the toggle is on.
+  plantHoldGain: number
 }
 
 export type SimEngine = 'rapier' | 'mujoco'
@@ -156,6 +167,8 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
   waveTailMid: 1,
   waveTailTip: 1,
   headIsolated: false,
+  plantHoldEnabled: false,
+  plantHoldGain: 0.5,
 }
 
 export const SIM_CONFIG_STORAGE_KEY = 'eco3d-animate-sim-config'
@@ -228,6 +241,8 @@ export function pickSimConfig(s: SimConfig): SimConfig {
     waveTailMid: s.waveTailMid,
     waveTailTip: s.waveTailTip,
     headIsolated: s.headIsolated,
+    plantHoldEnabled: s.plantHoldEnabled,
+    plantHoldGain: s.plantHoldGain,
   }
 }
 
@@ -322,6 +337,8 @@ interface AnimateStore extends SimConfig {
   setWaveTailMid: (v: number) => void
   setWaveTailTip: (v: number) => void
   setHeadIsolated: (v: boolean) => void
+  setPlantHoldEnabled: (v: boolean) => void
+  setPlantHoldGain: (v: number) => void
   resetSimConfig: () => void
   applySimConfig: (partial: Partial<SimConfig>) => void
   applySimConfigAbsolute: (config: Partial<SimConfig>) => void
@@ -477,6 +494,8 @@ export const useAnimateStore = create<AnimateStore>()(
       setWaveTailMid: (v) => set({ waveTailMid: v }),
       setWaveTailTip: (v) => set({ waveTailTip: v }),
       setHeadIsolated: (v) => set({ headIsolated: v }),
+      setPlantHoldEnabled: (v) => set({ plantHoldEnabled: v }),
+      setPlantHoldGain: (v) => set({ plantHoldGain: v }),
       resetSimConfig: () =>
         set({
           ...DEFAULT_SIM_CONFIG,
@@ -517,3 +536,24 @@ export const useAnimateStore = create<AnimateStore>()(
     }
   )
 )
+
+export const EMBED_PATH = '/game/embed'
+
+// The one link builder. Params ride in the URL hash so the browser never sends them to the server: a
+// large ?sim= query rode along on every Server Action POST (e.g. the auth profile check) and could be
+// rejected, bouncing the studio to the login screen. `rig` is what lets a link render somewhere that has
+// no saved studio state of its own — without it the recipient sees their own rig under the sender's
+// config. Pass EMBED_PATH for an overlay link; omit `path` to point at the current page.
+export function buildConfigLink(path?: string): string {
+  const st = useAnimateStore.getState()
+  const shared = useSharedStore.getState()
+  const params = new URLSearchParams()
+  params.set('tab', st.animateTab)
+  params.set('sim', encodeSimConfig(pickSimConfig(st as unknown as SimConfig)))
+  if (st.overlays.length > 0) params.set('overlay', st.overlays.join(','))
+  if (shared.configId) params.set('rig', shared.configId)
+  const leg = shared.groups.find((g) => g.type === 'leg-left' || g.type === 'leg-right')
+  if (leg?.nodeWeight != null) params.set('legw', String(leg.nodeWeight))
+  const base = typeof window !== 'undefined' ? window.location.origin + (path ?? window.location.pathname) : ''
+  return `${base}#${params.toString()}`
+}

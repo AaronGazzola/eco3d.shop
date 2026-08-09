@@ -5,6 +5,7 @@ import { AdminFrame } from '../_lib/AdminFrame'
 import { AnimateScene } from './AnimateScene'
 import { AnimateSidebar } from './AnimateSidebar'
 import { useSharedStore } from '../_lib/sharedStore'
+import { useLoadRig } from '../_lib/hooks'
 import { useAnimateStore, decodeSimConfig, OVERLAY_NAMES, AnimateTab, SIM_CONFIG_STORAGE_KEY } from './animateStore'
 
 // Apply a shared config link on mount: #tab=simulate selects the tab, #sim=<base64> applies a full
@@ -53,6 +54,25 @@ function useConfigLink() {
   }, [])
 }
 
+// A link carries the rig it was built from, so a shared link shows the sender's creature rather than
+// whichever rig the recipient happens to have saved in this browser. Older links carry no rig and keep
+// working on whatever is loaded.
+function useRigLink() {
+  const { loadFromRigId } = useLoadRig()
+  const appliedRef = useRef(false)
+  useEffect(() => {
+    if (appliedRef.current || typeof window === 'undefined') return
+    appliedRef.current = true
+    const hash = window.location.hash.replace(/^#/, '')
+    const params = new URLSearchParams(hash.length > 0 ? hash : window.location.search)
+    const rig = params.get('rig')
+    if (!rig || rig === useSharedStore.getState().configId) return
+    loadFromRigId(rig).catch((err) => console.error('rig link load failed', err))
+    // The loader is recreated on every render; running this once on mount is the whole intent.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+}
+
 // Leg weight lives in the shared-store groups (`nodeWeight`), not in SimConfig, so it can't ride in the
 // `sim=` blob. A separate `legw=<kg>` hash param carries it. The rig loads asynchronously, so this waits
 // for leg groups to appear (re-runs as `groups` updates) then sets ALL legs once. Clamped to a small
@@ -78,6 +98,7 @@ function useLegWeightLink() {
 
 export default function AnimatePage() {
   useConfigLink()
+  useRigLink()
   useLegWeightLink()
   return (
     <AdminFrame

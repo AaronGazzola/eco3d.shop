@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useSharedStore } from '../_lib/sharedStore'
-import { useAnimateStore, pickSimConfig, SimConfig, SimEngine, encodeSimConfig } from './animateStore'
+import { useAnimateStore, pickSimConfig, SimConfig, SimEngine, buildConfigLink, EMBED_PATH } from './animateStore'
 import { findSimPreset, applyPreset } from './simPresets'
 import { CameraController, StudioCanvas } from '../_lib/StudioCanvas'
 import { CameraPreset, ModelConfigRow } from '../_lib/types'
@@ -90,21 +90,10 @@ function useStudioObservationHook() {
       // OVERLAY_NAMES; isolateLimb dims all but the named limb.
       setOverlays: (names: string[]) => store().setOverlays(Array.isArray(names) ? names : []),
       isolateLimb: (id: string | null) => store().setIsolateLimb(id),
-      // Build a shareable link that reproduces the current config + tab + overlays. The params ride in
-      // the URL hash (not the query) so the browser never sends them to the server: a large ?sim= query
-      // rode along on every Server Action POST (e.g. the auth profile check) and could be rejected,
-      // bouncing the studio to the login screen. The hash fragment is client-only, so it can't.
-      buildLink: () => {
-        const st = store()
-        const params = new URLSearchParams()
-        params.set('tab', st.animateTab)
-        params.set('sim', encodeSimConfig(pickSimConfig(st as unknown as SimConfig)))
-        if (st.overlays.length > 0) params.set('overlay', st.overlays.join(','))
-        const leg = useSharedStore.getState().groups.find((g) => g.type === 'leg-left' || g.type === 'leg-right')
-        if (leg?.nodeWeight != null) params.set('legw', String(leg.nodeWeight))
-        const base = typeof window !== 'undefined' ? window.location.origin + window.location.pathname : ''
-        return `${base}#${params.toString()}`
-      },
+      // Build a shareable link that reproduces the current rig + config + tab + overlays. Pass the embed
+      // path for a link that renders on the stream overlay instead of in the studio.
+      buildLink: (path?: string) => buildConfigLink(path),
+      buildOverlayLink: () => buildConfigLink(EMBED_PATH),
       copyLink: () => {
         const w2 = window as unknown as { __studio?: { buildLink?: () => string } }
         const link = w2.__studio?.buildLink?.() ?? ''
@@ -232,7 +221,7 @@ function LocomotionOverlays() {
   )
 }
 
-function SceneContent() {
+export function SceneContent({ rootRef: externalRootRef }: { rootRef?: React.RefObject<THREE.Group | null> } = {}) {
   const segments = useSharedStore((s) => s.segments)
   const groups = useSharedStore((s) => s.groups)
   const stlKey = useSharedStore((s) => s.stlKey)
@@ -241,7 +230,8 @@ function SceneContent() {
   const modelRotation = useSharedStore((s) => s.modelRotation)
   const modelOpacity = useAnimateStore((s) => s.modelOpacity)
   const isolateLimb = useAnimateStore((s) => s.isolateLimb)
-  const rootRef = useRef<THREE.Group | null>(null)
+  const localRootRef = useRef<THREE.Group | null>(null)
+  const rootRef = externalRootRef ?? localRootRef
 
   const modelConfig = useMemo<ModelConfigRow>(
     () => ({

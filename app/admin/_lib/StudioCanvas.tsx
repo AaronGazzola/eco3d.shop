@@ -35,34 +35,48 @@ export function CameraController({
   return null
 }
 
-export function StudioCanvas({ children }: { children: ReactNode }) {
+export function StudioCanvas({
+  children,
+  background = '#4a4a4a',
+  grid = true,
+  controls = true,
+}: {
+  children: ReactNode
+  background?: string
+  grid?: boolean
+  controls?: boolean
+}) {
   return (
     <Canvas
       camera={{ position: [0, 8, 16], fov: 50 }}
-      style={{ background: '#4a4a4a', width: '100%', height: '100%' }}
+      style={{ background, width: '100%', height: '100%' }}
     >
       <ambientLight intensity={1.2} />
       <directionalLight position={[5, 12, 8]} intensity={1.8} />
       <directionalLight position={[-5, 6, -8]} intensity={0.6} />
-      <OrbitControls
-        makeDefault
-        mouseButtons={{
-          LEFT: THREE.MOUSE.PAN,
-          MIDDLE: THREE.MOUSE.ROTATE,
-          RIGHT: THREE.MOUSE.ROTATE,
-        }}
-      />
-      <Grid
-        position={[0, 0.001, 0]}
-        args={[100, 100]}
-        cellSize={1}
-        cellColor="#888888"
-        sectionSize={5}
-        sectionColor="#aaaaaa"
-        fadeDistance={60}
-        fadeStrength={1}
-        infiniteGrid
-      />
+      {controls && (
+        <OrbitControls
+          makeDefault
+          mouseButtons={{
+            LEFT: THREE.MOUSE.PAN,
+            MIDDLE: THREE.MOUSE.ROTATE,
+            RIGHT: THREE.MOUSE.ROTATE,
+          }}
+        />
+      )}
+      {grid && (
+        <Grid
+          position={[0, 0.001, 0]}
+          args={[100, 100]}
+          cellSize={1}
+          cellColor="#888888"
+          sectionSize={5}
+          sectionColor="#aaaaaa"
+          fadeDistance={60}
+          fadeStrength={1}
+          infiniteGrid
+        />
+      )}
       {children}
     </Canvas>
   )

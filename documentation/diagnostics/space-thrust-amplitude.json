@@ -1,0 +1,107 @@
+{
+  "note": "Family A — AMPLITUDE, with foot thrust back on. The owner raised spine joint 7's cap from 22 to 28 degrees, which removes the choke point that made 56 of 80 samples clip: the mid-body now runs 28/28/28/30/30 and the binding joint moves forward to joint 2 at 23 degrees. So this family pushes the wave BIGGER (higher muscle gain, less tail cut) toward a uniform ~22 degrees, and sweeps thrust gain across it. Thrust is a force, not a constraint, so it should not move the bend numbers — gain 0 anchors are included so that claim is measured rather than assumed. GAIN AXIS CORRECTED: the first run of this family used gains 8/16/28 taken from the slider bounds and the body launched (83 units in 12 s, head isolation overpowered). Calibration on shape A found the usable range to be 0-6 N per foot, where 4 already gives 2.85 u/s. Those first two family runs are void on the thrust axis; their gain-0 rows remain valid.",
+  "fixed": {
+    "footThrustEnabled": true
+  },
+  "grid": {
+    "cpgDrive": [
+      0.39,
+      0.5,
+      0.65
+    ],
+    "muscleAlpha": [
+      16,
+      18,
+      20,
+      22
+    ],
+    "waveNose": [
+      0.8,
+      1
+    ],
+    "waveShoulder": [
+      0.9,
+      1
+    ],
+    "waveHip": [
+      0.7,
+      0.85,
+      1
+    ],
+    "waveTailMid": [
+      0.4,
+      0.55,
+      0.7
+    ],
+    "waveTailTip": [
+      0.25,
+      0.4,
+      0.55
+    ],
+    "footThrustGain": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "anchors": [
+    {
+      "label": "anchor: old A, thrust 0",
+      "cpgDrive": 0.39,
+      "muscleAlpha": 14,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 0.7,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.3,
+      "footThrustGain": 0
+    },
+    {
+      "label": "anchor: old A, thrust 16",
+      "cpgDrive": 0.39,
+      "muscleAlpha": 14,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 0.7,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.3,
+      "footThrustGain": 3
+    },
+    {
+      "label": "anchor: old D, thrust 0",
+      "cpgDrive": 0.5,
+      "muscleAlpha": 14,
+      "waveNose": 0.8,
+      "waveShoulder": 1,
+      "waveHip": 1,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.5,
+      "footThrustGain": 0
+    },
+    {
+      "label": "anchor: old D, thrust 16",
+      "cpgDrive": 0.5,
+      "muscleAlpha": 14,
+      "waveNose": 0.8,
+      "waveShoulder": 1,
+      "waveHip": 1,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.5,
+      "footThrustGain": 3
+    },
+    {
+      "label": "anchor: 5.1b baseline, thrust 16",
+      "cpgDrive": 0.39,
+      "muscleAlpha": 18,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 1,
+      "waveTailMid": 0.6,
+      "waveTailTip": 0.6,
+      "footThrustGain": 3
+    }
+  ]
+}

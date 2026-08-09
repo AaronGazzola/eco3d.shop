@@ -1,0 +1,12 @@
+{
+  "cpgDrive": 0.6,
+  "gripEnabled": true,
+  "gripFeet": { "FL": true, "FR": false, "BL": false, "BR": false },
+  "stepEnabled": true,
+  "stepFeet": { "FL": true, "FR": false, "BL": false, "BR": false },
+  "sweepAmount": 1,
+  "sweepSpeed": 50000,
+  "stanceSweepSpeed": 50000,
+  "liftAmount": 0,
+  "legStiffness": 50000
+}

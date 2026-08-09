@@ -1,0 +1,95 @@
+{
+  "note": "Family H — HIP EQUALITY, with foot thrust back on. On this rig the front girdle joint sits at arc 0.25 (the shoulder control point) and the hind girdle joint at arc 0.50 (the hip control point), so those two dialled against each other are the direct lever on girdle equality. Shoulder is pinned at 1.0 and the hip point is swept finely from 0.55 to 1.0, which is the axis the earlier coarse sweep only sampled at four widely spaced values. Thrust gain swept across it, with gain 0 present so thrust's effect on the girdle pair is measured, not assumed. GAIN AXIS CORRECTED: the first run of this family used gains 8/16/28 taken from the slider bounds and the body launched (83 units in 12 s, head isolation overpowered). Calibration on shape A found the usable range to be 0-6 N per foot, where 4 already gives 2.85 u/s. Those first two family runs are void on the thrust axis; their gain-0 rows remain valid.",
+  "fixed": {
+    "footThrustEnabled": true
+  },
+  "grid": {
+    "cpgDrive": [
+      0.39,
+      0.5,
+      0.65
+    ],
+    "muscleAlpha": [
+      14,
+      16,
+      18
+    ],
+    "waveNose": [
+      0.8,
+      1
+    ],
+    "waveShoulder": [
+      1
+    ],
+    "waveHip": [
+      0.55,
+      0.65,
+      0.75,
+      0.85,
+      1
+    ],
+    "waveTailMid": [
+      0.4,
+      0.5,
+      0.6
+    ],
+    "waveTailTip": [
+      0.3,
+      0.4
+    ],
+    "footThrustGain": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "anchors": [
+    {
+      "label": "anchor: old D, thrust 0",
+      "cpgDrive": 0.5,
+      "muscleAlpha": 14,
+      "waveNose": 0.8,
+      "waveShoulder": 1,
+      "waveHip": 1,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.5,
+      "footThrustGain": 0
+    },
+    {
+      "label": "anchor: old D, thrust 16",
+      "cpgDrive": 0.5,
+      "muscleAlpha": 14,
+      "waveNose": 0.8,
+      "waveShoulder": 1,
+      "waveHip": 1,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.5,
+      "footThrustGain": 3
+    },
+    {
+      "label": "anchor: old D, thrust 28",
+      "cpgDrive": 0.5,
+      "muscleAlpha": 14,
+      "waveNose": 0.8,
+      "waveShoulder": 1,
+      "waveHip": 1,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.5,
+      "footThrustGain": 4
+    },
+    {
+      "label": "anchor: old A, thrust 16",
+      "cpgDrive": 0.39,
+      "muscleAlpha": 14,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 0.7,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.3,
+      "footThrustGain": 3
+    }
+  ]
+}

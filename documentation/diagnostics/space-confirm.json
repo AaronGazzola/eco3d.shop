@@ -1,0 +1,68 @@
+{
+  "note": "Confirmation of the finalists on the corrected harness: warm-up run discarded, and straightness now split into heading (which is fine) and curvature (which is not). Every number the owner is asked to choose on comes from here, not from the earlier batches.",
+  "fixed": {
+    "footThrustEnabled": true
+  },
+  "grid": {
+    "footThrustGain": [
+      4
+    ]
+  },
+  "anchors": [
+    {
+      "label": "EVEN g4  (evenest spine)",
+      "cpgDrive": 0.39,
+      "muscleAlpha": 14,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 0.7,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.3,
+      "footThrustGain": 4
+    },
+    {
+      "label": "EVEN g2  (same shape, slower)",
+      "cpgDrive": 0.39,
+      "muscleAlpha": 14,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 0.7,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.3,
+      "footThrustGain": 2
+    },
+    {
+      "label": "HIPS g4  (girdle-targeted)",
+      "cpgDrive": 0.5,
+      "muscleAlpha": 14,
+      "waveNose": 0.8,
+      "waveShoulder": 1,
+      "waveHip": 1,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.5,
+      "footThrustGain": 4
+    },
+    {
+      "label": "AMP  g4  (amplitude-targeted)",
+      "cpgDrive": 0.5,
+      "muscleAlpha": 14,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 0.85,
+      "waveTailMid": 0.5,
+      "waveTailTip": 0.3,
+      "footThrustGain": 4
+    },
+    {
+      "label": "BASE g0  (5.1b baseline, no thrust)",
+      "cpgDrive": 0.39,
+      "muscleAlpha": 18,
+      "waveNose": 1,
+      "waveShoulder": 1,
+      "waveHip": 1,
+      "waveTailMid": 0.6,
+      "waveTailTip": 0.6,
+      "footThrustGain": 0
+    }
+  ]
+}
