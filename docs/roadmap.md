@@ -23,7 +23,7 @@ game is retired.
 briefly replaced by hand-tuned pose cycles, which slide by construction — the
 root translates independently of the feet — and that direction was reversed.
 Creature motion is CPG-driven inside a physics simulation, and the animate
-research studio is the tool that tunes it. See `documentation/locomotion.md`.
+research studio is the tool that tunes it. See `docs/locomotion.md`.
 Pose cycles remain valid only for animations that never translate the body.
 
 ## Settled decisions (do not re-litigate)
@@ -55,7 +55,7 @@ Pose cycles remain valid only for animations that never translate the body.
   Rapier for the tuned swim, MuJoCo where genuinely rigid legs are needed.
   The animate research studio is kept as the tuning tool. Legs propel the
   body by **thrust**, not by a grip pin — a pinned foot is a constraint and it
-  flattens the axial wave (`documentation/animation-roadmap.md` Decision 10).
+  flattens the axial wave (`docs/animation-roadmap.md` Decision 10).
 - **Table unification**: `model_configs` (old studio output) merges into
   `dragon_models` (variant x stage, rig + `role_tags`); the full `groups`
   schema — segment membership, node assignments, angle caps, rotation — is
@@ -85,7 +85,7 @@ Make the creature walk, not swim, on the restored runtime. The body wave is
 already correct and already produces diagonal-couplet footfall timing for
 free; the gap is that the body glides while the feet churn. Add a per-foot
 backward thrust clocked off the limb CPG, then front/hind balance, turning,
-braking. Tracked as Phase D-T in `documentation/animation-roadmap.md`.
+braking. Tracked as Phase D-T in `docs/animation-roadmap.md`.
 
 ### E2 — Genetics v1 on PHA
 3 `filament_colors` rows; roles/genes/alleles with dominance; rare morphs;

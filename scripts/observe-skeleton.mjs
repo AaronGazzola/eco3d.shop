@@ -2,13 +2,13 @@
 // both) it drives the sim, captures the trunk polyline + feet (with grip/stance state) across ~one
 // gait cycle, and renders a left-to-right row of top-down skeletons. Pinned feet = green, swing = red,
 // in-stance-not-pinned = amber. Forward (-X) points up; lateral (Z) is horizontal. Emits PNGs (for AI
-// review) and a landscape PDF (for the user) under documentation/diagnostics/skeleton/.
+// review) and a landscape PDF (for the user) under docs/diagnostics/skeleton/.
 import { chromium } from 'playwright-core'
 import { existsSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir, platform } from 'node:os'
 const BASE = 'http://127.0.0.1:3002', RIG = 'baby cyber dragon', AUTH = 'scripts/.observe-auth.json'
-const OUT = 'documentation/diagnostics/skeleton'
+const OUT = 'docs/diagnostics/skeleton'
 function findChromium() {
   try { const p = chromium.executablePath(); if (p && existsSync(p)) return p } catch {}
   const root = platform() === 'win32' ? join(process.env.LOCALAPPDATA ?? '', 'ms-playwright') : join(homedir(), '.cache', 'ms-playwright')

@@ -531,4 +531,4 @@ export function usePosts() {
 - [QueryClient Reference](https://tanstack.com/query/latest/docs/reference/QueryClient)
 - [Optimistic Updates Guide](https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates)
 - [Query Invalidation Guide](https://tanstack.com/query/latest/docs/framework/react/guides/query-invalidation)
-- Template files: `/documentation/template_files/template.hooks.tsx`
+- Template files: `/docs/template_files/template.hooks.tsx`

@@ -15,7 +15,7 @@
 //   node scripts/observe.mjs run 12 --hz 10 --set cpgDrive=2.4 --set turnBias=0.3
 //   node scripts/observe.mjs run 8 --shots --config presets/fast.json
 //
-// Outputs to documentation/diagnostics/observe/:
+// Outputs to docs/diagnostics/observe/:
 //   nodes-<ts>.json        raw samples + spec + config used
 //   nodes-<ts>-topdown.png top-down skeleton: overlay (all frames) + small-multiples over time
 //   nodes-<ts>.md          per-node per-axis ranges, COM drift, config used
@@ -31,7 +31,7 @@ const BASE = process.env.OBSERVE_URL ?? 'http://127.0.0.1:3002'
 const EMAIL = process.env.OBSERVE_EMAIL ?? 'aaron@gazzola.dev'
 const PASS = process.env.OBSERVE_PASS ?? 'password123!'
 const RIG = process.env.OBSERVE_RIG ?? 'baby cyber dragon'
-const OUT = 'documentation/diagnostics/observe'
+const OUT = 'docs/diagnostics/observe'
 const AUTH = 'scripts/.observe-auth.json'
 const ANGLES = ['top', 'side', 'front']
 

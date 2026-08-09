@@ -51,7 +51,7 @@
 
 ## 8. Documentation
 
-- [x] 8.1 Update `documentation/animation-roadmap.md` § 4 (Status) with a dated note describing the A2 landing and the visual gate result.
+- [x] 8.1 Update `docs/animation-roadmap.md` § 4 (Status) with a dated note describing the A2 landing and the visual gate result.
 - [x] 8.2 No update to § 3 (Build phases) in this change — that update lands with A5 once the full A1–A5 split has been observed end-to-end.
 
 ## 9. OpenSpec validation

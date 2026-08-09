@@ -2,13 +2,13 @@
 // evenly-spaced top-down skeleton snapshots per window, compares the windows, concludes whether the
 // planted foot pulls the body forward, picks the step closest to the median (most representative), and
 // renders it as a DARK vertical aid: concise note on the LEFT, image aligned on the RIGHT, per snapshot.
-// Forward = up (-X). Output under documentation/diagnostics/step/.
+// Forward = up (-X). Output under docs/diagnostics/step/.
 import { chromium } from 'playwright-core'
 import { existsSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir, platform } from 'node:os'
 const BASE = 'http://127.0.0.1:3002', RIG = 'baby cyber dragon', AUTH = 'scripts/.observe-auth.json'
-const OUT = 'documentation/diagnostics/step'
+const OUT = 'docs/diagnostics/step'
 const FOOT = (process.argv[2] || 'FL')
 function findChromium() {
   try { const p = chromium.executablePath(); if (p && existsSync(p)) return p } catch {}

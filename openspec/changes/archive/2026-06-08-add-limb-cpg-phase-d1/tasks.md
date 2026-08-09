@@ -30,6 +30,6 @@
 
 ## 5. Documentation + validation
 
-- [x] 5.1 `documentation/animation-roadmap.md` §4: dated entry — limb oscillators, Table 2 couplings,
+- [x] 5.1 `docs/animation-roadmap.md` §4: dated entry — limb oscillators, Table 2 couplings,
   limb↔axial wiring, limb params, the diagonal-trot signal-gate result.
 - [x] 5.2 `npx openspec validate add-limb-cpg-phase-d1 --strict` passes.

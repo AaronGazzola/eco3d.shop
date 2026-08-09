@@ -49,7 +49,7 @@
 
 ## 9. Documentation
 
-- [x] 9.1 Update `documentation/animation-roadmap.md` §4 with dated entries: Rapier world params, body/collider/joint construction, drag, the energy-pump root cause + motor-muscle fix, the swim-gate result, and the calibration + faithfulness ledger. Done.
+- [x] 9.1 Update `docs/animation-roadmap.md` §4 with dated entries: Rapier world params, body/collider/joint construction, drag, the energy-pump root cause + motor-muscle fix, the swim-gate result, and the calibration + faithfulness ledger. Done.
 
 ## 10. OpenSpec validation
 

@@ -255,9 +255,9 @@ The generic protocol above, pinned to this project. Update this section when any
 
 The creature locomotion runtime in the admin studio (`/admin/animate`). Movement is generated
 by a CPG driving virtual muscles inside a physics simulation; it is never hand-authored. The
-governing documents are `documentation/locomotion.md` (how the paper maps onto the rig),
-`documentation/reference/locomotion-reference.md` (every equation and constant — it wins any
-disagreement), and `documentation/animation-roadmap.md` (the plan, the locked decisions, and
+governing documents are `docs/locomotion.md` (how the paper maps onto the rig),
+`docs/reference/locomotion-reference.md` (every equation and constant — it wins any
+disagreement), and `docs/animation-roadmap.md` (the plan, the locked decisions, and
 **§5 Baseline**, the measured numbers every iteration is scored against).
 
 ## Running the harness
@@ -296,7 +296,7 @@ node scripts/observe.mjs run 12 --hz 20 --events --legw 0.1 --config path\to\con
 ```
 
 Auth is cached in `scripts/.observe-auth.json`. Captures land in
-`documentation/diagnostics/observe/` with the exact config embedded in the JSON. Forward axis
+`docs/diagnostics/observe/` with the exact config embedded in the JSON. Forward axis
 is **−X**, lateral is **Z**, both confirmed from a known swim.
 
 ## What "complete config" means here
@@ -326,7 +326,7 @@ different tunings on each.
 
 ## What is being optimised — read this before choosing a lever
 
-The authoritative definition is **`documentation/animation-roadmap.md` §6**. It supersedes any pass
+The authoritative definition is **`docs/animation-roadmap.md` §6**. It supersedes any pass
 condition written anywhere else, including earlier sections of this skill. In summary:
 
 The deliverable is a **grid of presets**: 3 speeds × 3 turn levels × direction, each cell satisfying

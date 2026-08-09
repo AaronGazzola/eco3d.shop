@@ -40,7 +40,7 @@
 
 ## 7. Documentation
 
-- [x] 7.1 Update `documentation/animation-roadmap.md` § 4 (Status) with a dated Phase C note: drag constants used, swimming gate metric (body-lengths/sec), any thrust-direction sign fix encountered, COM-drift transition from "stays small" to "is the gate".
+- [x] 7.1 Update `docs/animation-roadmap.md` § 4 (Status) with a dated Phase C note: drag constants used, swimming gate metric (body-lengths/sec), any thrust-direction sign fix encountered, COM-drift transition from "stays small" to "is the gate".
 
 ## 8. OpenSpec validation
 

@@ -50,6 +50,6 @@
 
 ## 8. Documentation + validation
 
-- [x] 8.1 `documentation/animation-roadmap.md` §4: dated entry — transfer function, motorized hips,
+- [x] 8.1 `docs/animation-roadmap.md` §4: dated entry — transfer function, motorized hips,
   test-oscillator drive, the step gate result, foot-lift deferred to D3.
 - [x] 8.2 `npx openspec validate add-limb-actuation-phase-d2 --strict` passes.

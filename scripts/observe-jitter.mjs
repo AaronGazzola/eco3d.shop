@@ -14,7 +14,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const DIR = 'documentation/diagnostics/observe'
+const DIR = 'docs/diagnostics/observe'
 const arg = process.argv[2]
 const path = arg ?? newest()
 function newest() {

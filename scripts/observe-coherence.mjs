@@ -19,7 +19,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const DIR = 'documentation/diagnostics/observe'
+const DIR = 'docs/diagnostics/observe'
 const argv = process.argv.slice(2)
 const warmupI = argv.indexOf('--warmup')
 const warmup = warmupI >= 0 ? Number(argv[warmupI + 1]) : 3

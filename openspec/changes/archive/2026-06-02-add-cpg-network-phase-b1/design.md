@@ -1,6 +1,6 @@
 ## Context
 
-Phase A is complete: a trusted renderer (A2), a momentum-conserving integrator (A3), and a stable passive force law (A4). Phase B adds the controller. The reference (`documentation/reference/locomotion-reference.md` §2–§3, §7) fully specifies the CPG: five equations, Table 2 couplings, Table 3 constants. B1 builds the **axial double chain** in isolation — the signal, no body, no muscles — so the wave can be verified before anything consumes it.
+Phase A is complete: a trusted renderer (A2), a momentum-conserving integrator (A3), and a stable passive force law (A4). Phase B adds the controller. The reference (`docs/reference/locomotion-reference.md` §2–§3, §7) fully specifies the CPG: five equations, Table 2 couplings, Table 3 constants. B1 builds the **axial double chain** in isolation — the signal, no body, no muscles — so the wave can be verified before anything consumes it.
 
 The CPG is the single most novel piece of math in the whole project and the one most likely to be subtly wrong (coupling signs, phase-bias direction, drive→amplitude saturation). Verifying it against a space-time plot — where a head→tail traveling wave is unmistakable as diagonal stripes — is the cheapest way to de-risk Phase B before B2/B3.
 

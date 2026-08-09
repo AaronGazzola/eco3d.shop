@@ -11,7 +11,7 @@
 // rest) → capture → score. The stop/start is what makes samples independent; without it every run would
 // inherit the previous run's pose and velocity.
 //
-// Outputs to documentation/diagnostics/observe/:
+// Outputs to docs/diagnostics/observe/:
 //   sweep-<ts>.json  every sample: config, link, and the full §6 score
 //   sweep-<ts>.md    the ranked table
 
@@ -23,7 +23,7 @@ import { scoreRun } from './observe-metrics.mjs'
 
 const BASE = process.env.OBSERVE_URL ?? 'http://127.0.0.1:3002'
 const RIG = process.env.OBSERVE_RIG ?? 'baby cyber dragon'
-const OUT = 'documentation/diagnostics/observe'
+const OUT = 'docs/diagnostics/observe'
 const AUTH = 'scripts/.observe-auth.json'
 
 function findChromium() {

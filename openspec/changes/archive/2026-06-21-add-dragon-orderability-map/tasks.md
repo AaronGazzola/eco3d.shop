@@ -51,7 +51,7 @@
 
 ## 6. Documentation + validation
 
-- [x] 6.1 Update `documentation/dragon-genetics.md`: orderability map landed (read-only analysis;
+- [x] 6.1 Update `docs/dragon-genetics.md`: orderability map landed (read-only analysis;
   enumerates distinct looks vs `max_print_colors`); note it completes the AZ-102 authoring set.
 - [x] 6.2 `npx tsc --noEmit` + `npx eslint app/admin/dragons app/game/dragons.genetics.ts` pass; the
   headless check passes; `npx openspec validate add-dragon-orderability-map --strict` passes.

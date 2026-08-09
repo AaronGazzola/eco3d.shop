@@ -41,7 +41,7 @@
 
 ## 7. Documentation
 
-- [x] 7.1 Update `documentation/animation-roadmap.md` § 4 (Status) with a dated B2 note: muscle torque verified, restoring-force behaviour, any α/β/δ-vs-A4-damping interplay observed.
+- [x] 7.1 Update `docs/animation-roadmap.md` § 4 (Status) with a dated B2 note: muscle torque verified, restoring-force behaviour, any α/β/δ-vs-A4-damping interplay observed.
 
 ## 8. OpenSpec validation
 

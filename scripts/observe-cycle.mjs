@@ -12,7 +12,7 @@ import { homedir, platform } from 'node:os'
 const BASE = process.env.OBSERVE_URL ?? 'http://127.0.0.1:3002'
 const RIG = process.env.OBSERVE_RIG ?? 'baby cyber dragon'
 const AUTH = 'scripts/.observe-auth.json'
-const OUT = 'documentation/diagnostics/cycle'
+const OUT = 'docs/diagnostics/cycle'
 const [, , PRESET = 'Walk — mid', FRAMES = '6', STEPMS = '350', BOOST = '', FOOT = ''] = process.argv
 const nFrames = Number(FRAMES)
 const stepMs = Number(STEPMS)

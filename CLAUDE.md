@@ -118,10 +118,10 @@ app/
 
 **Template files:** Refer to the following template files for examples demonstrating each of the utility file types:
 
-- `documentation/template_files/template.types.ts`
-- `documentation/template_files/template.actions.ts`
-- `documentation/template_files/template.hooks.ts`
-- `documentation/template_files/template.stores.ts`
+- `docs/template_files/template.types.ts`
+- `docs/template_files/template.actions.ts`
+- `docs/template_files/template.hooks.ts`
+- `docs/template_files/template.stores.ts`
 
 ## Types (`*.types.ts`)
 
@@ -138,7 +138,7 @@ app/
 
 ## Hooks (`*.hooks.tsx`)
 
-- Use React Query (`useQuery`, `useMutation`) to call actions (refer to `documentation/react-query.guide.md` for implementation details)
+- Use React Query (`useQuery`, `useMutation`) to call actions (refer to `docs/react-query.guide.md` for implementation details)
 - Use Supabase **browser client** (publishable key) for auth operations (`auth.signIn`, `auth.signOut`, etc.) and real-time subscriptions
 - Update zustand stores (if appropriate) in `onSuccess` callbacks of useMutation hooks, or in the `queryFn` of useQuery hooks.
 - Manage loading and error states via react-query hooks (NOT the store)
@@ -191,9 +191,9 @@ How OpenSpec changes and deferred work are managed. These rules exist to prevent
 
 Read these before proposing, specifying or implementing anything to do with creature motion:
 
-- `documentation/locomotion.md` — how the paper's model is applied to our rig, and the fixed substrate that never changes.
-- `documentation/reference/locomotion-reference.md` — the verified extraction of the source paper. Single source of truth for every equation, coupling and constant. Where any other document disagrees, the reference wins.
-- `documentation/animation-roadmap.md` — the living plan, the locked decisions, and the decision log.
-- `documentation/observation-loop.md` — how to observe the running system before making any claim about its behaviour.
+- `docs/locomotion.md` — how the paper's model is applied to our rig, and the fixed substrate that never changes.
+- `docs/reference/locomotion-reference.md` — the verified extraction of the source paper. Single source of truth for every equation, coupling and constant. Where any other document disagrees, the reference wins.
+- `docs/animation-roadmap.md` — the living plan, the locked decisions, and the decision log.
+- `docs/observation-loop.md` — how to observe the running system before making any claim about its behaviour.
 
 Locomotion is CPG-driven inside a physics simulation. Movement emerges from controller → muscles → body dynamics → environment forces. Never hand-author locomotion, and never claim a behaviour without an observation to back it.

@@ -44,7 +44,7 @@
 
 ## 8. Documentation
 
-- [x] 8.1 Update `documentation/animation-roadmap.md` § 4 (Status) with a dated A4 note: the force law, the final tuned constants, and the gate result.
+- [x] 8.1 Update `docs/animation-roadmap.md` § 4 (Status) with a dated A4 note: the force law, the final tuned constants, and the gate result.
 
 ## 9. OpenSpec validation
 

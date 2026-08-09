@@ -11,7 +11,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const DIR = 'documentation/diagnostics/observe'
+const DIR = 'docs/diagnostics/observe'
 const arg = process.argv[2]
 const file = arg ?? readdirSync(DIR).filter((f) => /^nodes-.*\.json$/.test(f)).sort().pop()
 if (!file) { console.log('no node capture found'); process.exit(1) }

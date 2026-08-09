@@ -4,13 +4,13 @@
 //   standing wave  (terrestrial WALK/TROT) -> phase lag ~ 0   (flat profile)
 //   traveling wave (SWIM)                   -> positive lag    (sloped, ~1.58 cycles in our build)
 // Renders a dark vertical aid: per gait, the phase profile vs the paper's standing/traveling targets,
-// plus the amplitude profile (girdles should be nodes = minima). Output under documentation/diagnostics/spine/.
+// plus the amplitude profile (girdles should be nodes = minima). Output under docs/diagnostics/spine/.
 import { chromium } from 'playwright-core'
 import { existsSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir, platform } from 'node:os'
 const BASE = 'http://127.0.0.1:3002', RIG = 'baby cyber dragon', AUTH = 'scripts/.observe-auth.json'
-const OUT = 'documentation/diagnostics/spine'
+const OUT = 'docs/diagnostics/spine'
 function findChromium() { try { const p = chromium.executablePath(); if (p && existsSync(p)) return p } catch {}
   const root = platform() === 'win32' ? join(process.env.LOCALAPPDATA ?? '', 'ms-playwright') : join(homedir(), '.cache', 'ms-playwright')
   for (const d of readdirSync(root).filter((d) => d.startsWith('chromium-')).sort().reverse())

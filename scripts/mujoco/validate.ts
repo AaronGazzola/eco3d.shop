@@ -21,8 +21,8 @@ const GRIP_FOOT_BY_LIMB = ['FL', 'FR', 'BL', 'BR'] as const
 // MuJoCo mjtObj enum values (mj_name2id's second arg).
 const OBJ = { BODY: 1, JOINT: 3, SITE: 6, EQUALITY: 17, ACTUATOR: 19 }
 
-const DIAG = resolve(process.cwd(), 'documentation/diagnostics/mujoco')
-const FIXTURE = resolve(process.cwd(), 'documentation/diagnostics/creature-groups.json')
+const DIAG = resolve(process.cwd(), 'docs/diagnostics/mujoco')
+const FIXTURE = resolve(process.cwd(), 'docs/diagnostics/creature-groups.json')
 
 // axialChain replicated from body3d.ts (kept off RAPIER so this runs as a plain node script).
 function axialChain(groups: BodyGroup[]): { lengths: number[]; groupIds: string[] } {

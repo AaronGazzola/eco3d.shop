@@ -54,5 +54,5 @@ The remaining work productizes the spike into a real swim/land mode and verifies
 
 ## 7. Documentation + validation
 
-- [x] 7.1 `documentation/animation-roadmap.md` §4: dated entry — mode toggle productized, gate result.
+- [x] 7.1 `docs/animation-roadmap.md` §4: dated entry — mode toggle productized, gate result.
 - [x] 7.2 `npx openspec validate add-walking-foundation --strict` passes.

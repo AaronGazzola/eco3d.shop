@@ -60,7 +60,7 @@
 
 ## 7. Documentation + validation
 
-- [x] 7.1 Update `documentation/dragon-genetics.md`: role tagging landed; the seed's hand-built
+- [x] 7.1 Update `docs/dragon-genetics.md`: role tagging landed; the seed's hand-built
   `role_tags` is superseded by this tool; `stl_key` is immutable on a saved model (re-source = new
   model); point at the remaining `add-dragon-orderability-map` follow-up.
 - [x] 7.2 `npx tsc --noEmit` + `npx eslint app/admin/dragons` pass; `npx openspec validate

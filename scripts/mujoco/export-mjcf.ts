@@ -3,9 +3,9 @@ import { resolve, dirname } from 'path'
 import { BodyGroup } from '@/app/admin/_lib/types'
 import { buildMjcf } from './skeleton-to-mjcf'
 
-const FIXTURE = resolve(process.cwd(), 'documentation/diagnostics/creature-groups.json')
-const OUT_XML = resolve(process.cwd(), 'documentation/diagnostics/mujoco/model.xml')
-const OUT_META = resolve(process.cwd(), 'documentation/diagnostics/mujoco/model.meta.json')
+const FIXTURE = resolve(process.cwd(), 'docs/diagnostics/creature-groups.json')
+const OUT_XML = resolve(process.cwd(), 'docs/diagnostics/mujoco/model.xml')
+const OUT_META = resolve(process.cwd(), 'docs/diagnostics/mujoco/model.meta.json')
 
 function main(): void {
   const raw = JSON.parse(readFileSync(FIXTURE, 'utf8')) as { name: string; groups: BodyGroup[] }

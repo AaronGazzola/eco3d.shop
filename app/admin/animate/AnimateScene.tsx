@@ -12,7 +12,7 @@ import { AnimatedModel } from '@/app/game/AnimatedModel'
 
 // Dev/observation hook: lets the headless observation harness (scripts/observe-swim.mjs) drive the
 // studio deterministically — set camera angle, start/stop the sim, toggle drag, tune the CPG, and
-// read live diagnostics — without scraping the DOM. Admin-studio only; see documentation/observation-loop.md.
+// read live diagnostics — without scraping the DOM. Admin-studio only; see docs/observation-loop.md.
 function useStudioObservationHook() {
   useEffect(() => {
     const w = window as unknown as { __studio?: Record<string, unknown> }

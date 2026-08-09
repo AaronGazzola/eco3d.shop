@@ -1,11 +1,11 @@
 ## Context
 
-The salamander-CPG rebuild is staged into Phases A–H in `documentation/animation-roadmap.md` § 3. Phase A was originally one OpenSpec change (`add-locomotion-body-solver`, now reverted along with its commit `ab3314a`) covering body spec, solver, force model, render wiring, and sidebar controls. Two structural defects in the render half made the combined change unverifiable:
+The salamander-CPG rebuild is staged into Phases A–H in `docs/animation-roadmap.md` § 3. Phase A was originally one OpenSpec change (`add-locomotion-body-solver`, now reverted along with its commit `ab3314a`) covering body spec, solver, force model, render wiring, and sidebar controls. Two structural defects in the render half made the combined change unverifiable:
 
 1. The `rootRef` `useLocomotion` wrote to was a prop accepted by `AnimatedModel` but never bound to any JSX `<group>`, and `AnimateScene` did not pass one in. The solver's bodily motion (`rootX / rootZ / rootHeadingY`) reached `useLocomotion` but not the scene.
 2. Leg groups were rendered as siblings of `ChainNode` at the model root, not as children of their attached spine's pivot. When the spine bent, the legs stayed glued to their authored world positions.
 
-A diagnostic capture of a running solver (`documentation/diagnostics/capture-2026-05-28T10-34-51-090Z.md`, since gitignored) confirmed: numerically stable (no NaN), but with joint angles running at 3–5× their caps every frame, the render hard-clamping every joint, `firstJointToSaturate` at `t = 0.01s`, and KE flat at ~400 instead of decaying. Tuning the solver constants could not have produced visually sensible output through that render path.
+A diagnostic capture of a running solver (`docs/diagnostics/capture-2026-05-28T10-34-51-090Z.md`, since gitignored) confirmed: numerically stable (no NaN), but with joint angles running at 3–5× their caps every frame, the render hard-clamping every joint, `firstJointToSaturate` at `t = 0.01s`, and KE flat at ~400 instead of decaying. Tuning the solver constants could not have produced visually sensible output through that render path.
 
 A2's purpose is to install the render half *first*, drive it with a manual pose source, and verify the data path before any solver is asked to drive it. If A2's gate holds, then A3 (zero-force solver loop) and A4 (damping + limits) can be checked against a renderer we already trust.
 

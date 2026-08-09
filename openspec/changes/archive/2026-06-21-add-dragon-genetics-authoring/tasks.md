@@ -48,7 +48,7 @@
 
 ## 7. Documentation + validation
 
-- [x] 7.1 Update `documentation/dragon-genetics.md`: C (authoring) landed; the seed script is now a
+- [x] 7.1 Update `docs/dragon-genetics.md`: C (authoring) landed; the seed script is now a
   convenience, not the only authoring path; point at the role-tagging + orderability follow-ups.
 - [x] 7.2 `npx tsc --noEmit` + `npx eslint` pass; `npx openspec validate add-dragon-genetics-authoring
   --strict` passes.

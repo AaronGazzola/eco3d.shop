@@ -1,10 +1,10 @@
 // Tabulate captured observation runs: amplitude (lateral Z-span per node), frequency (computed
 // ν = drive·exc·1.1), forward thrust (COM Δx), and stability (Δy, tail amp). Reads every
-// nodes-*.json in documentation/diagnostics/observe (or only those newer than an optional epoch arg).
+// nodes-*.json in docs/diagnostics/observe (or only those newer than an optional epoch arg).
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const DIR = 'documentation/diagnostics/observe'
+const DIR = 'docs/diagnostics/observe'
 const sinceArg = process.argv[2] ? Number(process.argv[2]) : 0
 
 const files = readdirSync(DIR)

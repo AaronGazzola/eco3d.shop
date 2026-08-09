@@ -1,7 +1,7 @@
 # TEMP — 2026-08-09 — locomotion handover — DELETE AFTER READING
 
 Disposable. Everything durable here belongs in `openspec/changes/add-wave-shaping/tasks.md` (which has the
-detail) and in `documentation/animation-roadmap.md` §7 (which does not yet, because the stage is not
+detail) and in `docs/animation-roadmap.md` §7 (which does not yet, because the stage is not
 finished). Delete this file once read.
 
 ---
@@ -100,7 +100,7 @@ server. Rebuild them by applying the values above and calling `window.__studio.b
    **separate front and hind shifts** — sharing one shift puts the hind window on the swing, which this
    project has already been burned by once. Use the single-run `--events` path, which handles it correctly.
 3. **Then section 6:** add the approved config as a preset carrying its `legWeight`, write the dated D-T2
-   entry into roadmap §7, update `documentation/locomotion-handover.md` §5, validate and archive.
+   entry into roadmap §7, update `docs/locomotion-handover.md` §5, validate and archive.
 4. **Then D-T3**, the preset grid: 3 speeds × turn levels. Thrust gain is now the obvious speed axis — it
    spans 0.32 to ~4 u/s on one shape without touching the wave — and `turnBias` is the untested heading
    axis.
@@ -121,7 +121,7 @@ node scripts/observe-sweep.mjs --n 30 --seconds 12 --legw 0.1 --space scripts/sp
 single-run report cannot describe the same capture differently. `scripts/spaces/` holds the search spaces
 that were actually run, each with a note saying why it was aimed where it was.
 
-Captures land in `documentation/diagnostics/observe/`, which is gitignored — the JSON carries the exact
+Captures land in `docs/diagnostics/observe/`, which is gitignored — the JSON carries the exact
 config, the per-joint arrays and the link for every run, so an old capture can be re-scored against a metric
 that did not exist when it was taken. Today's key ones:
 

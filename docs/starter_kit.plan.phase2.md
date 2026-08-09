@@ -48,7 +48,7 @@ npx supabase migration new initial_schema
 
 ### Step 2.3: Add Database Schema
 
-Copy complete schema from `documentation/initial_configuration/Database.md` into the migration file at `supabase/migrations/<timestamp>_initial_schema.sql`.
+Copy complete schema from `docs/initial_configuration/Database.md` into the migration file at `supabase/migrations/<timestamp>_initial_schema.sql`.
 
 The schema includes:
 
@@ -77,16 +77,16 @@ Verify `supabase/types.ts` file is created and contains type definitions.
 
 Copy and rename the template client files into their corresponding locations:
 
-- `documentation/template_files/server-client.ts` → `supabase/server-client.ts`
-- `documentation/template_files/browser-client.ts` → `supabase/browser-client.ts`
-- `documentation/template_files/admin-client.ts` → `supabase/admin-client.ts`
+- `docs/template_files/server-client.ts` → `supabase/server-client.ts`
+- `docs/template_files/browser-client.ts` → `supabase/browser-client.ts`
+- `docs/template_files/admin-client.ts` → `supabase/admin-client.ts`
 
 ### Step 2.7: Create Authentication Routes
 
 Copy and rename the template auth files into their corresponding locations:
 
-- `documentation/template_files/auth-callback-route.ts` → `app/auth/callback/route.ts`
-- `documentation/template_files/auth-error-page.tsx` → `app/auth/error/page.tsx`
+- `docs/template_files/auth-callback-route.ts` → `app/auth/callback/route.ts`
+- `docs/template_files/auth-error-page.tsx` → `app/auth/error/page.tsx`
 
 These routes handle OAuth and email confirmation flows.
 
@@ -103,8 +103,8 @@ Ask the user for an email address that will be used to seed the admin user, this
 1. Install tsx: `npm install -D tsx`
 2. Copy and rename the template seed files into their corresponding locations:
 
-- `documentation/template_files/seed.template.ts` → `supabase/seed.ts`
-- `documentation/template_files/reset-seed.ts` → `scipts/reset-seed.ts`
+- `docs/template_files/seed.template.ts` → `supabase/seed.ts`
+- `docs/template_files/reset-seed.ts` → `scipts/reset-seed.ts`
 
 3. Update `supabase/seed.ts`:
    - Replace `admin@example.com` with the user's provided email
@@ -122,7 +122,7 @@ Ask the user for an email address that will be used to seed the admin user, this
 
 Phase 2 is now complete. To continue with Phase 3 (Build Application and Final Steps):
 
-1. Read `documentation/starter_kit.plan.phase3.md`
+1. Read `docs/starter_kit.plan.phase3.md`
 2. Switch to plan mode and create a step-by-step plan from the instructions in that document
 3. Follow the plan exactly as written
 

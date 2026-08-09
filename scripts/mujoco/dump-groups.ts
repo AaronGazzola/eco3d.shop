@@ -4,7 +4,7 @@ import { dirname, resolve } from 'path'
 import { getSupabaseUrl, getSupabaseSecretKey } from '@/lib/env.utils'
 import { BodyGroup } from '@/app/admin/_lib/types'
 
-const OUT = resolve(process.cwd(), 'documentation/diagnostics/creature-groups.json')
+const OUT = resolve(process.cwd(), 'docs/diagnostics/creature-groups.json')
 
 function hasLegs(groups: BodyGroup[]): boolean {
   return groups.some((g) => g.type === 'leg-left') && groups.some((g) => g.type === 'leg-right')

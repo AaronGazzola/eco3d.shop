@@ -56,6 +56,6 @@
 
 ## 6. Documentation + validation
 
-- [x] 6.1 Add a short note to `documentation/` (or AZ-94's thread) recording that Foundation A landed
+- [x] 6.1 Add a short note to `docs/` (or AZ-94's thread) recording that Foundation A landed
   and pointing B (engine/render) and C (admin UIs) at this schema.
 - [x] 6.2 `npx openspec validate add-dragon-genetics-data-model --strict` passes.

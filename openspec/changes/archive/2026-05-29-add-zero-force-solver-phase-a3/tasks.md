@@ -60,12 +60,12 @@
 - [x] 8.2 After ~1 second of running, the `COM drift` readout shows `~5.0e-1` (the kick magnitude); `Kinetic energy` is constant (small relative drift due to numerical scheme is acceptable, < 1% over 5 s).
 - [x] 8.3 Click **Pause**. The body stops where it is. Click **Reset**. The body returns to its `manualPose` position.
 - [x] 8.4 Move a manual joint slider so the body has a small bend, click **Run**, then **Kick translation**. The body translates without spinning (the bend is preserved; with no forces the chain is rigid relative to root frame).
-- [x] 8.5 Click **Run**, **Record**, let it run for ~3 s, then **Stop**. A capture file appears in `documentation/diagnostics/`, its path shown in the sidebar. The `## scalars` rows show `rootX` growing linearly and `KE` essentially flat.
+- [x] 8.5 Click **Run**, **Record**, let it run for ~3 s, then **Stop**. A capture file appears in `docs/diagnostics/`, its path shown in the sidebar. The `## scalars` rows show `rootX` growing linearly and `KE` essentially flat.
 - [x] 8.6 Switching to **Calibrate** while Running stops the sim; switching back to Simulate retains the last `manualPose` and the **Run** button is in the paused state.
 
 ## 9. Documentation
 
-- [x] 9.1 Update `documentation/animation-roadmap.md` § 4 (Status) with a dated note describing the A3 landing and the visual gate result.
+- [x] 9.1 Update `docs/animation-roadmap.md` § 4 (Status) with a dated note describing the A3 landing and the visual gate result.
 
 ## 10. OpenSpec validation
 

@@ -994,7 +994,7 @@ reference.
   Next: pass the browser gate, archive, then **Phase D (walking — limbs + gravity + ground
   contact)**.
 - **2026-06-06 (observation loop built; truthful render fix; swim drive re-tuned)** — Built a
-  repeatable **visual observation loop** (`documentation/observation-loop.md`, `npm run observe`,
+  repeatable **visual observation loop** (`docs/observation-loop.md`, `npm run observe`,
   `scripts/observe-swim.mjs`): a headless chromium drives the real studio and screenshots the 3D
   canvas from front/top/3-4 angles over time, so behaviour is *seen*, not inferred from top-down
   numbers that are blind to vertical lift-off. Using it immediately exposed that the studio drew a
@@ -1197,7 +1197,7 @@ reference.
   the Simulate sidebar applies one via `applySimConfig`; `__studio.preset(name)`/`applyConfig(obj)` hooks
   + harness `PRESET=` / `MUSCLE="a:b:d"` envs let the observation loop apply a full named config or sweep
   the Ekeberg muscle in one call. The old "Paste config" textarea was retired (superseded); "Copy config"
-  stays (how a tuned state is read out into the file). The three `documentation/sim-presets/*.json` are
+  stays (how a tuned state is read out into the file). The three `docs/sim-presets/*.json` are
   now seeded into the TS list and are redundant. **(B) The energy result (the user's goal):** the user
   wanted one knob where high energy = high amplitude + high frequency and low energy = low frequency but
   *still high amplitude*. The blocker was that at fixed drive, raising **excitability** (frequency)
@@ -1243,7 +1243,7 @@ reference.
   construction. The physics runtime was then restored onto the unified rig table (one adapted call site:
   the Calibrate tab now saves through the rig hook and requires a variant + stage). The MuJoCo binaries
   were missed by that restore and re-added 2026-08-03 — selecting MuJoCo had been fetching a 404, which
-  is why the engine appeared dead. **Everything in `documentation/` was reverted to its pre-rebuild
+  is why the engine appeared dead. **Everything in `docs/` was reverted to its pre-rebuild
   state**, since that state describes the code that actually runs.
 - **2026-08-03 (first measured baseline; grip retired for thrust — Decision 10)** — The base swim was
   captured properly for the first time (12 s, 20 samples/s, all 15 node world positions) and the numbers
@@ -1265,7 +1265,7 @@ reference.
 Captured 2026-08-03 from the running studio (Rapier, 12 s, 20 samples/s, every node's world position).
 Config: drive 0.39, excitability 0.74, α16 β35 δ6, drag ON, grip/sweep/lift OFF, legs rigid, no friction.
 Every Phase D-T gate is scored against these numbers. Recompute rather than trust: the capture JSON under
-`documentation/diagnostics/observe/` carries the exact config it ran with.
+`docs/diagnostics/observe/` carries the exact config it ran with.
 
 **Travel**
 

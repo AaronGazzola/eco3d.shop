@@ -1,12 +1,20 @@
 {
   "project": "Eco3D.Shop",
   "mainBranch": "main",
+  "docs": {
+    "roadmap": ["docs/roadmap.md", "docs/animation-roadmap.md"]
+  },
   "integrations": {
     "git": {
       "enabled": true
     },
     "openspec": {
       "enabled": true
+    },
+    "skills": {
+      "enabled": true,
+      "repo": "git@github.com:AaronGazzola/AI-Resources.git",
+      "path": ".claude/skills"
     },
     "linear": {
       "enabled": true,
@@ -16,18 +24,15 @@
     },
     "supabase": {
       "enabled": true,
-      "projectRef": "cgumxokzvnwwuldxwfjj",
-      "method": "mcp"
+      "projectRef": "cgumxokzvnwwuldxwfjj"
+    },
+    "vercel": {
+      "enabled": true
     },
     "doppler": {
       "enabled": true,
       "project": "eco3d-shop",
       "config": "prd"
-    },
-    "vercel": {
-      "enabled": true,
-      "repo": "AaronGazzola/eco3d.shop",
-      "method": "github-integration"
     },
     "sentry": {
       "enabled": false,

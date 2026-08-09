@@ -2,7 +2,7 @@
 
 ## Why
 
-The swim works and looks alive; the walk does not exist. The measured reason is not that the feet slide a long way — it is that the body is **decoupled** from the feet. Over a steady 6 s window of the base swim (`documentation/animation-roadmap.md` §5): body forward speed varies 13% of its mean, total backward foot sweep varies 45%, their correlation is **0.18**, and the body's best response to the feet arrives **0.41 s late** because the anisotropic drag is a low-pass filter. A body gliding at near-constant speed while the feet churn is exactly what the eye reads as sliding.
+The swim works and looks alive; the walk does not exist. The measured reason is not that the feet slide a long way — it is that the body is **decoupled** from the feet. Over a steady 6 s window of the base swim (`docs/animation-roadmap.md` §5): body forward speed varies 13% of its mean, total backward foot sweep varies 45%, their correlation is **0.18**, and the body's best response to the feet arrives **0.41 s late** because the anisotropic drag is a low-pass filter. A body gliding at near-constant speed while the feet churn is exactly what the eye reads as sliding.
 
 Two things are already solved and must not be rebuilt. The **rhythm is free**: with no limb oscillator running, diagonal feet move in phase (0.10 s apart on a 3.19 s stroke) and every other pairing opposes (1.54–1.64 s) — the diagonal-couplet gait sprawling tetrapods walk with. And the **timing machinery is verified**: with grip switched off, the grip/sweep windows were confirmed opening at max-forward reach and closing at max-backward.
 
@@ -42,4 +42,4 @@ Planting was evaluated as an alternative and rejected on measurement, not prefer
 - `app/admin/animate/AnimateSidebar.tsx` — thrust controls added, grip controls hidden.
 - `app/admin/animate/simPresets.ts` — two new MuJoCo presets.
 - `scripts/observe.mjs` — prints the impulse split.
-- `documentation/animation-roadmap.md` — the D-T1 result recorded in §4.
+- `docs/animation-roadmap.md` — the D-T1 result recorded in §4.

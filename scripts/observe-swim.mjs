@@ -1,7 +1,7 @@
 // Visual observation harness — drives the real app in a headless chromium and screenshots the 3D
 // canvas from multiple angles over time, so the actual RENDERED behaviour (lift-off, spin, thrash)
 // can be SEEN, not inferred from numbers. The studio render draws each segment at its real physics
-// transform, so the frames are truthful. See documentation/observation-loop.md for the full process.
+// transform, so the frames are truthful. See docs/observation-loop.md for the full process.
 //
 // MUST run from the REAL host (PowerShell tool), NOT the Bash sandbox — the sandbox reaches
 // localhost but resets the external Supabase auth fetch. Needs the app server up on 127.0.0.1:3002.
@@ -11,7 +11,7 @@
 //   node scripts/observe-swim.mjs controls                    # dump visible clickable controls
 //   node scripts/observe-swim.mjs run [secs] [on|off] [drive] [exc]   # run sim, multi-angle capture
 //
-// Outputs to documentation/diagnostics/frames/: f<NN>_<angle>.png per second + contact-sheet.png.
+// Outputs to docs/diagnostics/frames/: f<NN>_<angle>.png per second + contact-sheet.png.
 
 import { chromium } from 'playwright-core'
 import { mkdirSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -33,7 +33,7 @@ const BASE = process.env.OBSERVE_URL ?? 'http://127.0.0.1:3002'
 const EMAIL = process.env.OBSERVE_EMAIL ?? 'aaron@gazzola.dev'
 const PASS = process.env.OBSERVE_PASS ?? 'password123!'
 const RIG = process.env.OBSERVE_RIG ?? 'baby cyber dragon'
-const OUT = 'documentation/diagnostics/frames'
+const OUT = 'docs/diagnostics/frames'
 const AUTH = 'scripts/.observe-auth.json'
 // The swimmer body lies along X, so the 'front' preset ([0,4,22], looking down −Z) is the lengthwise
 // SIDE PROFILE (height vs length) — best for spotting lift-off; 'top' shows the planar wave; 'reset'
@@ -273,7 +273,7 @@ if (CMD === 'login') {
   await p2.screenshot({ path: `${OUT}/${tag}-strip.png`, fullPage: true }); await p2.close()
   console.log(`saved ${tag}-strip.png (${n} frames) to ${OUT}/`)
 } else if (CMD === 'record') {
-  // Drive a full recorded capture (per-joint angles, comY, tilt over time) to documentation/diagnostics/.
+  // Drive a full recorded capture (per-joint angles, comY, tilt over time) to docs/diagnostics/.
   const seconds = Number(REST[0] ?? 6)
   const drag = (REST[1] ?? 'on') === 'on'
   const drive = REST[2] != null ? Number(REST[2]) : null
@@ -292,7 +292,7 @@ if (CMD === 'login') {
   await page.waitForTimeout(seconds * 1000)
   await page.evaluate(() => window.__studio.record(false))
   await page.waitForTimeout(2000)
-  console.log('recording stopped; read the newest capture-*.md under documentation/diagnostics/')
+  console.log('recording stopped; read the newest capture-*.md under docs/diagnostics/')
 }
 
 async function runSweep() {

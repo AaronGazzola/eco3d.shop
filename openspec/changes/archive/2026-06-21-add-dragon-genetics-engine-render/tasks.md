@@ -48,6 +48,6 @@
 
 ## 7. Documentation + validation
 
-- [x] 7.1 Update `documentation/dragon-genetics.md`: B landed — engine functions, render-by-role, the
+- [x] 7.1 Update `docs/dragon-genetics.md`: B landed — engine functions, render-by-role, the
   preview route, and the seed script.
 - [x] 7.2 `npx openspec validate add-dragon-genetics-engine-render --strict` passes.

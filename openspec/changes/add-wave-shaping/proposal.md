@@ -2,7 +2,7 @@
 
 ## Why
 
-The body wave grows head-to-tail. On the measured baseline (`documentation/animation-roadmap.md` §5) the
+The body wave grows head-to-tail. On the measured baseline (`docs/animation-roadmap.md` §5) the
 tail swings **2.4×** the front, and the two girdles rotate by amounts differing **2 to 1** — the front
 girdle implies a body speed of 0.80 u/s while the hind implies 1.64 u/s. That envelope is correct for
 swimming and wrong for walking: because the girdles demand different speeds, **no single body speed can
@@ -69,4 +69,4 @@ side-by-side pair of config links for the owner to choose from, not applied sile
 - `app/admin/animate/animateStore.ts` — six new `SimConfig` fields with defaults.
 - `app/admin/animate/AnimateSidebar.tsx` — the profile controls and the isolation switch.
 - `scripts/observe.mjs` — the metric-2 reporting.
-- `documentation/animation-roadmap.md` — the D-T2 result recorded in §7.
+- `docs/animation-roadmap.md` — the D-T2 result recorded in §7.

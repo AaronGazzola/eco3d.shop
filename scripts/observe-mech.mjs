@@ -8,7 +8,7 @@ import { existsSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir, platform } from 'node:os'
 const BASE = 'http://127.0.0.1:3002', RIG = 'baby cyber dragon', AUTH = 'scripts/.observe-auth.json'
-const OUT = 'documentation/diagnostics/mech'
+const OUT = 'docs/diagnostics/mech'
 function findChromium() { try { const p = chromium.executablePath(); if (p && existsSync(p)) return p } catch {}
   const root = platform() === 'win32' ? join(process.env.LOCALAPPDATA ?? '', 'ms-playwright') : join(homedir(), '.cache', 'ms-playwright')
   for (const d of readdirSync(root).filter((d) => d.startsWith('chromium-')).sort().reverse())

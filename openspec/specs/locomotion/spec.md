@@ -162,7 +162,7 @@ Calling `setSimRecording(true)` SHALL also clear `lastCapturePath` to `null` so 
 
 #### Scenario: Recording start clears the last capture path
 
-- **GIVEN** `lastCapturePath === 'documentation/diagnostics/capture-2026-05-28T12-00-00-000Z.md'`
+- **GIVEN** `lastCapturePath === 'docs/diagnostics/capture-2026-05-28T12-00-00-000Z.md'`
 - **WHEN** `setSimRecording(true)` is called
 - **THEN** `simRecording` is `true` and `lastCapturePath` is `null`
 
@@ -221,8 +221,8 @@ Recording while the solver is paused SHALL not push samples but SHALL NOT clear 
 #### Scenario: A complete capture writes a markdown file
 
 - **GIVEN** `simRunning === true`, a kick has fired, the user clicks Record, runs for 2 seconds of solver time, then clicks Stop
-- **WHEN** the POST to `/api/diagnostics` returns `200` with `{ path: 'documentation/diagnostics/capture-X.md' }`
-- **THEN** `lastCapturePath === 'documentation/diagnostics/capture-X.md'` and the file exists with at least one `## scalars` row whose `rootX` is close to `1.0`
+- **WHEN** the POST to `/api/diagnostics` returns `200` with `{ path: 'docs/diagnostics/capture-X.md' }`
+- **THEN** `lastCapturePath === 'docs/diagnostics/capture-X.md'` and the file exists with at least one `## scalars` row whose `rootX` is close to `1.0`
 
 ### Requirement: Simulate sidebar exposes solver controls
 

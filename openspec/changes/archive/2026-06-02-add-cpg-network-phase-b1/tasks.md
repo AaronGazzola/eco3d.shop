@@ -43,7 +43,7 @@
 
 ## 7. Documentation
 
-- [x] 7.1 Update `documentation/animation-roadmap.md` § 4 (Status) with a dated B1 note + the verified wave behaviour and any `BODY_WAVES` observation.
+- [x] 7.1 Update `docs/animation-roadmap.md` § 4 (Status) with a dated B1 note + the verified wave behaviour and any `BODY_WAVES` observation.
 
 ## 8. OpenSpec validation
 

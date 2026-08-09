@@ -27,20 +27,20 @@ Locomotion is **not** hand-authored. A central pattern generator drives virtual 
 
 Read these in order to get full context on the animation system. They are the source of truth — any conflict with code is a doc bug to be fixed, not the other way around.
 
-1. **`documentation/reference/locomotion-reference.md`** — the verified, equation-by-equation extraction of the source paper. Every number, coupling and formula comes from here; where anything else disagrees, the reference wins.
-2. **`documentation/locomotion.md`** — how the paper's model maps onto our rig: the fixed substrate, the pipeline, and the L0–L8 layer decomposition.
-3. **`documentation/animation-roadmap.md`** — the living plan: the model in plain language, the locked decisions, the build phases, the decision log, and the measured baseline (§5) every change is scored against.
-4. **`documentation/observation-loop.md`** — how to observe the running system. No claim about behaviour is made without a capture.
+1. **`docs/reference/locomotion-reference.md`** — the verified, equation-by-equation extraction of the source paper. Every number, coupling and formula comes from here; where anything else disagrees, the reference wins.
+2. **`docs/locomotion.md`** — how the paper's model maps onto our rig: the fixed substrate, the pipeline, and the L0–L8 layer decomposition.
+3. **`docs/animation-roadmap.md`** — the living plan: the model in plain language, the locked decisions, the build phases, the decision log, and the measured baseline (§5) every change is scored against.
+4. **`docs/observation-loop.md`** — how to observe the running system. No claim about behaviour is made without a capture.
 
 Disposable, not a reference:
 
-- `documentation/locomotion-handover.md` — a **delete-after-reading** baton from the last session to the next. It is dated, it goes stale as soon as anything changes, and it must be deleted and rewritten rather than updated. Never cite it as a source; the four documents above are the record.
+- `docs/locomotion-handover.md` — a **delete-after-reading** baton from the last session to the next. It is dated, it goes stale as soon as anything changes, and it must be deleted and rewritten rather than updated. Never cite it as a source; the four documents above are the record.
 
 Unrelated to animation:
 
-- `documentation/react-query.guide.md` — React Query patterns used elsewhere in the app.
-- `documentation/starter_kit.plan.phase{1,2,3}.md` — Next.js / Supabase scaffolding plans.
-- `documentation/initial_configuration/*.md` — initial app setup notes.
+- `docs/react-query.guide.md` — React Query patterns used elsewhere in the app.
+- `docs/starter_kit.plan.phase{1,2,3}.md` — Next.js / Supabase scaffolding plans.
+- `docs/initial_configuration/*.md` — initial app setup notes.
 
 ## OpenSpec changes
 
@@ -85,10 +85,10 @@ Have it read, in this order:
 
 1. This `README.md`.
 2. `CLAUDE.md` — code conventions, file-organization rules, and spec governance.
-3. `documentation/locomotion.md` — how the paper's model maps onto our rig.
-4. `documentation/animation-roadmap.md` — the plan, the locked decisions, and the measured baseline (§5).
-5. `documentation/locomotion-handover.md` — the last session's baton. Read it once for where things stand, then delete it and write a fresh one when you finish; it is dated and goes stale immediately.
-6. `documentation/observation-loop.md` — how to see the system before making any claim about it.
+3. `docs/locomotion.md` — how the paper's model maps onto our rig.
+4. `docs/animation-roadmap.md` — the plan, the locked decisions, and the measured baseline (§5).
+5. `docs/locomotion-handover.md` — the last session's baton. Read it once for where things stand, then delete it and write a fresh one when you finish; it is dated and goes stale immediately.
+6. `docs/observation-loop.md` — how to see the system before making any claim about it.
 7. Whichever in-flight OpenSpec change under `openspec/changes/` is the focus of the work.
 
-Pull every equation and constant from `documentation/reference/locomotion-reference.md`, never from memory. That is enough context to continue the animation work coherently.
+Pull every equation and constant from `docs/reference/locomotion-reference.md`, never from memory. That is enough context to continue the animation work coherently.

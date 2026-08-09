@@ -37,7 +37,7 @@
 
 ## 7. Documentation
 
-- [x] 7.1 Update `documentation/animation-roadmap.md` § 4 (Status) with a dated B3 note: coupled undulation verified, final `BODY_WAVES`, COM-drift observation. Mark Phase B complete.
+- [x] 7.1 Update `docs/animation-roadmap.md` § 4 (Status) with a dated B3 note: coupled undulation verified, final `BODY_WAVES`, COM-drift observation. Mark Phase B complete.
 
 ## 8. OpenSpec validation
 

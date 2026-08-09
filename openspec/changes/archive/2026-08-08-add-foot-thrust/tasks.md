@@ -1,7 +1,7 @@
 # Tasks — foot thrust (Phase D-T1)
 
-Every gate is scored against `documentation/animation-roadmap.md` §5 Baseline. No task is checked
-without a capture under `documentation/diagnostics/observe/` showing the number claimed.
+Every gate is scored against `docs/animation-roadmap.md` §5 Baseline. No task is checked
+without a capture under `docs/diagnostics/observe/` showing the number claimed.
 
 **Approval rule.** A preset is added ONLY after the owner has opened its config link in a browser and
 approved it. A passing gate is not approval. Configs that are observed but not approved stay as links
@@ -88,10 +88,10 @@ and are recorded in the roadmap, never in the preset list. See `.claude/skills/o
 
 ## 9. Land it
 
-- [x] 9.1 Recorded as the dated 8-Aug-2026 entry in `documentation/animation-roadmap.md` **§7** (the
+- [x] 9.1 Recorded as the dated 8-Aug-2026 entry in `docs/animation-roadmap.md` **§7** (the
       Phase D-T status log, which is where D-T entries live; §4 holds the older phases). It carries the
       speed span, the two timing bugs, the plant-slip floor and the restated goal.
-- [x] 9.2 `documentation/locomotion-handover.md` §3 and §5 rewritten to the achieved state: §3 records
+- [x] 9.2 `docs/locomotion-handover.md` §3 and §5 rewritten to the achieved state: §3 records
       the free diagonal-couplet rhythm and the body/foot decoupling, §5 opens on the preset grid, marks
       D-T1 done with its numbers, and names D-T2 as next.
 - [x] 9.3 Verified and archived 8-Aug-2026.

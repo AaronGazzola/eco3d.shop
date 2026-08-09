@@ -149,7 +149,7 @@ rebuild. Confirm the rebuild took by checking the reported config contains the l
 Auth is cached in `scripts/.observe-auth.json`. The saved rig is
 listed as **"Demo Dragon — <stage>"** in the Pick step's Load tab (the old "baby cyber dragon" label
 is gone; set `OBSERVE_RIG` accordingly). Forward axis = **−X**, lateral = **Z**, both confirmed from a
-known swim. Captures land in `documentation/diagnostics/observe/` with the exact config embedded.
+known swim. Captures land in `docs/diagnostics/observe/` with the exact config embedded.
 
 ## 7. Key files
 

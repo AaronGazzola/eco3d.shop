@@ -14,7 +14,7 @@
 /coverage
 
 # locomotion diagnostic captures + observation frames
-/documentation/diagnostics/
+/docs/diagnostics/
 
 # observation harness: cached browser session (contains auth tokens) + transient server/build logs
 /scripts/.observe-auth.json

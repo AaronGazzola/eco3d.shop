@@ -9,7 +9,7 @@ This is a complete step-by-step guide for building a Next.js application using t
 
 ## Phase 3: Build Application
 
-Complete each of the steps in this phase for each page in each directory of `documentation/initial_configuration/App_Directory.md`.
+Complete each of the steps in this phase for each page in each directory of `docs/initial_configuration/App_Directory.md`.
 Construct each page using the information provided in the `README.md` file.
 
 ### Build Order Strategy
@@ -54,7 +54,7 @@ When building each page, ensure its parent layouts are already built.
 
 ### Step 3.1: Read Page Specification
 
-From `documentation/initial_configuration/App_Directory.md`, identify:
+From `docs/initial_configuration/App_Directory.md`, identify:
 
 - Page or layout path and route
 - Required features
@@ -66,20 +66,20 @@ From `README.md`, identify:
 
 ### Step 3.2: Create Types
 
-In the corresponding `page.types.ts` or `layout.types.ts` file, define types using the types in `supabase/types.ts`, following the approach demonstrated in `documentation/template_files/template.types.ts`
+In the corresponding `page.types.ts` or `layout.types.ts` file, define types using the types in `supabase/types.ts`, following the approach demonstrated in `docs/template_files/template.types.ts`
 
 ### Step 3.3: Create Actions
 
-In the corresponding `page.actions.ts` or `layout.actions.ts` file, define server action(s) following the approach demonstrated in `documentation/template_files/template.actions.ts`.
+In the corresponding `page.actions.ts` or `layout.actions.ts` file, define server action(s) following the approach demonstrated in `docs/template_files/template.actions.ts`.
 Ensure that all database queries identify and type tables and columns correctly bu referring to the schema in `supabase.types`. All types should be imported from the assigned `page.types.ts` or `layout.types.ts` file.
 
 ### Step 3.4: Create Stores
 
-In the corresponding `page.stores.ts` or `layout.stores.ts` file, define Zustand store(s) following the approach demonstrated in `documentation/template_files/template.stores.ts`
+In the corresponding `page.stores.ts` or `layout.stores.ts` file, define Zustand store(s) following the approach demonstrated in `docs/template_files/template.stores.ts`
 
 ### Step 3.5: Create Hooks
 
-In the corresponding `page.hooks.ts` or `layout.hooks.ts` file, define React-Query hook(s) following the approach demonstrated in `documentation/template_files/template.hooks.ts`.
+In the corresponding `page.hooks.ts` or `layout.hooks.ts` file, define React-Query hook(s) following the approach demonstrated in `docs/template_files/template.hooks.ts`.
 
 **Email verification workflow:**
 

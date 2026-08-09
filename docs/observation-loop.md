@@ -29,7 +29,7 @@ npm run observe -- login
 # 3. Capture a run (8s, node positions @ 4/s, no screenshots):
 npm run observe -- run 8
 
-# 4. Read the output in documentation/diagnostics/observe/:
+# 4. Read the output in docs/diagnostics/observe/:
 #    nodes-<ts>-topdown.png   <- top-down node skeleton: overlay + snapshots over time
 #    nodes-<ts>.md            <- per-node per-axis ranges + COM travel + config used
 #    nodes-<ts>.json          <- raw samples
@@ -69,7 +69,7 @@ Examples:
 
 ```bash
 npm run observe -- run 12 --hz 10 --set cpgDrive=2.4 --set turnBias=0.3
-npm run observe -- run 8 --shots --config documentation/sim-presets/stage1-fast.json
+npm run observe -- run 8 --shots --config docs/sim-presets/stage1-fast.json
 npm run observe -- run 8 --event-shots --set gripEnabled=false --set stepEnabled=false
 ```
 
@@ -77,7 +77,7 @@ npm run observe -- run 8 --event-shots --set gripEnabled=false --set stepEnabled
 
 ## What you get + how to read it
 
-`documentation/diagnostics/observe/` (gitignored, transient):
+`docs/diagnostics/observe/` (gitignored, transient):
 
 - **`nodes-<ts>-topdown.png`** — the top-down node skeleton. **X = forward (body length) → horizontal,
   Z = lateral ↓ vertical** (Y is vertical height, not shown here). Two parts: an **overlay** of all

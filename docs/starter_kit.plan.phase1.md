@@ -11,7 +11,7 @@ This is a complete step-by-step guide for building a Next.js application using t
 
 ### Step 1.1: Install Tailwind v4
 
-Refer to `documentation/tailwind.guide.md`:
+Refer to `docs/tailwind.guide.md`:
 
 ```bash
 npm install tailwindcss @tailwindcss/postcss postcss
@@ -29,7 +29,7 @@ export default {
 
 ### Step 1.2: Setup Global CSS
 
-Replace the entire contents of `app/globals.css` with the complete CSS from `documentation/initial_configuration/Theme.md`:
+Replace the entire contents of `app/globals.css` with the complete CSS from `docs/initial_configuration/Theme.md`:
 
 1. Copy all content from Theme.md (including imports, CSS variables, @layer base, @theme inline, and utility classes)
 2. Paste into `app/globals.css`, replacing all existing content
@@ -37,7 +37,7 @@ Replace the entire contents of `app/globals.css` with the complete CSS from `doc
 
 ### Step 1.3: Configure Custom Fonts
 
-Update `app/layout.tsx` to import and configure the fonts as shown in `documentation/initial_configuration/Theme.md`
+Update `app/layout.tsx` to import and configure the fonts as shown in `docs/initial_configuration/Theme.md`
 
 ### Step 1.4: Install Shadcn
 
@@ -57,9 +57,9 @@ npx shadcn@latest add --all --yes
 
 **Note:** This step is important and not optional. Complete the process for ALL of the shadcn components.
 
-Move the custom toast componen template from `documentation/template_files/CustomToast.template.tsx` to `components/CustomToast.tsx`
+Move the custom toast componen template from `docs/template_files/CustomToast.template.tsx` to `components/CustomToast.tsx`
 
-Update ALL components in `components/ui/` to use the custom theme classes from `documentation/initial_configuration/Theme.md`. Work through each component file systematically:
+Update ALL components in `components/ui/` to use the custom theme classes from `docs/initial_configuration/Theme.md`. Work through each component file systematically:
 
 **For all components:**
 
@@ -100,7 +100,7 @@ Update ALL components in `components/ui/` to use the custom theme classes from `
 
 Phase 1 is now complete. To continue with Phase 2 (Supabase setup):
 
-1. Read `documentation/starter_kit.plan.phase2.md`
+1. Read `docs/starter_kit.plan.phase2.md`
 2. Switch to plan mode and create a step-by-step plan from the instructions in that document
 3. Follow the plan exactly as written
 

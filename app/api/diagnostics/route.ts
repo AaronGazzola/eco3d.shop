@@ -19,12 +19,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing markdown' }, { status: 400 })
   }
 
-  const dir = path.join(process.cwd(), 'documentation', 'diagnostics')
+  const dir = path.join(process.cwd(), 'docs', 'diagnostics')
   await mkdir(dir, { recursive: true })
 
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')
   const fileName = `capture-${stamp}.md`
   await writeFile(path.join(dir, fileName), markdown, 'utf8')
 
-  return NextResponse.json({ path: `documentation/diagnostics/${fileName}` })
+  return NextResponse.json({ path: `docs/diagnostics/${fileName}` })
 }

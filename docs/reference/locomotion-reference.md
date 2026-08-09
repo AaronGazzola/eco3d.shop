@@ -16,7 +16,7 @@ are flagged **⚠ verify against PDF** with the page to check.
   `knusel-2020-salamander-cpg.txt`.
 - Equations and parameters are in **Materials and Methods → CPG Model** (PDF p.5–7).
 
-> Note: the previous `documentation/locomotion.md` cited this as "Thandiackal et al."
+> Note: the previous `docs/locomotion.md` cited this as "Thandiackal et al."
 > That attribution is wrong; the first author is Knüsel.
 
 ---
@@ -149,7 +149,7 @@ stepping and swimming — what we build — use the base values above.
 **How we recreate this (faithful, not substituted).** We implement this block as written:
 the two segment outputs (`Mᵢˡ`, `Mᵢʳ`) drive an Ekeberg virtual-muscle pair producing the
 joint **torque** above, and that torque actuates a **simulated** rigid joint inside our own
-multibody dynamics (build layers L3–L4 in `documentation/locomotion.md`). The joint angle
+multibody dynamics (build layers L3–L4 in `docs/locomotion.md`). The joint angle
 written to the node-skeleton pivot is therefore the **physics-integrated** angle `φᵢ`,
 clamped to the studio `angleCap` (the cap acts as the joint's range limit). We do **not**
 short-circuit this to a direct kinematic bend — movement must emerge from the integrated
@@ -248,7 +248,7 @@ terms to zero — i.e. **a fixed tonic drive**, no noise. That's the regime we w
 - The constants in §7.
 
 We recreate the full pipeline — CPG → Ekeberg muscles → multibody dynamics → environment
-forces — faithfully (§4, §5, and `documentation/locomotion.md §2–§3`).
+forces — faithfully (§4, §5, and `docs/locomotion.md §2–§3`).
 
 **Where we necessarily differ (bounded, and not in the controller):**
 - **Body parameters come from our rig**, not the salamander robot: segment length from

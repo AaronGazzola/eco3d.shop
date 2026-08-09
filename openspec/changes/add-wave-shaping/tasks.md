@@ -1,7 +1,7 @@
 # Tasks — wave shaping (Phase D-T2)
 
-Scored against `documentation/animation-roadmap.md` §5 Baseline and §6 metric 2. No task is checked
-without a capture under `documentation/diagnostics/observe/` showing the number claimed.
+Scored against `docs/animation-roadmap.md` §5 Baseline and §6 metric 2. No task is checked
+without a capture under `docs/diagnostics/observe/` showing the number claimed.
 
 **Approval rule.** A preset is added ONLY after the owner has opened its config link in a browser and
 approved it. A passing gate is not approval. Observed-but-unapproved configs stay as links and are
@@ -56,7 +56,7 @@ prod:3002`) before any capture or any link is handed over. There is no hot reloa
   **Why.** The front (j1–j4) sits at 10–15° and does not move no matter how much drive is removed behind it,
   so no downward-only profile can reach a uniform 20–21°. Reducing a control point redistributes the bend
   onto its neighbours (the compressive Ekeberg ratio) rather than removing it.
-  Aid: `documentation/diagnostics/observe/dt2-51b-drive-cuts.pdf`. Captures `nodes-2026-08-08T13-04-30`
+  Aid: `docs/diagnostics/observe/dt2-51b-drive-cuts.pdf`. Captures `nodes-2026-08-08T13-04-30`
   through `13-08-03`.
 
 - [x] 5.1c **Search the whole shape at once, instead of one lever at a time.** 5.1b showed the profile's
@@ -91,7 +91,7 @@ prod:3002`) before any capture or any link is handed over. There is no hot reloa
   Harness: `scripts/observe-sweep.mjs` (batch) on `scripts/observe-metrics.mjs` (the shared scoring, so a
   sweep row and a single-run report cannot describe the same capture differently). Captures
   `sweep-2026-08-08T13-56-02` and `sweep-2026-08-08T14-08-12`; aid
-  `documentation/diagnostics/observe/dt2-51c-sweep.pdf`.
+  `docs/diagnostics/observe/dt2-51c-sweep.pdf`.
   - **Correlations across all 80:** spread↔speed **+0.58** (an even spine is a slow one),
     spread↔girdle-imbalance **−0.33** (evening the spine makes the girdle pair *less* equal),
     girdle-imbalance↔speed −0.32. The corner where all three are good is empty, and that is now measured
@@ -151,7 +151,7 @@ prod:3002`) before any capture or any link is handed over. There is no hot reloa
   regression is roll: peak 1.40° against 0.80°.
   Variants also captured: same shape at thrust 2 (the slower rung), a girdle-targeted shape (ratio 0.84 but
   spread 17.8°) and an amplitude-targeted one (mean bend 22.6°, spread 10.4°). Aid
-  `documentation/diagnostics/observe/dt2-thrust.pdf`; captures `sweep-2026-08-08T15-11-03` (the gain ladder)
+  `docs/diagnostics/observe/dt2-thrust.pdf`; captures `sweep-2026-08-08T15-11-03` (the gain ladder)
   and `sweep-2026-08-08T15-32-29` (the finalists, on the corrected harness).
 
 - [x] 5.1f **Three harness defects found and fixed while running 5.1e. Each one had already produced a
@@ -180,6 +180,6 @@ prod:3002`) before any capture or any link is handed over. There is no hot reloa
 ## 6. Land it
 
 - [ ] 6.1 Add the approved configuration as a preset, carrying its `legWeight` and its measured metric-2 numbers in the description.
-- [ ] 6.2 Record the D-T2 result as a dated entry in `documentation/animation-roadmap.md` §7: the numbers, the control points that won, the variants rejected, and the owner's baseline choice from task 1.4.
-- [ ] 6.3 Update `documentation/locomotion-handover.md` §5 so the next session reads the achieved state and D-T3 as next.
+- [ ] 6.2 Record the D-T2 result as a dated entry in `docs/animation-roadmap.md` §7: the numbers, the control points that won, the variants rejected, and the owner's baseline choice from task 1.4.
+- [ ] 6.3 Update `docs/locomotion-handover.md` §5 so the next session reads the achieved state and D-T3 as next.
 - [ ] 6.4 Run `openspec validate --strict` and archive.
