@@ -611,6 +611,43 @@ A dated log of decisions, with reasoning. Settled one at a time as we work throu
     independently of the body. **Faithfulness:** the paper already drives by region; this is more
     regions, not a new mechanism. Logged as a deviation all the same, because the paper's envelope is
     the swimming one and this deliberately flattens it.
+12. **Locomotion → FLIGHT in a bounded tank. Stepping is parked.** _2026-08-10, by the owner._ The
+    creatures are dragons, so they fly instead of walking. The deliverable is a rectangular window on
+    the Vids.Tube overlay that reads as a transparent fish tank, with dragons flying inside it.
+    **Why:** stepping could not be made to work. Foot plant timing and foot thrust generated
+    complication after complication, while the base swim with drag on has worked reliably since
+    D-T1. **What flight actually is:** the base swim with gravity removed. Forward motion is still
+    produced entirely by the body wave pushing against anisotropic drag, and drag is indifferent to
+    whether the fluid is water or air. Nothing in the CPG, the Ekeberg muscle law or the drag model
+    changes. **Faithfulness:** the paper's swimming mode is being used unmodified in a fluid the paper
+    does not discuss. The controller is the paper's; the medium is **[ours]**.
+13. **The tank has no gravity, and the legs are passengers.** _2026-08-10, by the owner._ Neutral
+    buoyancy: the wave alone moves the body. **Why:** every tuned number in the base swim was found
+    with the wave working against drag, and removing gravity removes a load rather than adding one, so
+    the tuning carries over rather than needing rediscovery. The legs stay rigid against the body and
+    contribute nothing to propulsion and nothing to drag — which needs no new work, because drag is
+    already applied to trunk segments only and the leg capsules already collide with nothing.
+    **Foot thrust is retained as a lever, defaulted off.** It is no longer a success criterion and no
+    longer the mechanism the phase is built around, but it is not deleted: it stays available should
+    flight tuning want a per-foot push later.
+14. **Climb and dive → a second hinge per spine joint, on the pitch axis.** _2026-08-10, by the owner._
+    Every spine joint today is a single hinge about a near-vertical axis, so the body bends sideways
+    only and cannot bend upward. A second hinge per joint gives a genuine vertical undulation.
+    **Chosen over** tilting the whole body with a torque, which was the cheaper option, because the rig
+    schema already carries an up limit and a down limit on every group and the studio already edits
+    them. **The caveat that comes with it:** those limits currently read exactly 30° on every group of
+    both saved rigs, which is the code default — unlike the sideways limits, which are genuinely
+    measured and vary 17° to 39°. Under Decision 11's frozen-caps rule the pitch limits are therefore
+    **not yet physical** and must be measured off the printed model before any wave is shaped to them.
+    30° stands as an explicit placeholder until then.
+15. **Roll is controlled, not left free.** _2026-08-10, by the owner._ The body is held flat in level
+    flight and **banks into its turns**. **Why:** with the floor and gravity both gone, nothing at all
+    resists roll — and the working engine applies drag that resists travel through the fluid but none
+    that resists spinning — so an uncontrolled body is free to tumble. Level flight is therefore an
+    active result, not a default. **Later, and separately:** a roll limit per segment, so the body
+    twists fluidly along its length as it turns rather than banking as one rigid piece. That needs a
+    **schema addition** — the rig carries sideways and up/down limits per group but no roll limit — and
+    those limits are physical in the same sense as the others, so they are measured off the print too.
 
 ---
 
@@ -653,7 +690,12 @@ begins. This is the current draft, refined as understanding firms up.
 - **Phase D — Walking.** _Re-planned 2026-08-03 around Decision 10 (foot thrust)._ D1 shipped as
   written. D2 and D3 below are the historical grip-based plan, **superseded** — they are kept
   because D1's gate and the limb transfer function still stand. The live plan is **Phase D-T**.
-- **Phase D-T — The preset grid.** _Current._ Foundation is the approved **base swim**: rigid legs
+- **Phase D-T — The preset grid, on the ground.** **⚠ PARKED 2026-08-10 by Decision 12 — the creatures
+  fly instead of walking. The live phase is Phase T.** Not deleted, and not a failure: D-T1's thrust,
+  D-T2's wave shaping and the whole measurement harness all carry into Phase T, because the wave is the
+  same wave in air. Only the ground-specific parts stop — foot planting as a criterion, leg sweep, and
+  the speed ladder as measured against a floor. **Do not resume D-T3 to D-T6 from these boxes.**
+  Foundation is the approved **base swim**: rigid legs
   perpendicular to the body, no sweep, no lift, no friction, drag on, body flat. The deliverable is a
   grid of final presets, each satisfying all three success metrics in **§6** at once. Every step is
   scored against §5 Baseline and reported with a config link before it becomes a preset.
@@ -690,10 +732,44 @@ begins. This is the current draft, refined as understanding firms up.
   - **D3 — Terrestrial coupled walking.** Couple D1 → D2 across the four legs + the axial wave;
     gravity + ground + friction. Gate: diagonal-trot walk, forward, upright, energy bounded.
 - **Phase E — Turning + behaviors:** differential drive; behavior presets matching Table 4.
+  *Absorbed into Phase T — turning is T2 and the behaviour grid is T4.*
 - **Phase F — Attractor tracking:** the thin "brain" layer — attractor → drive magnitude +
   left/right bias; head tracks the target; body and feet orient and move toward it.
+  *Absorbed into Phase T as T5.*
 - **Phase G — Feedback (optional):** close the CPG loop (reference §9).
 - **Phase H — UI:** rebuild the Simulate tab for this model.
+
+- **Phase T — Flight in a tank.** _Current, opened 2026-08-10 by Decisions 12–15._ The deliverable is
+  dragons flying inside a bounded volume, seen through a fixed side-on camera on the Vids.Tube overlay.
+  **The overlay outranks the tuning**: the owner streams while working on eco3d with the overlay along
+  the bottom, so viewers watch the work in progress, and a rough dragon that is visible beats a good one
+  that is not. Every step is scored against **§6** and reported with a config link before it becomes a
+  preset, exactly as in D-T.
+  - **T1 — The tank, and something flying in it.** Gravity becomes a lever and is switched off; the
+    floor plane is removed and bounded walls replace it; the overlay's creature-following camera is
+    replaced by a fixed camera looking side-on into the tank, so a dragon approaching the glass grows
+    and one departing shrinks. The approved base swim flies inside it with the legs rigid. Bouncing off
+    a wall is ordinary contact and needs no code. Gate: a dragon flies around the tank on the overlay
+    and bounces off the glass, seen in a capture rather than asserted. **Watch for tumbling** — see
+    Decision 15; if the body rolls over, T3 is pulled forward ahead of T2.
+  - **T2 — Turning.** Already built and already verified: one signed lever weakens one whole side of the
+    oscillator chain and the body curves. Needs a control surface and a measured turn rate, not a
+    mechanism. Gate: ordered left and right turn rates, the body wave still holding §6 metric 2.
+  - **T3 — Level flight and banking (Decision 15).** Roll held flat in level flight, and banked into the
+    turn from T2. Gate: a straight run holds roll near zero without external help, and a turning run
+    banks into the turn rather than skidding flat or tumbling.
+  - **T4 — Climb and dive (Decision 14).** A second hinge per spine joint on the pitch axis, driven from
+    the same controller. Blocked on the owner measuring the real pitch limits off the printed model;
+    30° stands as a placeholder until then. Gate: ordered climb and dive rates, nothing at a limit.
+  - **T5 — The flight grid.** The sweep re-run inside the tank, spanning slow/medium/fast × turn rates ×
+    climb rates. **The D-T2 numbers do not carry**: every one was taken with gravity on and a floor
+    under the body, and the winning configuration also used foot thrust, so the grid is re-measured
+    rather than converted. Gate: every cell holds §6, and the owner has opened each config link.
+  - **T6 — Roaming.** Wall-aware steering above the wave, so a dragon turns away from the glass rather
+    than bouncing off it, then object tracking — the Phase F brain layer, applied in three dimensions.
+  - **T7 — Per-segment roll (Decision 15, later half).** A roll limit per group added to the rig schema
+    and measured off the print, so the body twists along its length through a turn instead of banking
+    rigidly.
 
 Map each phase to the L0–L8 layers in `locomotion.md §3`; pull all math/params from the
 reference.
@@ -1320,24 +1396,35 @@ walking rhythm** — Decision 10's thrust only has to decide *how hard* each foo
 
 ## 6. Success metrics and the preset grid
 
-Settled 8-Aug-2026. Every Phase D-T step is scored against these three, and nothing becomes a preset
-until all three hold and the owner has opened its config link. They pull against each other on purpose:
-when they conflict, variants are presented and the owner picks — the priority is not fixed in advance.
+Settled 8-Aug-2026. Revised 10-Aug-2026 for flight (Decision 12): **metric 1 is parked, metric 2 stands
+unchanged, metric 3 grows a vertical and a roll axis.** Every Phase T step is scored against the live
+metrics, and nothing becomes a preset until they hold and the owner has opened its config link. They
+pull against each other on purpose: when they conflict, variants are presented and the owner picks —
+the priority is not fixed in advance.
 
 ### The deliverable
 
 A grid of final presets, each one speed × one heading. These are **guideposts, not endpoints**: a later
 system blends between them continuously in response to input signals, so what matters is that the grid
-spans the range cleanly, not that any single cell is perfect.
+spans the range cleanly, not that any single cell is perfect. This is what makes the dynamic model
+possible — tracking an object, roaming, accelerating and decelerating are all blends across the grid.
 
 - **Speeds — relative, not absolute.** Slow is the slowest that still moves; fast is the fastest the rig
   manages; medium sits between. Only the ordering is a requirement.
 - **Turn levels — relative the same way.** Low is the gentlest that still turns; high is the tightest
   possible; medium between.
+- **Climb levels — relative the same way.** _Added 10-Aug-2026._ Level, plus climb and dive at each
+  level. Dive mirrors climb the way left mirrors right.
 - **Headings.** Straight, plus left and right at each turn level. Straight has no turn level, and left
-  mirrors right, so 3 speeds × 4 distinct headings are authored and mirrored out to 3 × 7.
+  mirrors right, so 3 speeds × 4 distinct headings are authored and mirrored out to 3 × 7. The climb
+  axis multiplies this, so the grid is authored sparsely and blended between rather than filled in.
 
-### Metric 1 — foot stillness during the plant
+### Metric 1 — foot stillness during the plant. **⚠ PARKED 2026-08-10 (Decision 12)**
+
+**No longer a success criterion.** The feet are passengers in flight and there is no ground to stand on,
+so nothing here gates a Phase T preset. Kept in full because the measurement is correct and hard-won,
+and because the two-shift finding below is a real property of the travelling wave that survives the
+change of medium. Do not re-enter this as work.
 
 Each foot should stay roughly in one place between its maximum forward reach and its maximum backward
 reach. Perfect planting is explicitly **not** required; less movement in the window is the whole target.
@@ -1388,14 +1475,36 @@ Each preset travels in the direction it intends, at the speed it intends.
 
 - Speeds come out ordered: slow < medium < fast. Turn rates likewise: low < medium < high.
 - Straight presets are also measured for straightness, as lateral drift against distance travelled.
+  Straightness is reported as worst perpendicular deviation from a fitted path line, **not** as lateral
+  travel over distance — the latter reports a body flying dead straight a few degrees off the reference
+  axis as large drift, and once cost a good configuration a rejection for a defect it did not have.
 - **Sweep must not move speed.** If it does, it has become a thrust term and metric 3 is compromised.
+- **Climb rates come out ordered too.** _Added 10-Aug-2026._ Dive < level < climb, measured as vertical
+  travel per second, with the horizontal speed reported beside it so a climb that is really a stall is
+  visible as one.
+
+### Metric 4 — attitude. _Added 10-Aug-2026 (Decision 15)_
+
+The body flies the way an animal flies rather than tumbling, and this is an **active** result: with the
+floor and gravity gone, and no angular drag applied in the working engine, nothing resists roll on its own.
+
+- **Level flight holds roll near zero**, measured as peak roll angle and as roll reversals per second.
+  The reversal count degrades into noise below about 1° of peak, so both are reported together.
+- **A turn banks into the turn.** Roll and turn rate share a sign, and the bank angle grows with the
+  turn rate. A turn that stays flat, or that rolls outward, fails this.
+- **Nothing tumbles.** Any run where roll passes 90° fails outright, whatever else it scored.
 
 ### How conflicts are handled
 
-- Faster currently plants better than slower, so metrics 1 and 3 pull apart at the slow end.
 - Flattening the tail to satisfy metric 2 will change thrust and therefore speed.
+- Evening the spine raised roll on every no-thrust variant measured in D-T2, so metrics 2 and 4 are
+  expected to pull apart — and metric 4 no longer has a floor to damp it.
 - No fixed priority is declared. Each iteration presents variants that trade differently, with the
   numbers for each, and the owner chooses by looking. That choice is then recorded here.
+- **A correlation measured in one regime is not a property of the rig.** D-T2 measured spine evenness
+  and speed as strongly anti-correlated, then found the anti-correlation vanished once thrust was
+  applied and the body actually advanced. Removing gravity is a change of the same size, so the D-T2
+  correlations are not carried into Phase T as assumptions.
 
 ---
 
@@ -1471,3 +1580,69 @@ Each preset travels in the direction it intends, at the speed it intends.
   37–39°, the tail tip at 45°) will sit at little over half their range, and that is simply what even
   angles cost on this rig. Current best variant runs 10–30°, so the work is to lift the front (joints 2–4,
   at 11–14°) and hold the tail down (joints 8–9, at 28–30°).
+
+- **2026-08-09 (D-T2 result — the wave was shaped, and the shaping works)** — Closing record for the
+  `add-wave-shaping` change, which is archived. Read this rather than the archived task boxes.
+
+  **The search that found the shape.** 80 samples were run in two batches, 48 coarse and 32 refined,
+  after single-lever stepping was proven exhausted: the profile's response is **redistributive**, so
+  lowering one control point pushes bend onto its neighbours instead of removing it, and no
+  downward-only sequence of single steps can reach a uniform envelope. The whole five-point shape had to
+  be searched at once, with the global drive raised and the sections used to hold parts back. Each
+  sample was scored on every metric rather than on one, using a shared scorer so a batch row and a
+  single-run report cannot describe the same capture differently.
+
+  **The joint 7 limit was raised 22° → 28° by the owner**, which moved the binding joint forward to
+  joint 2 at 23°, itself the front girdle. This is the one amendment to Decision 11's frozen caps: a
+  cap was re-measured, not relaxed to make the wave fit.
+
+  **The winning configuration, and its caveat.** Drive 0.39, muscle gain 14, profile 1 / 1 / 0.7 / 0.5 /
+  0.3, head isolated, thrust 4 N per foot, legs 0.1 kg. Joints 2–9 read **20.2–24.3°** against a target
+  of a uniform 20–22°, bend spread **6.0°** against the baseline's 17.0°, girdle ratio **1.10** against
+  1.18, speed **2.85 u/s** against 0.90, path curvature 0.53% against 0.82%, and nothing at a limit
+  where the baseline over-bent three joints. The single regression is roll: peak 1.40° against 0.80°.
+  **The caveat, and it is why Phase T re-measures rather than converts:** this configuration uses foot
+  thrust, and every number above was taken with gravity on and a floor beneath the body.
+
+  **The correlations reported earlier were an artefact and must not be cited.** Across the 80 no-thrust
+  samples, spine evenness and speed read **+0.58** and evenness and girdle balance **−0.33**, and the
+  corner where all three metrics are good measured empty. Restoring thrust removed the conflict
+  entirely — one fixed wave shape improved all three at once as thrust rose from 0 to 4 N. The
+  anti-correlations were a property of a body that barely advanced, not of the rig.
+
+  **Pushing a section above 1.0 bought nothing**, settled by measurement rather than assumption: the
+  best above-1.0 variant landed within 1° of the best all-below-1.0 variant on spread, at identical
+  speed and a marginally worse girdle ratio. Recorded so it is not re-proposed.
+
+  **Three harness defects were found and fixed, each after disbelieving a result.** Thrust gains had
+  been read off the slider bounds rather than the range D-T1 worked in, launching the body at roughly
+  five body lengths per second and voiding 60 samples on the thrust axis. The first run after a page
+  load straddles the lazy engine build and is not repeatable, reading 8.3° of spread where the next five
+  identical runs read 5.9–6.0°; a warm-up run is now discarded, and **every single-run capture in the
+  change carries up to about 2.4° of error on that number while the batch numbers do not**. And
+  straightness had conflated heading with curvature, reporting a body flying dead straight a few degrees
+  off axis as 8% drift — without that fix the winning configuration would have been rejected for a
+  defect it does not have.
+
+  **What was never settled, and is now moot.** Four variants spanning the trade were handed over and no
+  choice was recorded. The choice does not carry into Phase T: it was between shapes measured under a
+  gravity load and a floor that the tank does not have.
+
+- **2026-08-10 (direction changed — the dragons fly; Phase T opens)** — Decided by the owner. Stepping
+  is parked and flight replaces it; see Decisions 12–15 for the reasoning and Phase T in §3 for the
+  plan. **What carries over is almost everything**: the CPG, the Ekeberg muscle law, the anisotropic
+  drag, the spine amplitude profile, head isolation, the batch sweep harness and the corrected scoring
+  are all wave work, and the wave is the same wave in air. Turning is already built and already
+  verified. Drag is already applied to trunk segments only and the leg capsules already collide with
+  nothing, so rigid non-contributing legs need no work. **What stops** is foot planting as a criterion,
+  leg sweep, and the ground-referenced speed ladder. **What is new** is the tank and its fixed side-on
+  camera, gravity as a lever, a pitch hinge per spine joint, and roll control.
+
+  **Two findings recorded at the point of the change, both verified against the live rig data.**
+  The pitch limits are authored on every group of both saved rigs and read **exactly 30.0° everywhere**,
+  which is the code default, while the sideways limits are genuinely measured and vary 17°–39°. So the
+  physics can read a pitch limit today, but no pitch limit has been measured off the print, and under
+  Decision 11 that makes them placeholders rather than physical constraints. Separately, the working
+  engine applies **no angular drag** — the angular slots of its external-force buffer are written as
+  zero every step — so once the floor and gravity are gone there is nothing at all resisting roll. That
+  is the first thing T1's capture is read for.

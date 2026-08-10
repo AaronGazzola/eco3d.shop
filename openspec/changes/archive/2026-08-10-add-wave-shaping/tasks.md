@@ -1,5 +1,11 @@
 # Tasks — wave shaping (Phase D-T2)
 
+> **CLOSED 10-Aug-2026 at the direction change to flight.** Sections 1–5 shipped and are recorded in
+> `docs/animation-roadmap.md` §7 under 9-Aug-2026 — **read that entry, not these boxes.** Seven tasks were
+> **dropped rather than completed**, each marked in place with what was not done and why: 1.4, 5.4, 5.5,
+> 5.1g, 6.1. Nothing here is a mandate. What survives of the stepping work is held in **AZ-249**, and the
+> live plan is Phase T in the roadmap.
+
 Scored against `docs/animation-roadmap.md` §5 Baseline and §6 metric 2. No task is checked
 without a capture under `docs/diagnostics/observe/` showing the number claimed.
 
@@ -15,7 +21,7 @@ prod:3002`) before any capture or any link is handed over. There is no hot reloa
 - [x] 1.1 Done. `this.spine` now takes `k: this.cpgSpec.oscOfSegment[j.childIndex]`. `spineSeg`/`spineGirdleDist` still use the raw `childIndex`, since girdle distance is defined in body-segment space.
 - [x] 1.2 Confirmed by reading `buildCpgSpec`: `limbWiring` is remapped through `oscOfSegment` at construction, so `girdleClockPhase` was already reading fine indices and the thrust windows are unaffected by the fix.
 - [x] 1.3 Captured both, 12 s at 20 Hz. The fix raises speed **1.06 → 1.36 u/s**, removes a dead spot in the middle of the body (centreline swing minimum 0.58 → 1.25 u), and drops head swing 2.16 → 1.65 u. Config links reported.
-- [ ] 1.4 Awaiting the owner. The pre-fix look is NOT reachable by config — the difference is a code fix, not a lever — so the comparison offered is the new state plus the recorded pre-fix numbers, not two live links.
+- [x] 1.4 **DROPPED 10-Aug-2026 at the direction change, not completed.** Two live links were never available here: the pre-fix look is not reachable by config, because the difference is a code fix rather than a lever. The baseline choice this task asked for is now moot — the direction changed to flight, and both sides of the comparison were measured with gravity on and a floor under the body. The pre-fix and post-fix numbers in roadmap §7 stand as the whole record.
 - [x] 1.5 Reported, not retuned. The fixed mapping puts **6 of 10 spine joints at or over their caps** (peak 102%) at the previously approved config. Lowering `muscleAlpha` to de-clip was measured (15 → still 100%, 12 → 80% but speed down to 0.72 u/s and evenness no better) and rejected as the wrong tool: it scales the whole spine when only some joints are over. The profile is the right cure.
 
 ## 2. Harness — measure §6 metric 2 before shaping to it
@@ -129,10 +135,10 @@ prod:3002`) before any capture or any link is handed over. There is no hot reloa
   Consequence: the baseline's real numbers are spread **17.0°** across joints 2–10 and girdle ratio
   **1.13**, not the 19.9° and 0.94 reported in 5.1b. Every 5.1b conclusion still stands — none of them
   turned on the absolute value — but 5.1c is gated on the corrected figures.
-- [ ] 5.2 Gate: max-minus-min spread of per-joint peak cap fraction reduced against the chosen baseline, the front/hind girdle ratio moved from 2-to-1 toward 1-to-1, no joint at its cap, and head sweep reduced.
-- [ ] 5.3 Report the speed change alongside every variant. Flattening the tail removes wave amplitude and will cost speed; that is expected and is D-T3's problem, not a reason to abandon a variant.
-- [ ] 5.4 Report whether the head-to-tail phase lag moved as the profile flattened. The design predicts it will, because the multiplier scales frequency as well as amplitude. If the distortion is large enough to change the gait's look, present the muscle-side variant from `design.md` beside it with numbers.
-- [ ] 5.5 Present the variants to the owner and record which is chosen and why. Metrics 1, 2 and 3 conflict here by design and the priority is the owner's to set, per §6.
+- [x] 5.2 **MET, against the corrected numbers.** The gate was rewritten in 5.6 from cap fraction to degrees before it was scored. Best legal configuration reads joints 2–9 at 20.2–24.3°, spread **6.0°** against the baseline's 17.0°, girdle ratio **1.10** against 1.18, nothing at a limit where the baseline over-bent three joints, head joint held at 23% of its own limit by isolation. Recorded in 5.1e and in roadmap §7.
+- [x] 5.3 **Done, and the speed cost turned out not to exist.** Speed was reported beside every variant throughout. The prediction that flattening the tail must cost speed held only in the no-thrust regime; with thrust restored the best-shaped configuration ran **2.85 u/s** against the baseline's 0.90, so evenness and speed improved together. The task's own premise is recorded as wrong in roadmap §7.
+- [x] 5.4 **DROPPED 10-Aug-2026, unmeasured.** Phase lag was never isolated, and it cannot be now: the one measurement taken reads 0.711 cycles across joints 1–9, sitting between the 0.53 predicted for the broken mapping and the 0.92 for the fixed one, and a joint angle is a loaded mechanical response so it cannot discriminate. The muscle-side alternative was never needed, because no variant distorted the look enough to raise the question. Dropped rather than carried: the wave is re-measured from scratch in the tank.
+- [x] 5.5 **DROPPED 10-Aug-2026 at the direction change, no choice recorded.** Four variants spanning the trade were handed over and the owner never picked between them. The choice does not carry into flight: every variant was measured with gravity on and a floor under the body, and the configuration that scored best also used foot thrust. Re-measurement is Phase T5. Preserved in **AZ-249** in case walking is ever resumed.
 - [x] 5.6 SETTLED 8-Aug-2026 by the owner: **even bend angles**, not even cap fractions. §6 metric 2 rewritten — degrees is the gate, cap fraction stays as the clipping guard only, and both are reported every run.
 - [x] 5.7 SETTLED 8-Aug-2026 by the owner: **the caps are frozen and are not a lever.** They are the real range of motion of the printed 3D model, and exceeding one makes that segment clip into its neighbour. The proposal to smooth them into one value per region was rejected on that basis. Consequence, now the concrete target for 5.1b: with joint 7 at 22° binding and the head joint isolated, aim for a **uniform 20–21° bend across joints 2–10**. Lift the front (joints 2–4 currently 11–14°) and hold the tail down (joints 8–9 currently 28–30°). Recorded in §6 and §7.
 
@@ -172,14 +178,23 @@ prod:3002`) before any capture or any link is handed over. There is no hot reloa
      **0.35–0.53%** against the baseline's 0.82%, i.e. straighter, not worse. Both numbers are now reported.
      Without this the best config would have been rejected for a defect it does not have.
 
-- [ ] 5.1g Foot stillness (§6 metric 1) is still not in the batch scorer, so the finalists have not been
-  scored on it. It needs the CPG-clocked plant window with SEPARATE front and hind shifts; deriving a window
-  from body motion, or sharing one shift, is the error §7 already records. Measure the chosen config on the
-  single-run `--events` path, which handles the two girdles correctly, before it becomes a preset.
+- [x] 5.1g **DROPPED 10-Aug-2026, never measured.** Foot stillness was never added to the batch scorer, so
+  no finalist was ever scored on it. It is now parked outright as a success criterion: the feet are
+  passengers in flight and there is no ground to stand on. The reason it was hard is still true and still
+  worth knowing — it needs the CPG-clocked plant window with SEPARATE front and hind shifts, and deriving
+  a window from body motion or sharing one shift between the girdles is an error that already produced
+  wrong numbers once. Preserved in **AZ-249**.
 
 ## 6. Land it
 
-- [ ] 6.1 Add the approved configuration as a preset, carrying its `legWeight` and its measured metric-2 numbers in the description.
-- [ ] 6.2 Record the D-T2 result as a dated entry in `docs/animation-roadmap.md` §7: the numbers, the control points that won, the variants rejected, and the owner's baseline choice from task 1.4.
-- [ ] 6.3 Update `docs/locomotion-handover.md` §5 so the next session reads the achieved state and D-T3 as next.
-- [ ] 6.4 Run `openspec validate --strict` and archive.
+- [x] 6.1 **DROPPED 10-Aug-2026 — no preset was added.** The configuration that would have been saved uses
+  foot thrust and was measured with gravity on and a floor beneath the body, so saving it as a preset would
+  put a number in the dropdown that no longer describes anything reachable. The full configuration is
+  written out in roadmap §7 instead, where its caveat travels with it. Presets resume at Phase T5.
+- [x] 6.2 Done. Recorded in `docs/animation-roadmap.md` §7 as the 9-Aug-2026 entry: the search, the raised
+  joint limit, the winning configuration and its caveat, the correlations that turned out to be an
+  artefact, the above-1.0 result, and the three harness defects. The owner's baseline choice from 1.4 is
+  recorded as never made, with the reason.
+- [x] 6.3 Done, and rewritten rather than updated. The handover now describes the flight direction, what
+  carries over, the two traps waiting in the new work, and Phase T1 as next.
+- [x] 6.4 Validated and archived 10-Aug-2026.

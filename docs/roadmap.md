@@ -56,6 +56,14 @@ Pose cycles remain valid only for animations that never translate the body.
   The animate research studio is kept as the tuning tool. Legs propel the
   body by **thrust**, not by a grip pin — a pinned foot is a constraint and it
   flattens the axial wave (`docs/animation-roadmap.md` Decision 10).
+- **The dragons FLY; walking is parked** (amended 2026-08-10). Stepping could
+  not be made to work — foot plant timing produced complication after
+  complication — while the base swim with drag on has been reliable
+  throughout. Flight is that same swim with gravity removed: the wave pushes
+  against direction-dependent drag, and drag does not care whether the fluid
+  is water or air. The controller does not change. Foot thrust is **kept as a
+  lever, defaulted off**, and no stepping code is deleted. See
+  `docs/animation-roadmap.md` Decisions 12–15 and Phase T.
 - **Table unification**: `model_configs` (old studio output) merges into
   `dragon_models` (variant x stage, rig + `role_tags`); the full `groups`
   schema — segment membership, node assignments, angle caps, rotation — is
@@ -80,12 +88,22 @@ part was reversed on 2026-08-02: the pose cycles slide by construction, so the
 CPG runtime and the studio were restored onto the unified rig table. The table
 unification itself stands and is not revisited.*
 
-### E1b — Walking by foot thrust
-Make the creature walk, not swim, on the restored runtime. The body wave is
-already correct and already produces diagonal-couplet footfall timing for
-free; the gap is that the body glides while the feet churn. Add a per-foot
-backward thrust clocked off the limb CPG, then front/hind balance, turning,
-braking. Tracked as Phase D-T in `docs/animation-roadmap.md`.
+### E1b — Walking by foot thrust. **PARKED 2026-08-10**
+Superseded by E1c. Foot thrust shipped and works; foot planting does not, and
+chasing it was blocking everything downstream. No code is deleted and foot
+thrust stays available as a lever. Tracked as Phase D-T in
+`docs/animation-roadmap.md`, marked parked there.
+
+### E1c — Flying in a tank
+Make the creature fly inside a bounded volume, seen through a fixed side-on
+camera in a rectangular window on the Vids.Tube overlay. Gravity off, legs
+rigid and inert, wave-driven motion against drag exactly as in the base swim.
+Then turning (already built), level flight and banking, climb and dive on a
+new pitch hinge per spine joint, the speed/turn/climb preset grid, and finally
+wall-aware roaming and object tracking. **This phase is also the E4 dependency
+in practice** — the overlay is what the whole flight phase is delivered
+through, and the owner streams against it while working. Tracked as Phase T in
+`docs/animation-roadmap.md`.
 
 ### E2 — Genetics v1 on PHA
 3 `filament_colors` rows; roles/genes/alleles with dominance; rare morphs;
@@ -123,5 +141,7 @@ Rig studio (STL segmentation, grouping, skeleton binding, angle caps, role
 tagging); genetics schema (7 tables) + pure engine
 (`app/game/dragons.genetics.ts`) + admin authoring UIs; STL load pipeline;
 auth/profiles/admin gating; the CPG locomotion runtime on two physics engines
-with a working swim and an observation harness. Greenfield: walking, breeding,
+with a working swim and an observation harness; a public overlay page that
+renders a saved rig with no login on a transparent background, already
+configured and verified inside Vids.Tube. Greenfield: flight, breeding,
 economy, habitats, persistence wiring, API, commerce.

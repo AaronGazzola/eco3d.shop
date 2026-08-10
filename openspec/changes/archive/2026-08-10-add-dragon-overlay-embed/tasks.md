@@ -76,8 +76,8 @@ is already how `scripts/observe.mjs` drives the studio. "It should work" is not 
 
 ## 7. Land it
 
-- [ ] 7.1 Raise a Linear issue in the Eco3D.Shop project covering the two things no automated run here can
-      reach: how the window reads composited over live video, which needs a running stream and the owner's
-      eye; and the two studio buttons behind the admin login, which need one signed-in click each to
-      confirm the copied link opens the right creature.
-- [ ] 7.2 Run `openspec validate --strict` and archive.
+- [x] 7.1 Raised as **AZ-248** in the Eco3D.Shop project, covering both: how the window reads composited
+      over live video, which needs a running stream and the owner's eye; and the two studio buttons behind
+      the admin login, which need one signed-in click each. The ticket also notes both are better judged
+      against the Phase T tank than against the follow camera, since that camera is being replaced.
+- [x] 7.2 Validated and archived 10-Aug-2026.
