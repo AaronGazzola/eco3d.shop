@@ -4,7 +4,7 @@ import { RefObject, useRef } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 import { BodyGroup } from '@/app/admin/_lib/types'
-import { pickSimConfig, useAnimateStore } from '@/app/admin/animate/animateStore'
+import { mujocoStructuralKey, pickSimConfig, useAnimateStore } from '@/app/admin/animate/animateStore'
 import { createMujocoLocomotion, MujocoLocomotion } from './mujocoRuntime'
 
 const TIMESTEP = 1 / 120
@@ -27,6 +27,7 @@ export function useMujocoLocomotion(
   const loadingRef = useRef(false)
   const accRef = useRef(0)
   const builtGroupsRef = useRef<BodyGroup[] | null>(null)
+  const builtWorldRef = useRef<string | null>(null)
   const obsDriverRef = useRef<MujocoLocomotion | null>(null)
   const baseComRef = useRef<[number, number, number] | null>(null)
   const diagAccumRef = useRef(0)
@@ -110,7 +111,12 @@ export function useMujocoLocomotion(
     const tNow = (performance.now() - ncap.startWallTime) / 1000
     if (!window.__nodeCaptureSpec) {
       const spec = driver.nodeSpec()
-      window.__nodeCaptureSpec = { count: spec.count, groupIds: spec.groupIds.slice(), segLength: spec.segLength.slice() }
+      window.__nodeCaptureSpec = {
+        count: spec.count,
+        groupIds: spec.groupIds.slice(),
+        segLength: spec.segLength.slice(),
+        tankBounds: driver.tankBounds(),
+      }
     }
     const interval = ncap.hz > 0 ? 1 / ncap.hz : 0
     if (ncap.buffer.length < ncap.maxSamples && tNow - ncap.lastSampleTime >= interval - 1e-4) {
@@ -215,24 +221,40 @@ export function useMujocoLocomotion(
         driverRef.current.dispose()
         driverRef.current = null
         builtGroupsRef.current = null
+        builtWorldRef.current = null
         hideIndicators()
       }
       accRef.current = 0
       return
     }
 
-    // Rebuild if there is no driver yet, or the loaded creature changed.
-    if (!loadingRef.current && (driverRef.current === null || builtGroupsRef.current !== groups)) {
+    // Rebuild if there is no driver yet, the loaded creature changed, or a structural lever moved.
+    // Gravity and the tank are written into the generated model rather than read each step, so they
+    // cannot be changed on a live driver — the model has to be regenerated. Everything else is read per
+    // step and must NOT rebuild, which is why the comparison is against a key of the structural levers
+    // only and not against the config as a whole.
+    const structuralKey = mujocoStructuralKey(pickSimConfig(store))
+    const stale =
+      driverRef.current === null || builtGroupsRef.current !== groups || builtWorldRef.current !== structuralKey
+    if (!loadingRef.current && stale) {
       if (driverRef.current) {
         driverRef.current.dispose()
         driverRef.current = null
       }
       loadingRef.current = true
       const forGroups = groups
-      createMujocoLocomotion(groups)
+      const forWorld = structuralKey
+      createMujocoLocomotion(groups, {
+        gravityY: store.gravityY,
+        tank: store.tankEnabled
+          ? { width: store.tankWidth, height: store.tankHeight, depth: store.tankDepth }
+          : undefined,
+      })
         .then((d) => {
           driverRef.current = d
           builtGroupsRef.current = forGroups
+          builtWorldRef.current = forWorld
+          useAnimateStore.getState().setTankBounds(d.tankBounds())
         })
         .catch((e) => console.error('MuJoCo driver build failed', e))
         .finally(() => {

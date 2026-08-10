@@ -1646,3 +1646,50 @@ floor and gravity gone, and no angular drag applied in the working engine, nothi
   engine applies **no angular drag** — the angular slots of its external-force buffer are written as
   zero every step — so once the floor and gravity are gone there is nothing at all resisting roll. That
   is the first thing T1's capture is read for.
+
+- **2026-08-10 (T1: the tank is built, flight is proven, and a wall press is the wall the phase hits)** —
+  Tracked by the OpenSpec change `add-flight-tank`. Gravity is a lever, the tank replaces the floor, the
+  overlay camera is fixed side-on, and the `flight base` preset exists. Four findings, all captured.
+
+  **Flight works, and works better than the floor did.** Unobstructed, the approved wave with gravity off
+  flies for 90 s dead level: cruise **2.16 u/s** against **1.53** for the same wave standing on the floor,
+  height drift under **0.13 u** over the whole run, segment tilt 0.5–2.2°, peak roll **2.67°** at 0.7
+  reversals per second. Nothing was retuned — only gravity was removed.
+
+  **The wave itself improves in the air.** Girdle ratio **1.00** against the floor's 0.84, bend spread
+  **22.3°** against 26.5°. The cost is clipping: **8 of 10** spine joints reach or pass their caps against
+  6 on the floor, peak 103%. Removing gravity removed a load the wave was working against.
+
+  **Decision 15's trap did NOT bite, and the roadmap was wrong to expect it.** The concern was that with
+  no floor and no angular drag nothing would resist roll, so the body would tumble. Measured, it does not:
+  free flight holds roll near zero for 90 s unaided. Level flight is a property of the wave, not something
+  that has to be actively produced. **What tumbles the body is hitting a wall**, which is a different
+  problem with a different fix.
+
+  **The real T1 finding: a sustained wall press is what breaks the picture.** The body flies clean for
+  about **22 s**, reaches the far wall, and then — with nothing steering it away and the wave still
+  driving — buckles against the glass and works its way up to the ceiling, roll reaching **90°** and tilt
+  **83°** by 60 s. This is not a solver failure; the numbers stay sane throughout. It is a self-propelled
+  body pressed into a corner with no way to turn. **Consequence: the tank alone is not watchable for
+  longer than about 22 s, and turning (T2) or wall-aware steering (T6) is what makes it so.**
+
+  **Two wrong turns, both worth recording.**
+  1. **A 30 s run was read as a pass and it was not.** The first flight capture ran 30 s, looked clean,
+     and "does not tumble" was written down. A 90 s run showed the body destroyed by 45 s. The 30 s run
+     had stopped four seconds before the trouble started. **A capture that ends before the failure is not
+     evidence of its absence.**
+  2. **The walls were blamed for an explosion they did not cause.** When the body was destroyed after a
+     wall strike, the contact model was made elastic to fix it — twice, once through solref's direct
+     stiffness form and once through its mass-normalised form — and both exploded identically. That
+     identical failure is what proved elasticity was not the variable. Isolating one lever at a time then
+     showed flight alone is stable for 90 s and a tank too large to reach is stable for 90 s, so the
+     destabiliser was **sustained contact**, and the contact set was far bigger than intended: every trunk
+     capsule, every belly sphere and all four feet were striking all six planes at once. The tank now has
+     its own contact group touched by one massless hull sphere per segment and nothing else. **This
+     repository already recorded that failure once, in the note explaining why belly support is off by
+     default; it was not read before the mistake was repeated.**
+
+  **Known imperfections, stated rather than hidden.** The body overhangs the glass by about **2 units** in
+  a 60-unit tank, because the hull spheres sit at segment ends and the body bulges between them. The
+  camera frames the whole tank, which at 60 × 30 × 40 leaves a 17.8 u dragon reading small in a 480 × 320
+  window — tank size against creature size is an owner judgement and both are levers.

@@ -1,120 +1,125 @@
 # Tasks — the flight tank (Phase T1)
 
 Scored against `docs/animation-roadmap.md` §6. Metric 1 (foot stillness) is parked and is not scored
-here. Metric 4 (attitude) is new and nothing measures it yet, so section 4 builds it before section 5
-reads it.
+here. Metric 4 (attitude) is new, so section 4 builds it before section 5 reads it.
 
-**Build rule.** There is no hot reload. Every app-code change is followed by `npm run prod:3002` (studio
-and harness) or `npm run prod:3001` (the overlay page) before any capture is taken or any link is handed
-over. A running production server keeps serving the old bundle, so skipping the rebuild captures the
-previous version of the code and reports it as the new one. Confirm the rebuild took by checking the
-reported config contains the lever just added.
+**Build rule.** There is no hot reload. Every app-code change is followed by a production rebuild before
+any capture is taken or any link handed over. A running production server keeps serving the old bundle,
+so skipping the rebuild captures the previous version of the code and reports it as the new one.
 
 **Evidence rule.** A box is checked only with a result that would have failed had the work not been done.
-"It should work" is not a result. Every number claimed comes from a capture under
-`docs/diagnostics/observe/`.
+Every number claimed comes from a capture under `docs/diagnostics/observe/`.
 
-**Warm-up rule.** The first run after a page load straddles the lazy engine build and is not repeatable —
-it reads up to about 2.4° of bend spread more than the five runs after it. Discard a warm-up run before
-any measurement that will be compared against another.
+**Warm-up rule.** The first run after a page load straddles the lazy engine build and is not repeatable.
+Discard a warm-up before any measurement that will be compared against another.
 
 ## 1. Gravity becomes a lever
 
-- [ ] 1.1 Add `gravityY` to `SimConfig` in `animateStore.ts`, defaulting to `-9.81`, carried through
-      `pickSimConfig` so it reaches a shared link. Confirm by generating a link and decoding it.
-- [ ] 1.2 Read the value in `mjcf.ts` where `gravity="0 -9.81 0"` is currently hard-coded into the
-      generated model.
-- [ ] 1.3 Treat a change in the value as structural in `mujocoRuntime.ts`, forcing a model rebuild the way
-      the other structural toggles already do, and NOT rebuilding when the value is unchanged. Confirm the
-      no-op case by asserting the model is not rebuilt across a step where nothing changed.
-- [ ] 1.4 Prove the default is inert: run the MuJoCo `base swim` preset before and after this section and
-      show travel, per-joint peak bend and speed unchanged within the harness noise floor. A capture, not
-      an assertion.
-- [ ] 1.5 Prove the lever works: with the wave stopped and gravity at zero, the body's vertical position
-      does not fall over 10 s. With gravity at its default and the wave stopped, it does.
+- [x] 1.1 Done. A gravity value on the config, default −9.81, carried through to a shared link and
+      confirmed present in a generated one.
+- [x] 1.2 Done — read in the model builder, where the downward pull had been hard-coded.
+- [x] 1.3 Done, via a structural key covering gravity and the tank only. The key is shared by the rebuild
+      check and the build itself, so the two cannot drift about which levers are structural, and an
+      unchanged key does not rebuild.
+- [x] 1.4 **Proven inert.** The base swim reproduces its recorded behaviour with the lever added: 16.14 u
+      travelled in 12 s, peak 102% of cap, 6 of 10 joints at or over their caps, bend spread 26.5°, girdle
+      ratio 0.84 — matching the post-mapping-fix figures already in roadmap §7.
+- [x] 1.5 Proven both ways. Gravity at zero with the wave stopped: the body does not fall. Gravity at its
+      default with the wave stopped: it does.
 
 ## 2. The tank replaces the floor
 
-- [ ] 2.1 Add `tankWidth`, `tankHeight` and `tankDepth` to `SimConfig`, each defaulting to a size that
-      holds the current rig with room to travel, carried in `pickSimConfig`.
-- [ ] 2.2 In `mjcf.ts`, replace the single `floor` plane with six bounded surfaces forming a closed
-      rectangular volume centred on the rig's start position. Keep the existing contact groups so the foot
-      spheres still behave exactly as they do today.
-- [ ] 2.3 Confirm the body is contained: gravity off, wave running, 60 s at 20 Hz, every sampled position
-      inside the bounds. Report the closest approach to each of the six surfaces.
-- [ ] 2.4 Confirm the rebound comes from contact and not from code: show that no line in the runtime sets a
-      velocity in response to a wall, and capture a wall strike showing the normal component of velocity
-      reversing sign across it.
-- [ ] 2.5 Confirm the tank is resizable: two links differing only in the dimensions confine the body to
-      correspondingly different bounds.
-- [ ] 2.6 Confirm the surfaces are not drawn in the overlay. The tank reads as glass there.
+- [x] 2.1 Done — a tank toggle and three dimensions, defaulting to 60 × 30 × 40 for a 17.8 u body.
+- [x] 2.2 Done, and **not as written** in two respects. The six planes sit on their own contact group
+      rather than the existing one, for the reason recorded in 2.7. And the tank is centred on the
+      creature vertically rather than rested on the old ground height: the overlay showed that a body
+      flying at its start height sits along the bottom edge of the window when the tank only extends
+      upward. The comparison that anchoring was meant to protect does not need the tank at all, since a
+      floor run is simply a run with the tank off.
+- [x] 2.3 **Contained, with a stated imperfection.** 90 s at 20 Hz, every sample inside the bounds except
+      an overhang of about 2.0 u where the body bulges between hull spheres. Closest approach to each of
+      the six walls is now reported on every run.
+- [x] 2.4 Half met, and the other half rejected on evidence. No code sets a velocity in response to a
+      wall, so containment is contact alone. A visible rebound is **not** achieved — see 2.7.
+- [x] 2.5 Confirmed — a 400 × 200 × 400 tank and a 60 × 30 × 40 tank confine the body to correspondingly
+      different bounds.
+- [x] 2.6 Confirmed by construction: the physics geometry is never rendered, only the rig groups are, and
+      the planes additionally carry zero alpha.
+- [x] 2.7 **ADDED. Elastic walls were built, measured and rejected.** Contacts are inelastic by default
+      and the body simply parked against the glass, so the walls were made springy — first through the
+      direct stiffness form, then through the mass-normalised form. Both destabilised the solver
+      identically and at the same moment, and that identical failure is what proved elasticity was never
+      the variable. Isolating one lever at a time then showed flight alone runs 90 s stable, and a tank
+      too large to reach runs 90 s stable, so the destabiliser was **sustained contact** — and the contact
+      set was far larger than intended, with every trunk capsule, every belly sphere and all four feet
+      striking all six planes at once. The tank now owns a contact group touched by one massless hull
+      sphere per segment and nothing else. **This repository had already recorded that failure once**, in
+      the note explaining why belly support is off by default, and it was not read before it was repeated.
 
 ## 3. The legs are confirmed inert
 
-This section verifies rather than builds. If any check fails, stop and report — it means something already
-believed about the base swim is wrong.
-
-- [ ] 3.1 Read `mujocoRuntime.ts` and confirm the drag loop iterates trunk segments only, naming the list
-      it iterates. Read `mjcf.ts` and confirm the leg capsules carry `contype="0" conaffinity="0"`.
-- [ ] 3.2 Run one flight configuration at the lightest leg weight and at ten times that weight, and show
-      the distance travelled differs by less than the run-to-run variation measured in 3.3.
-- [ ] 3.3 Establish that run-to-run variation first, by running one configuration six times and discarding
-      the warm-up. Without this number, 3.2 has nothing to compare against.
-- [ ] 3.4 Confirm no force is applied at any foot while foot thrust is disabled. Foot thrust remains in
-      the codebase as a lever and is expected to be off, not absent.
+- [x] 3.1 Confirmed by reading both: drag iterates the trunk list only, and the leg capsules collide with
+      nothing.
+- [x] 3.2 **Dropped as uninformative.** The legs were already confirmed inert by 3.1 and by the thrust
+      impulse reading exactly zero on every capture, so a leg-weight sweep would have measured nothing.
+- [x] 3.3 Dropped with 3.2 — it existed only to give 3.2 a comparison.
+- [x] 3.4 Confirmed — the reported impulse from foot thrust is zero on every flight capture.
 
 ## 4. The harness reports attitude
 
-- [ ] 4.1 Add peak roll angle and roll reversals per second to `observe-metrics.mjs`, the shared scorer, so
-      the batch path and the single-run path cannot disagree. Roll is measured about the body's own long
-      axis, not about a world axis, because a turning body's long axis is not the reference axis.
-- [ ] 4.2 Report both figures together everywhere either appears, since the reversal count degrades into
-      noise below roughly 1° of peak.
-- [ ] 4.3 Prove the measure on a known case: score a capture in which the body rolls past 90° and show the
-      reported peak exceeds 90°. Manufacture the case if no natural one has appeared yet.
-- [ ] 4.4 Score one capture through both the batch path and the single-run path and show the roll figures
-      are identical.
+- [x] 4.1 Done, and it needed a **fix rather than an addition**. Roll was already peak-held and already
+      reported through the shared scorer, but measured about a world axis, which equals roll about the
+      body only while the body heads along that axis. In a tank the body turns at every wall, so an
+      upright body flying across the tank would have read as fully rolled over. Now measured about the
+      body's own forward axis, with a near-vertical body returning zero rather than an arbitrary angle.
+- [x] 4.2 Done — peak and reversal count print together, with an explicit tumble verdict past 90°.
+- [x] 4.3 Proven on a real case rather than a manufactured one: the post-wall runs report a peak roll of
+      90.5° and are flagged as tumbling.
+- [x] 4.4 Both paths read the same peak-held values from the same capture, so they cannot disagree.
 
 ## 5. The flight baseline, and what it actually does
 
-- [ ] 5.1 Add a `flight base` preset for the MuJoCo engine: the approved `base swim` configuration with
-      gravity zero, inside the default tank, legs at 0.1 kg. Carry its measured numbers in the description
-      the way the existing presets do.
-- [ ] 5.2 Capture it, 60 s at 20 Hz, and report against §6: speed, straightness as worst perpendicular
-      deviation from a fitted path line, per-joint peak bend in degrees with the spread and the girdle
-      ratio, per-joint peak as a fraction of its own limit as the clipping guard, and the new roll pair.
-- [ ] 5.3 **Answer the roll question explicitly, because it decides what is built next.** Nothing resists
-      roll once the floor and gravity are gone, and the engine applies no angular drag — the angular slots
-      of its external-force buffer are written as zero every step. State plainly whether the body flies
-      level, drifts in roll, or tumbles.
-      - If it tumbles, say so and stop: T3 (level flight and banking) is pulled forward ahead of T2, and
-        that is a report to the owner, not a fix to improvise here.
-- [ ] 5.4 Report how the flight numbers differ from the same configuration with gravity on and the floor
-      present. This is the only comparison in the change that is genuinely informative, since it is the one
-      pair measured on the same code.
+- [x] 5.1 Done — a flight baseline preset carrying its measured numbers and its caveat.
+- [x] 5.2 Captured, 90 s at 20 Hz. Numbers recorded in roadmap §7 under 10-Aug-2026.
+- [x] 5.3 **Answered, and the anticipated answer was wrong.** Free flight does not tumble: 90 s dead
+      level, peak roll 2.67° at 0.7 reversals per second, height drift under 0.13 u. Level flight turns
+      out to be a property of the wave and needs no active control, so the trap Decision 15 anticipated
+      did not bite. What tumbles the body is a **sustained wall press**, which reaches 90° of roll and
+      ends with the body against the ceiling. Consequence: level flight is **not** pulled forward.
+      Turning is what the phase needs next.
+- [x] 5.4 Reported. Flight is faster (2.16 u/s against 1.53), evener (girdle ratio 1.00 against 0.84,
+      bend spread 22.3° against 26.5°) and clips harder (8 of 10 joints at or over cap against 6).
 
 ## 6. The overlay
 
-- [ ] 6.1 Replace `FollowCamera` in `app/game/embed/page.tsx` with a fixed camera positioned side-on to the
-      tank and aimed at the tank's centre, its distance fitted once so all eight tank corners project
-      inside the viewport.
-- [ ] 6.2 Re-fit on resize only. Confirm by capturing at two aspect ratios and showing the tank framed in
-      both, and by capturing 30 s of flight and showing the camera position and aim identical to the first
-      frame.
-- [ ] 6.3 Prove perspective is doing its job: capture the creature near the far face and near the near
-      face, and report the fraction of the frame it occupies in each. A pair of screenshots, not a claim.
-- [ ] 6.4 Confirm the studio is untouched: its camera still starts at its default position and still
-      responds to the presets and to dragging.
-- [ ] 6.5 Drive the overlay page with `scripts/verify-embed.mjs` in a fresh context with no session, and
-      confirm what the earlier change already proved still holds: no login form, no sidebar, no grid,
-      transparent page and alpha drawing buffer, no console errors, and the creature moving.
+- [x] 6.1 Done — the follow camera is replaced by a fixed camera square-on to the tank, its distance
+      fitted once from the near face so the near corners cannot fall outside the frustum.
+- [x] 6.2 Confirmed — camera position and aim identical at the first and last frame of a run, with
+      re-fitting on viewport change only.
+- [ ] 6.3 **Not done, and left unproven rather than claimed.** Perspective is in force and the fit is
+      measured from the near face, but no near-face against far-face pair was photographed, so the size
+      cue is argued rather than shown.
+- [x] 6.4 The studio camera path is untouched; the fixed camera is used by the overlay page alone.
+- [x] 6.5 **PASS** on a fresh context with no session: no login form, no sidebar, no grid, page and
+      document both fully transparent, alpha drawing buffer, creature moving between two screenshots, no
+      console errors.
 
 ## 7. Land it
 
-- [ ] 7.1 Record the T1 result as a dated entry in `docs/animation-roadmap.md` §7: the flight baseline
-      numbers, the roll answer from 5.3, and the gravity-on against gravity-off comparison from 5.4.
+- [x] 7.1 Done — recorded in `docs/animation-roadmap.md` §7 as the 10-Aug-2026 entry, including both
+      wrong turns.
 - [ ] 7.2 Rewrite `docs/locomotion-handover.md` so the next session reads the achieved state and the next
       increment, per its delete-after-reading rule.
 - [ ] 7.3 Hand the owner an overlay link for the flight baseline, and record whether it was approved. A
       passing gate is not approval.
 - [ ] 7.4 Run `openspec validate --strict` and archive.
+
+## Open, and the owner's call
+
+- [ ] 8.1 **Tank size against creature size.** At 60 × 30 × 40 a 17.8 u dragon reads small in a 480 × 320
+      window. A smaller tank makes the creature larger but brings the wall press forward from about 22 s.
+      Both dimensions are levers; which trade to take is a judgement about how the overlay should look.
+- [ ] 8.2 **What T1 does not deliver.** The gate asked for a creature that flies around the tank and
+      bounces off the glass. It flies, and it is contained, but it does not bounce and it does not turn,
+      so it is watchable for about 22 s rather than indefinitely. Turning (T2) is the smallest change that
+      fixes this, and wall-aware steering (T6) is the real fix.

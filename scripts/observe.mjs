@@ -25,7 +25,7 @@ import { chromium } from 'playwright-core'
 import { mkdirSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir, platform } from 'node:os'
-import { bendDegrees, bendDegreesGeometric, centrelineSwing } from './observe-metrics.mjs'
+import { bendDegrees, bendDegreesGeometric, centrelineSwing, tankClearance } from './observe-metrics.mjs'
 
 const BASE = process.env.OBSERVE_URL ?? 'http://127.0.0.1:3002'
 const EMAIL = process.env.OBSERVE_EMAIL ?? 'aaron@gazzola.dev'
@@ -230,7 +230,17 @@ if (CMD === 'login') {
     reportAmplitudeQuality(dump, (s) => console.log(s))
     if (dump.maxRollDeg != null) {
       const perSec = dump.rollFlips / Math.max(1, seconds)
-      console.log(`roll: peak |roll|=${dump.maxRollDeg.toFixed(2)}°  reversals=${dump.rollFlips} (${perSec.toFixed(1)}/s)  ${perSec >= 4 ? '⚠ VIBRATING' : 'steady'}`)
+      // Peak and reversal count are always read together: below about 1° of peak the reversal count is
+      // counting noise, and above 90° the body has rolled over and no reversal count matters.
+      const verdict = dump.maxRollDeg >= 90 ? '⚠ TUMBLES' : perSec >= 4 ? '⚠ VIBRATING' : 'steady'
+      console.log(`roll about own long axis: peak |roll|=${dump.maxRollDeg.toFixed(2)}°  reversals=${dump.rollFlips} (${perSec.toFixed(1)}/s)  ${verdict}`)
+    }
+    const tank = tankClearance(dump)
+    if (tank) {
+      const w = tank.worst
+      console.log(`tank ${(tank.bounds.maxX - tank.bounds.minX).toFixed(0)}x${(tank.bounds.maxY - tank.bounds.minY).toFixed(0)}x${(tank.bounds.maxZ - tank.bounds.minZ).toFixed(0)} — closest approach per wall (units):`)
+      console.log(`  -X ${w.minX.toFixed(2)}  +X ${w.maxX.toFixed(2)}  floor ${w.minY.toFixed(2)}  ceiling ${w.maxY.toFixed(2)}  -Z ${w.minZ.toFixed(2)}  +Z ${w.maxZ.toFixed(2)}`)
+      console.log(`  worst ${tank.worstAny.toFixed(2)}  ${tank.escaped ? '⚠ LEFT THE TANK' : 'contained'}`)
     }
     if (dump.sweepLo && dump.sweepHi) {
       console.log('sweep angle reached (rad) vs cap [−back .. +fwd]:')

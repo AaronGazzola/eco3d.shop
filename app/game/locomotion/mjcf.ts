@@ -23,6 +23,17 @@ export interface MjcfServoOpts {
   // floppy-legged body flat; in the reduced-coordinate model the legs support the body, and 22
   // redundant coplanar belly contacts destabilise MuJoCo's contact solver. Off by default.
   bellySupport?: boolean
+  // Gravitational acceleration on Y. Written into the generated model rather than read each step, so
+  // changing it forces a rebuild — see mujocoRuntime's structural-key check. Defaults to Earth's pull,
+  // which is what every pre-flight preset and shared link was measured under.
+  gravityY?: number
+  // The flight tank (Phase T1). When absent the world keeps its single infinite floor plane, so every
+  // existing preset and link builds a bit-identical model. When present the floor is replaced by six
+  // bounded planes forming a closed box, and three massless hull spheres are added along the body so it
+  // can strike a wall — with no gravity there is nothing else to stop it leaving the observable region.
+  // The box is centred on the creature in all three axes, vertical included, so a flying body sits in
+  // the middle of the window rather than along its bottom edge.
+  tank?: { width: number; height: number; depth: number }
 }
 
 export interface SpineJointMeta {
@@ -64,6 +75,10 @@ export interface MjcfMeta {
   spineJoints: SpineJointMeta[]
   legs: LegMeta[]
   groundTop: number
+  // The tank's world-space bounds, or null when the world is the plain floor plane. Published rather
+  // than recomputed by every caller: the overlay camera has to frame exactly the volume the physics is
+  // enclosing, and the harness has to report distance to a wall against the same numbers.
+  tankBounds: { minX: number; maxX: number; minY: number; maxY: number; minZ: number; maxZ: number } | null
   // MuJoCo body → rig group + its rest centre (model space), for rendering: the group matrix is
   // Translate(bodyWorldPos)·Rotate(bodyWorldQuat)·Translate(−restCenter). Trunk `seg{i}` + leg `leg{limbIdx}`.
   segmentBodies: { body: string; groupId: string; restCenter: [number, number, number] }[]
@@ -88,6 +103,8 @@ export function buildMjcf(groups: BodyGroup[], opts: MjcfServoOpts = {}): MjcfRe
   const jointDamping = opts.jointDamping ?? 1
   const hipStall = opts.hipStall ?? 60
   const bellySupport = opts.bellySupport ?? true
+  const gravityY = opts.gravityY ?? -9.81
+  const tank = opts.tank ?? null
 
   const chain = flattenSkeleton(buildSkeletonTree(groups))
   if (chain.length === 0) throw new Error('empty skeleton')
@@ -262,6 +279,29 @@ export function buildMjcf(groups: BodyGroup[], opts: MjcfServoOpts = {}): MjcfRe
     })
   }
 
+  // Tank hull contacts. The walls are given their OWN contact group (bit 4) touched by nothing but a
+  // handful of dedicated spheres, rather than by the body's existing collision geometry.
+  //
+  // Measured, not assumed. Putting the eleven trunk capsules on the feet's contact pair contained the
+  // body but destabilised the solver: stable to 30 s, exploded by 45 s. Isolating it one lever at a
+  // time showed flight itself is fine — with no wall reachable the body flew 90 s dead level, roll
+  // peaking at 2.7° — and that the tank geometry is fine too. Sustained CONTACT was the destabiliser,
+  // and the contact set was far larger than it looked: every trunk capsule, every belly sphere and all
+  // four feet were hitting all six planes at once. This repository already records that failure once,
+  // in the belly-support note above: many redundant coplanar contacts destabilise this solver.
+  //
+  // One sphere per trunk segment, on that dedicated group and nothing else. Three spheres (nose, middle,
+  // tail) was tried first and was stable, but left the body poking 2.7 units through the glass between
+  // them. Per segment is still far fewer contacts than the roughly 37 that destabilised the solver, and
+  // only the few segments actually facing a wall are ever in contact at once. They carry no mass, so
+  // they change nothing about the body's dynamics until they touch something.
+  const hullIdx = new Set(tank ? usable.map((_, i) => i) : [])
+  const hullXml = (i: number): string => {
+    if (!hullIdx.has(i)) return ''
+    const at = i === 0 ? new Vector3().subVectors(nodes[0], centers[0]) : new Vector3().subVectors(ends[i], centers[i])
+    return `        <geom name="hull${i}" type="sphere" condim="1" pos="${v3(at)}" size="${f(radius)}" density="0" contype="4" conaffinity="4" rgba="0.9 0.4 0.4 0"/>`
+  }
+
   // --- assemble the nested trunk chain, injecting leg bodies at their girdle segments ---
   function segmentBody(i: number): string {
     const nodeLocal = new Vector3().subVectors(nodes[i], centers[i])
@@ -298,6 +338,7 @@ export function buildMjcf(groups: BodyGroup[], opts: MjcfServoOpts = {}): MjcfRe
     const inner = [
       jointXml,
       `        <geom type="capsule" fromto="${v3(nodeLocal)} ${v3(endLocal)}" size="${f(radius)}" mass="${f(mass)}" contype="0" conaffinity="0" rgba="0.6 0.6 0.7 1"/>`,
+      hullXml(i),
       belly,
       legXml,
       childXml,
@@ -358,14 +399,63 @@ ${inner}
     ]),
   ].join('\n')
 
+  // The world surface. Without a tank it is the single infinite floor plane the walking work used.
+  // With one it is six bounded planes forming a closed box: each is an infinite plane in MuJoCo, but
+  // collision only happens on the side its local +z points at, so six of them facing inward enclose a
+  // volume. The floor face keeps the ground height the plane already had, so the surface underfoot does
+  // not move when the tank is switched on and a gravity-on tank run stays comparable to a floor run.
+  // Centred horizontally on the body's own start position rather than on the origin, because the rig is
+  // laid out wherever its nodes put it.
+  const bodyCx = centers.reduce((s, c) => s + c.x, 0) / centers.length
+  const bodyCz = centers.reduce((s, c) => s + c.z, 0) / centers.length
+  // The tank is centred on the creature's start position in ALL THREE axes, vertical included.
+  // It was first built resting on the old ground height, on the reasoning that keeping the surface
+  // underfoot unmoved would make a gravity-on tank run comparable to a floor run. Looking at the
+  // overlay killed that: the creature flies at the height it started, so a tank extending only upward
+  // put it along the very bottom edge of the window with two thirds of the pane empty above it. The
+  // comparison it was protecting does not need the tank anyway — a floor run is simply a run with the
+  // tank off, which is how the gravity-on baseline was actually captured.
+  const bodyCy = centers.reduce((s, c) => s + c.y, 0) / centers.length
+  const tankMinY = bodyCy - (tank?.height ?? 0) / 2
+  // Elastic walls. MuJoCo contacts are inelastic by default, and measured that way the body simply
+  // stopped at the glass and stayed pressed against it for the rest of the run — contact was working,
+  // rebound was not.
+  //
+  // This is the SECOND attempt. The first used solref's negative form, which sets contact stiffness and
+  // damping directly (-3000 -25), and it destabilised the solver: the run was well behaved to 30 s and
+  // had exploded by 45 s, joint angles reading billions of percent of their caps and the body 400 units
+  // outside a 60-unit tank. Under-damped stiff contact injects energy, an eleven-segment body pressed
+  // along a wall makes many such contacts at once, and the implicit integrator's stale linearisation
+  // compounds it — the same failure mode this project already records twice elsewhere.
+  //
+  // The positive form is used instead: (timeconst, dampratio), mass-normalised, which is what MuJoCo
+  // documents for bounciness. A dampratio below 1 gives back some of the energy instead of absorbing
+  // it. The timeconst must stay at or above two timesteps (2/120 = 0.0167) to remain stable, so 0.02 is
+  // essentially the stiffest available here and the bounce is tuned with the ratio alone.
+  //
+  // Applied to all six tank surfaces, the bottom pane included, since in flight the bottom is glass like
+  // the rest. The plain floor plane of the walking world is a separate geom and keeps the default
+  // contact, so nothing about standing changes.
+  const wallSolref = 'solref="0.02 0.4"'
+  const worldXml = tank
+    ? [
+        `    <geom name="tank_floor" type="plane" ${wallSolref} condim="1" pos="${f(bodyCx)} ${f(tankMinY)} ${f(bodyCz)}" zaxis="0 1 0" size="${f(tank.width)} ${f(tank.depth)} 0.1" contype="4" conaffinity="4" rgba="0.4 0.4 0.45 0"/>`,
+        `    <geom name="tank_ceiling" type="plane" ${wallSolref} condim="1" pos="${f(bodyCx)} ${f(tankMinY + tank.height)} ${f(bodyCz)}" zaxis="0 -1 0" size="${f(tank.width)} ${f(tank.depth)} 0.1" contype="4" conaffinity="4" rgba="0.4 0.4 0.45 0"/>`,
+        `    <geom name="tank_xmin" type="plane" ${wallSolref} condim="1" pos="${f(bodyCx - tank.width / 2)} ${f(tankMinY + tank.height / 2)} ${f(bodyCz)}" zaxis="1 0 0" size="${f(tank.height)} ${f(tank.depth)} 0.1" contype="4" conaffinity="4" rgba="0.4 0.4 0.45 0"/>`,
+        `    <geom name="tank_xmax" type="plane" ${wallSolref} condim="1" pos="${f(bodyCx + tank.width / 2)} ${f(tankMinY + tank.height / 2)} ${f(bodyCz)}" zaxis="-1 0 0" size="${f(tank.height)} ${f(tank.depth)} 0.1" contype="4" conaffinity="4" rgba="0.4 0.4 0.45 0"/>`,
+        `    <geom name="tank_zmin" type="plane" ${wallSolref} condim="1" pos="${f(bodyCx)} ${f(tankMinY + tank.height / 2)} ${f(bodyCz - tank.depth / 2)}" zaxis="0 0 1" size="${f(tank.width)} ${f(tank.height)} 0.1" contype="4" conaffinity="4" rgba="0.4 0.4 0.45 0"/>`,
+        `    <geom name="tank_zmax" type="plane" ${wallSolref} condim="1" pos="${f(bodyCx)} ${f(tankMinY + tank.height / 2)} ${f(bodyCz + tank.depth / 2)}" zaxis="0 0 -1" size="${f(tank.width)} ${f(tank.height)} 0.1" contype="4" conaffinity="4" rgba="0.4 0.4 0.45 0"/>`,
+      ].join('\n')
+    : `    <geom name="floor" type="plane" condim="1" pos="0 ${f(groundTop)} 0" zaxis="0 1 0" size="100 100 0.1" contype="1" conaffinity="2" rgba="0.4 0.4 0.45 1"/>`
+
   const xml = `<mujoco model="eco3d-salamander">
   <compiler angle="radian" autolimits="true"/>
-  <option timestep="${f(timestep)}" gravity="0 -9.81 0" integrator="implicitfast" solver="Newton" iterations="100" tolerance="1e-10"/>
+  <option timestep="${f(timestep)}" gravity="0 ${f(gravityY)} 0" integrator="implicitfast" solver="Newton" iterations="100" tolerance="1e-10"/>
   <default>
     <geom friction="0 0.005 0.0001"/>
   </default>
   <worldbody>
-    <geom name="floor" type="plane" condim="1" pos="0 ${f(groundTop)} 0" zaxis="0 1 0" size="100 100 0.1" contype="1" conaffinity="2" rgba="0.4 0.4 0.45 1"/>
+${worldXml}
     <light pos="0 5 0" dir="0 -1 0"/>
 ${mocapXml}
 ${segmentBody(0)}
@@ -394,6 +484,16 @@ ${actuatorXml}
     spineJoints,
     legs: allLegs,
     groundTop,
+    tankBounds: tank
+      ? {
+          minX: bodyCx - tank.width / 2,
+          maxX: bodyCx + tank.width / 2,
+          minY: tankMinY,
+          maxY: tankMinY + tank.height,
+          minZ: bodyCz - tank.depth / 2,
+          maxZ: bodyCz + tank.depth / 2,
+        }
+      : null,
     segmentBodies,
   }
   return { xml, meta }

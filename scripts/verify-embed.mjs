@@ -43,7 +43,14 @@ function findChromium() {
 }
 
 mkdirSync(OUT, { recursive: true })
-const url = `${BASE}/game/embed#rig=${encodeURIComponent(RIG)}`
+// An encoded SimConfig may be passed as a third argument. Without one the page runs whatever the
+// defaults are, which since Phase T1 means no tank — and with no tank the fixed camera has no volume to
+// frame, so the run would photograph an empty pane and call it a pass.
+const SIM = process.argv[4]
+const LEGW = process.env.EMBED_LEGW ?? '0.1'
+const url =
+  `${BASE}/game/embed#rig=${encodeURIComponent(RIG)}` +
+  (SIM ? `&sim=${encodeURIComponent(SIM)}&legw=${encodeURIComponent(LEGW)}` : '')
 const browser = await chromium.launch({ executablePath: findChromium(), headless: true })
 // A fresh context: no storage state, so no session — exactly what an OBS browser source is.
 const ctx = await browser.newContext({ viewport: { width: 480, height: 320 } })

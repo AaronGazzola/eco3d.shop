@@ -123,6 +123,11 @@ interface NodeCaptureSpec {
   count: number
   groupIds: string[]
   segLength: number[]
+  // The tank the physics is enclosing, when there is one. Published with the capture so the scorer can
+  // report how close the body came to each wall against the same numbers the simulation used, rather
+  // than against dimensions re-derived from the config — which would miss that the tank is centred on
+  // the creature's own start position and not on the origin.
+  tankBounds?: { minX: number; maxX: number; minY: number; maxY: number; minZ: number; maxZ: number } | null
 }
 // Read-only observation snapshot published every frame for the overlay layer (Increment B). Holds, per
 // girdle/leg: the measured undulation phase, the stance/swing flag, and the max-forward-reach world

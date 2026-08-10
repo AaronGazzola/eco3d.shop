@@ -148,6 +148,33 @@ export function travel(dump) {
 
 // Every §6 number for one capture, in one object. THE scoring function — anything that ranks or reports a
 // run goes through here, so a sweep row and a single-run report describe the same thing.
+// How close the body came to each of the six tank walls, and whether it ever left the tank. Reported
+// against the bounds the simulation was actually built with, published with the capture, because the
+// tank is centred on the creature's own start position rather than on the origin.
+// A negative clearance means a node was outside that wall. The body is a chain of capsules and the
+// samples are node origins rather than surfaces, so a small negative reading is the capsule radius
+// showing through, not an escape: `escaped` is therefore reported against a tolerance, and the raw
+// worst clearance is reported beside it so the judgement can be re-made.
+export function tankClearance(dump, tolerance = 1.0) {
+  const b = dump.spec?.tankBounds
+  if (!b) return null
+  const samples = dump.samples ?? []
+  if (samples.length === 0) return null
+  const worst = { minX: Infinity, maxX: Infinity, minY: Infinity, maxY: Infinity, minZ: Infinity, maxZ: Infinity }
+  for (const s of samples) {
+    for (const n of s.nodes ?? []) {
+      if (n.x - b.minX < worst.minX) worst.minX = n.x - b.minX
+      if (b.maxX - n.x < worst.maxX) worst.maxX = b.maxX - n.x
+      if (n.y - b.minY < worst.minY) worst.minY = n.y - b.minY
+      if (b.maxY - n.y < worst.maxY) worst.maxY = b.maxY - n.y
+      if (n.z - b.minZ < worst.minZ) worst.minZ = n.z - b.minZ
+      if (b.maxZ - n.z < worst.maxZ) worst.maxZ = b.maxZ - n.z
+    }
+  }
+  const values = Object.values(worst)
+  return { bounds: b, worst, worstAny: Math.min(...values), escaped: Math.min(...values) < -tolerance }
+}
+
 export function scoreRun(dump) {
   const frac = dump.spineFracPeak ?? []
   const deg = bendDegrees(dump)
@@ -189,5 +216,6 @@ export function scoreRun(dump) {
     curvePct: tv.curvePct ?? null,
     rollPerSec: dump.rollFlips != null ? dump.rollFlips / tv.seconds : null,
     peakRollDeg: dump.maxRollDeg ?? null,
+    tank: tankClearance(dump),
   }
 }

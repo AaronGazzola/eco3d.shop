@@ -116,6 +116,23 @@ export interface SimConfig {
   // the correction rather than snapped to it, which is what keeps it from fighting the velocity the
   // solver just integrated. 0 disables the hold even when the toggle is on.
   plantHoldGain: number
+  // --- Flight (roadmap Decisions 12-13, Phase T1) ---
+  // Gravitational acceleration on Y. Flight is the base swim with this at zero: the wave still pushes
+  // against anisotropic drag, and drag does not care whether the fluid is water or air. Defaults to
+  // Earth's pull, so every preset and every previously shared link behaves exactly as it did.
+  // MuJoCo bakes gravity into the model it generates, so changing this rebuilds the model.
+  gravityY: number
+  // The tank. Off by default, leaving the single infinite floor plane the walking work ran on. On, the
+  // floor is replaced by six bounded planes and the trunk capsules become collidable, so a body under
+  // no gravity is contained and rebounds from a wall through ordinary contact rather than through any
+  // explicit reversal. Structural, so toggling it or resizing it rebuilds the model.
+  tankEnabled: boolean
+  // Interior dimensions in world units. Defaults hold the current rig (about 17.8 units nose to tail)
+  // with room to cross the tank and turn around. Width is X, height is Y upward from the ground the
+  // floor plane already used, depth is Z.
+  tankWidth: number
+  tankHeight: number
+  tankDepth: number
 }
 
 export type SimEngine = 'rapier' | 'mujoco'
@@ -169,6 +186,11 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
   headIsolated: false,
   plantHoldEnabled: false,
   plantHoldGain: 0.5,
+  gravityY: -9.81,
+  tankEnabled: false,
+  tankWidth: 60,
+  tankHeight: 30,
+  tankDepth: 40,
 }
 
 export const SIM_CONFIG_STORAGE_KEY = 'eco3d-animate-sim-config'
@@ -243,7 +265,20 @@ export function pickSimConfig(s: SimConfig): SimConfig {
     headIsolated: s.headIsolated,
     plantHoldEnabled: s.plantHoldEnabled,
     plantHoldGain: s.plantHoldGain,
+    gravityY: s.gravityY,
+    tankEnabled: s.tankEnabled,
+    tankWidth: s.tankWidth,
+    tankHeight: s.tankHeight,
+    tankDepth: s.tankDepth,
   }
+}
+
+// The subset of SimConfig that MuJoCo bakes into the model it generates rather than reading each step.
+// A change to any of these needs a rebuild; a change to anything else must NOT trigger one, or every
+// slider drag would throw away the running simulation. Kept as one function so the rebuild check and
+// the model build cannot drift apart about which levers are structural.
+export function mujocoStructuralKey(s: SimConfig): string {
+  return [s.gravityY, s.tankEnabled, s.tankWidth, s.tankHeight, s.tankDepth].join('|')
 }
 
 interface AnimateStore extends SimConfig {
@@ -256,6 +291,11 @@ interface AnimateStore extends SimConfig {
   modelOpacity: number
   manualPose: ManualPose
   simDiagnostics: SimDiagnostics
+  // The tank the physics is actually enclosing, in world units, published by the runtime once the model
+  // is built. Null when no tank is in force. The overlay camera has to frame exactly this volume, and it
+  // cannot derive it from the config alone: the tank is centred on the creature's own start position,
+  // which depends on where the rig's nodes put it.
+  tankBounds: { minX: number; maxX: number; minY: number; maxY: number; minZ: number; maxZ: number } | null
   simRecording: boolean
   lastCapturePath: string | null
   coupledRunning: boolean
@@ -289,6 +329,7 @@ interface AnimateStore extends SimConfig {
   setManualPoseJointAngle: (groupId: string, rad: number) => void
   resetManualPose: () => void
   setSimDiagnostics: (d: SimDiagnostics) => void
+  setTankBounds: (b: AnimateStore['tankBounds']) => void
   setSimRecording: (recording: boolean) => void
   setLastCapturePath: (path: string | null) => void
   setCpgDrive: (v: number) => void
@@ -339,6 +380,11 @@ interface AnimateStore extends SimConfig {
   setHeadIsolated: (v: boolean) => void
   setPlantHoldEnabled: (v: boolean) => void
   setPlantHoldGain: (v: number) => void
+  setGravityY: (v: number) => void
+  setTankEnabled: (v: boolean) => void
+  setTankWidth: (v: number) => void
+  setTankHeight: (v: number) => void
+  setTankDepth: (v: number) => void
   resetSimConfig: () => void
   applySimConfig: (partial: Partial<SimConfig>) => void
   applySimConfigAbsolute: (config: Partial<SimConfig>) => void
@@ -356,6 +402,7 @@ export const useAnimateStore = create<AnimateStore>()(
       modelOpacity: 1,
       manualPose: { rootX: 0, rootZ: 0, rootYawRad: 0, jointAnglesRad: {} },
       simDiagnostics: { kineticEnergy: 0, comX: 0, comZ: 0, comDriftFromStart: 0, maxJointFracOfCap: 0, comYDrift: 0, maxTiltDeg: 0 },
+      tankBounds: null,
       simRecording: false,
       lastCapturePath: null,
       coupledRunning: false,
@@ -430,6 +477,7 @@ export const useAnimateStore = create<AnimateStore>()(
         set({ manualPose: { rootX: 0, rootZ: 0, rootYawRad: 0, jointAnglesRad: {} } }),
 
       setSimDiagnostics: (d) => set({ simDiagnostics: d }),
+      setTankBounds: (b) => set({ tankBounds: b }),
 
       setSimRecording: (recording) =>
         set(recording ? { simRecording: true, lastCapturePath: null } : { simRecording: false }),
@@ -496,6 +544,11 @@ export const useAnimateStore = create<AnimateStore>()(
       setHeadIsolated: (v) => set({ headIsolated: v }),
       setPlantHoldEnabled: (v) => set({ plantHoldEnabled: v }),
       setPlantHoldGain: (v) => set({ plantHoldGain: v }),
+      setGravityY: (v) => set({ gravityY: v }),
+      setTankEnabled: (v) => set({ tankEnabled: v }),
+      setTankWidth: (v) => set({ tankWidth: v }),
+      setTankHeight: (v) => set({ tankHeight: v }),
+      setTankDepth: (v) => set({ tankDepth: v }),
       resetSimConfig: () =>
         set({
           ...DEFAULT_SIM_CONFIG,

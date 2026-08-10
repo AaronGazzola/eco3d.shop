@@ -124,6 +124,25 @@ export const SIM_PRESETS: SimPreset[] = [
     legWeight: MUJOCO_LEG_WEIGHT,
   },
 
+  // Phase T1. The same approved swim with the pull of gravity removed and a tank around it — nothing
+  // else differs, deliberately, so any change in how the body moves is attributable to the medium and
+  // not to a retune. The description carries no measured numbers yet; they are filled in from the T1
+  // capture, and until then this preset is a starting point rather than a result.
+  {
+    name: 'flight base',
+    description: 'PHASE T1, measured 10-Aug-2026. The approved base swim with gravity off inside a 60x30x40 tank; every other lever identical, so any difference is the medium and not a retune. Flies level and dead flat: unobstructed cruise 2.16 u/s against 1.53 on the floor, height drift under 0.13 u over 90 s, peak roll 2.7° at 0.7 reversals/s. The wave also evens out — girdle ratio 1.00 against 0.84, bend spread 22.3° against 26.5° — but clips harder, 8 of 10 joints at or over cap against 6. CAVEAT: it flies clean for about 22 s, then reaches a wall, and a sustained press against the glass pitches it up to the ceiling. Watchable until the first wall; steering (T2/T6) is what fixes that, not this preset. Light legs (0.1 kg), rigid, no thrust, no drag.',
+    engine: 'mujoco',
+    config: {
+      ...MUJOCO_BASE_SWIM,
+      gravityY: 0,
+      tankEnabled: true,
+      tankWidth: 60,
+      tankHeight: 30,
+      tankDepth: 40,
+    },
+    legWeight: MUJOCO_LEG_WEIGHT,
+  },
+
   // ── Rapier — the earlier reference tunings ────────────────────────────────────────────────────────
   // The pure CPG body wave with the legs built and held rigid, no grip, no drag. With no drag the body
   // just undulates in place (no net travel) — this is the clean traveling wave the grip timing is read

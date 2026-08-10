@@ -190,6 +190,16 @@ function SimulateTab() {
   const setPlantHoldEnabled = useAnimateStore((s) => s.setPlantHoldEnabled)
   const plantHoldGain = useAnimateStore((s) => s.plantHoldGain)
   const setPlantHoldGain = useAnimateStore((s) => s.setPlantHoldGain)
+  const gravityY = useAnimateStore((s) => s.gravityY)
+  const setGravityY = useAnimateStore((s) => s.setGravityY)
+  const tankEnabled = useAnimateStore((s) => s.tankEnabled)
+  const setTankEnabled = useAnimateStore((s) => s.setTankEnabled)
+  const tankWidth = useAnimateStore((s) => s.tankWidth)
+  const setTankWidth = useAnimateStore((s) => s.setTankWidth)
+  const tankHeight = useAnimateStore((s) => s.tankHeight)
+  const setTankHeight = useAnimateStore((s) => s.setTankHeight)
+  const tankDepth = useAnimateStore((s) => s.tankDepth)
+  const setTankDepth = useAnimateStore((s) => s.setTankDepth)
 
   const resetSimConfig = useAnimateStore((s) => s.resetSimConfig)
 
@@ -736,6 +746,55 @@ function SimulateTab() {
           step={0.05}
           onChange={setPlantHoldGain}
           format={(v) => v.toFixed(2)}
+        />
+
+        <Divider />
+
+        <Slider
+          label="Gravity"
+          tip="The downward pull on the whole body. Zero is flight: the creature floats and the body wave alone moves it, pushing against the water-like drag exactly as it does when swimming. Changing this rebuilds the physics model, so the run restarts."
+          value={gravityY}
+          min={-9.81}
+          max={0}
+          step={0.01}
+          onChange={setGravityY}
+          format={(v) => (v === 0 ? 'off' : v.toFixed(2))}
+        />
+        <Toggle
+          label="Tank"
+          tip="Encloses the creature in a box instead of standing it on an endless floor. Needed with gravity off, because nothing else stops a floating body drifting away for ever. The creature bounces off a wall the same way it would bounce off anything else — there is no special case for walls. Rebuilds the physics model."
+          on={tankEnabled}
+          onChange={setTankEnabled}
+        />
+        <Slider
+          label="Tank · width"
+          tip="How far the tank reaches across, along the direction the creature faces at rest. The body is about 17.8 units nose to tail, so this is roughly how many body lengths of room there are to travel."
+          value={tankWidth}
+          min={20}
+          max={200}
+          step={1}
+          onChange={setTankWidth}
+          format={(v) => v.toFixed(0)}
+        />
+        <Slider
+          label="Tank · height"
+          tip="How far the tank reaches upward from the floor the creature would otherwise stand on."
+          value={tankHeight}
+          min={10}
+          max={120}
+          step={1}
+          onChange={setTankHeight}
+          format={(v) => v.toFixed(0)}
+        />
+        <Slider
+          label="Tank · depth"
+          tip="How far the tank reaches toward and away from the viewer. This is the direction that reads as distance on the overlay, where a creature further away is drawn smaller."
+          value={tankDepth}
+          min={10}
+          max={200}
+          step={1}
+          onChange={setTankDepth}
+          format={(v) => v.toFixed(0)}
         />
 
         <Divider />

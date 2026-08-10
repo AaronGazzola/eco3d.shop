@@ -230,7 +230,7 @@ export class MujocoLocomotion {
     private mujoco: MujocoModule,
     private model: ReturnType<MujocoModule['MjModel']['from_xml_string']>,
     private data: InstanceType<MujocoModule['MjData']>,
-    meta: MjcfMeta,
+    private meta: MjcfMeta,
     groups: BodyGroup[]
   ) {
     const axial = axialChain(groups)
@@ -649,6 +649,13 @@ export class MujocoLocomotion {
     return this.simTime
   }
 
+  // The tank the model was built with, in world units, or null when the world is the plain floor plane.
+  // Read straight off the build rather than recomputed, so the volume the camera frames and the volume
+  // the physics encloses cannot disagree.
+  tankBounds(): MjcfMeta['tankBounds'] {
+    return this.meta.tankBounds
+  }
+
   // Node-capture spec: one entry per rig group (trunk segments then legs), matching nodePositions order.
   nodeSpec(): { count: number; groupIds: string[]; segLength: number[] } {
     return { count: this.nodeBodies.length, groupIds: this.nodeGroupIds, segLength: this.nodeSegLength }
@@ -659,19 +666,47 @@ export class MujocoLocomotion {
     return this.nodeBodies.map((b) => ({ x: this.xpos[3 * b], y: this.xpos[3 * b + 1], z: this.xpos[3 * b + 2] }))
   }
 
-  // Instantaneous roll of the trunk about its long (forward) axis, in degrees — signed. Read every frame
-  // so the harness can peak-hold it and count reversals (the roll rocking/vibration the once/sec tilt
-  // sample can't resolve). 0 = upright; ± = rolled left/right. Derived from the root body's up-axis
-  // (local +Y in world): roll = atan2(up.z, up.y).
+  // Instantaneous roll of the trunk about its OWN long (forward) axis, in degrees — signed. Read every
+  // frame so the harness can peak-hold it and count reversals (the rocking the once/sec tilt sample
+  // cannot resolve). 0 = upright; ± = rolled one way or the other.
+  //
+  // Measured against the body's forward axis rather than against a world axis. The earlier form read
+  // `atan2(up.z, up.y)`, which is roll about world X, and that only equals roll about the body when the
+  // body happens to be heading along ±X. On the floor it always was, so the number was right; inside a
+  // tank the body turns at every wall and it would stop being roll at all — a body heading along Z and
+  // perfectly upright would read as fully rolled over. Fixed here rather than at the point where turning
+  // lands, because the tank makes the body turn before any turning lever is built.
+  //
+  // World up is projected onto the plane perpendicular to forward, then the signed angle from that
+  // projection to the body's own up is taken about forward. Where the body points near-vertically the
+  // projection collapses and roll is genuinely undefined; 0 is returned rather than a large arbitrary
+  // angle, so a nose-up body cannot be mistaken for a tumbling one.
   rollDegNow(): number {
     const rb = this.rootBody
     const w = this.xquat[4 * rb]
     const x = this.xquat[4 * rb + 1]
     const y = this.xquat[4 * rb + 2]
     const z = this.xquat[4 * rb + 3]
-    const upY = 1 - 2 * (x * x + z * z)
-    const upZ = 2 * (y * z + w * x)
-    return (Math.atan2(upZ, upY) * 180) / Math.PI
+    // Body axes in world: local +X is the segment long axis (forward), local +Y is its up.
+    const fx = 1 - 2 * (y * y + z * z)
+    const fy = 2 * (x * y + w * z)
+    const fz = 2 * (x * z - w * y)
+    const ux = 2 * (x * y - w * z)
+    const uy = 1 - 2 * (x * x + z * z)
+    const uz = 2 * (y * z + w * x)
+    // World up with its along-forward component removed.
+    const px = -fy * fx
+    const py = 1 - fy * fy
+    const pz = -fy * fz
+    const pLen = Math.hypot(px, py, pz)
+    if (pLen < 1e-6) return 0
+    const nx = px / pLen
+    const ny = py / pLen
+    const nz = pz / pLen
+    const cosA = nx * ux + ny * uy + nz * uz
+    // (n × u) · f gives the sign of the rotation about forward.
+    const sinA = (ny * uz - nz * uy) * fx + (nz * ux - nx * uz) * fy + (nx * uy - ny * ux) * fz
+    return (Math.atan2(sinA, cosA) * 180) / Math.PI
   }
 
   // Instantaneous worst spine-joint fraction of its angle cap — read every frame for a peak-hold so the
@@ -831,9 +866,12 @@ export class MujocoLocomotion {
 }
 
 // Compile a reduced-coordinate model from the live node skeleton and return a ready driver.
-export async function createMujocoLocomotion(groups: BodyGroup[]): Promise<MujocoLocomotion> {
+export async function createMujocoLocomotion(
+  groups: BodyGroup[],
+  world?: { gravityY?: number; tank?: { width: number; height: number; depth: number } }
+): Promise<MujocoLocomotion> {
   const mujoco = await loadMujocoEngine()
-  const { xml, meta } = buildMjcf(groups)
+  const { xml, meta } = buildMjcf(groups, { gravityY: world?.gravityY, tank: world?.tank })
   const model = mujoco.MjModel.from_xml_string(xml)
   const data = new mujoco.MjData(model)
   mujoco.mj_forward(model, data)

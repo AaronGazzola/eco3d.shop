@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useEffect, useRef, useState } from 'react'
+import { useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { StudioCanvas } from '@/app/admin/_lib/StudioCanvas'
 import { SceneContent } from '@/app/admin/animate/AnimateScene'
@@ -9,62 +9,56 @@ import { useSharedStore } from '@/app/admin/_lib/sharedStore'
 import { useLoadRig } from '@/app/admin/_lib/hooks'
 import { decodeSimConfig, useAnimateStore } from '@/app/admin/animate/animateStore'
 
-const VIEW_DIR = new THREE.Vector3(0, 0.35, 1).normalize()
-const FIT_PADDING = 1.15
-const FOLLOW_SMOOTHING = 0.06
+const FIT_PADDING = 1.05
 
 function readHashParams(): URLSearchParams {
   const hash = window.location.hash.replace(/^#/, '')
   return new URLSearchParams(hash)
 }
 
-// The creature travels; nobody is here to pan. The rendered root group is pinned at the origin every
-// frame by the locomotion loop — it is an anchor, not a position — so the creature is found from the
-// world bounds of its descendants, whose matrices the simulation does write.
+// The window on the overlay is a pane of glass in the side of a tank, so the camera is FIXED: it is
+// placed once, square-on to the tank's +Z face, aimed at the tank's centre, and never moves again. It
+// does not track the creature. That is the whole point — a creature swimming toward the glass has to
+// grow and one swimming away has to shrink, and a camera that chases the creature cancels exactly that
+// cue and flattens the volume back into a picture. The camera this replaced did chase, because on a
+// floor the creature simply left the frame; inside a tank it cannot.
 //
-// The distance is fitted to the creature's own bounds rather than being a constant: the window on the
-// overlay can be any aspect and a rig can be any size, so a hand-picked offset frames one of them and
-// clips the rest. The width and the height are fitted separately and the looser wins — a bounding sphere
-// would do it in one line but its radius is half the body's DIAGONAL, which on something as long and thin
-// as a dragon pushes the camera so far back the creature reads as a speck. Both the aim point and the
-// camera position are chased rather than snapped to, because the body undulates and a hard lock shakes
-// the whole frame on the stream.
-function FollowCamera({ targetRef }: { targetRef: React.RefObject<THREE.Group | null> }) {
-  const { camera } = useThree()
-  const box = useMemo(() => new THREE.Box3(), [])
-  const size = useMemo(() => new THREE.Vector3(), [])
-  const centre = useMemo(() => new THREE.Vector3(), [])
-  const wanted = useMemo(() => new THREE.Vector3(), [])
-  const aim = useMemo(() => new THREE.Vector3(), [])
-  const started = useRef(false)
+// The distance is fitted so the whole tank is inside the frustum, width and height fitted separately
+// with the looser winning. Refitting happens on a viewport change only: a browser source can be resized
+// at any time, and re-framing in response to the WINDOW is not tracking the CREATURE.
+function TankCamera() {
+  const { camera, size } = useThree()
+  const bounds = useAnimateStore((s) => s.tankBounds)
+  const tankEnabled = useAnimateStore((s) => s.tankEnabled)
 
-  useFrame(() => {
-    const root = targetRef.current
-    if (!root) return
-    box.setFromObject(root)
-    if (box.isEmpty()) return
-    box.getCenter(centre)
-    box.getSize(size)
+  // A link whose config has no tank leaves the camera with no volume to frame, and on a stream that
+  // shows an empty pane rather than an obviously broken one — so it is worth saying out loud. But the
+  // bounds are published by the physics once the model is built, which is several frames after mount,
+  // and complaining about that gap would report every healthy page load as a failure. The config is
+  // what distinguishes the two: a link that asked for a tank is merely waiting.
+  useEffect(() => {
+    if (!tankEnabled) console.error('embed: the link carries no tank, so the camera has no volume to frame')
+  }, [tankEnabled])
 
+  useEffect(() => {
+    if (!bounds) return
     const perspective = camera as THREE.PerspectiveCamera
+    const cx = (bounds.minX + bounds.maxX) / 2
+    const cy = (bounds.minY + bounds.maxY) / 2
+    const cz = (bounds.minZ + bounds.maxZ) / 2
+    const halfW = (bounds.maxX - bounds.minX) / 2
+    const halfH = (bounds.maxY - bounds.minY) / 2
+    const halfD = (bounds.maxZ - bounds.minZ) / 2
+
     const vHalf = (perspective.fov * Math.PI) / 360
     const hHalf = Math.atan(Math.tan(vHalf) * perspective.aspect)
-    // The creature turns, so either horizontal axis can be the long one.
-    const across = Math.max(size.x, size.z) / 2
-    const distance =
-      Math.max(across / Math.tan(hHalf), size.y / 2 / Math.tan(vHalf)) * FIT_PADDING
-    wanted.copy(centre).addScaledVector(VIEW_DIR, distance)
+    // Measured from the NEAR face, not from the centre: the near face is the closest thing that has to
+    // stay inside the frustum, and fitting from the centre lets the near corners fall outside it.
+    const distance = Math.max(halfW / Math.tan(hHalf), halfH / Math.tan(vHalf)) * FIT_PADDING + halfD
 
-    if (started.current) {
-      aim.lerp(centre, FOLLOW_SMOOTHING)
-      camera.position.lerp(wanted, FOLLOW_SMOOTHING)
-    } else {
-      aim.copy(centre)
-      camera.position.copy(wanted)
-      started.current = true
-    }
-    camera.lookAt(aim)
-  })
+    camera.position.set(cx, cy, cz + halfD + distance)
+    camera.lookAt(cx, cy, cz)
+  }, [camera, bounds, size.width, size.height])
 
   return null
 }
@@ -154,7 +148,7 @@ export default function GameEmbedPage() {
     <div className="fixed inset-0">
       <StudioCanvas background="transparent" grid={false} controls={false}>
         <SceneContent rootRef={rootRef} />
-        <FollowCamera targetRef={rootRef} />
+        <TankCamera />
       </StudioCanvas>
     </div>
   )
