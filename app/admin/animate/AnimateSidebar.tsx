@@ -326,9 +326,6 @@ function SimulateTab() {
               ))}
             </select>
           </div>
-          {selectedPreset ? (
-            <p className="text-[10px] leading-snug text-white/45">{findSimPreset(selectedPreset, simEngine)?.description}</p>
-          ) : null}
           {lastCapturePath ? (
             <p className="break-all font-mono text-[10px] text-emerald-300/70">{lastCapturePath}</p>
           ) : null}

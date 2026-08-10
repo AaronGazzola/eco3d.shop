@@ -607,6 +607,9 @@ export function buildConfigLink(path?: string): string {
   if (shared.configId) params.set('rig', shared.configId)
   const leg = shared.groups.find((g) => g.type === 'leg-left' || g.type === 'leg-right')
   if (leg?.nodeWeight != null) params.set('legw', String(leg.nodeWeight))
+  // The overlay link carries the mouse on, so the scene can be played through OBS's Interact window.
+  // Harmless on the stream itself: a browser source sends no pointer events unless Interact is open.
+  if (path === EMBED_PATH) params.set('controls', '1')
   const base = typeof window !== 'undefined' ? window.location.origin + (path ?? window.location.pathname) : ''
   return `${base}#${params.toString()}`
 }

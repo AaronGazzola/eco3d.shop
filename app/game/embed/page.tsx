@@ -27,7 +27,7 @@ function readHashParams(): URLSearchParams {
 // with the looser winning. Refitting happens on a viewport change only: a browser source can be resized
 // at any time, and re-framing in response to the WINDOW is not tracking the CREATURE.
 function TankCamera() {
-  const { camera, size } = useThree()
+  const { camera, size, controls } = useThree()
   const bounds = useAnimateStore((s) => s.tankBounds)
   const tankEnabled = useAnimateStore((s) => s.tankEnabled)
 
@@ -58,7 +58,14 @@ function TankCamera() {
 
     camera.position.set(cx, cy, cz + halfD + distance)
     camera.lookAt(cx, cy, cz)
-  }, [camera, bounds, size.width, size.height])
+    // With inspect controls on, the orbit target has to be the tank centre too, or the controls'
+    // own target (the origin) overrides the aim on the first mouse move and the fit is thrown away.
+    const oc = controls as unknown as { target?: THREE.Vector3; update?: () => void } | null
+    if (oc?.target) {
+      oc.target.set(cx, cy, cz)
+      oc.update?.()
+    }
+  }, [camera, controls, bounds, size.width, size.height])
 
   return null
 }
@@ -72,11 +79,19 @@ function useEmbedLink() {
   const setGroupNodeWeight = useSharedStore((s) => s.setGroupNodeWeight)
   const { loadFromRigId } = useLoadRig()
   const [failed, setFailed] = useState(false)
+  // Inspect mode. Off on the stream, where the fixed camera IS the tank's depth cue and the frame
+  // takes no pointer events anyway; on in a tab, where the same link is opened to look around.
+  const [inspect, setInspect] = useState(false)
+  const [framed, setFramed] = useState(true)
   const legApplied = useRef(false)
   const started = useRef(false)
 
   useEffect(() => {
     const params = readHashParams()
+    setInspect(params.get('controls') === '1')
+    // Black is for looking at the scene in a tab, where transparent means white. Framed, the page must
+    // stay transparent whatever else the link asks for — the overlay composites over video.
+    setFramed(window.self !== window.top)
     const rig = params.get('rig')
     if (!rig) {
       console.error('embed: no rig in the link — nothing to render')
@@ -119,7 +134,7 @@ function useEmbedLink() {
     started.current = true
   }, [ready])
 
-  return { ready, failed }
+  return { ready, failed, inspect, framed }
 }
 
 function useTransparentPage() {
@@ -138,7 +153,7 @@ function useTransparentPage() {
 }
 
 export default function GameEmbedPage() {
-  const { ready, failed } = useEmbedLink()
+  const { ready, failed, inspect, framed } = useEmbedLink()
   const rootRef = useRef<THREE.Group | null>(null)
   useTransparentPage()
 
@@ -146,7 +161,7 @@ export default function GameEmbedPage() {
 
   return (
     <div className="fixed inset-0">
-      <StudioCanvas background="transparent" grid={false} controls={false}>
+      <StudioCanvas background={inspect && !framed ? '#000000' : 'transparent'} grid={false} controls={inspect}>
         <SceneContent rootRef={rootRef} />
         <TankCamera />
       </StudioCanvas>
