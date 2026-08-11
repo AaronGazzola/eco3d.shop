@@ -203,6 +203,18 @@ How OpenSpec changes and deferred work are managed. These rules exist to prevent
 
 **Backlog location:** Linear, Gazzola (personal) workspace, **"Az"** team, **"Eco3D.Shop"** project. Read open issues there before starting deferred work.
 
+# Handover documents
+
+Sessions hand over through `docs/handover/`: one file per session, named `TEMP` plus the date, for example `docs/handover/TEMP-12-Aug-2026.md`.
+
+A handover document is a **one-shot baton, not a reference.** It is written by `/handover` at the end of a session, and read then **deleted** by `/sync` at the start of the next one.
+
+- **Never cite one as a source**, and never carry an undated claim from one into a report as current. Confirm it against the code, the roadmap or the spec, and cite that instead.
+- **Never update one in place in a later session.** The old one is deleted and a fresh one is written.
+- Where a handover document disagrees with `docs/animation-roadmap.md` or a spec, those win.
+
+A single long-lived handover file was tried first, went stale twice and misled once, which is why the convention is now one dated, disposable file per session.
+
 # Animation
 
 Read these before proposing, specifying or implementing anything to do with creature motion:

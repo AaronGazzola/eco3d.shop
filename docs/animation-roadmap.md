@@ -1693,3 +1693,30 @@ floor and gravity gone, and no angular drag applied in the working engine, nothi
   a 60-unit tank, because the hull spheres sit at segment ends and the body bulges between them. The
   camera frames the whole tank, which at 60 × 30 × 40 leaves a 17.8 u dragon reading small in a 480 × 320
   window — tank size against creature size is an owner judgement and both are levers.
+
+- **2026-08-11 (the overlay scene became inspectable)** — The overlay page rendered a fixed camera and
+  took no input, so the only way to look at the tank from another angle was to rebuild with different
+  numbers. A `controls=1` flag on the link now turns on the studio's orbit controls, and **Copy overlay
+  link** emits it, so the scene can be played through OBS's Interact window. The fixed camera stays the
+  default without the flag, because the tank's depth cue depends on the camera not moving. The orbit
+  target is set to the tank centre alongside the fit, or the controls' own origin target throws the
+  framing away on the first drag. Transparency is now tied to being framed rather than to the flag, so a
+  page embedded in OBS stays transparent whatever the link asks for, while the same link opened in a tab
+  gets a black background to look at. Preset descriptions were dropped from the Simulate sidebar; the
+  measured records stay in the preset file.
+
+- **2026-08-12 (the tank is closed out; two owner calls; the handover convention changed)** — No
+  simulation, rig or overlay code was touched.
+
+  **Two owner decisions closed the last open boxes in `add-flight-tank`.** _Owner, 12-Aug-2026._ **Tank
+  size stays at 60 × 30 × 40**: a 17.8 u dragon reading small in a 480 × 320 window is accepted, because
+  shrinking the tank would enlarge the dragon but bring the wall press forward from about 22 s, and the
+  wall press is being fixed by turning rather than by geometry. Both dimensions remain levers on the
+  config. And **the no-turn, no-bounce gap is carried by T2**, refined and built there under AZ-218,
+  rather than reopened inside T1.
+
+  **The handover convention moved.** A single long-lived handover file had gone stale twice and misled
+  once. There is now one file per session under `docs/handover/`, named `TEMP` plus the date, written by
+  `/handover` at the end of a session and read then deleted by `/sync` at the start of the next. `/sync`
+  also refreshes the shared skills **before** it runs rather than during, since a newer `/sync` used to
+  land on disk after its own instructions were already in context.

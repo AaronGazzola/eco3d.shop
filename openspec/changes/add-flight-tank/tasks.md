@@ -108,18 +108,22 @@ Discard a warm-up before any measurement that will be compared against another.
 
 - [x] 7.1 Done — recorded in `docs/animation-roadmap.md` §7 as the 10-Aug-2026 entry, including both
       wrong turns.
-- [ ] 7.2 Rewrite `docs/locomotion-handover.md` so the next session reads the achieved state and the next
-      increment, per its delete-after-reading rule.
+- [x] 7.2 Done, at a new location. The handover convention moved to `docs/handover/`, one file per
+      session named `TEMP` plus the date, written by `/handover` and read then deleted by `/sync`. The
+      old single file at `docs/locomotion-handover.md` was read and deleted on 11-Aug-2026. This
+      session's handover is `docs/handover/TEMP-12-Aug-2026.md`.
 - [ ] 7.3 Hand the owner an overlay link for the flight baseline, and record whether it was approved. A
       passing gate is not approval.
 - [ ] 7.4 Run `openspec validate --strict` and archive.
 
-## Open, and the owner's call
+## Settled by the owner, 12-Aug-2026
 
-- [ ] 8.1 **Tank size against creature size.** At 60 × 30 × 40 a 17.8 u dragon reads small in a 480 × 320
-      window. A smaller tank makes the creature larger but brings the wall press forward from about 22 s.
-      Both dimensions are levers; which trade to take is a judgement about how the overlay should look.
-- [ ] 8.2 **What T1 does not deliver.** The gate asked for a creature that flies around the tank and
-      bounces off the glass. It flies, and it is contained, but it does not bounce and it does not turn,
-      so it is watchable for about 22 s rather than indefinitely. Turning (T2) is the smallest change that
-      fixes this, and wall-aware steering (T6) is the real fix.
+- [x] 8.1 **Tank size stays at 60 × 30 × 40.** _Owner, 12-Aug-2026._ A 17.8 u dragon reading small in a
+      480 × 320 window is accepted. Shrinking the tank would enlarge the dragon but bring the wall press
+      forward from about 22 s, and the wall press is being fixed by turning rather than by geometry. Both
+      dimensions remain levers on the config; no further work is carried by this change.
+- [x] 8.2 **Recorded, and carried by T2 rather than by this change.** _Owner, 12-Aug-2026._ The gate asked
+      for a creature that flies around the tank and bounces off the glass. It flies and it is contained,
+      but it does not bounce and it does not turn, so it is watchable for about 22 s. Turning is the
+      smallest change that fixes this and wall-aware steering is the real fix; both are refined and built
+      under T2, tracked by AZ-218.
