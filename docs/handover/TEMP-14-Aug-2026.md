@@ -72,9 +72,21 @@ Finish `add-game-core-and-hosts`, groups 5 to 7. Nothing is half-written: the tr
 and both check scripts pass, so this is a clean resumption point rather than a repair job.
 
 - **Group 5** is the real work: `StandaloneHost` and `PlatformHost`, the home page replaced by the game
-  surface, and `/game/embed` re-pointed at the core. This needs a game scene that is not the studio's
-  `SceneContent`; read `app/admin/animate/AnimateScene.tsx` first to see what the scene actually
-  provides before deciding what the game's scene needs.
+  surface, and `/game/embed` re-pointed at the core.
+  - **The scene is not the hard part, and this was checked.** `SceneContent` in
+    `app/admin/animate/AnimateScene.tsx` is about 35 lines: it assembles a `ModelConfigRow` from the
+    shared store and renders `AnimatedModel` with `showNodes` hardcoded true. A game scene is the same
+    shape with `GameCreature`, dressing, and no node flag. Physics keeps running inside `AnimatedModel`
+    through `useLocomotion` and `useMujocoLocomotion`, which read `animateStore`, so the simulation is
+    still driven by that store and the surface applies the resolved preset into it. `applyPreset` in
+    `simPresets.ts` already does exactly that write, including the leg weight, so reuse it rather than
+    reproducing it.
+  - **The genuine unknown is where the dressing comes from.** `GameCreature` needs `roleTags` and a
+    resolved `Phenotype`. `role_tags` live on `dragon_models`, and a phenotype comes from
+    `resolveGenotype` over a genotype plus that variant's genes, roles, alleles and filaments. The
+    overlay link carries only a rig identity today, which is not the same thing as a dragon. **Settle
+    what the save resolves to before writing the hosts:** a `dragons` row, or a variant with a rolled
+    genotype. `app/game/dragons/[id]/page.*` already loads this data and is the model to copy.
 - **Group 6** changes the studio's overlay link to carry the rig and leg weight but no encoded
   `SimConfig`. It is the one deliberate edit inside `app/admin/animate/`.
 - **Group 7** is the proof: rebuild, `scripts/verify-embed.mjs`, a capture of the home page and the
