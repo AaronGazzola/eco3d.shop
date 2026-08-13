@@ -1,10 +1,11 @@
 'use client'
 
-import { RefObject, useMemo, useRef } from 'react'
+import { createContext, RefObject, useContext, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { ModelConfigRow, SegmentData, BodyGroup } from '../admin/_lib/types'
 import { RoleTags } from './dragons.types'
 import { Phenotype } from './dragons.genetics'
+import { RoleColoredGroupBody } from './StaticDragon'
 import { useAnimateStore } from '../admin/animate/animateStore'
 import { useLocomotion } from './locomotion/useLocomotion'
 import { useMujocoLocomotion } from './locomotion/useMujocoLocomotion'
@@ -94,152 +95,6 @@ function collectNodes(groups: BodyGroup[]): { pos: THREE.Vector3; color: string 
   return out
 }
 
-export function StaticPosedModel({
-  modelConfig,
-  segments,
-  opacity = 1,
-  showNodes = false,
-}: {
-  modelConfig: ModelConfigRow
-  segments: SegmentData[]
-  opacity?: number
-  showNodes?: boolean
-}) {
-  const segmentMap = useMemo(() => new Map(segments.map((s) => [s.id, s])), [segments])
-  const nodes = useMemo(() => (showNodes ? collectNodes(modelConfig.groups) : []), [showNodes, modelConfig.groups])
-
-  return (
-    <group>
-      {modelConfig.groups.map((g) => (
-        <StaticGroupBody key={g.id} group={g} segmentMap={segmentMap} opacity={opacity} />
-      ))}
-      {nodes.map((n, i) => (
-        <mesh key={i} position={n.pos}>
-          <sphereGeometry args={[0.1, 12, 8]} />
-          <meshBasicMaterial color={n.color} depthTest={false} transparent opacity={0.95} />
-        </mesh>
-      ))}
-    </group>
-  )
-}
-
-function StaticGroupBody({
-  group,
-  segmentMap,
-  opacity,
-}: {
-  group: BodyGroup
-  segmentMap: Map<string, SegmentData>
-  opacity: number
-}) {
-  const segments = useGroupSegments(group, segmentMap)
-  return <MergedGroupMesh segments={segments} color={group.color} opacity={opacity} />
-}
-
-// Dragon (genetics) render: colour each component by its role's resolved colour rather than by the
-// mechanical group. A group's segments are split by role and one merged mesh is drawn per role colour;
-// components with no role tag use a neutral fallback. The locomotion studio's per-group path above is
-// left untouched.
-const NEUTRAL_ROLE_COLOR = '#9ca3af'
-
-function partitionSegmentsByColor(
-  segments: SegmentData[],
-  roleTags: RoleTags,
-  phenotype: Phenotype,
-): { color: string; segments: SegmentData[] }[] {
-  const byColor = new Map<string, SegmentData[]>()
-  for (const s of segments) {
-    const role = roleTags[s.id]
-    const color = (role && phenotype[role]) || NEUTRAL_ROLE_COLOR
-    const list = byColor.get(color) ?? []
-    list.push(s)
-    byColor.set(color, list)
-  }
-  return Array.from(byColor.entries()).map(([color, segs]) => ({ color, segments: segs }))
-}
-
-function RoleColoredGroupBody({
-  group,
-  segmentMap,
-  roleTags,
-  phenotype,
-  opacity,
-}: {
-  group: BodyGroup
-  segmentMap: Map<string, SegmentData>
-  roleTags: RoleTags
-  phenotype: Phenotype
-  opacity: number
-}) {
-  const segments = useGroupSegments(group, segmentMap)
-  const parts = useMemo(
-    () => partitionSegmentsByColor(segments, roleTags, phenotype),
-    [segments, roleTags, phenotype],
-  )
-  return (
-    <>
-      {parts.map((p) => (
-        <MergedGroupMesh key={p.color} segments={p.segments} color={p.color} opacity={opacity} />
-      ))}
-    </>
-  )
-}
-
-// Centre the model on x/z, sit it on the grid, and scale its largest dimension to ~targetSize so any
-// dragon STL frames itself in the preview (the studio relies on physics to place bodies; a static
-// dragon needs its own fit).
-function useModelFit(segments: SegmentData[], targetSize = 8) {
-  return useMemo(() => {
-    let minX = Infinity, minY = Infinity, minZ = Infinity
-    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity
-    for (const s of segments) {
-      const p = s.positions
-      for (let i = 0; i < p.length; i += 3) {
-        if (p[i] < minX) minX = p[i]; if (p[i] > maxX) maxX = p[i]
-        if (p[i + 1] < minY) minY = p[i + 1]; if (p[i + 1] > maxY) maxY = p[i + 1]
-        if (p[i + 2] < minZ) minZ = p[i + 2]; if (p[i + 2] > maxZ) maxZ = p[i + 2]
-      }
-    }
-    if (!Number.isFinite(minX)) return { scale: 1, position: [0, 0, 0] as [number, number, number] }
-    const dim = Math.max(maxX - minX, maxY - minY, maxZ - minZ) || 1
-    const scale = targetSize / dim
-    const cx = (minX + maxX) / 2
-    const cz = (minZ + maxZ) / 2
-    return { scale, position: [-scale * cx, -scale * minY, -scale * cz] as [number, number, number] }
-  }, [segments, targetSize])
-}
-
-export function PosedDragon({
-  groups,
-  segments,
-  roleTags,
-  phenotype,
-  opacity = 1,
-}: {
-  groups: BodyGroup[]
-  segments: SegmentData[]
-  roleTags: RoleTags
-  phenotype: Phenotype
-  opacity?: number
-}) {
-  const segmentMap = useMemo(() => new Map(segments.map((s) => [s.id, s])), [segments])
-  const fit = useModelFit(segments)
-  return (
-    <group scale={fit.scale} position={fit.position}>
-      {groups.map((g) => (
-        <RoleColoredGroupBody
-          key={g.id}
-          group={g}
-          segmentMap={segmentMap}
-          roleTags={roleTags}
-          phenotype={phenotype}
-          opacity={opacity}
-        />
-      ))}
-    </group>
-  )
-}
-
 function GroupNodeSpheres({ group }: { group: BodyGroup }) {
   const nodes = useMemo(() => collectNodes([group]), [group])
   return (
@@ -254,6 +109,13 @@ function GroupNodeSpheres({ group }: { group: BodyGroup }) {
   )
 }
 
+export interface CreatureDressing {
+  roleTags: RoleTags
+  phenotype: Phenotype
+}
+
+const DressingContext = createContext<CreatureDressing | null>(null)
+
 function GroupBody({
   group,
   segmentMap,
@@ -266,6 +128,18 @@ function GroupBody({
   opacity: number
 }) {
   const segments = useGroupSegments(group, segmentMap)
+  const dressing = useContext(DressingContext)
+  if (dressing) {
+    return (
+      <RoleColoredGroupBody
+        group={group}
+        segmentMap={segmentMap}
+        roleTags={dressing.roleTags}
+        phenotype={dressing.phenotype}
+        opacity={opacity}
+      />
+    )
+  }
   return (
     <>
       <MergedGroupMesh segments={segments} color={group.color} opacity={opacity} />
@@ -432,12 +306,14 @@ export function AnimatedModel({
   showNodes = false,
   opacity = 1,
   rootRef,
+  dressing,
 }: {
   modelConfig: ModelConfigRow
   segments: SegmentData[]
   showNodes?: boolean
   opacity?: number
   rootRef?: RefObject<THREE.Group | null>
+  dressing?: CreatureDressing
 }) {
   const segmentMap = useMemo(() => new Map(segments.map((s) => [s.id, s])), [segments])
   const pivotsRef = useRef<Map<string, THREE.Group>>(new Map())
@@ -483,6 +359,7 @@ export function AnimatedModel({
   useMujocoLocomotion(bodyRefs, modelConfig.groups, rootRef, footGlowRef, sweepArrowRef)
 
   return (
+    <DressingContext.Provider value={dressing ?? null}>
     <group ref={rootRef}>
       {modelConfig.groups.map((g) => {
         if (chainIds.has(g.id)) return null
@@ -573,5 +450,6 @@ export function AnimatedModel({
         </mesh>
       ))}
     </group>
+    </DressingContext.Provider>
   )
 }

@@ -150,7 +150,7 @@ function partitionSegmentsByColor(
   return Array.from(byColor.entries()).map(([color, segs]) => ({ color, segments: segs }))
 }
 
-function RoleColoredGroupBody({
+export function RoleColoredGroupBody({
   group,
   segmentMap,
   roleTags,
