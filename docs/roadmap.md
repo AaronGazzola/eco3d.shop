@@ -131,6 +131,16 @@ stream. Replaces the single build-time configuration blob that cannot serve two
 streamers. **The matching platform work lives in the Vids.Tube repository and is
 its own track there.**
 
+### G2b — The tank takes the shape of its box (added 2026-08-14)
+The streamer drags the overlay box to any width, height and ratio, and the tank
+becomes that shape rather than being letterboxed inside it. The frame measures
+its own viewport, so the bounds are the creature's movement limits and a wider
+box is a wider tank. Creature scale and enclosure depth arrive as settings,
+because depth has no pixels to derive it from and scale is a look rather than a
+consequence. Design and the checked starting position are in
+`docs/game-architecture.md` §7b; the host half is in
+`../Vids.Tube/docs/overlay-platform.md` §7. Not scheduled.
+
 ### G3 — Community interaction
 Chat commands reaching the game as pushed events, acting on the streamer's
 habitat under a pseudonymous viewer id, rate limited per viewer and per habitat.

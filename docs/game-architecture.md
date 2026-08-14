@@ -312,6 +312,39 @@ meet only at the motion vocabulary.
 **No forward implementation.** Nothing above is built ahead of need. The rule is only that today's
 choices must not foreclose it.
 
+## 7b. The tank takes the shape of its box
+
+Recorded 14-Aug-2026, planned rather than built. The host side is in
+`../Vids.Tube/docs/overlay-platform.md` §7.
+
+The overlay's box is eventually stretchable to any width, height and aspect ratio the streamer drags. The
+dragon game declares itself as accepting **any** shape, rather than locking a ratio and being
+letterboxed, and it does so by treating the box as the enclosure:
+
+- **The frame's own viewport is the tank's width and height.** The frame is a document and can measure
+  itself, so this needs nothing from the host. The lifecycle `resized` message only saves it from
+  polling.
+- **The bounds become the creature's movement limits**, which is what the tank already is. A wider box is
+  a wider tank, not a wider camera onto the same tank.
+- **Creature scale and enclosure depth are settings**, held in the opaque blob Vids.Tube stores and never
+  interprets. Depth has no pixels to derive it from, so it is authored rather than measured; scale is
+  authored because how large a creature reads is a look, not a consequence.
+
+**How much of this already holds, checked 14-Aug-2026 rather than assumed:**
+
+- Tank width, height and depth are already inputs, carried on the animate store and written into the
+  MJCF as the model is built. Nothing is baked into geometry.
+- The camera already refits on a viewport change, deliberately: `TankCamera` fits the tank to the
+  frustum and lists `size.width` and `size.height` among its dependencies, because a browser source can
+  be resized at any time.
+
+**What is therefore missing, and it is only this:** nothing derives the tank's dimensions from the box's
+shape. Stretching the box today refits the camera onto a fixed-shape tank, which reads as letterboxing.
+Deriving width and height from the frame, and depth from a setting, is the whole of the work.
+
+**What this forbids, starting now:** hard-coding the tank's dimensions anywhere outside the preset that
+supplies them, and fitting the camera to anything but the bounds the physics publishes.
+
 ## 8. What is deliberately not decided yet
 
 - The exact contents of the first playable game loop, beyond it being small.
