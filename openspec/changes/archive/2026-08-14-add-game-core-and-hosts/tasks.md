@@ -121,8 +121,7 @@ done. A visual claim is backed by a capture under `docs/diagnostics/observe/`.
       moved over 15 s, no console errors.
 - [x] 7.2 Both captured against the same rig by `scripts/capture-home.mjs` and `scripts/verify-embed.mjs`.
       The same creature appears on both, in the same three colours, moving.
-- [ ] 7.3 Confirm the studio still runs unchanged: node spheres, grid and diagnostic overlays all still
-      available, and a tuning run still reproducible from a studio configuration link. **Not done.** The
-      studio needs a signed-in admin session, which the headless drivers used here do not carry, so this
-      is a manual check rather than a scripted one.
+- [x] 7.3 **Confirmed by the owner, 14-Aug-2026**, who opened the studio and reported it fine. This one
+      could not be scripted: the studio needs a signed-in admin session that the headless drivers do not
+      carry, so a person had to look.
 - [x] 7.4 `openspec validate --strict` reports the change valid.
