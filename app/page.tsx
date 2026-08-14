@@ -53,7 +53,9 @@ export default function HomePage() {
   const { ready, failed, dressing, snapshot, world } = useGameSession(host)
 
   return (
-    <div className="relative flex h-screen w-screen flex-col overflow-hidden bg-[#080808]">
+    // The backdrop is deliberately not near-black. Obsidian is one of the three filaments, and on a
+    // near-black page those pieces disappear and the creature reads as though parts are missing.
+    <div className="relative flex h-screen w-screen flex-col overflow-hidden bg-[#3c4046]">
       <header className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between p-6">
         <div>
           <h1 className="text-2xl font-light uppercase tracking-[0.25em] text-white/90">eco3d.shop</h1>

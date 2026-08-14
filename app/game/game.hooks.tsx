@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { useSharedStore } from '@/app/admin/_lib/sharedStore'
 import { useLoadRig } from '@/app/admin/_lib/hooks'
 import { useAnimateStore } from '@/app/admin/animate/animateStore'
@@ -10,8 +9,7 @@ import { resolveMotion } from './motion/resolve'
 import { createWorld, World } from './core/world'
 import { WorldState } from './core/types'
 import { DrivableHost } from './hosts'
-import { getVariantRolesAction } from './palette.actions'
-import { paletteForRoles } from './palette'
+import { paintSegments } from './palette'
 import { CreatureDressing } from './AnimatedModel'
 
 const TICK_MS = 1000
@@ -23,8 +21,6 @@ export function useGameSession(host: DrivableHost | null) {
   const { loadFromRigId } = useLoadRig()
   const groups = useSharedStore((s) => s.groups)
   const segments = useSharedStore((s) => s.segments)
-  const roleTags = useSharedStore((s) => s.roleTags)
-  const variantId = useSharedStore((s) => s.variantId)
   const appliedMotion = useRef<string | null>(null)
   const started = useRef(false)
 
@@ -40,13 +36,7 @@ export function useGameSession(host: DrivableHost | null) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [host])
 
-  const roles = useQuery({
-    queryKey: ['variant-roles', variantId],
-    queryFn: () => getVariantRolesAction(variantId as string),
-    enabled: !!variantId,
-  })
-
-  const ready = groups.length > 0 && segments.length > 0 && !!roles.data
+  const ready = groups.length > 0 && segments.length > 0
 
   useEffect(() => {
     if (!ready || started.current) return
@@ -75,9 +65,9 @@ export function useGameSession(host: DrivableHost | null) {
   }, [ready, snapshot])
 
   const dressing = useMemo<CreatureDressing | null>(() => {
-    if (!roles.data) return null
-    return { roleTags, phenotype: paletteForRoles(roles.data) }
-  }, [roles.data, roleTags])
+    if (segments.length === 0) return null
+    return { segmentColors: paintSegments(segments.map((s) => s.id)) }
+  }, [segments])
 
-  return { ready, failed: failed || roles.isError, dressing, snapshot, world: worldRef.current }
+  return { ready, failed, dressing, snapshot, world: worldRef.current }
 }

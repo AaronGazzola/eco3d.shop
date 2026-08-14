@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useMemo } from 'react'
 import * as THREE from 'three'
@@ -18,7 +18,7 @@ function mergeGroupPositions(segments: SegmentData[]): Float32Array {
   return merged
 }
 
-function useMergedGeometry(segments: SegmentData[]): THREE.BufferGeometry | null {
+export function useMergedGeometry(segments: SegmentData[]): THREE.BufferGeometry | null {
   return useMemo(() => {
     if (segments.length === 0) return null
     const merged = mergeGroupPositions(segments)
@@ -29,7 +29,7 @@ function useMergedGeometry(segments: SegmentData[]): THREE.BufferGeometry | null
   }, [segments])
 }
 
-function useGroupSegments(
+export function useGroupSegments(
   group: BodyGroup,
   segmentMap: Map<string, SegmentData>
 ): SegmentData[] {
@@ -150,7 +150,7 @@ function partitionSegmentsByColor(
   return Array.from(byColor.entries()).map(([color, segs]) => ({ color, segments: segs }))
 }
 
-export function RoleColoredGroupBody({
+function RoleColoredGroupBody({
   group,
   segmentMap,
   roleTags,

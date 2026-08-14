@@ -3,9 +3,7 @@
 import { createContext, RefObject, useContext, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { ModelConfigRow, SegmentData, BodyGroup } from '../admin/_lib/types'
-import { RoleTags } from './dragons.types'
-import { Phenotype } from './dragons.genetics'
-import { RoleColoredGroupBody } from './StaticDragon'
+import { PaintedGroupBody } from './PaintedGroupBody'
 import { useAnimateStore } from '../admin/animate/animateStore'
 import { useLocomotion } from './locomotion/useLocomotion'
 import { useMujocoLocomotion } from './locomotion/useMujocoLocomotion'
@@ -109,9 +107,11 @@ function GroupNodeSpheres({ group }: { group: BodyGroup }) {
   )
 }
 
+// A map from piece to colour, because colour belongs to the piece a print is assembled from rather than
+// to the body part it sits in. Today the map comes from the provisional PHA palette; later it comes from
+// a genotype. The renderer cannot tell the difference, which is the point.
 export interface CreatureDressing {
-  roleTags: RoleTags
-  phenotype: Phenotype
+  segmentColors: Record<string, string>
 }
 
 const DressingContext = createContext<CreatureDressing | null>(null)
@@ -131,11 +131,10 @@ function GroupBody({
   const dressing = useContext(DressingContext)
   if (dressing) {
     return (
-      <RoleColoredGroupBody
+      <PaintedGroupBody
         group={group}
         segmentMap={segmentMap}
-        roleTags={dressing.roleTags}
-        phenotype={dressing.phenotype}
+        segmentColors={dressing.segmentColors}
         opacity={opacity}
       />
     )

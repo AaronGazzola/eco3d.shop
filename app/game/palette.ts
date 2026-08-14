@@ -1,6 +1,3 @@
-import { Phenotype } from './dragons.genetics'
-import { DragonRole } from './dragons.types'
-
 // PROVISIONAL, and the whole module is the placeholder that genetics replaces.
 //
 // The printed material is PHA in three colours, so those three are what a creature can ever be made of.
@@ -9,21 +6,34 @@ import { DragonRole } from './dragons.types'
 // authoring. Reading it today paints the creature in bright developer colours, which is the exact thing
 // this module exists to stop.
 //
-// When E2 seeds the palette against the real PHA rules, and when a creature carries a genotype, this is
-// deleted and `resolveGenotype` supplies the phenotype instead. Nothing else has to change, because the
-// renderer only ever sees a map from role to colour.
-export const PHA_COLORS = ['#ece7dd', '#1b1917', '#b08968'] as const
+// Colour is assigned per PIECE, not per role. A printed creature is assembled from many small pieces,
+// each one printed in a single filament, so a mosaic of small pieces in three colours is what the object
+// actually looks like. Role-wide blocks read as three painted zones, which is a different object.
+//
+// When E2 seeds the palette against the real PHA rules and a creature carries a genotype, this is
+// deleted and the map is produced from the genotype instead. Nothing else changes, because the renderer
+// only ever sees a map from piece to colour.
+export const PHA_COLORS = {
+  eggshell: '#efe7d6',
+  obsidian: '#232122',
+  natural: '#cfbfa4',
+} as const
 
-export function paletteForRoles(roles: DragonRole[]): Phenotype {
-  if (roles.length === 0) {
-    console.error('palette: the variant has no roles, so no part of a creature can be coloured')
-    throw new Error('palette: the variant has no roles, so no part of a creature can be coloured')
+const PALETTE = [PHA_COLORS.eggshell, PHA_COLORS.obsidian, PHA_COLORS.natural]
+
+// A stable scatter rather than a cycle: cycling the detection order bands the body into stripes, which
+// reads as a pattern nobody chose. The hash is deterministic, so a piece keeps its colour across loads.
+function hashToIndex(id: string, buckets: number): number {
+  let hash = 2166136261
+  for (let i = 0; i < id.length; i++) {
+    hash ^= id.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
   }
+  return Math.abs(hash) % buckets
+}
 
-  const ordered = [...roles].sort((a, b) => a.display_order - b.display_order)
-  const phenotype: Phenotype = {}
-  ordered.forEach((role, index) => {
-    phenotype[role.key] = PHA_COLORS[index % PHA_COLORS.length]
-  })
-  return phenotype
+export function paintSegments(segmentIds: string[]): Record<string, string> {
+  const colors: Record<string, string> = {}
+  for (const id of segmentIds) colors[id] = PALETTE[hashToIndex(id, PALETTE.length)]
+  return colors
 }
