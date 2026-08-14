@@ -96,9 +96,12 @@ Discard a warm-up before any measurement that will be compared against another.
       fitted once from the near face so the near corners cannot fall outside the frustum.
 - [x] 6.2 Confirmed — camera position and aim identical at the first and last frame of a run, with
       re-fitting on viewport change only.
-- [ ] 6.3 **Not done, and left unproven rather than claimed.** Perspective is in force and the fit is
-      measured from the near face, but no near-face against far-face pair was photographed, so the size
-      cue is argued rather than shown.
+- [x] 6.3 **Moved to Linear as AZ-257 and removed from this change**, per the governance rule that a task
+      which cannot be finished in this cycle leaves the change rather than lingering unchecked. The size
+      cue is still argued rather than shown: perspective is in force and the fit is measured from the near
+      face, but no near-face against far-face pair was photographed. Nothing depends on it, and the
+      overlay's framing is re-checked end to end once the Vids.Tube contract exists, so photographing it
+      now would prove it for a configuration that is about to change.
 - [x] 6.4 The studio camera path is untouched; the fixed camera is used by the overlay page alone.
 - [x] 6.5 **PASS** on a fresh context with no session: no login form, no sidebar, no grid, page and
       document both fully transparent, alpha drawing buffer, creature moving between two screenshots, no
@@ -112,9 +115,10 @@ Discard a warm-up before any measurement that will be compared against another.
       session named `TEMP` plus the date, written by `/handover` and read then deleted by `/sync`. The
       old single file at `docs/locomotion-handover.md` was read and deleted on 11-Aug-2026. This
       session's handover is `docs/handover/TEMP-12-Aug-2026.md`.
-- [ ] 7.3 Hand the owner an overlay link for the flight baseline, and record whether it was approved. A
-      passing gate is not approval.
-- [ ] 7.4 Run `openspec validate --strict` and archive.
+- [x] 7.3 **Approved by the owner, 14-Aug-2026:** the flight is good enough for now. Recorded as
+      approval-for-this-phase rather than as a finished result. Flight refinement is the next phase, and
+      the wall press at about 22 seconds is accepted as the known limit that turning fixes.
+- [x] 7.4 `openspec validate --strict` reports the change valid, and it is archived.
 
 ## Settled by the owner, 12-Aug-2026
 

@@ -5,155 +5,116 @@
 This is a one-shot baton, not a reference. Read it once, act on it, then delete it. Never cite it as a
 source and never update it in place in a later session.
 
-> `TEMP-12-Aug-2026.md` may still sit beside this file. It is **superseded**: its work is committed as
-> `f1f1105` and its open items are either closed or restated below. Everything in it worth keeping has
-> been carried forward here. Read this one, delete both.
+> `TEMP-12-Aug-2026.md` may still sit beside this file. It is **superseded**; everything durable from it
+> is carried forward here. Read this one, delete both.
 
 ## Where the durable record lives
 
-These win wherever this file disagrees with them:
-
-- `docs/game-architecture.md` — **new this session.** The platform seam, eleven locked decisions with
-  reasoning, the layer stack, the two tracks, and what is deferred. Architecture questions end here.
-- `../Vids.Tube/docs/overlay-platform.md` — **new this session.** The host side of the same contract.
+- `docs/game-architecture.md` — the platform seam and eleven locked decisions with their reasoning. All
+  architecture questions end here.
+- `../Vids.Tube/docs/overlay-platform.md` — the host side of the same contract, six decisions.
 - `docs/roadmap.md` — the two-track split and the G phases.
 - `docs/animation-roadmap.md` — decisions, phases, the measured baseline, the dated status log.
-- `docs/dragon-genetics.md` — what the genetics layer already does. **Read it before planning genetics
-  work;** far more exists than the roadmap's E2 entry suggests.
-- `docs/locomotion.md`, `docs/reference/locomotion-reference.md`, `docs/observation-loop.md`.
+- `docs/dragon-genetics.md` — **read before planning any genetics work.** Far more has landed than the
+  roadmap's E2 entry suggests.
+- `openspec/specs/` — `game-core`, `motion-vocabulary`, `dragon-rendering`, `dragon-embed`, `locomotion`
+  now describe the running code, because both changes archived today.
 
-## What this session changed
+## What this session finished
 
-**Direction, and it is large.** Vids.Tube becomes a general overlay-game platform; eco3d is tenant one
-and gets no privileges a stranger would not get. Written up in the two architecture documents above,
-with the reasoning, because these decisions will otherwise be re-litigated.
+**The eco3d half of the foundation is complete, and there is a game you can look at.**
 
-**A change was promoted and is half implemented:** `add-game-core-and-hosts`, 15 of 22 tasks.
+- `app/game/core/` holds the game core: world state, an explicit tick, one `feed` action, and a
+  `GameHost` interface with four members. It imports nothing outside itself, asserted rather than
+  assumed.
+- `app/game/motion/resolve.ts` resolves a motion name to a preset. `cruise` is the Phase T1 flight
+  baseline; every other name falls back to cruise and records that it did.
+- The home page and `/game/embed` both mount that core through `StandaloneHost` and `PlatformHost`.
+- The creature is painted piece by piece from a piece-to-colour map in three matte PHA colours, with no
+  node skeleton, no grid and no diagnostics.
+- **Both OpenSpec changes archived:** `add-game-core-and-hosts` and `add-flight-tank`. No change is
+  active. Nothing is half-written.
 
-- `app/game/core/` holds the game core: world state, an explicit tick, one `feed` action, and the
-  `GameHost` interface with exactly four members.
-- `app/game/motion/resolve.ts` maps a primitive name to a preset. `cruise` resolves to the Phase T1
-  `flight base`; every other name falls back to cruise and records the fallback.
-- The render seam is closed: `GroupBody` in `AnimatedModel.tsx` reads dressing from a context, so the
-  whole posed hierarchy becomes role-coloured. `GameCreature.tsx` is the game-facing component.
-- Six dead functions were deleted from `AnimatedModel.tsx`, duplicates left behind when the static
-  renderer was extracted to `StaticDragon.tsx`.
-- `scripts/check-game-core.ts` and `scripts/check-motion-vocabulary.ts` both pass.
+**Owner decisions today:** the flight baseline is approved as good enough for this phase, and the depth
+cue check left the flight change for Linear as **AZ-257** rather than lingering unchecked.
 
-**Earlier in the session, already committed as `f1f1105`:** the handover convention moved to
-`docs/handover/`, `/sync` reads and deletes handovers and now refreshes skills before it runs rather than
-during, `/handover` was added, and the flight tank change reached 32 of 35 tasks.
+## Pick up here — the Vids.Tube platform contract
 
-## What was decided
+This is the next foundation piece and it lives in `../Vids.Tube`. Read
+`../Vids.Tube/docs/overlay-platform.md` first; §5 and §6 are the work list. Promote it into an OpenSpec
+change in that repository before writing code.
 
-- **Vids.Tube is a general overlay-game platform**, not a bespoke dragon integration. _Owner,
-  12-Aug-2026._ Third-party overlays are an explicit goal, so sandboxed frames are permanent.
-- **One capability tier.** Tiers separate review and distribution, never power. Capability granted later
-  costs nothing; capability withdrawn later breaks installed overlays.
-- **Viewers are pseudonymous until they consent.** The streamer clicks once; most chatters never click,
-  and the game must work for the ones who never do.
-- **Overlays are self-hosted and proxied through a fixed platform origin**, Discord-style rather than
-  Twitch-style. Twitch's upload model would force eco3d's animation code through Vids.Tube's dev server,
-  where frame rate collapses.
-- **Tank size stays at 60 × 30 × 40**, and the no-turn gap is carried by T2. _Owner, 12-Aug-2026._
+- An overlay registry: id, owner, declared origins, declared permissions, status. One row in it.
+- Token minting: short-lived, signed, naming the overlay, the channel and an opaque per-channel viewer.
+- Settings stored per channel per overlay as an opaque blob the overlay owns, plus the streamer-facing
+  editor.
+- The two-way message channel between page and frame, and the small SDK the frame loads.
+- Event routing by subscription, wired to the existing command registry.
+- Replace `NEXT_PUBLIC_GAME_EMBED_URL`, which carries one streamer's whole configuration and cannot
+  serve two, with a per-channel frame carrying a token.
 
-## Decisions still owed
+**Deferred by decision, not oversight:** the wildcard subdomain and proxy, the review flow, the
+permissions UI, the catalogue. An overlay cannot tell whether it is proxied, so adding the proxy later is
+work rather than a rewrite — **but only while the four foundation points above are honoured.**
 
-- **Owner approval of the flight baseline on the overlay.** A passing gate is not approval, and
-  `add-flight-tank` cannot be archived without it.
-- **What the base game loop actually is**, beyond the placeholder hunger-and-feed used to prove the core
-  runs. Deliberately deferred, but G1 cannot be specced without it.
-- **What "augmented" means for the overlay version**, and what a save is when a streamer switches saves.
-  Both named as open in `docs/game-architecture.md` §8.
-
-## Pick up here
-
-Finish `add-game-core-and-hosts`, groups 5 to 7. Nothing is half-written: the tree builds, type-checks,
-and both check scripts pass, so this is a clean resumption point rather than a repair job.
-
-- **Group 5** is the real work: `StandaloneHost` and `PlatformHost`, the home page replaced by the game
-  surface, and `/game/embed` re-pointed at the core.
-  - **The scene is not the hard part, and this was checked.** `SceneContent` in
-    `app/admin/animate/AnimateScene.tsx` is about 35 lines: it assembles a `ModelConfigRow` from the
-    shared store and renders `AnimatedModel` with `showNodes` hardcoded true. A game scene is the same
-    shape with `GameCreature`, dressing, and no node flag. Physics keeps running inside `AnimatedModel`
-    through `useLocomotion` and `useMujocoLocomotion`, which read `animateStore`, so the simulation is
-    still driven by that store and the surface applies the resolved preset into it. `applyPreset` in
-    `simPresets.ts` already does exactly that write, including the leg weight, so reuse it rather than
-    reproducing it.
-  - **The genuine unknown is where the dressing comes from.** `GameCreature` needs `roleTags` and a
-    resolved `Phenotype`. `role_tags` live on `dragon_models`, and a phenotype comes from
-    `resolveGenotype` over a genotype plus that variant's genes, roles, alleles and filaments. The
-    overlay link carries only a rig identity today, which is not the same thing as a dragon. **Settle
-    what the save resolves to before writing the hosts:** a `dragons` row, or a variant with a rolled
-    genotype. `app/game/dragons/[id]/page.*` already loads this data and is the model to copy.
-- **Group 6** changes the studio's overlay link to carry the rig and leg weight but no encoded
-  `SimConfig`. It is the one deliberate edit inside `app/admin/animate/`.
-- **Group 7** is the proof: rebuild, `scripts/verify-embed.mjs`, a capture of the home page and the
-  overlay against the same save, and `openspec validate --strict`.
-- **Task 4.4 is still open** and is the one visual claim not yet backed: a capture showing the game
-  render moving between two frames with distinct role colours. It is blocked until group 5 gives it a
-  surface.
+Then, on the eco3d side, `PlatformHost` stops reading the link and verifies the token, and the pairing
+claim binds a channel to an account.
 
 ## Traps
 
-- **`npm run build` fails.** It dies prerendering `/` on a missing Supabase environment variable. Use
-  `doppler run -- npx next build`. This cost time this session.
-- **The pitch limits are placeholders, not measurements.** Every group of both saved rigs reads exactly
-  30.0°, the code default, while the sideways limits are genuinely measured and vary 17°–39°. Pitch is
-  not physical until the owner measures it (AZ-246). Say "placeholder" in any report using 30°.
-- **The D-T2 numbers do not carry into the tank.** All were taken with gravity on, a floor, and foot
-  thrust active. The grid is re-measured, never converted.
+- **`npm run build` fails**, prerendering `/` on a missing Supabase variable. Use
+  `doppler run -- npx next build`.
+- **Someone else works in `../Vids.Tube`.** Files unrelated to this work changed there during this
+  session, and a change was archived there mid-session. Never commit that repository wholesale; stage
+  your own files by name.
+- **`filament_colors` is not the PHA palette.** Nine rows, all flagged available, all demo or test
+  colours. Reading it paints the creature in developer colours. The three PHA colours are named in
+  `app/game/palette.ts` and marked provisional until E2 seeds the real ones.
+- **The pitch limits are placeholders.** Every group of both rigs reads exactly 30.0°, the code default,
+  while sideways limits are genuinely measured and vary 17°–39°. AZ-246 tracks measuring them. Say
+  "placeholder" in any report that uses 30°.
 - **A capture that ends before the failure is not evidence of its absence.** A 30 s flight run was read
   as a pass; a 90 s run of the same configuration showed the body destroyed by 45 s.
-- **`AnimatedModel` still accepts `showNodes`.** The game-facing `GameCreature` exposes no such prop, but
-  the underlying renderer can still draw nodes. Do not describe the guarantee as stronger than that.
-- **AZ-183 and AZ-184 are closed but their bodies describe a codebase that does not exist.** Both carry a
-  correction note dated 12-Aug-2026. Read the correction, not the body.
-- **Someone else is working in `../Vids.Tube`.** Four files unrelated to this work were modified there
-  during this session. Do not commit that repository wholesale.
+- **The overlay is watchable for about 22 seconds**, then presses into the glass and rolls. Accepted;
+  turning is the fix.
+- **`AnimatedModel` still accepts `showNodes`.** The game-facing components expose no such prop, but the
+  underlying renderer can still draw one. Do not describe the guarantee as stronger than that.
+- **AZ-183 and AZ-184 are closed but describe a codebase that does not exist.** Both carry a correction
+  note; read the correction, not the body.
 
 ## Tried and rejected — do not re-propose
 
-- **Twitch's uploaded-bundle hosting model.** Rejected because the review capacity and threat model do
-  not exist here, and it would put the animation code behind the host's dev server.
-- **Signing into eco3d through the overlay.** Impossible in practice: the frame gets its own partitioned
-  storage so an eco3d session in a tab is invisible to it, and an OBS browser source is barely
-  interactive. Replaced by a one-time pairing claim from a real browser.
-- **Foot grip as a solver pin** (built twice), **keyframe pose cycles for locomotion**, **foot planting
-  as a goal**, and **elastic tank walls**. Reasons in `docs/animation-roadmap.md`.
-- **Active roll control for level flight.** Measured: free flight holds roll near zero for 90 s unaided.
+- **Twitch's uploaded-bundle hosting model.** No review capacity, no matching threat model, and it would
+  put animation code behind the host's dev server.
+- **Signing into eco3d through the overlay.** Storage is partitioned, so a session in a tab is invisible
+  in the frame, and an OBS browser source is barely interactive. Replaced by a one-time pairing claim.
+- **Reading `filament_colors` for the game palette.** See the traps above.
+- **Colouring a creature by role.** A print is many small pieces each in one filament, so role-wide
+  blocks read as three painted zones, which is a different object.
+- **Foot grip as a solver pin, keyframe pose cycles, foot planting as a goal, elastic tank walls, active
+  roll control.** Reasons in `docs/animation-roadmap.md`.
 
 ## How to run it
 
-From PowerShell, never the bash sandbox, which resets Supabase auth. Never observe a dev server: the
-studio lags badly enough under `next dev` that what is seen is not what the code does.
+From PowerShell, never the bash sandbox, which resets Supabase auth. Never observe a dev server.
 
 ```
-npm run prod:3002        # build + serve on 3002; run detached so it survives across commands
-$env:OBSERVE_RIG='Demo Dragon'
-node scripts/observe.mjs run 12 --hz 20 --events --legw 0.1 --config path\to\config.json
+doppler run -- npx next build
+doppler run -- npx next start -p 3002        # run detached; stop the old one first, the port stays bound
+node scripts/capture-home.mjs 10             # home page game surface
+node scripts/verify-embed.mjs <rig-id> 15    # overlay, fresh context, no session
 npx tsx scripts/check-game-core.ts
 npx tsx scripts/check-motion-vocabulary.ts
+doppler run -- npx tsx scripts/list-rigs.ts  # rig ids, role tag counts, available filaments
 ```
 
-- **Rebuild and restart after every app-code change**, before observing and before handing over any link.
-  There is no hot reload; a running production server keeps serving the old bundle. Stop the previous
-  server first, the port stays bound. Scripts under `scripts/` need no rebuild.
-- **Discard a warm-up run.** The first run after a page load straddles the lazy engine build.
-- `scripts/verify-embed.mjs` drives `/game/embed` in a fresh context with no session. Use it for anything
-  overlay-facing.
-- Auth is cached in `scripts/.observe-auth.json`. Forward axis is **−X**, lateral is **Z**. Captures land
-  in `docs/diagnostics/observe/`.
+- **Rebuild and restart after every app-code change.** There is no hot reload; a running production
+  server keeps serving the old bundle. This bit twice today.
+- Discard a warm-up run before any measurement that will be compared.
+- Auth is cached in `scripts/.observe-auth.json`. Forward axis is **−X**, lateral is **Z**.
 
 ## Repository state
 
-**Nothing below is committed.** The tree builds and every check passes, so committing is safe.
-
-- eco3d: the two new architecture documents, the roadmap edits, the whole
-  `openspec/changes/add-game-core-and-hosts/` directory, `app/game/core/`, `app/game/motion/`,
-  `GameCreature.tsx`, the edits to `AnimatedModel.tsx` and `StaticDragon.tsx`, and the two check scripts.
-- Vids.Tube: `docs/overlay-platform.md` and the roadmap edit are this session's. **The four modified
-  files under `app/(app)/live/` are not** and belong to whoever else is working there.
-- One branch, `dev`, has been untouched since 13-Feb-2026. Confirm nothing is wanted from it, then delete
-  it locally and on the remote.
+- eco3d: everything committed and pushed on `main`. Working tree clean. No active OpenSpec change.
+- Vids.Tube: the platform document and its roadmap entry are committed. Other work there is not mine.
+- One branch, `dev`, untouched since 13-Feb-2026. Confirm nothing is wanted, then delete it.
