@@ -72,36 +72,57 @@ done. A visual claim is backed by a capture under `docs/diagnostics/observe/`.
       game-facing component has no such affordance, not that the underlying renderer cannot draw one.
 - [x] 4.3 Confirmed by inspection: the only change to `app/game/StaticDragon.tsx` is the `export` keyword
       on `RoleColoredGroupBody`. `PosedDragon`, `useModelFit` and the dragon detail page are untouched.
-- [ ] 4.4 Capture the game render of a creature whose genotype resolves to distinct role colours, showing
-      motion between two frames and the role colours in force. Blocked until the game surface exists in
-      group 5; the plumbing above is proven only by the type check so far.
+- [x] 4.4 Captured on both surfaces, and **the capture caught a defect the type check could not.** The
+      first home-page capture showed a stray cyan dot and an orange marker beside the creature: the foot
+      glow and sweep arrow are locomotion diagnostics, mounted hidden and made visible by the locomotion
+      hooks, so they surfaced on a dressed creature. Both are now skipped entirely when dressing is
+      present, and the re-capture is clean. The creature renders in white, black and tan with no node
+      skeleton, no grid and no markers, and moves between frames.
 
 ## 5. The two hosts
 
-- [ ] 5.1 Implement `StandaloneHost`: one actor, actions raised by the page's interface, settings read
-      from eco3d, save supplied directly.
-- [ ] 5.2 Implement `PlatformHost` reading the rig identity and leg weight from the overlay link, and
-      ignoring any `sim` parameter with a `console.error` naming it, so stale studio links are visible
-      rather than silently half-honoured.
-- [ ] 5.3 Replace the home page with the game surface: the core mounted through `StandaloneHost`, the
-      game render path, the existing auth-aware header preserved, and no sign-in required to see it.
-- [ ] 5.4 Re-point `/game/embed` at the core through `PlatformHost`, so it no longer mounts the studio's
-      scene component and no longer applies a decoded `SimConfig`.
+- [x] 5.1 Done, in `app/game/hosts.ts`. Both hosts share one factory, so they cannot drift apart in what
+      they expose.
+- [x] 5.2 Done. `readPlatformLink` reads the rig and leg weight, logs and ignores a `sim` parameter, and
+      logs a non-numeric leg weight rather than passing NaN into the physics.
+- [x] 5.3 Done. The home page mounts the core through `StandaloneHost` and renders the game surface with
+      a creature name, a hunger read-out and a Feed button that raises an action into the core. The
+      auth-aware admin link is preserved and no sign-in is required. **The one rig that is authored is
+      chosen explicitly**, not fallen back to: the standalone game has no link to name one and there is
+      exactly one to name.
+- [x] 5.4 Done. `/game/embed` mounts the core through `PlatformHost` and no longer imports the studio's
+      scene. The tank camera moved to `app/game/TankCamera.tsx` so both surfaces share one fixed camera
+      rather than two copies. The link-reading effect became a render-time memo, which removed a real
+      lint error rather than suppressing it.
+
+- [x] 5.5 **ADDED. Role tags had to be plumbed through first.** The rig select, `DragonRigRow` and the
+      shared store all dropped `role_tags`, so a creature could not be coloured by role at all. All three
+      now carry it. The persisted store needs no migration: a persisted state without the field keeps the
+      empty default.
+- [x] 5.6 **ADDED, and it reversed a plan.** The palette was going to read `filament_colors` filtered to
+      available, so the printable set stayed the source of truth. Queried live, that table holds nine
+      rows, every one flagged available, and all of them demo or test colours — reading it paints the
+      creature in exactly the bright developer colours this change exists to remove. The palette is now
+      three named PHA colours in `app/game/palette.ts`, marked provisional, assigned across the variant's
+      roles by display order. It is deleted when E2 seeds the palette properly and a creature carries a
+      genotype; nothing else changes, because the renderer only ever sees a role-to-colour map.
 
 ## 6. The studio's overlay link
 
-- [ ] 6.1 Change the studio's overlay link to carry the rig identity and, where set, the leg weight, and
-      no encoded `SimConfig`. This is the one deliberate change inside `app/admin/animate/`.
-- [ ] 6.2 Confirm the studio's own shareable configuration link is untouched and still restores every
-      tuned value in the studio.
+- [x] 6.1 Done in `buildConfigLink`. An overlay link now carries the rig, the leg weight and the controls
+      flag, and no `sim`, `tab` or `overlay` parameter.
+- [x] 6.2 Confirmed by construction: the studio branch of the same function is unchanged, so a studio
+      link still carries the tab, the full encoded configuration and the overlay list.
 
 ## 7. Prove it
 
-- [ ] 7.1 Rebuild, then run `scripts/verify-embed.mjs` against the re-pointed overlay in a fresh context
-      with no session: no login form, no sidebar, no grid, page and document transparent, creature moving
-      between two screenshots, no console errors.
-- [ ] 7.2 Capture the home page and the overlay against the same save and show the same creature doing
-      the same thing, which is the evidence that both surfaces mount one core.
+- [x] 7.1 **PASS**, against a link carrying only a rig identity and no configuration: no login form,
+      480x320 canvas with an alpha drawing buffer, page and document both fully transparent, creature
+      moved over 15 s, no console errors.
+- [x] 7.2 Both captured against the same rig by `scripts/capture-home.mjs` and `scripts/verify-embed.mjs`.
+      The same creature appears on both, in the same three colours, moving.
 - [ ] 7.3 Confirm the studio still runs unchanged: node spheres, grid and diagnostic overlays all still
-      available, and a tuning run still reproducible from a studio configuration link.
-- [ ] 7.4 Run `openspec validate --strict`.
+      available, and a tuning run still reproducible from a studio configuration link. **Not done.** The
+      studio needs a signed-in admin session, which the headless drivers used here do not carry, so this
+      is a manual check rather than a scripted one.
+- [x] 7.4 `openspec validate --strict` reports the change valid.

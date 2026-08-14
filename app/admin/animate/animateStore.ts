@@ -601,15 +601,22 @@ export function buildConfigLink(path?: string): string {
   const st = useAnimateStore.getState()
   const shared = useSharedStore.getState()
   const params = new URLSearchParams()
-  params.set('tab', st.animateTab)
-  params.set('sim', encodeSimConfig(pickSimConfig(st as unknown as SimConfig)))
-  if (st.overlays.length > 0) params.set('overlay', st.overlays.join(','))
+  const isOverlay = path === EMBED_PATH
+  // An overlay link names the creature and nothing about how it moves. The game chooses its own motion
+  // by name and the motion layer resolves it, so a config in the link would let a stale link override
+  // the game's own choice — and that coupling is exactly what made the overlay a copy of this tab.
+  // A studio link is unchanged: tuning still needs to travel whole.
+  if (!isOverlay) {
+    params.set('tab', st.animateTab)
+    params.set('sim', encodeSimConfig(pickSimConfig(st as unknown as SimConfig)))
+    if (st.overlays.length > 0) params.set('overlay', st.overlays.join(','))
+  }
   if (shared.configId) params.set('rig', shared.configId)
   const leg = shared.groups.find((g) => g.type === 'leg-left' || g.type === 'leg-right')
   if (leg?.nodeWeight != null) params.set('legw', String(leg.nodeWeight))
   // The overlay link carries the mouse on, so the scene can be played through OBS's Interact window.
   // Harmless on the stream itself: a browser source sends no pointer events unless Interact is open.
-  if (path === EMBED_PATH) params.set('controls', '1')
+  if (isOverlay) params.set('controls', '1')
   const base = typeof window !== 'undefined' ? window.location.origin + (path ?? window.location.pathname) : ''
   return `${base}#${params.toString()}`
 }

@@ -3,7 +3,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware'
 import { SegmentData, BodyGroup, BodyGroupType, DragonRigRow, NodeType, AngleCaps } from './types'
-import type { DragonStage } from '@/app/game/dragons.types'
+import type { DragonStage, RoleTags } from '@/app/game/dragons.types'
 
 const PERSIST_DEBOUNCE_MS = 400
 
@@ -91,6 +91,7 @@ interface SharedStore {
   segments: SegmentData[]
   groups: BodyGroup[]
   modelRotation: [number, number, number]
+  roleTags: RoleTags
 
   setStlKey: (key: string) => void
   setConfigId: (id: string | null) => void
@@ -123,6 +124,7 @@ export const useSharedStore = create<SharedStore>()(
       segments: [],
       groups: [],
       modelRotation: [0, 0, 0],
+      roleTags: {},
 
       setStlKey: (key) => set({ stlKey: key }),
 
@@ -143,6 +145,7 @@ export const useSharedStore = create<SharedStore>()(
           stage: rig.stage,
           groups: normalizeMirroredLegCaps(rig.groups),
           modelRotation: rig.model_rotation,
+          roleTags: rig.role_tags,
         }),
 
       setSegments: (raw) =>
@@ -266,6 +269,7 @@ export const useSharedStore = create<SharedStore>()(
         stage: state.stage,
         groups: state.groups,
         modelRotation: state.modelRotation,
+        roleTags: state.roleTags,
       }),
       migrate: (persisted: unknown, version: number) => {
         const state = (persisted ?? {}) as Record<string, unknown>

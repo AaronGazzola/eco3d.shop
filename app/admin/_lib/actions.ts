@@ -5,7 +5,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { createClient } from '@/supabase/server-client'
 import { checkIsAdminAction } from '@/app/layout.actions'
 import type { Database, Json } from '@/supabase/types'
-import type { DragonStage } from '@/app/game/dragons.types'
+import type { DragonStage, RoleTags } from '@/app/game/dragons.types'
 import { R2FileNode, BodyGroup, DragonRigRow } from './types'
 
 async function assertAdmin() {
@@ -82,10 +82,11 @@ function toRigRow(row: DragonModelWithVariant): DragonRigRow {
     stl_key: row.stl_key,
     groups: row.groups as unknown as BodyGroup[],
     model_rotation: row.model_rotation as [number, number, number],
+    role_tags: (row.role_tags ?? {}) as unknown as RoleTags,
   }
 }
 
-const RIG_SELECT = 'id, variant_id, stage, stl_key, groups, model_rotation, dragon_variants(name)'
+const RIG_SELECT = 'id, variant_id, stage, stl_key, groups, model_rotation, role_tags, dragon_variants(name)'
 
 export async function saveDragonRigAction(params: {
   id: string | null

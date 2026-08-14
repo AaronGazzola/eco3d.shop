@@ -421,7 +421,10 @@ export function AnimatedModel({
               parentNodeBack={null}
             />
           )}
-      {allLegs.map((leg) => (
+      {/* Foot glow and sweep arrows are locomotion diagnostics. They are mounted hidden and made visible
+          by the locomotion hooks, so on a dressed creature they surface as stray coloured dots on the
+          stream. A dressed creature is the game, and the game draws no diagnostics at all. */}
+      {!dressing && allLegs.map((leg) => (
         <mesh
           key={`footglow-${leg.id}`}
           ref={(m) => {
@@ -435,7 +438,7 @@ export function AnimatedModel({
           <meshBasicMaterial color="#00e5ff" toneMapped={false} transparent opacity={0.85} />
         </mesh>
       ))}
-      {allLegs.map((leg) => (
+      {!dressing && allLegs.map((leg) => (
         <mesh
           key={`sweeparrow-${leg.id}`}
           ref={(m) => {
