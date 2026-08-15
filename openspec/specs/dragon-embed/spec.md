@@ -35,8 +35,8 @@ duplicating it. Until both the rig and its mesh have loaded, the page SHALL rend
 
 ### Requirement: The URL hash names both the rig and its motion configuration
 
-The page SHALL read its parameters from the URL hash fragment, in the same encoding the studio's shared
-link already uses, so that no parameter is sent to the server.
+The page SHALL read its rig parameters from the URL hash fragment, in the same encoding the studio's
+shared link already uses, so that no rig parameter is sent to the server.
 
 The hash SHALL carry a rig identity (`rig`) and MAY carry a leg weight (`legw`). Those parameters SHALL
 be read by `PlatformHost` and handed to the core, never applied to a studio store by the page itself.
@@ -46,6 +46,10 @@ the motion layer, so a configuration in the link would let a link override the g
 motion, which is precisely the coupling this change removes. A `sim` parameter present in a link SHALL
 be ignored, and its presence SHALL be logged with `console.error` so stale links are visible rather than
 silently half-honoured.
+
+The page SHALL additionally read a platform token from the query string, which the host appends to the
+address it was given. The token names the channel, never the creature: the rig remains the overlay's own
+configuration and the host carries it through untouched.
 
 Where the hash carries no rig identity, the page SHALL log the failure with `console.error` and render
 nothing. It SHALL NOT fall back to a default, a first, or a most-recent rig, because a silently
@@ -67,10 +71,15 @@ substituted creature on a live stream is indistinguishable from the intended one
 - **WHEN** `/game/embed` is opened with no rig identity in the hash
 - **THEN** the failure is logged and nothing is rendered
 
-#### Scenario: Parameters never reach the server
+#### Scenario: Rig parameters never reach the server
 
 - **WHEN** the page is requested
 - **THEN** the request line carries no rig identity and no encoded configuration
+
+#### Scenario: A token is not a rig
+
+- **WHEN** the page is opened with a token and no rig identity
+- **THEN** nothing is rendered, because the token names a channel and not a creature
 
 ### Requirement: The simulation runs on load
 
