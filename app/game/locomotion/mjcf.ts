@@ -27,12 +27,13 @@ export interface MjcfServoOpts {
   // changing it forces a rebuild — see mujocoRuntime's structural-key check. Defaults to Earth's pull,
   // which is what every pre-flight preset and shared link was measured under.
   gravityY?: number
-  // The flight tank (Phase T1). When absent the world keeps its single infinite floor plane, so every
-  // existing preset and link builds a bit-identical model. When present the floor is replaced by six
-  // bounded planes forming a closed box, and three massless hull spheres are added along the body so it
-  // can strike a wall — with no gravity there is nothing else to stop it leaving the observable region.
-  // The box is centred on the creature in all three axes, vertical included, so a flying body sits in
-  // the middle of the window rather than along its bottom edge.
+  // The tank. When absent the world keeps its single infinite floor plane, so every pre-tank preset and
+  // link builds a bit-identical model. When present, massless hull spheres are added along the body so
+  // it can strike a wall.
+  //
+  // What the tank contributes underneath depends on whether the body has weight — see the world surface
+  // below. In flight the bottom is glass like the rest, because there is nothing else to stop the body
+  // leaving the observable region. On the ground the bottom is the ground.
   tank?: { width: number; height: number; depth: number }
 }
 
@@ -243,12 +244,23 @@ export function buildMjcf(groups: BodyGroup[], opts: MjcfServoOpts = {}): MjcfRe
 
     const legMass = s.leg.nodeWeight ?? defaultWeightFor(s.leg.type)
 
+    // A hull sphere at the foot as well as at each trunk segment, and only where there is a tank.
+    // Measured: with the trunk alone carrying wall contacts, a 90 s grounded run held the SPINE exactly
+    // at the glass and pushed the FEET 2.2 units through it. That is invisible in flight, where the legs
+    // splay into a volume nothing else is using, and impossible to miss on the ground, where the camera
+    // frames the floor and a foot outside the tank is a foot outside the window. Four more spheres,
+    // massless, on the walls' own contact pair — still far short of the contact count that destabilised
+    // this solver.
     const xml = `      <body name="${legBody}" pos="${v3(legBodyPos)}">
         <joint name="${liftJoint}" type="hinge" pos="${v3(aHipLeg)}" axis="${liftAxis.map(f).join(' ')}" damping="${f(jointDamping)}"/>
         <joint name="${sweepJoint}" type="hinge" pos="${v3(aHipLeg)}" axis="${sweepAxis.map(f).join(' ')}" range="${f(-capSwing)} ${f(capStance)}" limited="true" damping="${f(jointDamping)}"/>
         <geom type="capsule" fromto="${v3(aHipLeg)} ${v3(footLegLocal)}" size="${f(legRadius)}" mass="${f(legMass)}" contype="0" conaffinity="0" rgba="0.8 0.6 0.2 1"/>
         <site name="${footSite}" pos="${v3(footLegLocal)}" size="0.03"/>
-        <geom name="${footSite}_ball" type="sphere" condim="1" pos="${v3(footLegLocal)}" size="${f(Math.max(0.05, s.foot.y - groundTop))}" density="0" contype="2" conaffinity="1" rgba="0.2 0.8 0.4 0.5"/>
+        <geom name="${footSite}_ball" type="sphere" condim="1" pos="${v3(footLegLocal)}" size="${f(Math.max(0.05, s.foot.y - groundTop))}" density="0" contype="2" conaffinity="1" rgba="0.2 0.8 0.4 0.5"/>${
+          tank
+            ? `\n        <geom name="${footSite}_hull" type="sphere" condim="1" pos="${v3(footLegLocal)}" size="${f(legRadius)}" density="0" contype="4" conaffinity="4" rgba="0.9 0.4 0.4 0"/>`
+            : ''
+        }
       </body>`
 
     if (!legNodes.has(s.parentIndex)) legNodes.set(s.parentIndex, [])
@@ -399,24 +411,46 @@ ${inner}
     ]),
   ].join('\n')
 
-  // The world surface. Without a tank it is the single infinite floor plane the walking work used.
-  // With one it is six bounded planes forming a closed box: each is an infinite plane in MuJoCo, but
-  // collision only happens on the side its local +z points at, so six of them facing inward enclose a
-  // volume. The floor face keeps the ground height the plane already had, so the surface underfoot does
-  // not move when the tank is switched on and a gravity-on tank run stays comparable to a floor run.
+  // The world surface, composed from two independent questions rather than switched on one: is there a
+  // floor to stand on, and is there a container.
+  //
+  // A tank surface is an infinite plane in MuJoCo — its `size` is a rendering hint — but collision only
+  // happens on the side its local +z points at, so planes facing inward enclose a volume.
+  //
+  // GLASS UNDERFOOT ONLY WHERE THERE IS NOTHING TO STAND ON. The tank was built for flight, where the
+  // bottom is glass like the rest, and it replaced the floor plane outright. That silently takes the
+  // ground away from a body that has weight: the tank's panes are on their own contact pair (bit 4)
+  // touched by nothing but the hull spheres, while the feet touch only the walking floor. Switching the
+  // tank on under gravity therefore left the feet with nothing to reach, and the body sank until its
+  // trunk rested on the bottom pane with its legs through the glass.
+  //
+  // So under gravity the walking floor stays exactly as it was, on exactly its own contact pair, and the
+  // tank contributes its four walls and its ceiling and no bottom of its own. The alternative — one pane
+  // serving both, its mask widened to bits 1 and 4 — would put eleven trunk hull spheres in contact with
+  // the ground whenever the body lay low, which is the many-redundant-coplanar-contacts failure this
+  // solver has already produced twice. The measured isolation is kept.
+  //
+  // The ceiling is unreachable under gravity and is emitted anyway: a container the body cannot leave is
+  // cheaper to keep whole than to make conditional.
+  //
   // Centred horizontally on the body's own start position rather than on the origin, because the rig is
   // laid out wherever its nodes put it.
+  const grounded = gravityY !== 0
   const bodyCx = centers.reduce((s, c) => s + c.x, 0) / centers.length
   const bodyCz = centers.reduce((s, c) => s + c.z, 0) / centers.length
-  // The tank is centred on the creature's start position in ALL THREE axes, vertical included.
-  // It was first built resting on the old ground height, on the reasoning that keeping the surface
-  // underfoot unmoved would make a gravity-on tank run comparable to a floor run. Looking at the
-  // overlay killed that: the creature flies at the height it started, so a tank extending only upward
-  // put it along the very bottom edge of the window with two thirds of the pane empty above it. The
-  // comparison it was protecting does not need the tank anyway — a floor run is simply a run with the
-  // tank off, which is how the gravity-on baseline was actually captured.
+  // Vertically the two mediums want different things, and each reason is a reason about its own medium.
+  //
+  // Grounded, the tank stands ON the walking floor. There is already a plane the tank has to agree with,
+  // and disagreeing with it would publish bounds enclosing a slab of space below the ground that the
+  // creature never enters — and those bounds are what the overlay camera frames.
+  //
+  // Flying, there is no such plane, and the tank is centred on the body in all three axes. It was first
+  // built resting on the old ground height instead, to keep a gravity-on tank run comparable to a floor
+  // run. Looking at the overlay killed that: the creature flies at the height it started, so a tank
+  // extending only upward put it along the very bottom edge of the window with two thirds of the pane
+  // empty above it.
   const bodyCy = centers.reduce((s, c) => s + c.y, 0) / centers.length
-  const tankMinY = bodyCy - (tank?.height ?? 0) / 2
+  const tankMinY = grounded ? groundTop : bodyCy - (tank?.height ?? 0) / 2
   // Elastic walls. MuJoCo contacts are inelastic by default, and measured that way the body simply
   // stopped at the glass and stayed pressed against it for the rest of the run — contact was working,
   // rebound was not.
@@ -433,20 +467,26 @@ ${inner}
   // it. The timeconst must stay at or above two timesteps (2/120 = 0.0167) to remain stable, so 0.02 is
   // essentially the stiffest available here and the bounce is tuned with the ratio alone.
   //
-  // Applied to all six tank surfaces, the bottom pane included, since in flight the bottom is glass like
-  // the rest. The plain floor plane of the walking world is a separate geom and keeps the default
-  // contact, so nothing about standing changes.
+  // Applied to the tank surfaces only. The walking floor is a separate geom and keeps the default
+  // contact, so nothing about standing changes whether or not it is inside a tank.
   const wallSolref = 'solref="0.02 0.4"'
-  const worldXml = tank
+  const floorXml = `    <geom name="floor" type="plane" condim="1" pos="0 ${f(groundTop)} 0" zaxis="0 1 0" size="100 100 0.1" contype="1" conaffinity="2" rgba="0.4 0.4 0.45 1"/>`
+  const tankXml = tank
     ? [
-        `    <geom name="tank_floor" type="plane" ${wallSolref} condim="1" pos="${f(bodyCx)} ${f(tankMinY)} ${f(bodyCz)}" zaxis="0 1 0" size="${f(tank.width)} ${f(tank.depth)} 0.1" contype="4" conaffinity="4" rgba="0.4 0.4 0.45 0"/>`,
+        // The glass bottom exists only in flight. On the ground the floor geom above is the tank's floor.
+        ...(grounded
+          ? []
+          : [
+              `    <geom name="tank_floor" type="plane" ${wallSolref} condim="1" pos="${f(bodyCx)} ${f(tankMinY)} ${f(bodyCz)}" zaxis="0 1 0" size="${f(tank.width)} ${f(tank.depth)} 0.1" contype="4" conaffinity="4" rgba="0.4 0.4 0.45 0"/>`,
+            ]),
         `    <geom name="tank_ceiling" type="plane" ${wallSolref} condim="1" pos="${f(bodyCx)} ${f(tankMinY + tank.height)} ${f(bodyCz)}" zaxis="0 -1 0" size="${f(tank.width)} ${f(tank.depth)} 0.1" contype="4" conaffinity="4" rgba="0.4 0.4 0.45 0"/>`,
         `    <geom name="tank_xmin" type="plane" ${wallSolref} condim="1" pos="${f(bodyCx - tank.width / 2)} ${f(tankMinY + tank.height / 2)} ${f(bodyCz)}" zaxis="1 0 0" size="${f(tank.height)} ${f(tank.depth)} 0.1" contype="4" conaffinity="4" rgba="0.4 0.4 0.45 0"/>`,
         `    <geom name="tank_xmax" type="plane" ${wallSolref} condim="1" pos="${f(bodyCx + tank.width / 2)} ${f(tankMinY + tank.height / 2)} ${f(bodyCz)}" zaxis="-1 0 0" size="${f(tank.height)} ${f(tank.depth)} 0.1" contype="4" conaffinity="4" rgba="0.4 0.4 0.45 0"/>`,
         `    <geom name="tank_zmin" type="plane" ${wallSolref} condim="1" pos="${f(bodyCx)} ${f(tankMinY + tank.height / 2)} ${f(bodyCz - tank.depth / 2)}" zaxis="0 0 1" size="${f(tank.width)} ${f(tank.height)} 0.1" contype="4" conaffinity="4" rgba="0.4 0.4 0.45 0"/>`,
         `    <geom name="tank_zmax" type="plane" ${wallSolref} condim="1" pos="${f(bodyCx)} ${f(tankMinY + tank.height / 2)} ${f(bodyCz + tank.depth / 2)}" zaxis="0 0 -1" size="${f(tank.width)} ${f(tank.height)} 0.1" contype="4" conaffinity="4" rgba="0.4 0.4 0.45 0"/>`,
-      ].join('\n')
-    : `    <geom name="floor" type="plane" condim="1" pos="0 ${f(groundTop)} 0" zaxis="0 1 0" size="100 100 0.1" contype="1" conaffinity="2" rgba="0.4 0.4 0.45 1"/>`
+      ]
+    : []
+  const worldXml = [...(grounded || !tank ? [floorXml] : []), ...tankXml].join('\n')
 
   const xml = `<mujoco model="eco3d-salamander">
   <compiler angle="radian" autolimits="true"/>

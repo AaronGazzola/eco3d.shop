@@ -5,7 +5,7 @@ import { useSharedStore } from '@/app/admin/_lib/sharedStore'
 import { useLoadRig } from '@/app/admin/_lib/hooks'
 import { useAnimateStore } from '@/app/admin/animate/animateStore'
 import { applyPreset } from '@/app/admin/animate/simPresets'
-import { resolveMotion } from './motion/resolve'
+import { CRUISE, resolveMotion, TankView } from './motion/resolve'
 import { createWorld, World } from './core/world'
 import { WorldState } from './core/types'
 import { DrivableHost } from './hosts'
@@ -23,6 +23,10 @@ export function useGameSession(host: DrivableHost | null) {
   const segments = useSharedStore((s) => s.segments)
   const appliedMotion = useRef<string | null>(null)
   const started = useRef(false)
+  // The face the tank is watched through travels with the motion, so the surface presenting it cannot
+  // disagree with what is running. Seeded from cruise rather than from null: the first frame draws
+  // before any motion has been applied, and a camera with no face is a camera pointing at the origin.
+  const [motionView, setMotionView] = useState<TankView>(() => resolveMotion(CRUISE).view)
 
   if (host && !worldRef.current) worldRef.current = createWorld(host)
 
@@ -61,6 +65,7 @@ export function useGameSession(host: DrivableHost | null) {
     if (appliedMotion.current === requested) return
     const resolved = resolveMotion(requested)
     applyPreset(resolved.preset)
+    setMotionView(resolved.view)
     appliedMotion.current = requested
   }, [ready, snapshot])
 
@@ -69,5 +74,5 @@ export function useGameSession(host: DrivableHost | null) {
     return { segmentColors: paintSegments(segments.map((s) => s.id)) }
   }, [segments])
 
-  return { ready, failed, dressing, snapshot, world: worldRef.current }
+  return { ready, failed, dressing, snapshot, motionView, world: worldRef.current }
 }

@@ -50,7 +50,7 @@ export default function HomePage() {
   const rigs = useQuery({ queryKey: ['dragon-rigs'], queryFn: () => listDragonRigsAction() })
   const rigId = rigs.data?.[0]?.id ?? null
   const host = useMemo(() => (rigId ? createStandaloneHost(rigId) : null), [rigId])
-  const { ready, failed, dressing, snapshot, world } = useGameSession(host)
+  const { ready, failed, dressing, snapshot, motionView, world } = useGameSession(host)
 
   return (
     // The backdrop is deliberately not near-black. Obsidian is one of the three filaments, and on a
@@ -73,7 +73,7 @@ export default function HomePage() {
         ) : ready && dressing ? (
           <StudioCanvas background="transparent" grid={false} controls={false}>
             <GameScene dressing={dressing} rootRef={rootRef} />
-            <TankCamera />
+            <TankCamera view={motionView} />
           </StudioCanvas>
         ) : (
           <CreatureSkeleton />

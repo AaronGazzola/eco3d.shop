@@ -143,6 +143,29 @@ export const SIM_PRESETS: SimPreset[] = [
     legWeight: MUJOCO_LEG_WEIGHT,
   },
 
+  // The grounded counterpart, and what the overlay's `cruise` resolves to. `flight base` with its weight
+  // put back: the same approved swim, the same tank, and gravity left at the default rather than zeroed.
+  // Omitting gravityY is not an oversight — applySimConfigAbsolute fills every absent key from the
+  // defaults, so this preset pins Earth's pull as firmly as `flight base` pins zero, and the pair differs
+  // by exactly one lever.
+  //
+  // Under gravity the tank keeps the walking floor and contributes only its walls and ceiling, so the
+  // feet still find the ground; see the world surface in mjcf.ts for why that is not the same code path
+  // as the flying tank.
+  {
+    name: 'ground tank',
+    description: 'MEASURED 15-Aug-2026, 90 s. The approved base swim inside the same 60x30x40 tank as `flight base`, with gravity left on — the pair differs by that one lever and nothing else. Swims along the floor: builds to 2.02 u/s (fastest 3 s window) against 1.53 on the open plane, holds its height to 0.044 u of drift over 90 s, peak roll 2.42° at 4.0 reversals/s. CONTAINED — closest approach to any wall 0.81 u, never outside, feet included. CAVEAT: it reaches the far wall at about 16 s, slides ~13 u along it into a corner, and parks there for the remaining 45 s drifting under 1 u. Watchable until the first wall, exactly as `flight base` is; steering is what fixes that, not this preset. Unlike flight, a sustained press cannot pitch it into the ceiling — weight opposes it. Clips 8 of 10 joints at or over cap. Light legs (0.1 kg), rigid, no thrust, drag ON.',
+    engine: 'mujoco',
+    config: {
+      ...MUJOCO_BASE_SWIM,
+      tankEnabled: true,
+      tankWidth: 60,
+      tankHeight: 30,
+      tankDepth: 40,
+    },
+    legWeight: MUJOCO_LEG_WEIGHT,
+  },
+
   // ── Rapier — the earlier reference tunings ────────────────────────────────────────────────────────
   // The pure CPG body wave with the legs built and held rigid, no grip, no drag. With no drag the body
   // just undulates in place (no net travel) — this is the clean traveling wave the grip timing is read

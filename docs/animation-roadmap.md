@@ -648,6 +648,22 @@ A dated log of decisions, with reasoning. Settled one at a time as we work throu
     twists fluidly along its length as it turns rather than banking as one rigid piece. That needs a
     **schema addition** — the rig carries sideways and up/down limits per group but no roll limit — and
     those limits are physical in the same sense as the others, so they are measured off the print too.
+16. **The overlay creature is GROUNDED, watched from above. Flight is sidelined.** _2026-08-15, by the
+    owner._ `cruise` — the only motion the game publishes — resolves to `ground tank`: the approved base
+    swim, inside the same 60×30×40 tank the flight baseline uses, with gravity left on. The overlay
+    camera watches the tank's floor from directly above. **Why:** flight reaches a wall at about 22 s
+    and a sustained press against the glass pitches the body into the ceiling, and the steering that
+    would fix that (T2/T6) is a phase that has not been built. Grounded, weight opposes the press:
+    measured over 90 s the body reaches the wall at about 16 s, slides along it into a corner and parks
+    there, drifting under 1 unit — untidy, but stable, and it never leaves the tank. **This does not
+    supersede Decision 12 or 13.** Flight remains the intended destination and `flight base` stays
+    published, measured and unreferenced. Stepping stays parked; the owner intends to revisit walking
+    separately. **What it cost to build:** the tank had never worked under gravity. It replaced the
+    world's floor plane outright, and its panes are on a contact pair the feet do not touch, so a
+    creature with weight inside a tank had nothing to stand on. The rule is now that the tank's bottom
+    is glass only where there is nothing to stand on. **Measured 15-Aug-2026, 90 s:** 2.02 u/s at its
+    fastest 3 s window against 1.53 on the open plane, height drift 0.044 u, peak roll 2.42° at 4.0
+    reversals/s, closest approach to any wall 0.81 u with the feet included.
 
 ---
 
@@ -1720,3 +1736,52 @@ floor and gravity gone, and no angular drag applied in the working engine, nothi
   `/handover` at the end of a session and read then deleted by `/sync` at the start of the next. `/sync`
   also refreshes the shared skills **before** it runs rather than during, since a newer `/sync` used to
   land on disk after its own instructions were already in context.
+
+- **2026-08-15 (the creature is grounded, the tank works under gravity, and the camera looks down)** —
+  Tracked by the OpenSpec change `ground-the-overlay-creature`. Decision 16. Flight is sidelined rather
+  than abandoned; `flight base` stays published, measured and unreferenced.
+
+  **The tank had never worked under gravity, and the way it failed was invisible.** The T1 tank was built
+  for a body with no weight, so its bottom is glass like the rest, and it **replaced** the world's floor
+  plane rather than adding to it. Its six panes sit on a contact pair touched by one hull sphere per trunk
+  segment and by nothing else; the feet touch only the walking floor. Switching the tank on under gravity
+  therefore took the ground away, and the body would have sunk onto the bottom pane with its legs through
+  the glass. The rule now is that **the tank's bottom is glass only where there is nothing to stand on**:
+  under gravity the walking floor stays exactly as it was, on exactly its own contact pair, and the tank
+  contributes its four walls and its ceiling. One pane serving both, with its mask widened, was rejected —
+  it would put eleven trunk hull spheres in contact with the ground whenever the body lay low, which is
+  the many-redundant-coplanar-contacts failure this repository has now recorded three times.
+
+  **The trunk alone does not contain the creature; the feet needed hulls too.** A 90 s grounded run held
+  the spine exactly at the glass and pushed the **feet 2.2 units through it**. That is invisible in
+  flight, where the legs splay into a volume nothing else uses, and impossible to miss on the ground,
+  where the camera frames the floor and a foot outside the tank is a foot outside the window. Four more
+  massless spheres on the walls' own pair, only where a tank exists. With them the closest approach to any
+  wall over 90 s is **0.81 u** and nothing leaves.
+
+  **Grounded, measured, 90 s.** Builds to **2.02 u/s** at its fastest 3 s window against 1.53 on the open
+  plane. Height drift **0.044 u**. Peak roll **2.42°** at 4.0 reversals/s. It reaches the far wall at
+  about **16 s**, slides some 13 u along it into a corner, and parks there for the remaining 45 s drifting
+  under 1 u. **Unlike flight, a sustained press cannot pitch it into the ceiling** — weight opposes it —
+  so the failure at a wall is untidy rather than destructive. Watchable until the first wall, exactly as
+  `flight base` is; steering is what fixes that, not this preset.
+
+  **The camera frames the floor, not the tank.** Fitting the near face overhead means fitting the
+  **ceiling**, and the creature then lives 30 units beyond the plane being framed: it came out at roughly
+  a fifth of the window with the rest empty. It also made how large the creature looks depend on how tall
+  the tank is, which is nothing to a grounded creature but headroom it never uses. The fit is now a pure
+  function of bounds, face, aspect and field of view, checked by projecting the corners rather than
+  inferred from a screenshot — and that check immediately caught a second defect the picture could not
+  have shown: with the aim left at the tank's mid-height, a tank taller than twice the fitted distance
+  put the target **above** the camera and it looked at the ceiling.
+
+  **A published motion now declares the face it is watched through**, so a motion and its camera cannot
+  disagree. The camera had been hardcoded side-on, which was correct only while every motion was flight.
+
+  **A capture taken with hand-typed `--set` flags is not a capture of a preset.** The first 90 s run was
+  taken with twenty flags and the config it actually ran carried `frontDrive` 0.6, `liftAmount` 0.3 and a
+  grip window inherited from whatever the studio had last been left on — every lever the flags did not
+  name kept the browser's persisted value. `scripts/dump-preset-config.ts` now writes a preset's absolute
+  config to JSON for `observe --config`, so the harness is handed the preset itself. The observation
+  harness's default rig name (`baby cyber dragon`) is also stale; the rigs are now called `Demo Dragon`,
+  and `OBSERVE_RIG` has to be set until that default is fixed.

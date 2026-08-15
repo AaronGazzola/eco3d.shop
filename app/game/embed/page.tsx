@@ -61,7 +61,7 @@ export default function GameEmbedPage() {
 
   const link = env?.link ?? null
   const host = useMemo(() => (link ? createPlatformHost(link.rigId, link.legWeight) : null), [link])
-  const { ready, failed, dressing, world } = useGameSession(host)
+  const { ready, failed, dressing, motionView, world } = useGameSession(host)
 
   // Observation hook, read-only, in the spirit of `__studio` on the animate page and
   // docs/observation-loop.md. A chatter feeding the creature changes nothing a camera can see, so
@@ -124,7 +124,7 @@ export default function GameEmbedPage() {
     <div className="fixed inset-0">
       <StudioCanvas background={background} grid={false} controls={env.inspect}>
         <GameScene dressing={dressing} rootRef={rootRef} />
-        <TankCamera />
+        <TankCamera view={motionView} />
       </StudioCanvas>
     </div>
   )

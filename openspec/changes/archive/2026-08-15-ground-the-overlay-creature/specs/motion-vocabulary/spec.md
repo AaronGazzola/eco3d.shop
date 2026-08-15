@@ -1,38 +1,16 @@
-# motion-vocabulary Specification
+## REMOVED Requirements
 
-## Purpose
-TBD - created by archiving change add-game-core-and-hosts. Update Purpose after archive.
-## Requirements
-### Requirement: Motion is requested by name, never by configuration
+### Requirement: `cruise` resolves to the published flight baseline
 
-The game core SHALL request creature motion by a primitive name. The core SHALL NOT construct, hold, or
-pass a `SimConfig`, and SHALL NOT read the research studio's preset module. Resolving a name to a
-configuration SHALL happen only inside the motion layer.
+**Reason**: `cruise` no longer names flight. Flight reaches a wall and is pitched into the ceiling, and
+the steering that would fix it has not been built, so the overlay's creature is grounded until it has.
+The requirement's name and its scenarios are both specific to flying.
 
-#### Scenario: The core asks for a motion by name
+**Migration**: Replaced in full by "`cruise` resolves to the published cruising baseline" below, which
+keeps the substance — the core names a motion and the motion layer chooses the configuration — and drops
+the assumption that cruising means flying. `flight base` stays published; nothing resolves to it.
 
-- **WHEN** the core wants the creature to cruise
-- **THEN** it names `cruise`, and the configuration that produces cruising is chosen by the motion layer
-
-#### Scenario: No configuration reaches the core
-
-- **WHEN** the import graph of the game core is traversed
-- **THEN** no simulation configuration type is imported into it
-
-### Requirement: An unknown primitive falls back to cruise
-
-The motion layer SHALL resolve any primitive name it does not recognise to `cruise`, and SHALL record
-that the fallback was taken. It SHALL NOT throw, and SHALL NOT leave the creature motionless.
-
-#### Scenario: A primitive the animation track has not built yet
-
-- **WHEN** the core requests `pursue` and no configuration is published under that name
-- **THEN** the creature cruises, the fallback is recorded, and play continues uninterrupted
-
-#### Scenario: A published primitive is used directly
-
-- **WHEN** the core requests a name that is published
-- **THEN** that configuration is applied and no fallback is recorded
+## ADDED Requirements
 
 ### Requirement: `cruise` resolves to the published cruising baseline
 
@@ -73,4 +51,3 @@ watched from a different direction SHALL change the camera by that act alone.
 - **WHEN** a motion name is resolved
 - **THEN** the result carries the face that motion is watched through
 - **AND** a name that fell back to `cruise` carries `cruise`'s face
-
