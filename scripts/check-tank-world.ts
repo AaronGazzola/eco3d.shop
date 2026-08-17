@@ -1,5 +1,6 @@
 import { BodyGroup } from '@/app/admin/_lib/types'
 import { buildMjcf } from '@/app/game/locomotion/mjcf'
+import { STD_SEGMENT_WIDTH } from '@/app/game/locomotion/weights'
 
 // The tank was built for flight, where the bottom is glass like the rest, and it REPLACED the world's
 // floor plane. That silently took the ground away from a body with weight: the tank's panes are on their
@@ -157,6 +158,26 @@ console.log('the feet are contained too, and only where there is something to co
     'the foot’s floor contact is untouched',
     (enclosed.xml.match(/_ball" type="sphere" condim="1"[^>]*contype="2" conaffinity="1"/g) ?? []).length === 4
   )
+}
+
+// Reported rather than asserted, because the number this is compared against is a property of the
+// CAMERA and not of the world. scripts/measure-frame-headroom.ts reports the height above the floor at
+// which the overhead camera's window becomes narrower than the tank; anything higher than that, against
+// a wall, is outside the window while still inside the tank. These are the heights the model is built
+// with, so they are what that figure has to be compared against.
+console.log('how high off the floor the body sits, as built')
+{
+  const w = world({ gravityY: -9.81, tank: TANK })
+  const groundTop = w.meta.groundTop
+  const hullRadius = STD_SEGMENT_WIDTH / 2
+  const spineAboveFloor = SPINE_Y - groundTop
+  const topOfTrunk = spineAboveFloor + hullRadius
+  const f = (n: number) => n.toFixed(2)
+  console.log(`  the floor stands at            ${f(groundTop)}`)
+  console.log(`  the spine's centre sits        ${f(spineAboveFloor)} above the floor`)
+  console.log(`  the top of the trunk reaches   ${f(topOfTrunk)} above the floor`)
+  console.log(`  compare against the headroom from scripts/measure-frame-headroom.ts`)
+  console.log(`  these are rest heights from the built model, not the peak of a run`)
 }
 
 if (failures > 0) {
