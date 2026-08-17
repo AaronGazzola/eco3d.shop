@@ -3,8 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { StudioCanvas } from '@/app/admin/_lib/StudioCanvas'
+import { useAnimateStore } from '@/app/admin/animate/animateStore'
 import { GameScene } from '@/app/game/GameScene'
+import { TankBounds } from '@/app/game/TankBounds'
 import { TankCamera } from '@/app/game/TankCamera'
+import { tankForBox } from '@/app/game/tankForBox'
 import { useGameSession } from '@/app/game/game.hooks'
 import { createPlatformHost, readPlatformLink } from '@/app/game/hosts'
 import { connectPlatform, watchPlatformErrors } from '@/app/game/platform/channel'
@@ -12,6 +15,7 @@ import { verifyChannelTokenAction } from '@/app/game/platform/page.actions'
 
 interface EmbedEnvironment {
   inspect: boolean
+  bounds: boolean
   framed: boolean
   link: { rigId: string; legWeight: number | null } | null
   token: string | null
@@ -38,6 +42,11 @@ export default function GameEmbedPage() {
     const params = new URLSearchParams(window.location.hash.replace(/^#/, ''))
     return {
       inspect: params.get('controls') === '1',
+      // A diagnostic, not a mode: it changes what an observer sees and nothing about what the creature
+      // does. Off when absent, so a link written before the flag existed behaves exactly as it did. Kept
+      // separate from `controls`, which also turns on orbit controls and an opaque background — both
+      // wrong on a stream, where this outline has to be watchable to be worth anything.
+      bounds: params.get('bounds') === '1',
       framed: window.self !== window.top,
       link: readPlatformLink(window.location.hash),
       token: new URLSearchParams(window.location.search).get('t'),
@@ -52,10 +61,18 @@ export default function GameEmbedPage() {
   // docs/observation-loop.md. A chatter feeding the creature changes nothing a camera can see, so
   // without this the only way to claim it worked would be to assert that it must have. It exposes state
   // and no way to change it: nothing here can feed the creature, only report that something did.
+  //
+  // `reset` is the one exception, and it changes nothing a page reload would not: the simulation runs in
+  // this browser, so restarting the server leaves it running, and without a reset every observation
+  // starts from wherever the last one ended.
   useEffect(() => {
     if (!world) return
     const w = window as unknown as { __game?: Record<string, unknown> }
-    w.__game = { state: () => world.state(), channel: () => channelRef.current }
+    w.__game = {
+      state: () => world.state(),
+      channel: () => channelRef.current,
+      reset: () => useAnimateStore.getState().resetCreature(),
+    }
     return () => {
       delete (w as { __game?: unknown }).__game
     }
@@ -93,13 +110,32 @@ export default function GameEmbedPage() {
   //
   // Settings reach the creature through the host, which world.tick re-reads every tick; a command
   // becomes an action by a viewer.
+  // The window the creature is watched through, as the host measures it. Held rather than applied
+  // directly: the tank's walls are geometry inside the physics model, so resizing rebuilds it and the
+  // creature restarts in the middle. The host reports a box on every drag frame, and rebuilding on each
+  // one would restart the creature continuously, so the box is applied through the effect below.
+  const [box, setBox] = useState<{ width: number; height: number } | null>(null)
   useEffect(() => {
     if (!host || !channel) return
     return connectPlatform({
       onSettings: (settings) => host.applyPlatformSettings(settings),
       onEvent: (event) => host.deliver(event),
+      onBox: (next) => setBox({ width: next.width, height: next.height }),
     })
   }, [host, channel])
+
+  // The creature's world takes the window's shape. Nothing is written until a box has actually been
+  // reported: an overlay passes through that state on every load, and writing defaults there would
+  // rebuild the model for no reason.
+  const roominess = host?.getRoominess() ?? 1
+  useEffect(() => {
+    if (!box) return
+    const { tankWidth, tankHeight, tankDepth } = tankForBox({ ...box, roominess })
+    const store = useAnimateStore.getState()
+    if (store.tankWidth === tankWidth && store.tankHeight === tankHeight && store.tankDepth === tankDepth)
+      return
+    useAnimateStore.setState({ tankWidth, tankHeight, tankDepth })
+  }, [box, roominess])
 
   if (!env || failed || !ready || !dressing) return <div className="fixed inset-0" />
 
@@ -109,6 +145,7 @@ export default function GameEmbedPage() {
     <div className="fixed inset-0">
       <StudioCanvas background={background} grid={false} controls={env.inspect}>
         <GameScene dressing={dressing} rootRef={rootRef} />
+        {env.bounds && <TankBounds />}
         <TankCamera view={motionView} />
       </StudioCanvas>
     </div>

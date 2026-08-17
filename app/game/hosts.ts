@@ -10,7 +10,14 @@ export interface DrivableHost extends GameHost {
 export interface PlatformDrivenHost extends DrivableHost {
   applyPlatformSettings(settings: PlatformSettings): void
   deliver(event: PlatformEvent): void
+  // How much world the creature's window shows, and so how large the creature reads inside it. A
+  // preference the streamer chooses, unlike the box, which is a measurement the host takes.
+  getRoominess(): number
 }
+
+const DEFAULT_ROOMINESS = 1
+const ROOMINESS_MIN = 0.25
+const ROOMINESS_MAX = 4
 
 const DEFAULT_CREATURE_NAME = 'Dragon'
 
@@ -36,9 +43,11 @@ export function createStandaloneHost(rigId: string): DrivableHost {
 
 export function createPlatformHost(rigId: string, legWeight: number | null): PlatformDrivenHost {
   const { host, settings } = createHost({ id: rigId, rigId, legWeight }, OVERLAY_STREAMER)
+  let roominess = DEFAULT_ROOMINESS
 
   return {
     ...host,
+    getRoominess: () => roominess,
     // Mapped, never adopted. The platform's settings are an opaque object it does
     // not interpret, so a key added there later cannot break the game and a key
     // withdrawn falls back to the default. `world.tick` re-reads getSettings on
@@ -47,6 +56,16 @@ export function createPlatformHost(rigId: string, legWeight: number | null): Pla
       const name = incoming.creatureName
       settings.creatureName =
         typeof name === 'string' && name.trim() ? name.trim() : DEFAULT_CREATURE_NAME
+      // Mapped, never adopted, exactly as the name is. A room figure the host omits, mistypes or sends
+      // out of range falls back to the value that reproduces the tank the game has always run.
+      const room = (incoming as { roominess?: unknown }).roominess
+      roominess =
+        typeof room === 'number' &&
+        Number.isFinite(room) &&
+        room >= ROOMINESS_MIN &&
+        room <= ROOMINESS_MAX
+          ? room
+          : DEFAULT_ROOMINESS
     },
     // A chatter is a viewer, not the streamer. The actor id is the opaque one the
     // platform supplied: stable for this chatter on this channel in this overlay,

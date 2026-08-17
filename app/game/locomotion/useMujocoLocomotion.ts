@@ -28,6 +28,7 @@ export function useMujocoLocomotion(
   const accRef = useRef(0)
   const builtGroupsRef = useRef<BodyGroup[] | null>(null)
   const builtWorldRef = useRef<string | null>(null)
+  const builtNonceRef = useRef<number | null>(null)
   const obsDriverRef = useRef<MujocoLocomotion | null>(null)
   const baseComRef = useRef<[number, number, number] | null>(null)
   const diagAccumRef = useRef(0)
@@ -222,6 +223,7 @@ export function useMujocoLocomotion(
         driverRef.current = null
         builtGroupsRef.current = null
         builtWorldRef.current = null
+        builtNonceRef.current = null
         hideIndicators()
       }
       accRef.current = 0
@@ -233,9 +235,15 @@ export function useMujocoLocomotion(
     // cannot be changed on a live driver — the model has to be regenerated. Everything else is read per
     // step and must NOT rebuild, which is why the comparison is against a key of the structural levers
     // only and not against the config as a whole.
+    // A reset rides alongside the structural key rather than inside it: the key is derived from SimConfig,
+    // which is what makes a preset reproducible, so a nonce in there would make two identical presets
+    // compare unequal. Same rebuild, asked for directly.
     const structuralKey = mujocoStructuralKey(pickSimConfig(store))
     const stale =
-      driverRef.current === null || builtGroupsRef.current !== groups || builtWorldRef.current !== structuralKey
+      driverRef.current === null ||
+      builtGroupsRef.current !== groups ||
+      builtWorldRef.current !== structuralKey ||
+      builtNonceRef.current !== store.resetNonce
     if (!loadingRef.current && stale) {
       if (driverRef.current) {
         driverRef.current.dispose()
@@ -244,6 +252,7 @@ export function useMujocoLocomotion(
       loadingRef.current = true
       const forGroups = groups
       const forWorld = structuralKey
+      const forNonce = store.resetNonce
       createMujocoLocomotion(groups, {
         gravityY: store.gravityY,
         tank: store.tankEnabled
@@ -254,6 +263,7 @@ export function useMujocoLocomotion(
           driverRef.current = d
           builtGroupsRef.current = forGroups
           builtWorldRef.current = forWorld
+          builtNonceRef.current = forNonce
           useAnimateStore.getState().setTankBounds(d.tankBounds())
         })
         .catch((e) => console.error('MuJoCo driver build failed', e))
