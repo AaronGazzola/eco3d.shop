@@ -29,6 +29,49 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+// An overlay that fails silently is indistinguishable from one nobody is feeding, so the failure is
+// told to the host instead of drawn on the stream. The host has a console, a channel id and a
+// dashboard; the frame has a rectangle over somebody's video.
+//
+// Capped, because the thing most likely to throw is the simulation tick, and a tick that throws throws
+// sixty times a second. The first few carry the diagnosis; the rest are the same line again.
+let reported = 0
+
+export function reportPlatformError(error: unknown, where: string): void {
+  if (typeof window === 'undefined' || window.parent === window) return
+  if (reported >= 5) return
+  reported += 1
+  const message =
+    error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+  window.parent.postMessage(
+    {
+      ns: PLATFORM_NS,
+      v: PLATFORM_VERSION,
+      type: 'error',
+      where,
+      message,
+      stack: error instanceof Error ? (error.stack ?? '').slice(0, 800) : '',
+    },
+    '*'
+  )
+}
+
+// The error boundary sees a render that threw and nothing else. Everything this overlay actually does
+// happens after the render — a physics tick, a WASM load, a fetch — and a throw there leaves the
+// creature frozen with no boundary ever firing. These two listeners are the only way that reaches
+// anyone.
+export function watchPlatformErrors(): () => void {
+  if (typeof window === 'undefined') return () => {}
+  const onError = (event: ErrorEvent) => reportPlatformError(event.error ?? event.message, 'runtime')
+  const onRejection = (event: PromiseRejectionEvent) => reportPlatformError(event.reason, 'promise')
+  window.addEventListener('error', onError)
+  window.addEventListener('unhandledrejection', onRejection)
+  return () => {
+    window.removeEventListener('error', onError)
+    window.removeEventListener('unhandledrejection', onRejection)
+  }
+}
+
 // Written from the platform's specification, not by loading its SDK. That is the
 // claim the platform makes about itself — the protocol is the contract, the SDK
 // is a convenience — and a second implementation is the only way to test it.

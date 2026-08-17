@@ -7,23 +7,8 @@ import { GameScene } from '@/app/game/GameScene'
 import { TankCamera } from '@/app/game/TankCamera'
 import { useGameSession } from '@/app/game/game.hooks'
 import { createPlatformHost, readPlatformLink } from '@/app/game/hosts'
-import { connectPlatform } from '@/app/game/platform/channel'
+import { connectPlatform, watchPlatformErrors } from '@/app/game/platform/channel'
 import { verifyChannelTokenAction } from '@/app/game/platform/page.actions'
-
-function useTransparentPage() {
-  useEffect(() => {
-    const html = document.documentElement
-    const body = document.body
-    const prevHtml = html.style.background
-    const prevBody = body.style.background
-    html.style.background = 'transparent'
-    body.style.background = 'transparent'
-    return () => {
-      html.style.background = prevHtml
-      body.style.background = prevBody
-    }
-  }, [])
-}
 
 interface EmbedEnvironment {
   inspect: boolean
@@ -38,7 +23,7 @@ export default function GameEmbedPage() {
   // for looking at the scene in a tab, where transparent means white. Framed, the page must stay
   // transparent whatever else the link asks for — the overlay composites over video.
   const rootRef = useRef<THREE.Group | null>(null)
-  useTransparentPage()
+  useEffect(() => watchPlatformErrors(), [])
 
   // Read during render rather than in an effect. The address bar and the framing state are client-only
   // and are read exactly once, because a browser source never navigates. Rendering nothing on the server
