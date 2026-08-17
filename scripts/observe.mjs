@@ -25,7 +25,7 @@ import { chromium } from 'playwright-core'
 import { mkdirSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir, platform } from 'node:os'
-import { bendDegrees, bendDegreesGeometric, centrelineSwing, tankClearance } from './observe-metrics.mjs'
+import { bendDegrees, bendDegreesGeometric, centrelineSwing, tankClearance, wallProximity, roaming, turnRate } from './observe-metrics.mjs'
 
 const BASE = process.env.OBSERVE_URL ?? 'http://127.0.0.1:3002'
 const EMAIL = process.env.OBSERVE_EMAIL ?? 'aaron@gazzola.dev'
@@ -33,7 +33,9 @@ const PASS = process.env.OBSERVE_PASS ?? 'password123!'
 const RIG = process.env.OBSERVE_RIG ?? 'baby cyber dragon'
 const OUT = 'docs/diagnostics/observe'
 const AUTH = 'scripts/.observe-auth.json'
-const ANGLES = ['top', 'side', 'front']
+// `tank` frames the whole tank rather than the creature, so a contact sheet shows whether the creature
+// stayed inside the floor rectangle. The other three frame the creature and cannot answer that.
+const ANGLES = ['tank', 'top', 'side', 'front']
 
 // Cross-platform chromium discovery. Prefer playwright-core's own resolved path (works once the
 // matching browser is installed via `npx playwright install chromium`); fall back to scanning the
@@ -181,9 +183,14 @@ if (CMD === 'login') {
   }
 
   const finalDiag = await page.evaluate(() => window.__studio.diag())
+  const tankBounds = await page.evaluate(() => window.__studio.tank?.() ?? null)
   const link = await page.evaluate(() => window.__studio.buildLink())
   const dump = await page.evaluate(() => window.__studio.nodeCaptureStop())
   await page.evaluate(() => window.__studio.drive(false))
+  // Every tank metric reads the bounds off the capture rather than off the config, because the tank is
+  // built around the creature's own start position rather than the origin. Without this the clearance
+  // metrics silently return null and a run reads as having no tank at all.
+  if (dump.spec && tankBounds) dump.spec.tankBounds = tankBounds
 
   // Impulse split: how much of the applied push came from the feet vs from drag. Raw world vectors —
   // deliberately not projected onto a forward direction, because the body has no heading and travel
@@ -211,6 +218,18 @@ if (CMD === 'login') {
       maxCapFrac: dump.maxCapFrac, maxRollDeg: dump.maxRollDeg, rollFlips: dump.rollFlips,
     }))
     writeNodeReport(`${OUT}/nodes-${stamp}.md`, dump, applied, { seconds, hz, diag: finalDiag, link })
+    const tr = turnRate(dump)
+    const rm = roaming(dump)
+    const worst = rm?.worstWindow?.span ?? null
+    if (dump.spec?.tankBounds) {
+      const wp = wallProximity(dump)
+      const tc = tankClearance(dump)
+      console.log(`containment: min side-wall clearance ${wp.min.toFixed(2)} u${tc?.escaped ? '  ⚠ ESCAPED' : ''}  within 2u for ${(wp.fractionWithin.find((r) => r.margin === 2).fraction * 100).toFixed(0)}% of the run`)
+      console.log(`roaming: smallest 15s excursion ${worst == null ? 'n/a' : worst.toFixed(2) + ' u'}${worst != null && worst < 3 ? '  ⚠ PARKED' : ''}  floor visited ${(rm.occupancy * 100).toFixed(0)}%`)
+    } else {
+      console.log(`containment: no tank in this run  (smallest 15s excursion ${worst == null ? 'n/a' : worst.toFixed(2) + ' u'})`)
+    }
+    console.log(`steering: turnBias ${applied.turnBias ?? 0} → turn rate ${tr ? tr.meanAbsDegPerSec.toFixed(2) + '°/s, net ' + tr.netDeg.toFixed(0) + '°' : 'n/a'}`)
     await renderTopDown(`${OUT}/nodes-${stamp}-topdown.png`, dump)
     console.log(`captured ${dump.samples.length} node samples (${dump.spec?.count} nodes @ ${hz}/s) → nodes-${stamp}.*`)
     if (dump.maxCapFrac != null) console.log(`peak maxJointFracOfCap (per-frame peak-hold) = ${Math.round(dump.maxCapFrac * 100)}%  ${dump.maxCapFrac >= 1 ? '⚠ CLIPS CAP' : 'OK (under cap)'}`)
@@ -349,6 +368,45 @@ function reportAmplitudeQuality(dump, emit) {
 }
 
 // ---- node report + rendering ----------------------------------------------
+function reportSteering(lines, dump, cfg) {
+  lines.push('')
+  lines.push('## Containment and roaming')
+  const b = dump.spec?.tankBounds
+  if (!b) {
+    lines.push('no tank bounds in this capture — the running motion carries no tank, so containment is undefined')
+    return
+  }
+  const f = (x, d = 2) => Number(x).toFixed(d)
+  lines.push(`tank interior: X ${f(b.minX, 1)}..${f(b.maxX, 1)}  Y ${f(b.minY, 1)}..${f(b.maxY, 1)}  Z ${f(b.minZ, 1)}..${f(b.maxZ, 1)}`)
+  lines.push(`turnBias in this run: ${cfg?.turnBias ?? 0}`)
+  const tc = tankClearance(dump)
+  if (tc) {
+    lines.push(`worst clearance to any wall: ${f(tc.worstAny)} u${tc.escaped ? '   ESCAPED' : ''}`)
+    lines.push(`  by wall: -X ${f(tc.worst.minX)}  +X ${f(tc.worst.maxX)}  -Z ${f(tc.worst.minZ)}  +Z ${f(tc.worst.maxZ)}  floor ${f(tc.worst.minY)}  ceiling ${f(tc.worst.maxY)}`)
+  }
+  const wp = wallProximity(dump)
+  if (wp) {
+    lines.push(`minimum side-wall clearance: ${f(wp.min)} u`)
+    for (const r of wp.fractionWithin) lines.push(`  time within ${r.margin} u of a side wall: ${(r.fraction * 100).toFixed(1)}%`)
+  }
+  const rm = roaming(dump)
+  if (rm?.worstWindow) {
+    const w = rm.worstWindow
+    lines.push(`smallest 15 s excursion: ${f(w.span)} u between t=${f(w.from, 1)}s and t=${f(w.to, 1)}s${w.span < 3 ? '   PARKED' : ''}`)
+  } else {
+    lines.push('smallest 15 s excursion: run too short to judge parking')
+  }
+  if (rm?.coverageX != null) {
+    lines.push(`tank coverage by the centre of mass: ${(rm.coverageX * 100).toFixed(1)}% of width, ${(rm.coverageZ * 100).toFixed(1)}% of depth`)
+    lines.push(`floor actually visited: ${(rm.occupancy * 100).toFixed(1)}% of the tank floor`)
+  }
+  const tr = turnRate(dump)
+  lines.push(tr
+    ? `heading: net ${tr.netDeg.toFixed(1)}°, mean turn rate ${tr.meanAbsDegPerSec.toFixed(2)}°/s`
+    : 'heading: not measurable — the centre of mass barely moved')
+}
+
+
 function writeNodeReport(path, dump, cfg, meta) {
   const { samples, spec } = dump
   const n = spec?.count ?? samples[0].nodes.length
@@ -382,6 +440,7 @@ function writeNodeReport(path, dump, cfg, meta) {
     lines.push(`  foot thrust: ${v(meta.diag.footImpulseX, meta.diag.footImpulseY, meta.diag.footImpulseZ)}`)
     lines.push(`  drag:        ${v(meta.diag.dragImpulseX, meta.diag.dragImpulseY, meta.diag.dragImpulseZ)}`)
   }
+  reportSteering(lines, dump, cfg)
   lines.push('')
   lines.push('## Amplitude quality (roadmap §6 metric 2)')
   reportAmplitudeQuality(dump, (s) => lines.push(s))

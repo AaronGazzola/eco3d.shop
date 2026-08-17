@@ -175,6 +175,141 @@ export function tankClearance(dump, tolerance = 1.0) {
   return { bounds: b, worst, worstAny: Math.min(...values), escaped: Math.min(...values) < -tolerance }
 }
 
+// How much of the run was spent close to the glass, which is the number steering has to move. Distinct
+// from tankClearance: that reports the single worst instant, and a body that touches a wall once is not
+// the same failure as one that lives against it. Side walls only (X and Z) — the floor is what a
+// grounded creature stands on and would otherwise read as a permanent zero.
+export function wallProximity(dump, margins = [1, 2, 4]) {
+  const b = dump.spec?.tankBounds
+  const S = dump.samples ?? []
+  if (!b || S.length === 0) return null
+  const series = S.map((s) => {
+    let frame = Infinity
+    for (const n of s.nodes ?? []) {
+      const d = Math.min(n.x - b.minX, b.maxX - n.x, n.z - b.minZ, b.maxZ - n.z)
+      if (d < frame) frame = d
+    }
+    return { t: s.t, clearance: frame }
+  })
+  return {
+    series,
+    min: Math.min(...series.map((s) => s.clearance)),
+    fractionWithin: margins.map((m) => ({
+      margin: m,
+      fraction: series.filter((s) => s.clearance < m).length / series.length,
+    })),
+  }
+}
+
+// Whether the creature is still going somewhere, and how much of the tank it uses. The failure this
+// exists to catch is parking: `ground tank` reaches a wall at about 16 s and then drifts under 1 u for
+// the remaining 45, which every whole-run average reports as healthy travel because the first 16 s
+// carry it. Judged on the WORST window rather than the mean for exactly that reason.
+// Grid cell used to judge how much of the floor gets visited. Ten units is a bit over half the creature's
+// own 18 unit footprint: fine enough that circling one part of the tank scores low, coarse enough that a
+// creature is not asked to swim down every lane to score well.
+const ROAM_CELL_UNITS = 10
+
+export function roaming(dump, windowSeconds = 15) {
+  const S = dump.samples ?? []
+  if (S.length < 2) return null
+  const path = S.map((s) => {
+    let x = 0, z = 0
+    for (const n of s.nodes) { x += n.x; z += n.z }
+    return { t: s.t, x: x / s.nodes.length, z: z / s.nodes.length }
+  })
+  const windows = []
+  for (let i = 0; i < path.length; i++) {
+    let j = i
+    while (j < path.length - 1 && path[j].t - path[i].t < windowSeconds) j++
+    if (path[j].t - path[i].t < windowSeconds) break
+    let span = 0
+    for (let k = i; k <= j; k++) {
+      const d = Math.hypot(path[k].x - path[i].x, path[k].z - path[i].z)
+      if (d > span) span = d
+    }
+    windows.push({ from: path[i].t, to: path[j].t, span })
+  }
+  const b = dump.spec?.tankBounds
+  const xs = path.map((p) => p.x), zs = path.map((p) => p.z)
+  const spanX = Math.max(...xs) - Math.min(...xs)
+  const spanZ = Math.max(...zs) - Math.min(...zs)
+  // How much of the floor the creature actually visits, counted on a grid rather than from the extent of
+  // its path. The extent cannot tell a creature that crosses the whole tank from one that circles its
+  // rim: both touch the same extremes. Cell size is one CELL_UNITS square, so a creature is credited with
+  // a cell only by going there, not by going round it.
+  let occupancy = null
+  if (b) {
+    const cols = Math.max(1, Math.round((b.maxX - b.minX) / ROAM_CELL_UNITS))
+    const rows = Math.max(1, Math.round((b.maxZ - b.minZ) / ROAM_CELL_UNITS))
+    const seen = new Set()
+    for (const p of path) {
+      const cx = Math.min(cols - 1, Math.max(0, Math.floor(((p.x - b.minX) / (b.maxX - b.minX)) * cols)))
+      const cz = Math.min(rows - 1, Math.max(0, Math.floor(((p.z - b.minZ) / (b.maxZ - b.minZ)) * rows)))
+      seen.add(cz * cols + cx)
+    }
+    occupancy = seen.size / (cols * rows)
+  }
+  return {
+    windows,
+    worstWindow: windows.length ? windows.reduce((a, c) => (c.span < a.span ? c : a)) : null,
+    coverageX: b ? spanX / (b.maxX - b.minX) : null,
+    coverageZ: b ? spanZ / (b.maxZ - b.minZ) : null,
+    occupancy,
+  }
+}
+
+// Turn rate of the travel direction, in degrees per second. This is the open-loop response `turnBias`
+// has to be calibrated against, and it is NOT the `headingDeg` that `travel` reports: that fits ONE
+// straight line to the whole path, so a body turning steadily through 180° and one going straight can
+// return the same heading. Samples closer together than `smoothSeconds` of travel are skipped, because
+// a body that has barely moved has a direction dominated by its own side-to-side undulation.
+// The smoothing window and the minimum step are the whole metric, not incidental defaults. At 1 s and
+// 0.05 u the baseline `ground tank` run reads 82°/s while going essentially straight and then parking:
+// the body undulates side to side, so the centre of mass oscillates laterally by a few tenths of a unit,
+// and over a short window that lateral swing IS the measured direction. Three seconds of travel and at
+// least half a unit of net step put the undulation below the signal, and drop the parked stretches
+// entirely rather than reading their jitter as steering.
+export function turnRate(dump, smoothSeconds = 3, minStep = 0.5) {
+  const S = dump.samples ?? []
+  if (S.length < 2) return null
+  const path = S.map((s) => {
+    let x = 0, z = 0
+    for (const n of s.nodes) { x += n.x; z += n.z }
+    return { t: s.t, x: x / s.nodes.length, z: z / s.nodes.length }
+  })
+  // Headings are taken a whole window APART, not at every sample. Overlapping windows differentiated
+  // 0.25 s apart turn a few degrees of undulation noise into tens of degrees per second, which is how
+  // the baseline came to read 82°/s while swimming essentially straight. Stepping i to j makes each
+  // heading independent of the last, so the noise is divided by the window rather than by the sample
+  // interval.
+  const headings = []
+  let i = 0
+  while (i < path.length) {
+    let j = i
+    while (j < path.length - 1 && path[j].t - path[i].t < smoothSeconds) j++
+    if (path[j].t - path[i].t < smoothSeconds) break
+    const dx = path[j].x - path[i].x, dz = path[j].z - path[i].z
+    if (Math.hypot(dx, dz) >= minStep) headings.push({ t: path[j].t, a: Math.atan2(dz, dx) })
+    i = j
+  }
+  if (headings.length < 2) return null
+  let net = 0, absRate = 0, n = 0
+  for (let i = 1; i < headings.length; i++) {
+    const dt = headings[i].t - headings[i - 1].t
+    if (dt <= 0) continue
+    let d = headings[i].a - headings[i - 1].a
+    while (d > Math.PI) d -= 2 * Math.PI
+    while (d < -Math.PI) d += 2 * Math.PI
+    net += d
+    absRate += Math.abs(d / dt)
+    n++
+  }
+  const deg = (r) => (r * 180) / Math.PI
+  if (!n) return null
+  return { netDeg: deg(net), meanAbsDegPerSec: deg(absRate / n), samples: n }
+}
+
 export function scoreRun(dump) {
   const frac = dump.spineFracPeak ?? []
   const deg = bendDegrees(dump)
@@ -217,5 +352,8 @@ export function scoreRun(dump) {
     rollPerSec: dump.rollFlips != null ? dump.rollFlips / tv.seconds : null,
     peakRollDeg: dump.maxRollDeg ?? null,
     tank: tankClearance(dump),
+    proximity: wallProximity(dump),
+    roaming: roaming(dump),
+    turn: turnRate(dump),
   }
 }
