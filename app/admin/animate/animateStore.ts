@@ -133,6 +133,17 @@ export interface SimConfig {
   tankWidth: number
   tankHeight: number
   tankDepth: number
+  // Wall-aware steering, the layer above the wave. `roamMargin` is how close to a side wall, in world
+  // units, the creature has to be before it starts turning away; `roamGain` scales how hard it turns
+  // once inside that margin. The bias they produce is ADDED to `turnBias`, so a manual bias still works
+  // and a preset that leaves the margin at 0 is bit-identical to one from before this existed — which is
+  // what keeps every measured preset comparable.
+  roamMargin: number
+  roamGain: number
+  // Opposes the turn in proportion to how fast the creature is already turning. Without it a large gain
+  // turns early but overshoots the centre and settles into a circle; with it the same gain can start the
+  // turn early and still stop turning once the creature is pointing somewhere safe.
+  roamDamping: number
 }
 
 export type SimEngine = 'rapier' | 'mujoco'
@@ -191,6 +202,9 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
   tankWidth: 60,
   tankHeight: 30,
   tankDepth: 40,
+  roamMargin: 0,
+  roamGain: 0.6,
+  roamDamping: 0,
 }
 
 export const SIM_CONFIG_STORAGE_KEY = 'eco3d-animate-sim-config'
@@ -270,6 +284,9 @@ export function pickSimConfig(s: SimConfig): SimConfig {
     tankWidth: s.tankWidth,
     tankHeight: s.tankHeight,
     tankDepth: s.tankDepth,
+    roamMargin: s.roamMargin,
+    roamGain: s.roamGain,
+    roamDamping: s.roamDamping,
   }
 }
 
@@ -296,6 +313,12 @@ interface AnimateStore extends SimConfig {
   // cannot derive it from the config alone: the tank is centred on the creature's own start position,
   // which depends on where the rig's nodes put it.
   tankBounds: { minX: number; maxX: number; minY: number; maxY: number; minZ: number; maxZ: number } | null
+  // Bumped to restart the creature where it started. Gravity and the tank are baked into the generated
+  // model, so the runtime already rebuilds when one of them changes and a rebuild already restarts the
+  // body; a reset is that same rebuild asked for directly. Deliberately NOT part of SimConfig: that is
+  // what makes a preset reproducible and what is persisted, so a nonce inside it would make two identical
+  // presets compare unequal and would persist a reset as though it were configuration.
+  resetNonce: number
   simRecording: boolean
   lastCapturePath: string | null
   coupledRunning: boolean
@@ -330,6 +353,7 @@ interface AnimateStore extends SimConfig {
   resetManualPose: () => void
   setSimDiagnostics: (d: SimDiagnostics) => void
   setTankBounds: (b: AnimateStore['tankBounds']) => void
+  resetCreature: () => void
   setSimRecording: (recording: boolean) => void
   setLastCapturePath: (path: string | null) => void
   setCpgDrive: (v: number) => void
@@ -385,6 +409,9 @@ interface AnimateStore extends SimConfig {
   setTankWidth: (v: number) => void
   setTankHeight: (v: number) => void
   setTankDepth: (v: number) => void
+  setRoamMargin: (v: number) => void
+  setRoamGain: (v: number) => void
+  setRoamDamping: (v: number) => void
   resetSimConfig: () => void
   applySimConfig: (partial: Partial<SimConfig>) => void
   applySimConfigAbsolute: (config: Partial<SimConfig>) => void
@@ -403,6 +430,7 @@ export const useAnimateStore = create<AnimateStore>()(
       manualPose: { rootX: 0, rootZ: 0, rootYawRad: 0, jointAnglesRad: {} },
       simDiagnostics: { kineticEnergy: 0, comX: 0, comZ: 0, comDriftFromStart: 0, maxJointFracOfCap: 0, comYDrift: 0, maxTiltDeg: 0 },
       tankBounds: null,
+      resetNonce: 0,
       simRecording: false,
       lastCapturePath: null,
       coupledRunning: false,
@@ -478,6 +506,7 @@ export const useAnimateStore = create<AnimateStore>()(
 
       setSimDiagnostics: (d) => set({ simDiagnostics: d }),
       setTankBounds: (b) => set({ tankBounds: b }),
+      resetCreature: () => set((s) => ({ resetNonce: s.resetNonce + 1 })),
 
       setSimRecording: (recording) =>
         set(recording ? { simRecording: true, lastCapturePath: null } : { simRecording: false }),
@@ -549,6 +578,9 @@ export const useAnimateStore = create<AnimateStore>()(
       setTankWidth: (v) => set({ tankWidth: v }),
       setTankHeight: (v) => set({ tankHeight: v }),
       setTankDepth: (v) => set({ tankDepth: v }),
+      setRoamMargin: (v) => set({ roamMargin: Math.max(0, v) }),
+      setRoamGain: (v) => set({ roamGain: Math.max(0, Math.min(2, v)) }),
+      setRoamDamping: (v) => set({ roamDamping: Math.max(0, Math.min(2, v)) }),
       resetSimConfig: () =>
         set({
           ...DEFAULT_SIM_CONFIG,

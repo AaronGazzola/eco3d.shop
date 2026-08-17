@@ -13,6 +13,12 @@ import {
   CpgState,
 } from './cpg'
 import { createDelayBuffer, pushAndReadDelayed, GAMMA, MuscleDelayBuffer } from './muscles'
+import { roamBias, ROAM_MIN_HEADING } from './roam'
+
+// How long the lagged centre of mass takes to catch up, and so how much travel the roaming heading is
+// averaged over. One second: long enough that the stroke-by-stroke undulation averages out, short enough
+// that the heading is still the direction the creature is going now.
+const ROAM_HEADING_TAU = 1.0
 
 // The MuJoCo WASM engine, loaded once in the browser. Both the glue (`mujoco.js`) and the `.wasm` are
 // served from public/mujoco/ and loaded at RUNTIME — the glue via a bundler-ignored dynamic import so
@@ -203,6 +209,13 @@ export class MujocoLocomotion {
   private dragImpulse: [number, number, number] = [0, 0, 0]
   private diagPrevNodes: number[][] | null = null
   private diagPrevT = 0
+  // Lagged centre of mass, used only to give the roaming controller a heading. Taken from where the body
+  // has BEEN rather than from its instantaneous axis, because the body undulates: the nose sweeps side to
+  // side every stroke and an axis read off it would ask the controller to correct a turn the creature is
+  // not making. Null until the first step, so the first frame steers nothing.
+  private roamLagCom: { x: number; z: number } | null = null
+  private roamPrevFacing: number | null = null
+  private roamBiasApplied = 0
   private gainprm: Float64Array
   private biasprm: Float64Array
   private legGain = { lift: -1, sweep: -1, damp: -1 }
@@ -408,6 +421,52 @@ export class MujocoLocomotion {
       this.girdleBoost = girdleBoost
     }
 
+    // Wall-aware steering, added on top of whatever bias the config asks for. Off unless a margin is
+    // set, so every preset measured before this existed still runs exactly as it did.
+    const roamMargin = num(cfg.roamMargin, 0)
+    const bounds = this.meta.tankBounds
+    let roam = 0
+    if (roamMargin > 0 && bounds) {
+      const nodes = this.nodePositions()
+      let cx = 0, cz = 0
+      for (const n of nodes) { cx += n.x; cz += n.z }
+      cx /= nodes.length
+      cz /= nodes.length
+      const lag = this.roamLagCom
+      if (lag) {
+        const hx = cx - lag.x
+        const hz = cz - lag.z
+        // The creature's own turn rate, from the same lagged heading the steering reads, so the brake
+        // cannot disagree with what it is braking.
+        let rate = 0
+        const facing = Math.atan2(hz, hx)
+        if (Math.hypot(hx, hz) >= ROAM_MIN_HEADING && this.roamPrevFacing != null) {
+          let d = facing - this.roamPrevFacing
+          while (d > Math.PI) d -= 2 * Math.PI
+          while (d < -Math.PI) d += 2 * Math.PI
+          rate = d / TIMESTEP
+        }
+        this.roamPrevFacing = Math.hypot(hx, hz) >= ROAM_MIN_HEADING ? facing : this.roamPrevFacing
+        roam = roamBias({
+          com: { x: cx, z: cz },
+          heading: { x: hx, z: hz },
+          bounds,
+          margin: roamMargin,
+          gain: num(cfg.roamGain, 0),
+          turnRate: rate,
+          damping: num(cfg.roamDamping, 0),
+        })
+        const k = Math.min(1, TIMESTEP / ROAM_HEADING_TAU)
+        this.roamLagCom = { x: lag.x + (cx - lag.x) * k, z: lag.z + (cz - lag.z) * k }
+      } else {
+        this.roamLagCom = { x: cx, z: cz }
+        this.roamPrevFacing = null
+      }
+    } else {
+      this.roamLagCom = null
+    }
+    this.roamBiasApplied = roam
+
     stepCpg(
       state,
       spec,
@@ -416,7 +475,7 @@ export class MujocoLocomotion {
       TIMESTEP,
       num(cfg.frontDrive, 0),
       num(cfg.frontSegments, 0),
-      num(cfg.turnBias, 0),
+      Math.max(-1, Math.min(1, num(cfg.turnBias, 0) + roam)),
       num(cfg.limbDrive, 0),
       undefined,
       num(cfg.feedbackIpsi, 0),
