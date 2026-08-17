@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useSharedStore } from '../_lib/sharedStore'
 import { useAnimateStore, pickSimConfig, SimConfig, SimEngine, buildConfigLink, EMBED_PATH } from './animateStore'
@@ -9,6 +9,8 @@ import { findSimPreset, applyPreset } from './simPresets'
 import { CameraController, StudioCanvas } from '../_lib/StudioCanvas'
 import { CameraPreset, ModelConfigRow } from '../_lib/types'
 import { AnimatedModel } from '@/app/game/AnimatedModel'
+import { TankBounds } from '@/app/game/TankBounds'
+import { fitTankCamera } from '@/app/game/tankFit'
 
 // Dev/observation hook: lets the headless observation harness (scripts/observe-swim.mjs) drive the
 // studio deterministically — set camera angle, start/stop the sim, toggle drag, tune the CPG, and
@@ -59,6 +61,7 @@ function useStudioObservationHook() {
       gripFoot: (foot: 'FL' | 'FR' | 'BL' | 'BR', on: boolean) => store().setGripFoot(foot, on),
       record: (on: boolean) => store().setSimRecording(on),
       diag: () => store().simDiagnostics,
+      tank: () => store().tankBounds,
       // Total config control for the observation harness: read the full sim config, or apply any
       // subset of it. applySimConfig only writes keys that exist in SimConfig, so the underlying
       // simulation logic is preserved — only its tunable parameters change.
@@ -260,6 +263,39 @@ export function SceneContent({ rootRef: externalRootRef }: { rootRef?: React.Ref
   )
 }
 
+// Frames the whole tank instead of the creature, so the floor rectangle and the creature are visible in
+// the same shot and containment can actually be judged by eye. The fixed `top` preset frames the creature
+// at a fixed height, which puts a 60 x 40 tank entirely off-screen.
+//
+// Uses the same `fitTankCamera` the overlay uses, given the same published bounds, so the studio view and
+// the overlay view are the same fit rather than two opinions about it.
+function TankFramingController({ active, onConsumed }: { active: boolean; onConsumed: () => void }) {
+  const { camera, controls, size } = useThree()
+  const bounds = useAnimateStore((s) => s.tankBounds)
+
+  useEffect(() => {
+    if (!active) return
+    if (!bounds) {
+      console.error('studio: the tank camera was asked for but no tank bounds have been published')
+      onConsumed()
+      return
+    }
+    const perspective = camera as THREE.PerspectiveCamera
+    const fit = fitTankCamera({ bounds, view: 'overhead', aspect: perspective.aspect, fovDeg: perspective.fov })
+    camera.up.set(...fit.up)
+    camera.position.set(...fit.position)
+    camera.lookAt(...fit.target)
+    const oc = controls as unknown as { target?: THREE.Vector3; update?: () => void } | null
+    if (oc?.target) {
+      oc.target.set(...fit.target)
+      oc.update?.()
+    }
+    onConsumed()
+  }, [active, bounds, camera, controls, size.width, size.height, onConsumed])
+
+  return null
+}
+
 export function AnimateScene() {
   const cameraPreset = useAnimateStore((s) => s.cameraPreset)
   const setCameraPreset = useAnimateStore((s) => s.setCameraPreset)
@@ -269,7 +305,15 @@ export function AnimateScene() {
     <StudioCanvas>
       <SceneContent />
       <LocomotionOverlays />
-      <CameraController preset={cameraPreset} onConsumed={() => setCameraPreset(null)} />
+      {/* The same floor rectangle the overlay draws, from the same published bounds, so a run watched in
+          the studio and one watched on the overlay cannot disagree about where the wall is. Without it a
+          creature that has left the tank and one that has left the frame look identical. */}
+      <TankBounds />
+      <TankFramingController active={cameraPreset === 'tank'} onConsumed={() => setCameraPreset(null)} />
+      <CameraController
+        preset={cameraPreset === 'tank' ? null : cameraPreset}
+        onConsumed={() => setCameraPreset(null)}
+      />
     </StudioCanvas>
   )
 }

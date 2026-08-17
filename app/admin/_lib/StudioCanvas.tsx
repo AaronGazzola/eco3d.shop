@@ -11,6 +11,9 @@ const CAMERA_PRESETS: Record<CameraPreset, { pos: [number, number, number]; targ
   front: { pos: [0, 4, 22], target: [0, 4, 0] },
   top: { pos: [0, 30, 0.01], target: [0, 0, 0] },
   side: { pos: [22, 4, 0], target: [0, 4, 0] },
+  // Placeholder only. `tank` is fitted to the published tank bounds rather than to a fixed position, so
+  // it is handled before this table is reached; see TankFramingController in AnimateScene.
+  tank: { pos: [0, 30, 0.01], target: [0, 0, 0] },
 }
 
 export function CameraController({

@@ -60,4 +60,4 @@ export interface BodyGroup {
   nodeWeight?: number
 }
 
-export type CameraPreset = 'reset' | 'front' | 'top' | 'side'
+export type CameraPreset = 'reset' | 'front' | 'top' | 'side' | 'tank'
