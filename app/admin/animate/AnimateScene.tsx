@@ -10,6 +10,7 @@ import { CameraController, StudioCanvas } from '../_lib/StudioCanvas'
 import { CameraPreset, ModelConfigRow } from '../_lib/types'
 import { AnimatedModel } from '@/app/game/AnimatedModel'
 import { TankBounds } from '@/app/game/TankBounds'
+import { HeadingMarker } from '@/app/game/HeadingMarker'
 import { fitTankCamera } from '@/app/game/tankFit'
 
 // Dev/observation hook: lets the headless observation harness (scripts/observe-swim.mjs) drive the
@@ -309,6 +310,9 @@ export function AnimateScene() {
           the studio and one watched on the overlay cannot disagree about where the wall is. Without it a
           creature that has left the tank and one that has left the frame look identical. */}
       <TankBounds />
+      {/* The centre of mass and the averaged heading the steering reads, drawn so a wrong heading is
+          visible as it happens rather than only in a capture afterwards. */}
+      <HeadingMarker />
       <TankFramingController active={cameraPreset === 'tank'} onConsumed={() => setCameraPreset(null)} />
       <CameraController
         preset={cameraPreset === 'tank' ? null : cameraPreset}
