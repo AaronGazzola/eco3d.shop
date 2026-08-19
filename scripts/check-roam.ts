@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { roamBias, sideClearance, wrapAngle, RoamBounds } from '../app/game/locomotion/roam'
+import { roamBias, roamFreeBias, wanderAt, sideClearance, wrapAngle, RoamBounds } from '../app/game/locomotion/roam'
 
 const TANK: RoamBounds = { minX: -30, maxX: 30, minY: 0, maxY: 30, minZ: -20, maxZ: 20 }
 const MARGIN = 15
@@ -78,3 +78,28 @@ console.log(`  head-on at 2 u from the wall   bias ${headOn.toFixed(3)}`)
 console.log(`  head-on at 10 u from the wall  bias ${shallow.toFixed(3)}`)
 console.log(`  pointing back at the centre    bias ${leaving.toFixed(3)}`)
 console.log(`  corner, heading into it        bias ${corner.toFixed(3)}`)
+
+const free = (x: number, z: number, hx: number, hz: number, t: number, inset = 8, wander = 0.4) =>
+  roamFreeBias({ com: { x, z }, heading: { x: hx, z: hz }, bounds: TANK, margin: 0, gain: 0.8, inset, time: t, wander })
+
+const inside = [0, 3, 9, 21, 44].map((t) => free(0, 0, 1, 0, t))
+assert.ok(inside.some((b) => b > 0) && inside.some((b) => b < 0), 'inside the boundary the wander must turn both ways')
+assert.ok(Math.max(...inside.map(Math.abs)) <= 0.4, 'the wander never exceeds its own amplitude')
+assert.equal(free(0, 0, 1, 0, 5, 8, 0), 0, 'no wander amplitude means no wander')
+
+const justOutside = free(0, 19, 0, 1, 5)
+const wellOutside = free(0, 19.9, 0, 1, 5)
+assert.ok(Math.abs(wellOutside) > Math.abs(justOutside), 'the further past the boundary, the firmer the return')
+assert.ok(justOutside !== 0, 'crossing the boundary must start a correction')
+
+const returning = free(0, 19.5, 0, -1, 5)
+assert.equal(returning, 0, 'already heading back inside needs no correction')
+
+let repeat = true
+for (const t of [0, 4.5, 13.25, 30]) if (wanderAt(t) !== wanderAt(t)) repeat = false
+assert.ok(repeat, 'the wander is deterministic and a capture can be re-run')
+assert.notEqual(wanderAt(0), wanderAt(60), 'the wander does not repeat within a run')
+
+console.log('free-wander controller: all checks passed')
+console.log(`  inside the boundary, over time  ${inside.map((b) => b.toFixed(2)).join('  ')}`)
+console.log(`  just outside / well outside     ${justOutside.toFixed(3)} / ${wellOutside.toFixed(3)}`)

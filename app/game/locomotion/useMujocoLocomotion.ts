@@ -126,6 +126,9 @@ export function useMujocoLocomotion(
         t: tNow,
         nodes: driver.nodePositions(),
         cpg: driver.cpgSigned(),
+        // The steering bias in force at this sample, so the controller can be read against the path it
+        // produced rather than guessed at from the shape of the path alone.
+        roamBias: driver.diag(baseComRef.current).roamBias,
         legs: sweepLegs.map((l) => ({ leg: l.leg, limbIdx: l.limbIdx, phase: l.phase, footX: l.footX, footY: l.footY, footZ: l.footZ })),
       })
     }

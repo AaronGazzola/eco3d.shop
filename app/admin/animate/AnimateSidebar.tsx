@@ -199,6 +199,14 @@ function SimulateTab() {
   const tankHeight = useAnimateStore((s) => s.tankHeight)
   const setTankHeight = useAnimateStore((s) => s.setTankHeight)
   const tankDepth = useAnimateStore((s) => s.tankDepth)
+  const roamMargin = useAnimateStore((s) => s.roamMargin)
+  const setRoamMargin = useAnimateStore((s) => s.setRoamMargin)
+  const roamGain = useAnimateStore((s) => s.roamGain)
+  const setRoamGain = useAnimateStore((s) => s.setRoamGain)
+  const roamDamping = useAnimateStore((s) => s.roamDamping)
+  const setRoamDamping = useAnimateStore((s) => s.setRoamDamping)
+  const roamHeadingAxisWeight = useAnimateStore((s) => s.roamHeadingAxisWeight)
+  const setRoamHeadingAxisWeight = useAnimateStore((s) => s.setRoamHeadingAxisWeight)
   const setTankDepth = useAnimateStore((s) => s.setTankDepth)
 
   const resetSimConfig = useAnimateStore((s) => s.resetSimConfig)
@@ -792,6 +800,49 @@ function SimulateTab() {
           step={1}
           onChange={setTankDepth}
           format={(v) => v.toFixed(0)}
+        />
+
+        <Divider />
+
+        <Slider
+          label="Roam · heading source"
+          tip="Which direction the steering believes the creature is going. 0 reads the direction it has TRAVELLED, averaged over 2.5 s, which is honest about motion but lags a turn by that window. 1 reads the direction the body POINTS, fitted across the whole trunk, which responds at once but says nothing about sideways slip. In between blends the two."
+          value={roamHeadingAxisWeight}
+          min={0}
+          max={1}
+          step={0.05}
+          onChange={setRoamHeadingAxisWeight}
+          format={(v) => (v === 0 ? 'travel' : v === 1 ? 'body axis' : v.toFixed(2))}
+        />
+        <Slider
+          label="Roam · margin"
+          tip="How close to a side wall the creature must be, in world units, before it starts turning away. 0 switches roaming off. A margin larger than the tank's half-depth means the controller never releases, which is what makes it steer constantly."
+          value={roamMargin}
+          min={0}
+          max={60}
+          step={1}
+          onChange={setRoamMargin}
+          format={(v) => (v === 0 ? 'off' : v.toFixed(0))}
+        />
+        <Slider
+          label="Roam · gain"
+          tip="How hard the creature turns once inside the margin. Also the ceiling on the steering signal: the ramp and the heading error are each at most 1, so a gain above 1 can reach the hard stop."
+          value={roamGain}
+          min={0}
+          max={2}
+          step={0.05}
+          onChange={setRoamGain}
+          format={(v) => v.toFixed(2)}
+        />
+        <Slider
+          label="Roam · damping"
+          tip="Opposes the turn in proportion to how fast the creature is already turning, to stop it overshooting the centre and settling into a circle. The turn rate behind it is measured across a single physics step, so this saturates readily."
+          value={roamDamping}
+          min={0}
+          max={2}
+          step={0.05}
+          onChange={setRoamDamping}
+          format={(v) => (v === 0 ? 'off' : v.toFixed(2))}
         />
 
         <Divider />

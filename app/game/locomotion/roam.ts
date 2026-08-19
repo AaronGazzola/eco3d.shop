@@ -71,3 +71,44 @@ export function roamBias(input: RoamInput): number {
   const brake = damping * (turnRate / ROAM_REFERENCE_TURN_RATE)
   return Math.max(-1, Math.min(1, steer - brake))
 }
+
+// The wander, and the way back. `bounded` keeps the creature off the glass by turning early and hard;
+// this is the opposite arrangement, for a creature that should look like it is going about its business:
+// it turns at random while it is inside the soft boundary, and only once it is OUTSIDE that boundary does
+// anything try to bring it back.
+//
+// The soft boundary sits `inset` units inside the tank walls, which is what makes leaving it possible at
+// all: the tank walls are solid, so a boundary drawn on them could never be crossed and the behaviour
+// could never be seen.
+//
+// The wander is a sum of sines rather than a random number generator. It has to be reproducible — a
+// capture that cannot be re-run is not evidence — and three incommensurate periods do not repeat over any
+// run length that matters while looking nothing like a pattern.
+export const ROAM_WANDER_PERIODS = [17.3, 7.1, 3.7]
+
+export function wanderAt(t: number): number {
+  let sum = 0
+  for (const p of ROAM_WANDER_PERIODS) sum += Math.sin((2 * Math.PI * t) / p)
+  return sum / ROAM_WANDER_PERIODS.length
+}
+
+export function roamFreeBias(
+  input: RoamInput & { inset: number; time: number; wander: number },
+): number {
+  const { com, heading, bounds, inset, time, wander, gain, turnRate = 0, damping = 0 } = input
+  const outside = inset - sideClearance(com, bounds)
+  if (outside <= 0) return Math.max(-1, Math.min(1, wander * wanderAt(time)))
+  const speed = Math.hypot(heading.x, heading.z)
+  if (speed < ROAM_MIN_HEADING) return 0
+  const centreX = (bounds.minX + bounds.maxX) / 2
+  const centreZ = (bounds.minZ + bounds.maxZ) / 2
+  const error = wrapAngle(
+    Math.atan2(centreZ - com.z, centreX - com.x) - Math.atan2(heading.z, heading.x),
+  )
+  // Ramped over the inset itself, so the correction comes in gradually across the strip between the soft
+  // boundary and the glass rather than snapping on the moment the boundary is crossed.
+  const urgency = Math.min(1, outside / Math.max(1e-6, inset))
+  const steer = gain * urgency * (error / Math.PI)
+  const brake = damping * (turnRate / ROAM_REFERENCE_TURN_RATE)
+  return Math.max(-1, Math.min(1, steer - brake))
+}

@@ -24,6 +24,13 @@ export interface SimDiagnostics {
   maxJointFracOfCap: number
   comYDrift: number
   maxTiltDeg: number
+  // The steering bias the roaming controller applied this frame, so the decision can be watched rather
+  // than inferred from the path it produced.
+  roamBias: number
+  // Centre of mass height and the roaming heading as a vector, so both can be drawn in the scene.
+  comY: number
+  headingX: number
+  headingZ: number
 }
 
 export interface SimConfig {
@@ -144,6 +151,16 @@ export interface SimConfig {
   // turns early but overshoots the centre and settles into a circle; with it the same gain can start the
   // turn early and still stop turning once the creature is pointing somewhere safe.
   roamDamping: number
+  // Which heading the steering reads. 0 takes the direction the creature has TRAVELLED, averaged over a
+  // window, which is truthful about motion but lags a turn by the length of that window. 1 takes the
+  // direction the body POINTS, from its own trunk, which responds at once but says nothing about whether
+  // the creature is sliding sideways. Between the two, the blend of both.
+  roamHeadingAxisWeight: number
+  // The soft boundary for the free-wandering mode, this far inside the tank walls, and how strongly the
+  // creature turns at random while inside it. With wander at 0 the free mode is off and the bounded
+  // controller runs instead.
+  roamInset: number
+  roamWander: number
 }
 
 export type SimEngine = 'rapier' | 'mujoco'
@@ -205,6 +222,9 @@ export const DEFAULT_SIM_CONFIG: SimConfig = {
   roamMargin: 0,
   roamGain: 0.6,
   roamDamping: 0,
+  roamHeadingAxisWeight: 0,
+  roamInset: 0,
+  roamWander: 0,
 }
 
 export const SIM_CONFIG_STORAGE_KEY = 'eco3d-animate-sim-config'
@@ -287,6 +307,9 @@ export function pickSimConfig(s: SimConfig): SimConfig {
     roamMargin: s.roamMargin,
     roamGain: s.roamGain,
     roamDamping: s.roamDamping,
+    roamHeadingAxisWeight: s.roamHeadingAxisWeight,
+    roamInset: s.roamInset,
+    roamWander: s.roamWander,
   }
 }
 
@@ -412,6 +435,9 @@ interface AnimateStore extends SimConfig {
   setRoamMargin: (v: number) => void
   setRoamGain: (v: number) => void
   setRoamDamping: (v: number) => void
+  setRoamHeadingAxisWeight: (v: number) => void
+  setRoamInset: (v: number) => void
+  setRoamWander: (v: number) => void
   resetSimConfig: () => void
   applySimConfig: (partial: Partial<SimConfig>) => void
   applySimConfigAbsolute: (config: Partial<SimConfig>) => void
@@ -428,7 +454,7 @@ export const useAnimateStore = create<AnimateStore>()(
       cameraPreset: null,
       modelOpacity: 1,
       manualPose: { rootX: 0, rootZ: 0, rootYawRad: 0, jointAnglesRad: {} },
-      simDiagnostics: { kineticEnergy: 0, comX: 0, comZ: 0, comDriftFromStart: 0, maxJointFracOfCap: 0, comYDrift: 0, maxTiltDeg: 0 },
+      simDiagnostics: { kineticEnergy: 0, comX: 0, comZ: 0, comDriftFromStart: 0, maxJointFracOfCap: 0, comYDrift: 0, maxTiltDeg: 0, roamBias: 0, comY: 0, headingX: 0, headingZ: 0 },
       tankBounds: null,
       resetNonce: 0,
       simRecording: false,
@@ -581,6 +607,9 @@ export const useAnimateStore = create<AnimateStore>()(
       setRoamMargin: (v) => set({ roamMargin: Math.max(0, v) }),
       setRoamGain: (v) => set({ roamGain: Math.max(0, Math.min(2, v)) }),
       setRoamDamping: (v) => set({ roamDamping: Math.max(0, Math.min(2, v)) }),
+      setRoamHeadingAxisWeight: (v) => set({ roamHeadingAxisWeight: Math.max(0, Math.min(1, v)) }),
+      setRoamInset: (v) => set({ roamInset: Math.max(0, v) }),
+      setRoamWander: (v) => set({ roamWander: Math.max(0, Math.min(1, v)) }),
       resetSimConfig: () =>
         set({
           ...DEFAULT_SIM_CONFIG,

@@ -13,12 +13,24 @@ import {
   CpgState,
 } from './cpg'
 import { createDelayBuffer, pushAndReadDelayed, GAMMA, MuscleDelayBuffer } from './muscles'
-import { roamBias, ROAM_MIN_HEADING } from './roam'
+import { roamBias, roamFreeBias, ROAM_MIN_HEADING } from './roam'
 
-// How long the lagged centre of mass takes to catch up, and so how much travel the roaming heading is
-// averaged over. One second: long enough that the stroke-by-stroke undulation averages out, short enough
-// that the heading is still the direction the creature is going now.
-const ROAM_HEADING_TAU = 1.0
+// How far back the roaming heading looks, in seconds. The heading is the mean of the direction the
+// centre of mass moved on each step across this window, with every step counted equally regardless of
+// how far it travelled.
+//
+// Averaging the DISPLACEMENTS would be pointless: their sum is first-point-to-last-point, so the answer
+// would be identical to differencing the ends. Averaging the DIRECTIONS is what cancels the swimming
+// stroke, because the stroke throws the centre of mass equally to each side and the two sides cancel.
+//
+// The window has to span more than one stroke or a part-finished stroke leaves its swing in the result.
+// The measured stroke is about 1.2 s, so 2.5 s covers two of them.
+const ROAM_HEADING_WINDOW = 2.5
+
+// How hard the BODY-AXIS heading is smoothed. Far shorter than the travel window because the axis is
+// already stroke-resistant: it is fitted across the whole trunk, and the halves of a stroke cancel within
+// a single frame rather than needing seconds of history. Long enough only to take out residual nose yaw.
+const ROAM_AXIS_TAU = 0.35
 
 // The MuJoCo WASM engine, loaded once in the browser. Both the glue (`mujoco.js`) and the `.wasm` are
 // served from public/mujoco/ and loaded at RUNTIME — the glue via a bundler-ignored dynamic import so
@@ -161,6 +173,12 @@ export interface MjDiag {
   maxJointFracOfCap: number
   comYDrift: number
   maxTiltDeg: number
+  // The steering bias the roaming controller applied this frame.
+  roamBias: number
+  // Centre of mass height and the roaming heading as a vector, so both can be drawn in the scene.
+  comY: number
+  headingX: number
+  headingZ: number
   // Cumulative applied impulse since the run started, split by source, as RAW WORLD VECTORS. They are
   // deliberately not projected onto a forward direction: doing so needs a heading, and the body has
   // none — travel direction is a measured output, so the projection belongs in offline analysis.
@@ -213,8 +231,21 @@ export class MujocoLocomotion {
   // has BEEN rather than from its instantaneous axis, because the body undulates: the nose sweeps side to
   // side every stroke and an axis read off it would ask the controller to correct a turn the creature is
   // not making. Null until the first step, so the first frame steers nothing.
+  // Ring of recent per-step direction unit vectors, and their running sum, so the mean direction is read
+  // in constant time rather than by walking the window every step.
+  private roamDirX: Float64Array = new Float64Array(Math.ceil(ROAM_HEADING_WINDOW / TIMESTEP))
+  private roamDirZ: Float64Array = new Float64Array(Math.ceil(ROAM_HEADING_WINDOW / TIMESTEP))
+  private roamAxisX = 0
+  private roamAxisZ = 0
+  private roamHeadX = 0
+  private roamHeadZ = 0
+  private roamDirAt = 0
+  private roamDirCount = 0
+  private roamDirSumX = 0
+  private roamDirSumZ = 0
   private roamLagCom: { x: number; z: number } | null = null
   private roamPrevFacing: number | null = null
+  private roamTime = 0
   private roamBiasApplied = 0
   private gainprm: Float64Array
   private biasprm: Float64Array
@@ -424,9 +455,12 @@ export class MujocoLocomotion {
     // Wall-aware steering, added on top of whatever bias the config asks for. Off unless a margin is
     // set, so every preset measured before this existed still runs exactly as it did.
     const roamMargin = num(cfg.roamMargin, 0)
+    const roamWander = num(cfg.roamWander, 0)
+    const roamInset = num(cfg.roamInset, 0)
+    const roamActive = roamWander > 0 ? roamInset > 0 : roamMargin > 0
     const bounds = this.meta.tankBounds
     let roam = 0
-    if (roamMargin > 0 && bounds) {
+    if (roamActive && bounds) {
       const nodes = this.nodePositions()
       let cx = 0, cz = 0
       for (const n of nodes) { cx += n.x; cz += n.z }
@@ -434,8 +468,54 @@ export class MujocoLocomotion {
       cz /= nodes.length
       const lag = this.roamLagCom
       if (lag) {
-        const hx = cx - lag.x
-        const hz = cz - lag.z
+        // One step's direction of travel, as a unit vector, pushed into the window. A step that barely
+        // moved carries no direction worth having and is dropped rather than normalised into noise.
+        const dx = cx - lag.x
+        const dz = cz - lag.z
+        const dLen = Math.hypot(dx, dz)
+        if (dLen > 1e-9) {
+          const i = this.roamDirAt
+          this.roamDirSumX += dx / dLen - this.roamDirX[i]
+          this.roamDirSumZ += dz / dLen - this.roamDirZ[i]
+          this.roamDirX[i] = dx / dLen
+          this.roamDirZ[i] = dz / dLen
+          this.roamDirAt = (i + 1) % this.roamDirX.length
+          if (this.roamDirCount < this.roamDirX.length) this.roamDirCount++
+        }
+        const n = Math.max(1, this.roamDirCount)
+        const travelX = this.roamDirSumX / n
+        const travelZ = this.roamDirSumZ / n
+
+        // The body's own axis, lightly smoothed. Seeded rather than eased on the first frame, so the
+        // heading does not start pointing along +X regardless of how the creature is actually lying.
+        const axis = this.bodyAxis()
+        if (axis) {
+          if (this.roamAxisX === 0 && this.roamAxisZ === 0) {
+            this.roamAxisX = axis.x
+            this.roamAxisZ = axis.z
+          } else {
+            const ka = Math.min(1, TIMESTEP / ROAM_AXIS_TAU)
+            this.roamAxisX += (axis.x - this.roamAxisX) * ka
+            this.roamAxisZ += (axis.z - this.roamAxisZ) * ka
+          }
+        }
+
+        // Blend of the two headings, by weight. 0 is pure travel direction, 1 is pure body axis. Blended
+        // as vectors and then renormalised, so a half-and-half weighting gives the direction between the
+        // two rather than a shorter vector pointing at neither.
+        //
+        // The travel vector is a mean of unit steps, so its length already says how coherent the path was;
+        // it is normalised here before blending so that coherence cannot silently act as a second weight.
+        const w = Math.max(0, Math.min(1, num(cfg.roamHeadingAxisWeight, 0)))
+        const tLen = Math.hypot(travelX, travelZ)
+        const tux = tLen > 1e-9 ? travelX / tLen : 0
+        const tuz = tLen > 1e-9 ? travelZ / tLen : 0
+        let hx = tux * (1 - w) + this.roamAxisX * w
+        let hz = tuz * (1 - w) + this.roamAxisZ * w
+        const hLen = Math.hypot(hx, hz)
+        if (hLen > 1e-9) { hx /= hLen; hz /= hLen }
+        this.roamHeadX = hx
+        this.roamHeadZ = hz
         // The creature's own turn rate, from the same lagged heading the steering reads, so the brake
         // cannot disagree with what it is braking.
         let rate = 0
@@ -447,7 +527,8 @@ export class MujocoLocomotion {
           rate = d / TIMESTEP
         }
         this.roamPrevFacing = Math.hypot(hx, hz) >= ROAM_MIN_HEADING ? facing : this.roamPrevFacing
-        roam = roamBias({
+        this.roamTime += TIMESTEP
+        const shared = {
           com: { x: cx, z: cz },
           heading: { x: hx, z: hz },
           bounds,
@@ -455,15 +536,32 @@ export class MujocoLocomotion {
           gain: num(cfg.roamGain, 0),
           turnRate: rate,
           damping: num(cfg.roamDamping, 0),
-        })
-        const k = Math.min(1, TIMESTEP / ROAM_HEADING_TAU)
-        this.roamLagCom = { x: lag.x + (cx - lag.x) * k, z: lag.z + (cz - lag.z) * k }
+        }
+        // Two arrangements, chosen by whether a wander is asked for. Bounded turns early to keep the
+        // creature off the glass; free wanders at random and only corrects once the soft boundary has
+        // actually been crossed.
+        roam =
+          roamWander > 0
+            ? roamFreeBias({ ...shared, inset: roamInset, time: this.roamTime, wander: roamWander })
+            : roamBias(shared)
+        // The previous position only, now: the window does the smoothing, so lagging this as well would
+        // smooth the same signal twice and put the heading further behind the creature than intended.
+        this.roamLagCom = { x: cx, z: cz }
       } else {
         this.roamLagCom = { x: cx, z: cz }
         this.roamPrevFacing = null
+        this.roamDirX.fill(0)
+        this.roamDirZ.fill(0)
+        this.roamDirAt = 0
+        this.roamDirCount = 0
+        this.roamDirSumX = 0
+        this.roamDirSumZ = 0
+        this.roamAxisX = 0
+        this.roamAxisZ = 0
       }
     } else {
       this.roamLagCom = null
+      this.roamTime = 0
     }
     this.roamBiasApplied = roam
 
@@ -702,6 +800,28 @@ export class MujocoLocomotion {
     this.simTime += TIMESTEP
   }
 
+  // The direction the BODY points, in the horizontal plane, as opposed to the direction it has travelled.
+  // Taken as the front half of the trunk against the back half: the nose sweeps the widest arc of any part
+  // of the creature, so reading the head alone swings more than the travel path does, while the two halves
+  // of a stroke cancel against each other across the whole trunk.
+  //
+  // Head-forward by construction, because the front centroid is subtracted from the back one, so no
+  // separate sign resolution is needed and none can be got wrong.
+  private bodyAxis(): { x: number; z: number } | null {
+    const nodes = this.nodePositions()
+    const trunk = nodes.length - this.legs.length
+    if (trunk < 4) return null
+    const half = Math.floor(trunk / 2)
+    let fx = 0, fz = 0, bx = 0, bz = 0
+    for (let i = 0; i < half; i++) { fx += nodes[i].x; fz += nodes[i].z }
+    for (let i = trunk - half; i < trunk; i++) { bx += nodes[i].x; bz += nodes[i].z }
+    fx /= half; fz /= half; bx /= half; bz /= half
+    const dx = fx - bx, dz = fz - bz
+    const len = Math.hypot(dx, dz)
+    if (len < 1e-6) return null
+    return { x: dx / len, z: dz / len }
+  }
+
   // ── Observation (harness parity) ────────────────────────────────────────────────────────────────
   // Sim time (seconds) advanced by step(); mirrors the Rapier handle's simTime for diagnostics.
   get time(): number {
@@ -876,6 +996,10 @@ export class MujocoLocomotion {
       maxJointFracOfCap: maxFrac,
       comYDrift: cy - base[1],
       maxTiltDeg,
+      roamBias: this.roamBiasApplied,
+      comY: cy,
+      headingX: this.roamHeadX,
+      headingZ: this.roamHeadZ,
       footImpulseX: this.footImpulse[0],
       footImpulseY: this.footImpulse[1],
       footImpulseZ: this.footImpulse[2],

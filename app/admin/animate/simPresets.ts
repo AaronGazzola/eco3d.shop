@@ -166,6 +166,58 @@ export const SIM_PRESETS: SimPreset[] = [
     legWeight: MUJOCO_LEG_WEIGHT,
   },
 
+  // What the overlay actually runs. The grounded tank preset with wall-aware steering switched on, and
+  // nothing else changed. It is a separate preset rather than three more lines on the grounded preset
+  // because that preset and the flight one are required to differ by exactly one lever, so any difference
+  // between them is the medium rather than a retune. Steering one of the pair would destroy that
+  // comparison and every measurement taken through it.
+  //
+  // Steering sets turnBias and nothing else, so the wave, the muscles and the couplings are the approved
+  // base swim untouched.
+  {
+    name: 'bounded',
+    description:
+      "STEERED, measured 17-Aug-2026, 90 s. `ground tank` with wall-aware steering on and no other change. The creature turns away from the glass instead of parking against it: closest approach 1.21 u, 7% of the run within 2 u of a wall, 63% of the floor visited, worst 15 s excursion 9.90 u — against 0.81 u, 84%, 25% and 0.24 u unsteered, where it reached the far wall at about 16 s and parked for the remaining 45. Peak roll unchanged at about 2°. The margin is deliberately larger than the tank is deep: at 2 u/s against a turn of about 7°/s a creature that waits until it is near the glass cannot come round in time, so the turn is under way for most of the crossing, and the damping is what stops that becoming a permanent hard turn. CAVEAT: turning costs forward speed on this rig (1.86 u/s at zero bias against 0.41 at 0.6), so the creature loops rather than crossing end to end. CAVEAT: the margin is a fixed distance and will need restating as a fraction of the tank once the tank is sized from the overlay box.",
+    engine: 'mujoco',
+    config: {
+      ...MUJOCO_BASE_SWIM,
+      tankEnabled: true,
+      tankWidth: 60,
+      tankHeight: 30,
+      tankDepth: 40,
+      roamMargin: 45,
+      roamGain: 2,
+      roamDamping: 0.3,
+    },
+    legWeight: MUJOCO_LEG_WEIGHT,
+  },
+
+  // The opposite arrangement to `bounded`, for a creature that should read as going about its business
+  // rather than patrolling. It turns at random while inside a soft boundary set in from the glass, and
+  // only once that boundary has actually been crossed does anything bring it back.
+  //
+  // The soft boundary is inset rather than drawn on the walls because the walls are solid: a boundary the
+  // creature could never cross would make the returning behaviour unobservable.
+  //
+  // The wander is a sum of three incommensurate sines, not a random number generator, so a capture can be
+  // re-run and used as evidence.
+  {
+    name: 'unbounded',
+    description: 'MEASURED 18-Aug-2026, 90 s. Free wandering with a return once the soft boundary is crossed, in the same 60x30x40 tank as . Turns at random inside the boundary and turns back outside it, setting turnBias and nothing else. Never parks: worst 15 s excursion 12.31 u, 54% of the floor visited, 14% of the run within 2 u of a wall, closest approach 1.06 u, turn rate 6.89 deg/s. Against  (1.21 u, 7%, 63%, 5.49 deg/s) the creature spends more time near the glass and covers slightly less floor, in exchange for a path that wanders rather than patrolling. CAVEAT: the boundary is inset 45 u, larger than the tank is deep, because a correction that waits until the boundary is genuinely crossed cannot come round in time on this rig at about 7 deg/s against 2 u/s of travel - every late-correction setting tested parked against the glass. CAVEAT: the inset is a fixed distance and needs restating as a fraction once the tank is sized from the overlay box.',
+    engine: 'mujoco',
+    config: {
+      ...MUJOCO_BASE_SWIM,
+      tankEnabled: true,
+      tankWidth: 60,
+      tankHeight: 30,
+      tankDepth: 40,
+      roamInset: 45,
+      roamWander: 0.2,
+      roamGain: 2,
+      roamDamping: 0.3,
+    },
+    legWeight: MUJOCO_LEG_WEIGHT,
+  },
   // ── Rapier — the earlier reference tunings ────────────────────────────────────────────────────────
   // The pure CPG body wave with the legs built and held rigid, no grip, no drag. With no drag the body
   // just undulates in place (no net travel) — this is the clean traveling wave the grip timing is read

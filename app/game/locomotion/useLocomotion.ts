@@ -57,6 +57,8 @@ interface NodeCaptureSample {
   // offline against the CPG-clocked plant window. The phase must come from the runtime: deriving the
   // window from body motion is the error the roadmap already records once.
   legs?: { leg: string; limbIdx: number; phase: number; footX: number; footY: number; footZ: number }[]
+  // The steering bias in force at this sample. Zero on the Rapier path, which has no roaming.
+  roamBias?: number
 }
 // A primitive-window boundary crossing, detected at render rate from the CPG phase alone (so it is
 // observed WITHOUT the grip/step switches being on — the behaviour never interferes). Optionally
@@ -721,6 +723,11 @@ export function useLocomotion(
             maxJointFracOfCap: samp.maxJointFracOfCap,
             comYDrift: samp.comY - c.baseCom.y,
             maxTiltDeg: samp.maxTiltDeg,
+            // Rapier carries no roaming controller, so the bias it applies is always zero.
+            roamBias: 0,
+            comY: samp.comY,
+            headingX: 0,
+            headingZ: 0,
           })
         }
 
