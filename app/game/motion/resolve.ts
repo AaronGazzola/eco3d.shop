@@ -21,7 +21,7 @@ interface PublishedMotion {
 // press against the glass pitches it into the ceiling, and the steering that fixes that is a phase that
 // has not been built.
 const PUBLISHED: Record<string, PublishedMotion> = {
-  [CRUISE]: { preset: 'ground tank', engine: 'mujoco', view: 'overhead' },
+  [CRUISE]: { preset: 'bounded', engine: 'mujoco', view: 'overhead' },
 }
 
 export interface ResolvedMotion {

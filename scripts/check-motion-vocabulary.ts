@@ -19,7 +19,11 @@ console.log('a published name resolves to its own configuration')
   check('cruise is published', publishedMotionNames().includes(CRUISE))
   const cruise = resolveMotion(CRUISE)
   check('cruise did not fall back', cruise.fellBack === false)
-  check('cruise resolved to the grounded baseline', cruise.preset.name === 'ground tank')
+  check('cruise resolves to the bounded preset', cruise.preset.name === 'bounded')
+  // The overlay is the one surface a viewer watches for minutes at a time, so a creature that parks
+  // against the glass reads as broken. Steering being ON is therefore part of what cruise MEANS, not a
+  // tuning detail, and is asserted rather than left to whichever preset cruise happens to point at.
+  check('cruise steers away from the walls', Number((cruise.preset.config as Record<string, unknown>).roamMargin) > 0)
   check('the grounded baseline is a mujoco preset', cruise.preset.engine === 'mujoco')
   check('the resolved preset carries a configuration', Object.keys(cruise.preset.config).length > 0)
 }
