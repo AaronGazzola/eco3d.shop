@@ -17,7 +17,7 @@ export interface PlatformDrivenHost extends DrivableHost {
 
 const DEFAULT_ROOMINESS = 1
 const ROOMINESS_MIN = 0.25
-const ROOMINESS_MAX = 4
+const ROOMINESS_MAX = 2.5
 
 const DEFAULT_CREATURE_NAME = 'Dragon'
 

@@ -12,7 +12,7 @@
   back to 1.
 - [x] 1.3 In `app/game/hosts.ts`, map a `roominess` key alongside `creatureName` in
   `createPlatformHost`'s `applyPlatformSettings`, holding 1 whenever the incoming value is absent, not a
-  number, or outside 0.25..4. Expose the mapped value through the host so the page can read it.
+  number, or outside 0.25..2.5. Expose the mapped value through the host so the page can read it.
 - [x] 1.4 In `app/game/embed/page.tsx`, add `onBox` to the `connectPlatform` call, holding the reported box
   in state. Derive the tank with `tankForBox` from that box and the host's room figure, and write
   `tankWidth`, `tankHeight` and `tankDepth` into the animate store. Leave the store untouched while no box
@@ -58,13 +58,17 @@ declares its fields, the host stores them without interpreting them, and the str
 control. A hand-built slider would reimplement that and would not reach the settings message.
 
 - [x] 5.1 In `scripts/seed-dragon-overlay.ts`, declare a `roominess` field on the dragon overlay's
-  `settings_fields`: type number, default 1, minimum 0.25, maximum 4, step 0.25, with help text saying a
+  `settings_fields`: type number, default 1, minimum 0.25, maximum 2.5, step 0.01, with help text saying a
   lower number means a smaller tank and so a larger creature.
-- [ ] 5.2 Re-run `doppler run -- npx tsx scripts/seed-dragon-overlay.ts` so the published overlay row
-  carries the new field and the streamer's editor renders it. NOT RUN: this writes to the production
-  overlay row on Vids.Tube, which is an outward-facing change and needs the owner's word first.
-- [ ] 5.3 Confirm the room figure reaches the game through the settings message the host already sends,
-  with no change to the message shape. Blocked on 5.2, and confirmable only in the running composer.
+- [x] 5.2 Re-run `doppler run -- npx tsx scripts/seed-dragon-overlay.ts` so the published overlay row
+  carries the new field and the streamer's editor renders it. Run 18-Aug-2026 with the owner approving the
+  production write. The published row now declares `creatureName` and `roominess`, the latter a number from
+  0.25 to 2.5 in steps of 0.01, which the settings panel renders as a slider because both bounds are given.
+- [x] 5.3 Confirm the room figure reaches the game through the settings message the host already sends,
+  with no change to the message shape. Confirmed by reading the chain: the installation's saved settings
+  reach the game window, which posts them to the frame as a `settings` message on first contact and again
+  whenever they change, and the game maps `roominess` beside `creatureName`. Not yet exercised by a live
+  drag of the slider, which needs the running composer.
 
 ## 6. Proving it
 
