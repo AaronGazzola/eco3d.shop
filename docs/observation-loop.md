@@ -179,6 +179,8 @@ liftAmount, legStiffness, legDamping`.
 
 ### Server (detach so it survives the shell)
 
+**Serve from the worktree you are working in, on a spare port.** Development is streamed and the streamed instance is served from the streaming worktree on its own port — see "Where work happens" in `CLAUDE.md`. Observing from a feature worktree means `prod:3002` or `prod:3003` there, never the streamed port and never the streaming worktree's server.
+
 macOS / Linux:
 ```bash
 doppler run -- npx --no-install next start -p 3002 > .next-server.log 2>&1 &
@@ -186,7 +188,7 @@ doppler run -- npx --no-install next start -p 3002 > .next-server.log 2>&1 &
 
 Windows (PowerShell):
 ```powershell
-$proj = "C:\Users\azgaz\Documents\Projects\eco3d.shop"
+$proj = (Get-Location).Path   # the worktree you are in, not a fixed path
 Start-Process -FilePath "powershell" -ArgumentList "-NoProfile","-Command",
   "Set-Location '$proj'; doppler run -- npx --no-install next start -p 3002 *> '$proj\.next-server.log'" `
   -WindowStyle Hidden
